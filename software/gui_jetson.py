@@ -1,9 +1,12 @@
 import tkinter as tk
 import datetime
 import threading
+import serial
+import cv2
+
+import motion
 
 # from picamera import PiCamera
-from scipy import misc
 import numpy
 
 ### LED, stepper control ###
@@ -13,16 +16,17 @@ import time
 # import picamera.array
 import numpy as np
 import time
-from scipy.ndimage.filters import laplace
+#from scipy.ndimage.filters import laplace
 from numpy import std
 from numpy import square
 from numpy import mean
 # import matplotlib.pyplot as plt
 
-
-import gpio
 import imaging
-import motion
+
+from datetime import datetime
+
+import time
 
 class Application(tk.Frame):
 
@@ -31,35 +35,54 @@ class Application(tk.Frame):
         #self.pack()
         self.grid()
         self.create_widgets()
-
         self.il = None
 
 
     ### illumination control ###
     def enable_led(self):
         self.btn_led.config(relief='sunken')
-        imaging.ILLUMINATIONS['bf'].device.enable()
+        cmd_str = '0000'
+        cmd = bytearray(cmd_str.encode())
+        cmd[0] = 3
+        cmd[1] = 1
+        ser.write(cmd)
+        imaging.ILLUMINATIONS['bf'].isON = True
 
     def disable_led(self):
         self.btn_led.config(relief='raised')
-        imaging.ILLUMINATIONS['bf'].device.disable()
+        cmd_str = '0000'
+        cmd = bytearray(cmd_str.encode())
+        cmd[0] = 3
+        cmd[1] = 0
+        ser.write(cmd)
+        imaging.ILLUMINATIONS['bf'].isON = False
 
     def toggle_led(self):
-        if imaging.ILLUMINATIONS['bf'].device.state:
+        if imaging.ILLUMINATIONS['bf'].isON:
             self.disable_led()
         else:
             self.enable_led()
 
     def enable_laser(self):
         self.btn_laser.config(relief='sunken')
-        imaging.ILLUMINATIONS['fluor'].device.enable()
+        cmd_str = '0000'
+        cmd = bytearray(cmd_str.encode())
+        cmd[0] = 5
+        cmd[1] = 1
+        ser.write(cmd)
+        imaging.ILLUMINATIONS['fluor'].isON = True
 
     def disable_laser(self):
         self.btn_laser.config(relief='raised')
-        imaging.ILLUMINATIONS['fluor'].device.disable()
+        cmd_str = '0000'
+        cmd = bytearray(cmd_str.encode())
+        cmd[0] = 5
+        cmd[1] = 0
+        ser.write(cmd)
+        imaging.ILLUMINATIONS['fluor'].isON = False
 
     def toggle_laser(self):
-        if imaging.ILLUMINATIONS['fluor'].device.state:
+        if imaging.ILLUMINATIONS['fluor'].isON:
             self.disable_laser()
         else:
             self.enable_laser()
@@ -93,13 +116,14 @@ class Application(tk.Frame):
             self.disable_bf()
             self.var_exposure_time.set(self.var_exposure_time_fluor.get())
             self.il = imaging.ILLUMINATIONS['fluor']
-            self.il.exposure_time = int(float(self.var_exposure_time_bf.get()))
+            self.il.exposure_time = int(float(self.var_exposure_time_fluor.get()))
             imaging.set_illumination(self.il, cam)
             self.btn_fluor.config(relief='sunken')
             self.enable_laser()
         else:
             self.disable_fluor()
 
+    '''
     def toggle_recording(self,tog=[0]):
         tog[0] = not tog[0]
         if tog[0]:
@@ -109,56 +133,56 @@ class Application(tk.Frame):
         else:
             self.btn_record.config(relief='raised')
             # camera.stop_recording()
+    '''
 
     def x_move(self, direction):
-        x_stepper.move(
-            direction, int(self.entry_x_step.get()), float(self.entry_x_delay.get())
-        )
+        x_stepper.move(direction*float(self.entry_x_step.get()))
         self.label_xPos.config(text=str(x_stepper.position))
 
     def y_move(self, direction):
-        y_stepper.move(
-            direction, int(self.entry_y_step.get()), float(self.entry_y_delay.get())
-        )
+        y_stepper.move(direction*float(self.entry_y_step.get()))
         self.label_yPos.config(text=str(y_stepper.position))
 
-
+    def z_move(self, direction):
+        z_stepper.move(direction*float(self.entry_z_step.get()))
+        self.label_zPos.config(text=str(z_stepper.position))
 
     ### create widgets ###
     def create_widgets(self):
 
         # x #
-        self.label_x = tk.Label(self,text='x')
+        self.label_x = tk.Label(self,text='x (mm)')
         self.entry_x_step = tk.Entry(self,width = 5)
         self.entry_x_delay = tk.Entry(self,width = 5)
-        self.entry_x_step.insert(0,"256")
+        self.entry_x_step.insert(0,"1")
         self.entry_x_delay.insert(0,"0.0002")
-        self.btn_x_forward = tk.Button(
-            self, text="Forward", command=lambda: self.x_move(1)
-        )
-        self.btn_x_backward = tk.Button(
-            self, text="Backward", command=lambda: self.x_move(-1)
-        )
+        self.btn_x_forward = tk.Button(self, text="Forward", command=lambda: self.x_move(1))
+        self.btn_x_backward = tk.Button(self, text="Backward", command=lambda: self.x_move(-1))
         self.label_xPos = tk.Label(self,text='0')
 
         # y #
-        self.label_y = tk.Label(self,text='y')
+        self.label_y = tk.Label(self,text='y (mm)')
         self.entry_y_step = tk.Entry(self,width = 5)
         self.entry_y_delay = tk.Entry(self,width = 5)
-        self.entry_y_step.insert(0,"256")
+        self.entry_y_step.insert(0,"1")
         self.entry_y_delay.insert(0,"0.0002")
-        self.btn_y_forward = tk.Button(
-            self, text="Forward", command=lambda: self.y_move(1)
-        )
-        self.btn_y_backward = tk.Button(
-            self, text="Backward", command=lambda: self.y_move(-1)
-        )
+        self.btn_y_forward = tk.Button(self, text="Forward", command=lambda: self.y_move(1))
+        self.btn_y_backward = tk.Button(self, text="Backward", command=lambda: self.y_move(-1))
         self.label_yPos = tk.Label(self,text='0')
 
+        # z #
+        self.label_z = tk.Label(self,text='z (um)')
+        self.entry_z_step = tk.Entry(self,width = 5)
+        self.entry_z_delay = tk.Entry(self,width = 5)
+        self.entry_z_step.insert(0,"1")
+        self.entry_z_delay.insert(0,"0.0002")
+        self.btn_z_forward = tk.Button(self, text="Forward", command=lambda: self.z_move(1))
+        self.btn_z_backward = tk.Button(self, text="Backward", command=lambda: self.z_move(-1))
+        self.label_zPos = tk.Label(self,text='0')
+
         # quit
-        self.quit = tk.Button(
-          self, text="QUIT", fg="red", command=root.destroy
-        )
+        self.quit = tk.Button(self, text="QUIT", fg="red", command=root.destroy)
+        
         self.label_x.grid(row=1,column=0)
         self.entry_x_step.grid(row=1,column=1)
         self.entry_x_delay.grid(row=1,column=2)
@@ -172,6 +196,13 @@ class Application(tk.Frame):
         self.btn_y_forward.grid(row=2,column=3)
         self.btn_y_backward.grid(row=2,column=4)
         self.label_yPos.grid(row=2,column=5)
+
+        self.label_z.grid(row=3,column=0)
+        self.entry_z_step.grid(row=3,column=1)
+        self.entry_z_delay.grid(row=3,column=2)
+        self.btn_z_forward.grid(row=3,column=3)
+        self.btn_z_backward.grid(row=3,column=4)
+        self.label_zPos.grid(row=3,column=5)
 
         # seperation
         self.label_seperator = tk.Label(self,text='  ')
@@ -245,7 +276,7 @@ class Application(tk.Frame):
             self,from_=0.1, to=1, resolution=0.05, orient=tk.HORIZONTAL, length=275,
             command=lambda value:set_size(float(value), float(self.scale_zoom.get()))
         )
-        self.scale_size.set(0.75)
+        self.scale_size.set(0.5)
         self.label_size.grid(row=11,column=0,sticky=tk.W)
         self.scale_size.grid(row=11,column=1,columnspan=4,sticky=tk.W)
 
@@ -267,6 +298,7 @@ class Application(tk.Frame):
         self.label_pan_y.grid(row=13,column=0,sticky=tk.W)
         self.scale_pan_y.grid(row=13,column=1,columnspan=4,sticky=tk.W)
 
+        '''
         # fine focusing
         self.label_focus = tk.Label(self,text='Focus (PZT)')
         self.scale_focus = tk.Scale(
@@ -276,7 +308,7 @@ class Application(tk.Frame):
         self.scale_focus.set(0)
         self.label_focus.grid(row=14,column=0,sticky=tk.W)
         self.scale_focus.grid(row=14,column=1,columnspan=4,sticky=tk.W)
-
+        '''
 
         # seperation
         self.label_seperator = tk.Label(self,text='  ')
@@ -285,16 +317,16 @@ class Application(tk.Frame):
         # autofocus
         self.label_N = tk.Label(self,text='N')
         self.entry_N = tk.Entry(self,width = 5)
-        self.label_step = tk.Label(self,text='step')
+        self.label_step = tk.Label(self,text='step (um)')
         self.entry_step = tk.Entry(self,width = 5)
         self.btn_autoFocus = tk.Button(
             self, text="Autofocus", fg="black",
             command=lambda:autofocus(
-                int(self.entry_N.get()), int(self.entry_step.get()), self.scale_focus
+                int(self.entry_N.get()), float(self.entry_step.get()), self.label_zPos
             )
         )
-        self.entry_N.insert(0,'15')
-        self.entry_step.insert(0,'16')
+        self.entry_N.insert(0,'5')
+        self.entry_step.insert(0,'3')
         self.label_N.grid(row=16,column=0,sticky=tk.W)
         self.entry_N.grid(row=16,column=1,sticky=tk.W)
         self.label_step.grid(row=16,column=2,sticky=tk.W)
@@ -315,9 +347,10 @@ class Application(tk.Frame):
         # capture
         self.btn_capture = tk.Button(
             self, text="Capture", fg="black", bg = "yellow", width = 32, height = 2,
-            command=lambda: capture(self.entry_filename.get(), il=self.il)
+            command=lambda: capture(self, self.entry_filename.get(), il=self.il)
         )
         self.btn_capture.grid(row=19,column=0,columnspan=5,rowspan=2)
+        
         # record
         # self.btn_record = tk.Button(
         #     self, text="Record", fg="black", bg = "yellow", width = 32, height = 2,
@@ -327,7 +360,6 @@ class Application(tk.Frame):
 
 
 # camera control
-
 def set_zoom(zoom, size):
     cam.set_preview_roi_ratios(
         length_ratio=float(1 / zoom), width_ratio=float(1 / zoom)
@@ -343,63 +375,74 @@ def set_exposure_time(exposure_time):
 
     cam.set_exposure(int(float(exposure_time)))
 
-def capture(prefix, il):
-    imaging.save_image(cam.last_numpy_image, prefix, il=il)
+def capture(app, prefix, il):
 
-def autofocus(N,step,scale_focus):
-    FM = [0]*N
-    use_video_port = True
-    splitter_port=0
-    resize=None
-    dt = 0.003
+    timestamp = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+
+    # capture fluorescence
+    app.disable_bf()
+    app.var_exposure_time.set(app.var_exposure_time_fluor.get())
+    app.il = imaging.ILLUMINATIONS['fluor']
+    app.il.exposure_time = int(float(app.var_exposure_time_fluor.get()))
+    imaging.set_illumination(app.il, cam)
+    app.btn_fluor.config(relief='sunken')
+    app.enable_laser()
+
+    # read ADC
+    cmd_str = '0000'
+    cmd = bytearray(cmd_str.encode())
+    cmd[0] = 6      # command ID
+    ser.write(cmd)
+    result = ser.read(2)
+    ADC_reading = (result[0]<<8)+result[1]
+    prefix_ = prefix + '_' + timestamp + '_fluorescence' + '_' + str(ADC_reading)
+    imaging.capture(cam, prefix_, app.il)
+
+    # capture brightfield
+    app.disable_fluor()
+    app.var_exposure_time.set(app.var_exposure_time_bf.get())
+    app.il = imaging.ILLUMINATIONS['bf']
+    app.il.exposure_time = int(float(app.var_exposure_time_bf.get()))
+    imaging.set_illumination(app.il, cam)
+    app.btn_bf.config(relief='sunken')
+    app.enable_led()
+
+    prefix_ = prefix + '_' + timestamp + '_bf'
+    imaging.capture(cam, prefix_, app.il)
+
+def autofocus(N,step,label_zPos):
+    FM = [0]*(2*N+1)
     FM_max = 0
+    step = step/1000
+
+    z_stepper.move(-N*step);
+    label_zPos.config(text = str(z_stepper.position))
+    sleep(0.1)
+
     j = 0
+    for i in range(2*N+1):
+        
+        z_stepper.move(step);
+        label_zPos.config(text = str(z_stepper.position))
+        j = j + 1 # number of steps that have been moved
+        #app.update()
+        sleep(0.02)
 
-    DACcode = scale_focus.get()
-
-    # start_time = time.time()
-    prefix = 'Z autofocus, 1080p'
-
-    timestamp = time.time()
-    # camera.resolution = '1920x1080'
-    for i in range(N):
-        j = j + 1
-        # actuate
-        # z_move('f',step,0.001)
-        DACcode = DACcode + step
-        scale_focus.set(DACcode)
-
-        app.update()
-        sleep(1)
         img = cam.last_numpy_image
-        ROI = img[:,:,1]
-        lap = laplace(ROI)
+        ROI = img[1500-300:1500+300,2000-300:2000+300]
+        lap = cv2.Laplacian(ROI,cv2.CV_16S)
         fm = mean(square(lap))
-        print(i, DACcode, fm)
+        print(i, fm)
         FM[i] = fm
         FM_max = max(fm,FM_max)
         if fm < FM_max*0.85:
             break
-
-    print('time:')
-    print(time.time()-timestamp)
+        
     idx = FM.index(max(FM))
-    print(idx)
-    # plt.plot(FM)
 
-    DACcode = DACcode - step*j
-    scale_focus.set(DACcode)
-
-    DACcode = DACcode + step*(idx+1)
-    scale_focus.set(DACcode)
-
-    #z_move('b',step*j,dt)
-    #z_move('f',step*(idx+1),dt)
-    #object.z_pos = object.z_pos + step*(idx+1)
-    #object.label_zPos.config(text = str(object.z_pos))
-
-    # camera.resolution = '3280x2464'
-    imaging.ILLUMINATIONS['bf'].device.enable()
+    z_stepper.move(-j*step);
+    z_stepper.move(step*(idx+1))
+    label_zPos.config(text = str(z_stepper.position))
 
 
 class ThreadedPreview():
@@ -435,35 +478,25 @@ class ThreadedPreview():
 #======================================================================#
 
 # init.
-gpio.connect()
+ser = serial.Serial('/dev/ttyACM0', 12000000)
 
-x_stepper = motion.Stepper(17, 27, 22)
-x_stepper.connect()
-y_stepper = motion.Stepper(10, 9, 11)
-y_stepper.connect()
-
-bus = gpio.I2CBus()
-bus.connect()
-piezo = motion.Piezo(bus)
-
-for il in imaging.ILLUMINATIONS.values():
-    il.device.connect()
+x_stepper = motion.Stepper(motorID=0, serialPort=ser, initial_position=0, steps_per_mm=1600)
+y_stepper = motion.Stepper(motorID=1, serialPort=ser, initial_position=0, steps_per_mm=1600)
+z_stepper = motion.Stepper(motorID=2, serialPort=ser, initial_position=0, steps_per_mm=5333)
 
 # set up camera
 cam = imaging.USBCamera()
 cam.connect()
 cam.set_preview_roi_ratios(length_ratio=0.9, width_ratio=0.9)
 cam.set_preview_resize_factor(0.75)
-# camera = PiCamera(resolution='3280x2464',sensor_mode=2,framerate=15)
-# camera = PiCamera(resolution='1920x1080',sensor_mode=2,framerate=15)
-# camera = PiCamera(resolution='1920x1080',sensor_mode=1,framerate = 30)
-# camera.iso = 60
-# camera.exposure_mode = 'off'
-# camera.shutter_speed = 500
-# camera.awb_mode = 'off'
-# camera.awb_gains = (2,1)
-# camera.start_preview(resolution=(1920, 1080),fullscreen=False, window=(200, 0, 1080, 1080))
 cam.set_continuous_acquisition()
+
+# turn on laser
+cmd_str = '0000'
+cmd = bytearray(cmd_str.encode())
+cmd[0] = 4
+cmd[1] = 1
+ser.write(cmd)
 
 # create GUI
 root = tk.Tk()
@@ -476,7 +509,12 @@ app.mainloop()
 # exit routine
 # camera.stop_preview()
 preview.stop()
-for il in imaging.ILLUMINATIONS.values():
-    il.device.disable()
 cam.disconnect()
-gpio.disconnect()
+
+# turn off laser
+cmd_str = '0000'
+cmd = bytearray(cmd_str.encode())
+cmd[0] = 4
+cmd[1] = 0
+ser.write(cmd)
+ser.close()

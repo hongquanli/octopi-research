@@ -1,42 +1,34 @@
+# updated on 11/12/2019
+
 import time
+import numpy as np
 
-import gpio
+# do we need to import serial here?
 
-class Piezo(gpio.DAC):
+class Piezo():
     pass
 
-
-class Stepper(gpio.Device):
-    def __init__(self, enable_pin, step_pin, dir_pin, initial_position=0):
-        self.enable_pin = enable_pin
-        self.enable_device = gpio.DigitalDevice(enable_pin)
-        self.step_pin = step_pin
-        self.step_device = gpio.DigitalDevice(step_pin, inverted=True)
-        self.dir_pin = dir_pin
-        self.dir_device = gpio.DigitalDevice(dir_pin, inverted=True)
-
+class Stepper():
+    def __init__(self, motorID, serialPort, initial_position=0, steps_per_mm=1600):
         self.position = initial_position
+        self.motorID = motorID
+        self.ser = serialPort
+        self.steps_per_mm = steps_per_mm
 
-    def connect(self):
-        self.enable_device.connect()
-        self.step_device.connect()
-        self.dir_device.connect()
+    def move(self, distance):
+        
+        direction = int((np.sign(distance)+1)/2)
+        n_microsteps = abs(distance*self.steps_per_mm)
+        if n_microsteps > 65535:
+            n_microsteps = 65535
 
-    def move(self, direction, steps, dt):
-        if direction == 1:
-            self.dir_device.enable()
-        elif direction == -1:
-            self.dir_device.disable()
-        else:
-            raise ValueError('Unsupported stepper direction: {}'.format(direction))
+        cmd_str = '0000'
+        cmd = bytearray(cmd_str.encode())
+        cmd[0] = self.motorID
+        cmd[1] = direction
+        cmd[2] = int(n_microsteps) >> 8
+        cmd[3] = int(n_microsteps) & 0xff
+        self.ser.write(cmd)
+        time.sleep(0.05)
 
-        steps = int(steps)
-        dt = float(dt)
-        self.position = self.position + direction * steps
-        self.enable_device.enable()
-        for i in range(steps):
-            self.step_device.enable()
-            time.sleep(dt / 2)
-            self.step_device.disable()
-            time.sleep(dt / 2)
-        self.enable_device.disable()
+        self.position = self.position + distance

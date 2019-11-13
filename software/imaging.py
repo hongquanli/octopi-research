@@ -3,8 +3,6 @@ import cv2
 import time
 from datetime import datetime
 
-import gpio
-
 try:
     import gxipy as gx
 except ImportError:
@@ -160,7 +158,8 @@ class USBCamera(Camera):
     def get_next_image(self):
         raw_image = self.camera.data_stream[self.device_index].get_image()
         if raw_image is None:
-            raise RuntimeError('Failed to get image!')
+            # raise RuntimeError('Failed to get image!')
+            return self.last_raw_image
         self.last_raw_image = raw_image
         return raw_image
 
@@ -220,21 +219,18 @@ def show_preview(preview_image, window_name='Preview', poll_interval=10):
     cv2.waitKey(poll_interval)
 
 
-class Illumination(gpio.Device):
+class Illumination():
     def __init__(
         self, name, pin, exposure_time, gain=0.0, wb_r=1.0, wb_g=1.0, wb_b=1.0
     ):
         self.name = name
         self.pin = pin
-        self.device = gpio.DigitalDevice(pin)
+        self.isON = False
         self.exposure_time = exposure_time
         self.gain = gain
         self.wb_r = wb_r
         self.wb_g = wb_g
         self.wb_b = wb_b
-
-    def connect(self):
-        self.device.connect()
 
     def get_wb_ratios(self):
         return {
@@ -264,27 +260,20 @@ def preview_once(cam):
 def preview(cam, il=None):
     cam.set_continuous_acquisition()
 
-    if il is not None:
-        il.device.enable()
     cam.start_streaming()
     try:
         while True:
             preview_once(cam)
     except KeyboardInterrupt:
         print('Quitting!')
-    il.device.disable()
 
 def acquire_one(cam, il=None):
     cam.set_triggered_acquisition()
     cam.start_streaming()
 
-    if il is not None:
-        il.device.enable()
     time.sleep(il.exposure_time * 1.5 / 1000)
     cam.send_trigger()
     raw_image = cam.get_next_image()
-    if il is not None:
-        il.device.disable()
     (converted_image, numpy_image) = cam.process_image(raw_image)
     return numpy_image
 
@@ -293,9 +282,8 @@ def save_image(numpy_image, prefix, il=None):
         numpy_image = cv2.cvtColor(numpy_image, cv2.COLOR_RGB2BGR)
 
     if il is not None:
-        filename = '{}_{}_{}_{} ms exposure_{} gain.png'.format(
-            prefix, datetime.now().strftime('%Y-%m-%d %H-%M-%S'),
-            il.name, il.exposure_time, il.gain
+        filename = '{}_{}_{} ms exposure_{} gain.png'.format(
+            prefix, il.name, il.exposure_time, il.gain
         )
     else:
         filename = '{}_{}.png'.format(
@@ -308,6 +296,7 @@ def save_image(numpy_image, prefix, il=None):
 def capture(cam, prefix, il=None):
     numpy_image = acquire_one(cam, il=il)
     save_image(numpy_image, prefix, il=il)
+    cam.set_continuous_acquisition()
 
 def set_illumination(il, cam):
     cam.set_exposure(il.exposure_time)
@@ -327,8 +316,6 @@ def main():
     )
     args = parser.parse_args()
 
-    gpio.connect()
-
     for il in ILLUMINATIONS.values():
         il.connect()
     il = ILLUMINATIONS[args.illumination]
@@ -345,11 +332,7 @@ def main():
         capture(cam, args.prefix, il)
 
     cam.stop_streaming()
-    for il in ILLUMINATIONS.values():
-        il.device.disable()
     cam.disconnect()
-    gpio.disconnect()
-
 
 if __name__ == '__main__':
     main()
