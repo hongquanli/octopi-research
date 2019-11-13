@@ -1,3 +1,5 @@
+# library for daheng camera developed by Ethan Li
+
 import argparse
 import cv2
 import time
