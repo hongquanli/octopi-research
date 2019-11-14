@@ -81,14 +81,14 @@ static const int focusWheel_CS  = 2;
 static const int focusWheel_IDX  = 5;
 volatile long focusPosition = 0;
 
-#include <Adafruit_ADS1015.h>
-Adafruit_ADS1115 ads1115(0x48);
+//#include <Adafruit_ADS1015.h>
+//Adafruit_ADS1115 ads1115(0x48);
 
 void setup() {
 
   // Initialize Native USB port
-  //SerialUSB.begin(2000000);     
-  //while(!SerialUSB);            // Wait until connection is established
+  SerialUSB.begin(2000000);     
+  while(!SerialUSB);            // Wait until connection is established
   buffer_rx_ptr = 0;
 
   pinMode(13, OUTPUT);
@@ -197,7 +197,7 @@ void setup() {
   Timer3.start(timerPeriod); // Calls every 500 us
 
   //ADC
-  ads1115.begin();
+  //ads1115.begin();
 }
 
 void loop() {
@@ -224,9 +224,9 @@ void loop() {
         shutter_switch(buffer_rx[1]);
       else if(buffer_rx[0]==6){
         // read ADC
-        int16_t adc0 = ads1115.readADC_SingleEnded(0);
-        SerialUSB.write(byte(adc0 >> 8));
-        SerialUSB.write(byte(adc0 & 255));
+        // int16_t adc0 = ads1115.readADC_SingleEnded(0);
+        // SerialUSB.write(byte(adc0 >> 8));
+        // SerialUSB.write(byte(adc0 & 255));
       }
       
       /*
@@ -245,7 +245,7 @@ void loop() {
     //float deltaX = joystick.getHorizontal() - 512;
     deltaX = analogRead(A0) - 512;
     deltaX_float = deltaX;
-    if(abs(deltaX_float)>10){
+    if(abs(deltaX_float)>50){
       stepper_X.setSpeed((deltaX_float/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
       runSpeed_flag_X = true;
     }
@@ -258,7 +258,7 @@ void loop() {
     //float deltaY = joystick.getVertical() - 512;
     deltaY = analogRead(A1) - 512;
     deltaY_float = deltaY;
-    if(abs(deltaY)>10){
+    if(abs(deltaY)>50){
       stepper_Y.setSpeed((deltaY_float/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
       runSpeed_flag_Y = true;
       digitalWrite(13,HIGH);
