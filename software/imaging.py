@@ -1,8 +1,12 @@
+# Standard packages
 import argparse
-import cv2
 import time
 from datetime import datetime
+import cProfile
+import pstats
 
+# External packages
+import cv2
 import gpio
 
 try:
@@ -112,6 +116,7 @@ class USBCamera(Camera):
         if self.camera.GammaParam.is_readable():
             gamma_value = self.camera.GammaParam.get()
             self.gamma_lut = gx.Utility.get_gamma_lut(gamma_value)
+            self.gamma_lut = None
         else:
             self.gamma_lut = None
 
@@ -123,6 +128,7 @@ class USBCamera(Camera):
 
         if self.camera.ColorCorrectionParam.is_readable():
             self.color_correction_param = self.camera.ColorCorrectionParam.get()
+            self.color_correction_param = 0
         else:
             self.color_correction_param = 0
 
@@ -325,6 +331,9 @@ def main():
     parser.add_argument(
         '--prefix', default='capture', help='Capture imaging mode filename prefix.'
     )
+    parser.add_argument(
+        '--profile', action='store_true', help='Run performance profiling.'
+    )
     args = parser.parse_args()
 
     gpio.connect()
@@ -340,15 +349,31 @@ def main():
     cam.set_preview_resize_factor(0.75)
 
     if args.mode == 'preview':
-        preview(cam, il)
+        if args.profile:
+            cProfile.runctx(
+                'preview(cam, il)',
+                globals(), locals(), 'imaging.profile'
+            )
+        else:
+            preview(cam, il)
     elif args.mode == 'capture':
-        capture(cam, args.prefix, il)
+        if args.profile:
+            cProfile.runctx(
+                'capture(cam, args.prefix, il)',
+                globals(), locals(), 'imaging.profile'
+            )
+        else:
+            capture(cam, args.prefix, il)
 
     cam.stop_streaming()
     for il in ILLUMINATIONS.values():
         il.device.disable()
     cam.disconnect()
     gpio.disconnect()
+    if args.profile:
+        print('Finished profiling!')
+        p = pstats.Stats('imaging.profile')
+        p.sort_stats('cumulative').print_stats(1.0)
 
 
 if __name__ == '__main__':

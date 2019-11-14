@@ -1,24 +1,22 @@
 import tkinter as tk
-import datetime
 import threading
+import time
+from time import sleep
+
+# External packages
 
 # from picamera import PiCamera
-from scipy import misc
-import numpy
-
-### LED, stepper control ###
-from time import sleep
-import time
-
 # import picamera.array
-import numpy as np
-import time
+from scipy import misc
 from scipy.ndimage.filters import laplace
+import numpy
+import numpy as np
 from numpy import std
 from numpy import square
 from numpy import mean
 # import matplotlib.pyplot as plt
 
+# Local modules
 
 import gpio
 import imaging
