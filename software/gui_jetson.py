@@ -144,7 +144,7 @@ class Application(tk.Frame):
         self.label_yPos.config(text=str(y_stepper.position))
 
     def z_move(self, direction):
-        z_stepper.move(direction*float(self.entry_z_step.get()))
+        z_stepper.move(direction*float(self.entry_z_step.get())/1000)
         self.label_zPos.config(text=str(z_stepper.position))
 
     ### create widgets ###
