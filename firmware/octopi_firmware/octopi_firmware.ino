@@ -1,6 +1,12 @@
 #include <TMCStepper.h>
 #include <TMCStepper_UTILITY.h>
 
+static inline int sgn(int val) {
+ if (val < 0) return -1;
+ if (val==0) return 0;
+ return 1;
+}
+
 // byte[0]: which motor to move: 0 x, 1 y, 2 z, 3 LED, 4 Laser
 // byte[1]: what direction: 1 forward, 0 backward
 // byte[2]: how many micro steps - upper 8 bits
@@ -56,6 +62,9 @@ bool runSpeed_flag_Z = false;
 #include <DueTimer.h>
 int timerPeriod = 10000; // in us
 volatile bool readJoyStickAndEncoder = false;
+int joystick_offset_x = 512;
+int joystick_offset_y = 512;
+constexpr int joystickSensitivity = 10; // range from 5 to 100 (for comparison with number in the range of 0-512)
 
 /*
 #include <Wire.h>
@@ -192,6 +201,9 @@ void setup() {
   
   // joystick
   analogReadResolution(10);
+  joystick_offset_x = analogRead(A0);
+  joystick_offset_y = analogRead(A1);
+  
   
   Timer3.attachInterrupt(timer_interruptHandler);
   Timer3.start(timerPeriod); // Calls every 500 us
@@ -243,10 +255,10 @@ void loop() {
 
   if(readJoyStickAndEncoder) {
     //float deltaX = joystick.getHorizontal() - 512;
-    deltaX = analogRead(A0) - 512;
+    deltaX = analogRead(A0) - joystick_offset_x;
     deltaX_float = deltaX;
-    if(abs(deltaX_float)>50){
-      stepper_X.setSpeed((deltaX_float/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
+    if(abs(deltaX_float)>joystickSensitivity){
+      stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
       runSpeed_flag_X = true;
     }
     else {
@@ -256,18 +268,16 @@ void loop() {
     }
 
     //float deltaY = joystick.getVertical() - 512;
-    deltaY = analogRead(A1) - 512;
+    deltaY = analogRead(A1) - joystick_offset_y;
     deltaY_float = deltaY;
-    if(abs(deltaY)>50){
-      stepper_Y.setSpeed((deltaY_float/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
+    if(abs(deltaY)>joystickSensitivity){
+      stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
       runSpeed_flag_Y = true;
-      digitalWrite(13,HIGH);
     }
     else {
     //if(stepper_Y.distanceToGo()==0)
       stepper_Y.setSpeed(0);
       runSpeed_flag_Y = false;
-      digitalWrite(13,LOW);
     }
 
     stepper_Z.moveTo(focusPosition);
