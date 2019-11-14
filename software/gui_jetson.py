@@ -379,6 +379,7 @@ def capture(app, prefix, il):
 
     timestamp = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
 
+    '''
     # capture fluorescence
     app.disable_bf()
     app.var_exposure_time.set(app.var_exposure_time_fluor.get())
@@ -397,6 +398,7 @@ def capture(app, prefix, il):
     ADC_reading = (result[0]<<8)+result[1]
     prefix_ = prefix + '_' + timestamp + '_fluorescence' + '_' + str(ADC_reading)
     imaging.capture(cam, prefix_, app.il)
+    '''
 
     # capture brightfield
     app.disable_fluor()
@@ -511,6 +513,7 @@ app.mainloop()
 preview.stop()
 cam.disconnect()
 
+'''
 # turn off laser
 cmd_str = '0000'
 cmd = bytearray(cmd_str.encode())
@@ -518,3 +521,4 @@ cmd[0] = 4
 cmd[1] = 0
 ser.write(cmd)
 ser.close()
+'''
