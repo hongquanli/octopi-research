@@ -1,9 +1,9 @@
-# updated on 11/12/2019
-
+# Built-in packages
 import time
-import numpy as np
 
-# do we need to import serial here?
+# External packages
+import numpy as np
+import serial
 
 class Piezo():
     pass
@@ -16,7 +16,6 @@ class Stepper():
         self.steps_per_mm = steps_per_mm
 
     def move(self, distance):
-        
         direction = int((np.sign(distance)+1)/2)
         n_microsteps = abs(distance*self.steps_per_mm)
         if n_microsteps > 65535:
@@ -32,3 +31,18 @@ class Stepper():
         time.sleep(0.05)
 
         self.position = self.position + distance
+
+
+if __name__ == '__main__':
+    ser = serial.Serial('/dev/ttyACM0', 12000000)
+    y_stepper = Stepper(motorID=1, serialPort=ser, initial_position=0, steps_per_mm=1600)
+    step_size = 0.0002
+    print('Moving +{}...'.format(step_size))
+    y_stepper.move(float(step_size))
+    # while True:
+    #     print('Moving +{}...'.format(step_size))
+    #     y_stepper.move(float(step_size))
+    #     time.sleep(1)
+    #     print('Moving -{}...'.format(step_size))
+    #     y_stepper.move(float(-step_size))
+    #     time.sleep(1)
