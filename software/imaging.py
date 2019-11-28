@@ -98,6 +98,13 @@ class USBCamera(Camera):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         if device_info.get('device_class') != gx.GxDeviceClassList.USB2:
             self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.SOFTWARE)
+        self.camera.data_stream[self.device_index].flush_queue()
+
+    def set_hardwareTriggered_acquisition(self):
+        device_info = self.device_info_list[self.device_index]
+        self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
+        if device_info.get('device_class') != gx.GxDeviceClassList.USB2:
+            self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE0)
 
     def set_exposure(self, exposure_time):
         self.camera.ExposureTime.set(exposure_time * 1000)
