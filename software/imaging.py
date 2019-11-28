@@ -173,6 +173,11 @@ class USBCamera(Camera):
         self.last_raw_image = raw_image
         return raw_image
 
+    def get_image_numpy(self):
+        raw_image = self.camera.data_stream[self.device_index].get_image()
+        numpy_image = raw_image.get_numpy_array()
+        return numpy_image
+
     def process_image(self, raw_image):
         if self.is_color:
             converted_image = raw_image.convert('RGB')
