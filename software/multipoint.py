@@ -16,6 +16,24 @@ from numpy import mean
 
 import imaging
 
+
+############################################################################################
+################                          Functions                         ################
+############################################################################################
+def enableLED(ser):
+    cmd_str = '0000'
+    cmd = bytearray(cmd_str.encode())
+    cmd[0] = 3
+    cmd[1] = 1
+    ser.write(cmd)
+
+def disableLED(ser):
+    cmd_str = '0000'
+    cmd = bytearray(cmd_str.encode())
+    cmd[0] = 3
+    cmd[1] = 0
+    ser.write(cmd)
+
 ############################################################################################
 ################                         Parameters                         ################
 ############################################################################################
@@ -49,8 +67,14 @@ cam.set_preview_resize_factor(0.5)
 # set up the camera to use software-triggered aquisition
 cam.set_triggered_acquisition()
 
+# set exposure time
+cam.set_exposure(30)
+
 # move z to lower limit
 z_stepper.move(-(Nz/2)*dz_um/1000)
+
+enableLED()
+sleep(0.1)
 
 # multipoint aquistion
 for k in range(Nt):
@@ -93,7 +117,10 @@ for k in range(Nt):
     # move y back
     y_stepper.move(-(Ny-1)*dy_mm)
 
+    disableLED()
     sleep(dt_s)
+    enableLED()
+    sleep(0.1)
 
 # disconnect
 cam.disconnect()
