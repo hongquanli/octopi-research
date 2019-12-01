@@ -64,16 +64,19 @@ cam.connect()
 cam.set_preview_roi_ratios(length_ratio=0.9, width_ratio=0.9)
 cam.set_preview_resize_factor(0.5)
 
+# set exposure time
+cam.set_exposure(30)
+
 # set up the camera to use software-triggered aquisition
 cam.set_triggered_acquisition()
 
-# set exposure time
-cam.set_exposure(30)
+# start streaming
+cam.start_streaming()
 
 # move z to lower limit
 z_stepper.move(-(Nz/2)*dz_um/1000)
 
-enableLED()
+enableLED(ser)
 sleep(0.1)
 
 # multipoint aquistion
@@ -117,13 +120,15 @@ for k in range(Nt):
     # move y back
     y_stepper.move(-(Ny-1)*dy_mm)
 
-    disableLED()
+    disableLED(ser)
     sleep(dt_s)
-    enableLED()
+    enableLED(ser)
     sleep(0.1)
 
 # disconnect
+cam.stop_streaming()
 cam.disconnect()
+ser.close()
 
 '''
 ############################################################################################
