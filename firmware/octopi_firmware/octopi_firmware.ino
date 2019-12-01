@@ -31,9 +31,9 @@ static const int Z_step = 28;
 static const int Z_driver_uart = 23;
 static const int Z_en = 51;
 
-static const int LED = 40;
-static const int LASER = 38;
-static const int SHUTTER = 39;
+static const int LED = 38;
+static const int LASER = 39;
+static const int SHUTTER = 40;
 
 #define STEPPER_SERIAL Serial1 
 static const uint8_t X_driver_ADDRESS = 0b00;
@@ -48,8 +48,10 @@ AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
 AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
 constexpr uint32_t steps_per_mm_XY = 1600;
 constexpr uint32_t steps_per_mm_Z = 5333;
-constexpr float MAX_VELOCITY_X_mm = 7;
-constexpr float MAX_VELOCITY_Y_mm = 7;
+//constexpr float MAX_VELOCITY_X_mm = 7;
+//constexpr float MAX_VELOCITY_Y_mm = 7;
+constexpr float MAX_VELOCITY_X_mm = 4;
+constexpr float MAX_VELOCITY_Y_mm = 4;
 constexpr float MAX_VELOCITY_Z_mm = 2;
 constexpr float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
