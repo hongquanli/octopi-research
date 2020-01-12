@@ -456,7 +456,7 @@ class AutoFocusWidget(QFrame):
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
 
     def autofocus_is_finished(self):
-        pass
+        self.btn_autofocus.setChecked(False)
 
 class MultiPointWidget(QFrame):
     def __init__(self, multipointController, main=None, *args, **kwargs):

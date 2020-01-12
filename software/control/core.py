@@ -484,6 +484,7 @@ class AutoFocusController(QObject):
                 image = self.camera.read_frame()
                 image = utils.crop_image(image,self.crop_width,self.crop_height)
                 self.image_to_display.emit(image)
+                QApplication.processEvents()
                 timestamp_0 = time.time() # @@@ to remove
                 focus_measure = utils.calculate_focus_measure(image)
                 timestamp_1 = time.time() # @@@ to remove
