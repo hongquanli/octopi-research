@@ -612,16 +612,31 @@ class MultiPointWidget(QFrame):
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
-            self.lineEdit_experimentID.setEnabled(False)
-            self.btn_setSavingDir.setEnabled(False)
+            self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.run_acquisition()
         else:
             # self.multipointController.stop_acquisition() # to implement
-            self.lineEdit_experimentID.setEnabled(True)
-            self.btn_setSavingDir.setEnabled(True)
+            self.setEnabled_all(True)
 
     def acquisition_is_finished(self):
-        self.lineEdit_experimentID.setEnabled(True)
         self.btn_startAcquisition.setChecked(False)
-        self.btn_setSavingDir.setEnabled(True)
+        self.setEnabled_all(True)
+
+    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=True):
+        self.btn_setSavingDir.setEnabled(enabled)
+        self.lineEdit_savingDir.setEnabled(enabled)
+        self.lineEdit_experimentID.setEnabled(enabled)
+        self.entry_deltaX.setEnabled(enabled)
+        self.entry_NX.setEnabled(enabled)
+        self.entry_deltaY.setEnabled(enabled)
+        self.entry_NY.setEnabled(enabled)
+        self.entry_deltaZ.setEnabled(enabled)
+        self.entry_NZ.setEnabled(enabled)
+        self.entry_dt.setEnabled(enabled)
+        self.entry_Nt.setEnabled(enabled)
+        self.checkbox_bfdf.setEnabled(enabled)
+        self.checkbox_fluorescence.setEnabled(enabled)
+        self.checkbox_withAutofocus.setEnabled(enabled)
+        if exclude_btn_startAcquisition is not True:
+        	self.btn_startAcquisition.setEnabled(enabled)

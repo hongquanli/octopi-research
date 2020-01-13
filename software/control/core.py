@@ -731,6 +731,8 @@ class MultiPointController(QObject):
         self.single_acquisition_in_progress = True
         self.FOV_counter = 0
 
+        print('multipoint acquisition - time point ' + str(self.time_point))
+
         # stop live
         if self.liveController.is_live:
             self.liveController.was_live_before_multipoint = True
