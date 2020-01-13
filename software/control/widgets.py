@@ -516,14 +516,14 @@ class MultiPointWidget(QFrame):
         
 
         self.entry_dt = QDoubleSpinBox()
-        self.entry_dt.setMinimum(5) 
+        self.entry_dt.setMinimum(0) 
         self.entry_dt.setMaximum(3600) 
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(1)
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1) 
-        self.entry_Nt.setMaximum(1)   # @@@ to be changed
+        self.entry_Nt.setMaximum(50000)   # @@@ to be changed
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
 

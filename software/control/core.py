@@ -268,8 +268,9 @@ class LiveController(QObject):
         self.microscope_mode = None
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
         self.is_live = False
-        self.was_live = False
-        
+        self.was_live_before_autofocus = False
+        self.was_live_before_multipoint = False
+
         self.fps_software_trigger = 1;
         self.timer_software_trigger_interval = (1/self.fps_software_trigger)*1000
 
@@ -355,7 +356,7 @@ class LiveController(QObject):
         
         # temporarily stop live while changing mode
         if self.is_live is True:
-            self.softwareTriggerGenerator.stop()
+            self.timer_software_trigger.stop()
             self.turn_off_illumination()
         
         self.mode = mode
@@ -372,7 +373,7 @@ class LiveController(QObject):
         # restart live 
         if self.is_live is True:
             self.turn_on_illumination()
-            self.softwareTriggerGenerator.start()
+            self.timer_software_trigger.start()
 
     def get_trigger_mode(self):
         return self.trigger_mode
@@ -453,67 +454,65 @@ class AutoFocusController(QObject):
         self.crop_height = crop_height
 
     def autofocus(self):
-        if self.liveController.get_trigger_mode() == TriggerMode.SOFTWARE:
-            # it's ok to freeze the interface during autofocus
-            # stop live
-            if self.liveController.is_live:
-                self.liveController.was_live = True
-                self.liveController.stop_live()
 
-            # temporarily disable call back -> image does not go through streamHandler
-            if self.camera.callback_is_enabled:
-                self.camera.callback_is_enabled = False
-                self.camera.callback_was_enabled = True
-                self.camera.stop_streaming()
-                self.camera.disable_callback()
-                self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-            
-            # @@@ to add: increase gain, decrease exposure time
-            # @@@ can move the execution into a thread
-            focus_measure_vs_z = [0]*self.N
-            focus_measure_max = 0
+        # stop live
+        if self.liveController.is_live:
+            self.liveController.was_live_before_autofocus = True
+            self.liveController.stop_live()
 
-            z_af_offset = self.deltaZ*round(self.N/2)
-            self.navigationController.move_z(-z_af_offset)
+        # temporarily disable call back -> image does not go through streamHandler
+        if self.camera.callback_is_enabled:
+            self.camera.callback_was_enabled_before_autofocus = True
+            self.camera.stop_streaming()
+            self.camera.disable_callback()
+            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
+        
+        # @@@ to add: increase gain, decrease exposure time
+        # @@@ can move the execution into a thread
+        focus_measure_vs_z = [0]*self.N
+        focus_measure_max = 0
 
-            steps_moved = 0
-            for i in range(self.N):
-                self.navigationController.move_z(self.deltaZ)
-                steps_moved = steps_moved + 1
-                self.camera.send_trigger()
-                image = self.camera.read_frame()
-                image = utils.crop_image(image,self.crop_width,self.crop_height)
-                self.image_to_display.emit(image)
-                QApplication.processEvents()
-                timestamp_0 = time.time() # @@@ to remove
-                focus_measure = utils.calculate_focus_measure(image)
-                timestamp_1 = time.time() # @@@ to remove
-                print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
-                focus_measure_vs_z[i] = focus_measure
-                print(i,focus_measure)
-                focus_measure_max = max(focus_measure, focus_measure_max)
-                if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
-                    break
+        z_af_offset = self.deltaZ*round(self.N/2)
+        self.navigationController.move_z(-z_af_offset)
 
-            idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
-            self.navigationController.move_z((idx_in_focus-steps_moved)*self.deltaZ)
-            if idx_in_focus == 0:
-                print('moved to the bottom end of the AF range')
-            if idx_in_focus == self.N-1:
-                print('moved to the top end of the AF range')
+        steps_moved = 0
+        for i in range(self.N):
+            self.navigationController.move_z(self.deltaZ)
+            steps_moved = steps_moved + 1
+            self.camera.send_trigger()
+            image = self.camera.read_frame()
+            image = utils.crop_image(image,self.crop_width,self.crop_height)
+            self.image_to_display.emit(image)
+            QApplication.processEvents()
+            timestamp_0 = time.time() # @@@ to remove
+            focus_measure = utils.calculate_focus_measure(image)
+            timestamp_1 = time.time() # @@@ to remove
+            print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
+            focus_measure_vs_z[i] = focus_measure
+            print(i,focus_measure)
+            focus_measure_max = max(focus_measure, focus_measure_max)
+            if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
+                break
 
-            if self.camera.callback_was_enabled:
-                self.camera.stop_streaming()
-                self.camera.enable_callback()
-                self.camera.start_streaming()
-                self.camera.callback_is_enabled = True
-                self.camera.callback_was_enabled = False
+        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+        self.navigationController.move_z((idx_in_focus-steps_moved)*self.deltaZ)
+        if idx_in_focus == 0:
+            print('moved to the bottom end of the AF range')
+        if idx_in_focus == self.N-1:
+            print('moved to the top end of the AF range')
 
-            if self.liveController.was_live:
-                self.liveController.start_live()
-                self.liveController.was_live = False
+        if self.camera.callback_was_enabled_before_autofocus:
+            self.camera.stop_streaming()
+            self.camera.enable_callback()
+            self.camera.start_streaming()
+            self.camera.callback_was_enabled_before_autofocus = False
 
-            self.autofocusFinished.emit()
+        if self.liveController.was_live_before_autofocus:
+            self.liveController.start_live()
+            self.liveController.was_live = False
+        
+        print('autofocus finished')
+        self.autofocusFinished.emit()
 
 class MultiPointController(QObject):
 
@@ -549,7 +548,6 @@ class MultiPointController(QObject):
         self.experiment_ID = None
         self.base_path = None
 
-
     def set_NX(self,N):
         self.NX = N
     def set_NY(self,N):
@@ -580,7 +578,7 @@ class MultiPointController(QObject):
     def set_base_path(self,path):
         self.base_path = path
 
-    def start_new_experiment(self,experiment_ID):
+    def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
         self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d %H-%M-%-S.%f')
         self.recording_start_time = time.time()
@@ -589,8 +587,18 @@ class MultiPointController(QObject):
             os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         except:
             pass
-        # reset the counter
-        self.FOV_counter = 0
+        
+    def run_acquisition(self): # @@@ to do: change name to run_experiment
+        print('start multipoint')
+        print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+
+        self.time_point = 0
+        self.single_acquisition_in_progress = False
+        self.acquisitionTimer = QTimer()
+        self.acquisitionTimer.setInterval(self.deltat*1000)
+        self.acquisitionTimer.timeout.connect(self._on_acquisitionTimer_timeout)
+        self.acquisitionTimer.start()
+        self.acquisitionTimer.timeout.emit() # trigger the first acquisition
 
     '''
     def run_acquisition(self):
@@ -704,112 +712,130 @@ class MultiPointController(QObject):
                 self.camera.callback_is_enabled = True
                 self.camera.callback_was_enabled = False
     '''
+    def _on_acquisitionTimer_timeout(self):
+    	# check if the last single acquisition is ongoing
+        if self.single_acquisition_in_progress is True:
+            # skip time point if self.deltat is nonzero
+            if self.deltat > 0.1: # @@@ to do: make this more elegant - note that both self.deltat is not 0 and self.deltat is not .0 don't work
+                self.time_point = self.time_point + 1
+                # stop the timer if number of time points is equal to Nt (despite some time points may have been skipped)
+                if self.time_point >= self.Nt:
+                    self.acquisitionTimer.stop()
+                else:
+                	print('the last acquisition has not completed, skip time point ' + str(self.time_point))
+            return
+        # if not, run single acquisition
+        self._run_single_acquisition()
 
-    def run_acquisition(self):
+    def _run_single_acquisition(self):           
+        self.single_acquisition_in_progress = True
+        self.FOV_counter = 0
 
-        if self.liveController.get_trigger_mode() == TriggerMode.SOFTWARE: # @@@ to do: move trigger mode to camera
-            
-            print('start multipoint')
-            print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+        # stop live
+        if self.liveController.is_live:
+            self.liveController.was_live_before_multipoint = True
+            self.liveController.stop_live() # @@@ to do: also uncheck the live button
 
-            # stop live
-            if self.liveController.is_live:
-                self.liveController.was_live = True
-                self.liveController.stop_live() # @@@ to do: also uncheck the live button
+        # disable callback
+        if self.camera.callback_is_enabled:
+            self.camera.callback_was_enabled_before_multipoint = True
+            self.camera.stop_streaming()
+            self.camera.disable_callback()
+            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
+        
+        # do the multipoint acquisition
 
-            # disable callback
-            if self.camera.callback_is_enabled:
-                self.camera.callback_is_enabled = False
-                self.camera.callback_was_enabled = True
-                self.camera.stop_streaming()
-                self.camera.disable_callback()
-                self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-            
-            # do the multipoint acquisition
-            for l in range(self.Nt):
+        # for each time point, create a new folder
+        current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
+        os.mkdir(current_path)
 
-                # for each time point, create a new folder
-                os.mkdir(os.path.join(self.base_path,self.experiment_ID,str(l)))
-                current_path = os.path.join(self.base_path,self.experiment_ID,str(l))
+        # along y
+        for i in range(self.NY):
 
-                # along y
-                for i in range(self.NY):
+            # along x
+            for j in range(self.NX):
 
-                    # along x
-                    for j in range(self.NX):
+                # z-stack
+                for k in range(self.NZ):
 
-                        # z-stack
-                        for k in range(self.NZ):
+                    # perform AF only if when not taking z stack
+                    if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                        self.autofocusController.autofocus()
 
-                            # perform AF only if when not taking z stack
-                            if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                                self.autofocusController.autofocus()
+                    file_ID = str(i) + '_' + str(j) + '_' + str(k)
 
-                            file_ID = str(i) + '_' + str(j) + '_' + str(k)
+                    # take bf
+                    if self.do_bfdf:
+                        self.liveController.set_microscope_mode(MicroscopeMode.BFDF)
+                        self.liveController.turn_on_illumination()
+                        self.camera.send_trigger() 
+                        image = self.camera.read_frame()
+                        self.liveController.turn_off_illumination()
+                        image = utils.crop_image(image,self.crop_width,self.crop_height)
+                        saving_path = os.path.join(current_path, file_ID + '_bf' + '.' + Acquisition.IMAGE_FORMAT)
+                        cv2.imwrite(saving_path,image)
+                        self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                        QApplication.processEvents()
 
-                            # take bf
-                            if self.do_bfdf:
-                                self.liveController.set_microscope_mode(MicroscopeMode.BFDF)
-                                self.liveController.turn_on_illumination()
-                                self.camera.send_trigger()
-                                image = self.camera.read_frame()
-                                self.liveController.turn_off_illumination()
-                                image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                saving_path = os.path.join(current_path, file_ID + '_bf' + '.' + Acquisition.IMAGE_FORMAT)
-                                cv2.imwrite(saving_path,image)
-                                self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                    # take fluorescence
+                    if self.do_fluorescence:
+                        self.liveController.set_microscope_mode(MicroscopeMode.FLUORESCENCE)
+                        self.liveController.turn_on_illumination()
+                        self.camera.send_trigger()
+                        image = self.camera.read_frame()
+                        self.liveController.turn_off_illumination()
+                        image = utils.crop_image(image,self.crop_width,self.crop_height)
+                        saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
+                        cv2.imwrite(saving_path,image)
+                        self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                        QApplication.processEvents()
+                    
+                    if self.do_bfdf is not True and self.do_fluorescence is not True:
+                        QApplication.processEvents()
 
-                            # take fluorescence
-                            if self.do_fluorescence:
-                                self.liveController.set_microscope_mode(MicroscopeMode.FLUORESCENCE)
-                                self.liveController.turn_on_illumination()
-                                self.camera.send_trigger()
-                                image = self.camera.read_frame()
-                                self.liveController.turn_off_illumination()
-                                image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
-                                cv2.imwrite(saving_path,image)
-                                self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                    # move z
+                    if k < self.NZ - 1:
+                        self.navigationController.move_z(self.deltaZ)
 
-                            # move z
-                            if k < self.NZ - 1:
-                                self.navigationController.move_z(self.deltaZ)
+                # move z back
+                self.navigationController.move_z(-self.deltaZ*(self.NZ-1))
 
-                        # move z back
-                        self.navigationController.move_z(-self.deltaZ*(self.NZ-1))
+                # move x
+                if j < self.NX - 1:
+                    self.navigationController.move_x(self.deltaX)
 
-                        # move x
-                        if j < self.NX - 1:
-                            self.navigationController.move_x(self.deltaX)
+            # move x back
+            self.navigationController.move_x(-self.deltaX*(self.NX-1))
 
-                    # move x back
-                    self.navigationController.move_x(-self.deltaX*(self.NX-1))
+            # move y
+            if i < self.NY - 1:
+                self.navigationController.move_y(self.deltaY)
 
-                    # move y
-                    if i < self.NY - 1:
-                        self.navigationController.move_y(self.deltaY)
+        # move y back
+        self.navigationController.move_y(-self.deltaY*(self.NY-1))
+                        
+        # re-enable callback
+        if self.camera.callback_was_enabled_before_multipoint:
+            self.camera.stop_streaming()
+            self.camera.enable_callback()
+            self.camera.start_streaming()
+            self.camera.callback_was_enabled_before_multipoint = False
+        
+        if self.liveController.was_live_before_multipoint:
+            self.liveController.start_live()
+            # emit acquisitionFinished signal
+            self.acquisitionFinished.emit()
+        
+        # update time_point for the next scheduled single acquisition (if any)
+        self.time_point = self.time_point + 1
 
-                # move y back
-                self.navigationController.move_y(-self.deltaY*(self.NY-1))
-                            
-                # sleep until the next acquisition # @@@ to do: change to timer instead
-                if l < self.Nt - 1:
-                    time.sleep(self.deltat)
-
+        if self.time_point >= self.Nt:
             print('Multipoint acquisition finished')
+            if self.acquisitionTimer.isActive():
+            	self.acquisitionTimer.stop()
+            self.acquisitionFinished.emit()
 
-            # re-enable callback
-            if self.camera.callback_was_enabled:
-                self.camera.stop_streaming()
-                self.camera.enable_callback()
-                self.camera.start_streaming()
-                self.camera.callback_is_enabled = True
-                self.camera.callback_was_enabled = False
-            
-            if self.liveController.was_live:
-                self.liveController.start_live()
-                # emit acquisitionFinished signal
-                self.acquisitionFinished.emit()
+        self.single_acquisition_in_progress = False
 
 class TrackingController(QObject):
 	def __init__(self):
