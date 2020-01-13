@@ -140,6 +140,7 @@ class Microcontroller():
         trigger_FL = bool(data[25])
         return [YfocusPhase,Xpos_arduino,Ypos_arduino,Zpos_arduino, LED_measured, tracking_triggered],manualMode
         '''
+        return data
 
 # from Gravity machine
 def split_int_2byte(number):

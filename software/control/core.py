@@ -10,6 +10,7 @@ from qtpy.QtGui import *
 
 import control.utils as utils
 from control._def import *
+import control.tracking as tracking
 
 from queue import Queue
 from threading import Thread, Lock
@@ -106,8 +107,10 @@ class StreamHandler(QObject):
             self.timestamp_last_save = time_now
 
         # send image to track
-        if time_now-self.timestamp_last_display >= 1/self.fps_track:
-            # track emit
+        if time_now-self.timestamp_last_track >= 1/self.fps_track:
+            # track is a blocking operation - it needs to be
+            # @@@ will cropping before emitting the signal lead to speedup?
+            self.packet_image_for_tracking.emit(image_cropped,camera.frame_ID,camera.timestamp)
             self.timestamp_last_track = time_now
 
         self.handler_busy = False
@@ -840,8 +843,50 @@ class MultiPointController(QObject):
         self.single_acquisition_in_progress = False
 
 class TrackingController(QObject):
-	def __init__(self):
-		pass
+    def __init__(self,microcontroller,navigationController):
+        QObject.__init__(self)
+        self.microcontroller = microcontroller
+        self.navigationController = navigationController
+        self.tracker_xy = tracking.Tracker_XY()
+        self.tracker_z = tracking.Tracker_Z()
+        self.pid_controller_x = tracking.PID_Controller()
+        self.pid_controller_y = tracking.PID_Controller()
+        self.pid_controller_z = tracking.PID_Controller()
+        self.tracking_frame_counter = 0
+
+    def on_new_frame(self,image,frame_ID,timestamp):
+        # initialize the tracker when a new track is started
+        if self.tracking_frame_counter == 0:
+            # initialize the tracker
+            # initialize the PID controller
+            pass
+
+        # crop the image, resize the image 
+        # [to fill]
+
+        # get the location
+        [x,y] = self.tracker_xy.track(image)
+        z = self.track_z.track(image)
+
+        # get motion commands
+        dx = self.pid_controller_x.get_actuation(x)
+        dy = self.pid_controller_y.get_actuation(y)
+        dz = self.pid_controller_z.get_actuation(z)
+
+        # read current location from the microcontroller
+        current_stage_position = self.microcontroller.read_received_packet()
+
+        # save the coordinate information (possibly enqueue image for saving here to if a separate ImageSaver object is being used) before the next movement
+        # [to fill]
+
+        # generate motion commands
+        motion_commands = self.generate_motion_commands(self,dx,dy,dz)
+
+        # send motion commands
+        self.microcontroller.send_command(motion_commands)
+
+    def start_a_new_track(self):
+        self.tracking_frame_counter = 0
 
 # from gravity machine
 class ImageDisplayWindow(QMainWindow):

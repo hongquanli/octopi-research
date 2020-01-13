@@ -640,3 +640,13 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
         	self.btn_startAcquisition.setEnabled(enabled)
+
+class TrackingControllerWidget(QFrame):
+    def __init__(self, multipointController, navigationController, main=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.multipointController = multipointController
+        self.navigationController = navigationController
+        self.base_path_is_set = False
+        # self.add_components()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
