@@ -12,7 +12,7 @@ def crop_image(image,crop_width,crop_height):
     return image_cropped
 
 def calculate_focus_measure(image):
-	if image.shape[2] > 1:
+	if len(image.shape) == 3:
 		image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY) # optional
 	lap = cv2.Laplacian(image,cv2.CV_16S)
 	focus_measure = mean(square(lap))

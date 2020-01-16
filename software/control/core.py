@@ -24,6 +24,7 @@ class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
     packet_image_to_write = Signal(np.ndarray, int, float)
+    packet_image_for_tracking = Signal(np.ndarray, int, float)
     signal_new_frame_received = Signal()
 
     def __init__(self,crop_width=1000,crop_height=1000,display_resolution_scaling=0.5):
@@ -107,7 +108,7 @@ class StreamHandler(QObject):
             self.timestamp_last_save = time_now
 
         # send image to track
-        if time_now-self.timestamp_last_track >= 1/self.fps_track:
+        if self.track_flag and time_now-self.timestamp_last_track >= 1/self.fps_track:
             # track is a blocking operation - it needs to be
             # @@@ will cropping before emitting the signal lead to speedup?
             self.packet_image_for_tracking.emit(image_cropped,camera.frame_ID,camera.timestamp)
