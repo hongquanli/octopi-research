@@ -28,8 +28,8 @@ class AF:
         pass
 
 class Motion:
-    STEPS_PER_MM_XY = 1
-    STEPS_PER_MM_Z = 1
+    STEPS_PER_MM_XY = 1600
+    STEPS_PER_MM_Z = 5333
     def __init__(self):
         pass
 
