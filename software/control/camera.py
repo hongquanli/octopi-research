@@ -9,8 +9,9 @@ except ImportError:
 
 class GXICamera(object):
 
-    def __init__(self):
+    def __init__(self,sn=None):
         # many to be purged
+        self.sn = sn
         self.device_manager = gx.DeviceManager()
         self.device_info_list = None
         self.device_index = 0
@@ -36,8 +37,11 @@ class GXICamera(object):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:
             raise RuntimeError('Could not find any USB camera devices!')
-        self.device_index = index
-        self.camera = self.device_manager.open_device_by_index(index + 1)
+        if self.sn is None:
+            self.device_index = index
+            self.camera = self.device_manager.open_device_by_index(index + 1)
+        else:
+            self.camera = self.device_manager.open_device_by_sn(self.sn)
         self.is_color = self.camera.PixelColorFilter.is_implemented()
         # self._update_image_improvement_params()
         # self.camera.register_capture_callback(self,self._on_frame_callback)
