@@ -33,13 +33,17 @@ class Microcontroller():
         print('Serial Connection Open')
 
     def toggle_LED(self,state):
+        print('switch LED')
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = 3
         cmd[1] = state
         self.serial.write(cmd)
     
     def toggle_laser(self,state):
-        pass
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = 4
+        cmd[1] = state
+        self.serial.write(cmd)
 
     def move_x(self,delta):
         direction = int((np.sign(delta)+1)/2)

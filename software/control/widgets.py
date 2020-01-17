@@ -409,6 +409,9 @@ class NavigationWidget(QFrame):
         self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line2,2,0)
         self.setLayout(self.grid)
+        
+    def move_x_forward():
+        pass
 
 class AutoFocusWidget(QFrame):
     def __init__(self, autofocusController, main=None, *args, **kwargs):

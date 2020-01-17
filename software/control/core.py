@@ -298,8 +298,10 @@ class LiveController(QObject):
     # illumination control
     def turn_on_illumination(self):
         if self.mode == MicroscopeMode.BFDF:
+            print('>>> turn on BF/DF LED')
             self.microcontroller.toggle_LED(1)
         else:
+            print('>>> turn on Fluorescence LED')
             self.microcontroller.toggle_laser(1)
 
     def turn_off_illumination(self):
@@ -318,6 +320,7 @@ class LiveController(QObject):
             self.is_live = False
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
+            self.turn_off_illumination()
 
     # software trigger related
     def trigger_acquisition_software(self):
@@ -774,6 +777,7 @@ class MultiPointController(QObject):
                     if self.do_bfdf:
                         self.liveController.set_microscope_mode(MicroscopeMode.BFDF)
                         self.liveController.turn_on_illumination()
+                        print('take bf image')
                         self.camera.send_trigger() 
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
@@ -789,6 +793,7 @@ class MultiPointController(QObject):
                         self.liveController.turn_on_illumination()
                         self.camera.send_trigger()
                         image = self.camera.read_frame()
+                        print('take fluorescence image')
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
                         saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
