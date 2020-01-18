@@ -298,10 +298,8 @@ class LiveController(QObject):
     # illumination control
     def turn_on_illumination(self):
         if self.mode == MicroscopeMode.BFDF:
-            print('>>> turn on BF/DF LED')
             self.microcontroller.toggle_LED(1)
         else:
-            print('>>> turn on Fluorescence LED')
             self.microcontroller.toggle_laser(1)
 
     def turn_off_illumination(self):

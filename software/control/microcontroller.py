@@ -33,7 +33,6 @@ class Microcontroller():
         print('Serial Connection Open')
 
     def toggle_LED(self,state):
-        print('switch LED')
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = 3
         cmd[1] = state
