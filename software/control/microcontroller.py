@@ -32,6 +32,9 @@ class Microcontroller():
         time.sleep(0.2)
         print('Serial Connection Open')
 
+    def close(self):
+        self.serial.close()
+
     def toggle_LED(self,state):
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = 3
@@ -55,6 +58,7 @@ class Microcontroller():
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
         self.serial.write(cmd)
+        time.sleep(WaitTime.BASE + WaitTime.X*abs(delta))
 
     def move_y(self,delta):
         direction = int((np.sign(delta)+1)/2)
@@ -67,6 +71,7 @@ class Microcontroller():
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
         self.serial.write(cmd)
+        time.sleep(WaitTime.BASE + WaitTime.Y*abs(delta))
 
     def move_z(self,delta):
         direction = int((np.sign(delta)+1)/2)
@@ -75,10 +80,11 @@ class Microcontroller():
             n_microsteps = 65535
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = 2
-        cmd[1] = direction
+        cmd[1] = 1-direction
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
         self.serial.write(cmd)
+        time.sleep(WaitTime.BASE + WaitTime.Z*abs(delta))
 
     def send_command(self,command):
         cmd = bytearray(self.tx_buffer_length)

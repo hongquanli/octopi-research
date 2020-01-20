@@ -27,7 +27,7 @@ class StreamHandler(QObject):
     packet_image_for_tracking = Signal(np.ndarray, int, float)
     signal_new_frame_received = Signal()
 
-    def __init__(self,crop_width=1000,crop_height=1000,display_resolution_scaling=0.5):
+    def __init__(self,crop_width=3000,crop_height=3000,display_resolution_scaling=0.5):
         QObject.__init__(self)
         self.fps_display = 1
         self.fps_save = 1
@@ -416,21 +416,18 @@ class NavigationController(QObject):
 
     def move_x(self,delta):
         self.microcontroller.move_x(delta)
-        time.sleep(WaitTime.BASE + WaitTime.X*abs(delta))
         self.x_pos = self.x_pos + delta
         self.xPos.emit(self.x_pos)
 
     def move_y(self,delta):
         self.microcontroller.move_y(delta)
-        time.sleep(WaitTime.BASE + WaitTime.Y*abs(delta))
         self.y_pos = self.y_pos + delta
         self.yPos.emit(self.y_pos)
 
     def move_z(self,delta):
         self.microcontroller.move_z(delta)
-        time.sleep(WaitTime.BASE + WaitTime.Z*abs(delta))
         self.z_pos = self.z_pos + delta
-        self.zPos.emit(self.z_pos)
+        self.zPos.emit(self.z_pos*1000)
 
 class AutoFocusController(QObject):
 
@@ -451,8 +448,8 @@ class AutoFocusController(QObject):
     def set_N(self,N):
         self.N = N
 
-    def set_deltaZ(self,deltaZ):
-        self.deltaZ = deltaZ
+    def set_deltaZ(self,deltaZ_um):
+        self.deltaZ = deltaZ_um/1000
 
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
@@ -541,7 +538,7 @@ class MultiPointController(QObject):
         self.Nt = 1
         self.deltaX = Acquisition.DX
         self.deltaY = Acquisition.DY
-        self.deltaZ = Acquisition.DZ
+        self.deltaZ = Acquisition.DZ/1000
         self.deltat = 0
         self.do_bfdf = False
         self.do_fluorescence = False
@@ -565,8 +562,8 @@ class MultiPointController(QObject):
         self.deltaX = delta
     def set_deltaY(self,delta):
         self.deltaY = delta
-    def set_deltaZ(self,delta):
-        self.deltaZ = delta
+    def set_deltaZ(self,delta_um):
+        self.deltaZ = delta_um/1000
     def set_deltat(self,delta):
         self.deltat = delta
     def set_bfdf_flag(self,flag):

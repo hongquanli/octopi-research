@@ -337,9 +337,9 @@ class RecordingWidget(QFrame):
         self.btn_setSavingDir.setEnabled(True)
 
 class NavigationWidget(QFrame):
-    def __init__(self, microcontroller, main=None, *args, **kwargs):
+    def __init__(self, navigationController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.microcontroller = microcontroller
+        self.navigationController = navigationController
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -375,7 +375,7 @@ class NavigationWidget(QFrame):
         self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
         self.entry_dZ = QDoubleSpinBox()
         self.entry_dZ.setMinimum(0) 
-        self.entry_dZ.setMaximum(10) 
+        self.entry_dZ.setMaximum(1000) 
         self.entry_dZ.setSingleStep(0.2)
         self.entry_dZ.setValue(0)
         self.btn_moveZ_forward = QPushButton('Forward')
@@ -387,31 +387,49 @@ class NavigationWidget(QFrame):
         grid_line0.addWidget(QLabel('X (mm)'), 0,0)
         grid_line0.addWidget(self.label_Xpos, 0,1)
         grid_line0.addWidget(self.entry_dX, 0,2)
-        grid_line0.addWidget(self.btn_moveX_backward, 0,3)
-        grid_line0.addWidget(self.btn_moveX_forward, 0,4)
+        grid_line0.addWidget(self.btn_moveX_forward, 0,3)
+        grid_line0.addWidget(self.btn_moveX_backward, 0,4)
 
         grid_line1 = QGridLayout()
         grid_line1.addWidget(QLabel('Y (mm)'), 0,0)
         grid_line1.addWidget(self.label_Ypos, 0,1)
         grid_line1.addWidget(self.entry_dY, 0,2)
-        grid_line1.addWidget(self.btn_moveY_backward, 0,3)
-        grid_line1.addWidget(self.btn_moveY_forward, 0,4)
+        grid_line1.addWidget(self.btn_moveY_forward, 0,3)
+        grid_line1.addWidget(self.btn_moveY_backward, 0,4)
 
         grid_line2 = QGridLayout()
         grid_line2.addWidget(QLabel('Z (um)'), 0,0)
         grid_line2.addWidget(self.label_Zpos, 0,1)
         grid_line2.addWidget(self.entry_dZ, 0,2)
-        grid_line2.addWidget(self.btn_moveZ_backward, 0,3)
-        grid_line2.addWidget(self.btn_moveZ_forward, 0,4)
+        grid_line2.addWidget(self.btn_moveZ_forward, 0,3)
+        grid_line2.addWidget(self.btn_moveZ_backward, 0,4)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
         self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line2,2,0)
         self.setLayout(self.grid)
+
+        self.btn_moveX_forward.clicked.connect(self.move_x_forward)
+        self.btn_moveX_backward.clicked.connect(self.move_x_backward)
+        self.btn_moveY_forward.clicked.connect(self.move_y_forward)
+        self.btn_moveY_backward.clicked.connect(self.move_y_backward)
+        self.btn_moveZ_forward.clicked.connect(self.move_z_forward)
+        self.btn_moveZ_backward.clicked.connect(self.move_z_backward)
         
-    def move_x_forward():
-        pass
+    def move_x_forward(self):
+        self.navigationController.move_x(self.entry_dX.value())
+        print('move x')
+    def move_x_backward(self):
+        self.navigationController.move_x(-self.entry_dX.value())
+    def move_y_forward(self):
+        self.navigationController.move_y(self.entry_dY.value())
+    def move_y_backward(self):
+        self.navigationController.move_y(-self.entry_dY.value())
+    def move_z_forward(self):
+        self.navigationController.move_z(self.entry_dZ.value()/1000)
+    def move_z_backward(self):
+        self.navigationController.move_z(-self.entry_dZ.value()/1000)
 
 class AutoFocusWidget(QFrame):
     def __init__(self, autofocusController, main=None, *args, **kwargs):
@@ -506,14 +524,14 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setValue(1)
 
         self.entry_deltaZ = QDoubleSpinBox()
-        self.entry_deltaZ.setMinimum(0.2) 
-        self.entry_deltaZ.setMaximum(5) 
-        self.entry_deltaZ.setSingleStep(1)
-        self.entry_deltaZ.setValue(Acquisition.DX)
+        self.entry_deltaZ.setMinimum(0) 
+        self.entry_deltaZ.setMaximum(1000) 
+        self.entry_deltaZ.setSingleStep(0.2)
+        self.entry_deltaZ.setValue(Acquisition.DZ)
         
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
-        self.entry_NZ.setMaximum(20) 
+        self.entry_NZ.setMaximum(100) 
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
         
@@ -557,7 +575,7 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(QLabel('Ny'), 0,6)
         grid_line2.addWidget(self.entry_NY, 0,7)
 
-        grid_line2.addWidget(QLabel('dz (mm)'), 1,0)
+        grid_line2.addWidget(QLabel('dz (um)'), 1,0)
         grid_line2.addWidget(self.entry_deltaZ, 1,1)
         grid_line2.addWidget(QLabel('Nz'), 1,2)
         grid_line2.addWidget(self.entry_NZ, 1,3)

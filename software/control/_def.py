@@ -13,10 +13,10 @@ class MicroscopeMode:
         pass
 
 class WaitTime:
-    BASE = 0.05
-    X = 0.005     # per um
-    Y = 0.005	 # per um
-    Z = 0.02     # per um
+    BASE = 0.1
+    X = 0.4     # per mm
+    Y = 0.4	 # per mm
+    Z = 0.2     # per mm
     def __init__(self):
         pass
 
