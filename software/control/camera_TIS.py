@@ -16,7 +16,7 @@ CameraProperty = namedtuple("CameraProperty", "status value min max default step
 
 class TISCamera(object):
 
-    def __init__(self,serial, width, height, framerate, color):
+    def __init__(self,serial, width=640, height=480, framerate=30, color=False):
         Gst.init(sys.argv)
         self.height = height
         self.width = width
@@ -27,6 +27,13 @@ class TISCamera(object):
         self.img_mat = None
         self.new_image_callback_external = None
         self.image_locked = False
+        self.is_streaming = False
+
+        self.GAIN_MAX = 480
+        self.GAIN_MIN = 0
+        self.GAIN_STEP = 10
+        self.EXPOSURE_TIME_MS_MIN = 0.02
+        self.EXPOSURE_TIME_MS_MAX = 4000
 
         format = "BGRx"
         if(color == False):
@@ -73,15 +80,15 @@ class TISCamera(object):
         pass
 
     def close(self):
-        pass
+        self.stop_streaming()
 
     def set_exposure_time(self,exposure_time):
         self._set_property('Exposure Auto',False)
-        self._set_property('Exposure',exposure_time)
+        self._set_property('Exposure Time (us)',int(exposure_time*1000))
 
     def set_analog_gain(self,analog_gain):
         self._set_property('Gain Auto',False)
-        self._set_property('Gain',analog_gain)
+        self._set_property('Gain',int(analog_gain))
 
     def get_awb_ratios(self):
         pass
@@ -93,7 +100,7 @@ class TISCamera(object):
         try:
             self.pipeline.set_state(Gst.State.PLAYING)
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
-
+            self.is_streaming = True
         except GLib.Error as error:
             print("Error starting pipeline: {0}".format(err))#error?
             raise
@@ -103,6 +110,7 @@ class TISCamera(object):
         self.pipeline.set_state(Gst.State.NULL)
         print("pipeline stopped")
         self.pipeline.set_state(Gst.State.READY)
+        self.is_streaming = False
 
     def set_continuous_acquisition(self):
         self._set_property('Trigger Mode', False)
@@ -156,6 +164,7 @@ class TISCamera(object):
 
     def _set_property(self, PropertyName, value):
         try:
+            print('setting ' + PropertyName + 'to ' + str(value))
             self.source.set_tcam_property(PropertyName,GObject.Value(type(value),value))
         except GLib.Error as error:
             print("Error set Property {0}: {1}",PropertyName, format(err))

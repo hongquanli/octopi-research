@@ -33,6 +33,12 @@ class GXICamera(object):
         self.callback_was_enabled_before_autofocus = False
         self.callback_was_enabled_before_multipoint = False
 
+        self.GAIN_MAX = 24
+        self.GAIN_MIN = 0
+        self.GAIN_STEP = 1
+        self.EXPOSURE_TIME_MS_MIN = 0.01
+        self.EXPOSURE_TIME_MS_MAX = 4000
+
     def open(self,index=0):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:
