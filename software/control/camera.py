@@ -7,7 +7,7 @@ try:
 except ImportError:
     print('gxipy import error')
 
-class GXICamera(object):
+class Camera(object):
 
     def __init__(self,sn=None):
         # many to be purged

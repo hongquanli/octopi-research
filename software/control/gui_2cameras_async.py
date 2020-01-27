@@ -23,8 +23,8 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load objects
-		self.camera_1 = camera.GXICamera(sn='FW0190110139')
-		self.camera_2 = camera.GXICamera(sn='FU0190090030')
+		self.camera_1 = camera.Camera(sn='FW0190110139')
+		self.camera_2 = camera.Camera(sn='FU0190090030')
 		self.microcontroller = microcontroller.Microcontroller()
 		
 		self.streamHandler_1 = core.StreamHandler()

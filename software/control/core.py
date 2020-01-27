@@ -892,9 +892,9 @@ class TrackingController(QObject):
 # from gravity machine
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, window_title=''):
         super().__init__()
-        self.setWindowTitle('Image Display Window')
+        self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
         self.widget = QWidget()

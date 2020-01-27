@@ -151,6 +151,35 @@ class Microcontroller():
         '''
         return data
 
+class Microcontroller_Simulation():
+    def __init__(self,parent=None):
+        pass
+
+    def close(self):
+        pass
+
+    def toggle_LED(self,state):
+        pass
+    
+    def toggle_laser(self,state):
+        pass
+
+    def move_x(self,delta):
+        pass
+
+    def move_y(self,delta):
+        pass
+
+    def move_z(self,delta):
+        pass
+
+    def send_command(self,command):
+        pass
+
+    def read_received_packet(self):
+        pass
+
+
 # from Gravity machine
 def split_int_2byte(number):
     return int(number)% 256,int(number) >> 8

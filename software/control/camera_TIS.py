@@ -1,22 +1,23 @@
 import numpy
-import gi
 from collections import namedtuple
 from time import sleep
 import sys
 import time #@@@
 
-gi.require_version("Gst", "1.0")
-gi.require_version("Tcam", "0.1")
-
-from gi.repository import Tcam, Gst, GLib, GObject
+try:
+    import gi
+    gi.require_version("Gst", "1.0")
+    gi.require_version("Tcam", "0.1")
+    from gi.repository import Tcam, Gst, GLib, GObject
+except ImportError:
+    print('gi import error')
 
 DeviceInfo = namedtuple("DeviceInfo", "status name identifier connection_type")
 CameraProperty = namedtuple("CameraProperty", "status value min max default step type flags category group")
 
+class Camera(object):
 
-class TISCamera(object):
-
-    def __init__(self,serial, width=640, height=480, framerate=30, color=False):
+    def __init__(self,sn=None,width=640,height=480,framerate=30,color=False):
         Gst.init(sys.argv)
         self.height = height
         self.width = width
@@ -187,3 +188,86 @@ class TISCamera(object):
              bpp),
             buffer=buf.extract_dup(0, buf.get_size()),
             dtype=numpy.uint8)
+
+class Camera_Simulation(object):
+
+    def __init__(self,sn=None,width=640,height=480,framerate=30,color=False):
+        self.height = height
+        self.width = width
+        self.sample = None
+        self.samplelocked = False
+        self.newsample = False
+        self.gotimage = False
+        self.img_mat = None
+        self.new_image_callback_external = None
+        self.image_locked = False
+        self.is_streaming = False
+
+        self.GAIN_MAX = 480
+        self.GAIN_MIN = 0
+        self.GAIN_STEP = 10
+        self.EXPOSURE_TIME_MS_MIN = 0.02
+        self.EXPOSURE_TIME_MS_MAX = 4000
+
+    def open(self,index=0):
+        pass
+
+    def set_callback(self,function):
+        pass
+
+    def enable_callback(self):
+        pass
+
+    def disable_callback(self):
+        pass
+
+    def open_by_sn(self,sn):
+        pass
+
+    def close(self):
+        pass
+
+    def set_exposure_time(self,exposure_time):
+        pass
+
+    def set_analog_gain(self,analog_gain):
+        pass
+
+    def get_awb_ratios(self):
+        pass
+
+    def set_wb_ratios(self, wb_r=None, wb_g=None, wb_b=None):
+        pass
+
+    def start_streaming(self):
+        pass
+
+    def stop_streaming(self):
+        pass
+
+    def set_continuous_acquisition(self):
+        pass
+
+    def set_software_triggered_acquisition(self):
+        pass
+
+    def set_hardware_triggered_acquisition(self):
+        pass
+
+    def send_trigger(self):
+        pass
+
+    def read_frame(self):
+        pass
+
+    def _on_new_buffer(self, appsink):
+        pass
+
+    def _get_property(self, PropertyName):
+        pass
+
+    def _set_property(self, PropertyName, value):
+        pass
+
+    def _gstbuffer_to_opencv(self):
+        pass
