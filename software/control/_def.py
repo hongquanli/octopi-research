@@ -32,6 +32,14 @@ class Motion:
     STEPS_PER_MM_Z = 5333
     def __init__(self):
         pass
+'''
+# for octopi-malaria
+class Motion:
+    STEPS_PER_MM_XY = 40
+    STEPS_PER_MM_Z = 5333
+    def __init__(self):
+        pass
+'''
 
 class Acquisition:
     CROP_WIDTH = 3000
