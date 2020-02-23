@@ -17,3 +17,10 @@ def calculate_focus_measure(image):
 	lap = cv2.Laplacian(image,cv2.CV_16S)
 	focus_measure = mean(square(lap))
 	return focus_measure
+
+def unsigned_to_signed(unsigned_array,N):
+    signed = 0
+    for i in range(N):
+        signed = signed + int(unsigned_array[i])*(256**(N-1-i))
+    signed = signed - (256**N)/2
+    return signed

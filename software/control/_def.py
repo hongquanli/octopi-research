@@ -28,8 +28,8 @@ class AF:
         pass
 
 class Motion:
-    STEPS_PER_MM_XY = 1600
-    STEPS_PER_MM_Z = 5333
+    STEPS_PER_MM_XY = 1600 # microsteps
+    STEPS_PER_MM_Z = 5333  # microsteps
     def __init__(self):
         pass
 '''
@@ -45,7 +45,7 @@ class Acquisition:
     CROP_WIDTH = 3000
     CROP_HEIGHT = 3000
     NUMBER_OF_FOVS_PER_AF = 3
-    IMAGE_FORMAT = 'png'
+    IMAGE_FORMAT = 'bmp'
     IMAGE_DISPLAY_SCALING_FACTOR = 0.25
     DX = 1
     DY = 1
@@ -53,3 +53,11 @@ class Acquisition:
 
     def __init__(self):
         pass
+
+class PosUpdate:
+    INTERVAL_MS = 25
+
+class MicrocontrollerDef:
+    MSG_LENGTH = 9
+    CMD_LENGTH = 4
+    N_BYTES_POS = 3

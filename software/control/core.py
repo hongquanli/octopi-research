@@ -413,20 +413,35 @@ class NavigationController(QObject):
         self.x_pos = 0
         self.y_pos = 0
         self.z_pos = 0
+        self.timer_read_pos = QTimer()
+        self.timer_read_pos.setInterval(PosUpdate.INTERVAL_MS)
+        self.timer_read_pos.timeout.connect(self.update_pos)
+        self.timer_read_pos.start()
 
     def move_x(self,delta):
         self.microcontroller.move_x(delta)
         self.x_pos = self.x_pos + delta
-        self.xPos.emit(self.x_pos)
+        #self.xPos.emit(self.x_pos)
 
     def move_y(self,delta):
         self.microcontroller.move_y(delta)
         self.y_pos = self.y_pos + delta
-        self.yPos.emit(self.y_pos)
+        #self.yPos.emit(self.y_pos)
 
     def move_z(self,delta):
         self.microcontroller.move_z(delta)
         self.z_pos = self.z_pos + delta
+        #self.zPos.emit(self.z_pos*1000)
+
+    def update_pos(self):
+        pos = self.microcontroller.read_received_packet_nowait()
+        if pos is None:
+            return
+        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY
+        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY
+        self.z_pos = utils.unsigned_to_signed(pos[6:9],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Z
+        self.xPos.emit(self.x_pos)
+        self.yPos.emit(self.y_pos)
         self.zPos.emit(self.z_pos*1000)
 
 class AutoFocusController(QObject):

@@ -12,8 +12,8 @@ class Microcontroller():
     def __init__(self,parent=None):
         self.serial = None
         self.platform_name = platform.system()
-        self.tx_buffer_length = 4
-        self.rx_buffer_length = 4
+        self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
+        self.rx_buffer_length = MicrocontrollerDef.MSG_LENGTH
 
         # AUTO-DETECT the Arduino! By Deepak
         arduino_ports = [
@@ -149,6 +149,26 @@ class Microcontroller():
         trigger_FL = bool(data[25])
         return [YfocusPhase,Xpos_arduino,Ypos_arduino,Zpos_arduino, LED_measured, tracking_triggered],manualMode
         '''
+        return data
+
+    def read_received_packet_nowait(self):
+        # wait to receive data
+        if self.serial.in_waiting==0:
+            return None
+        if self.serial.in_waiting % self.rx_buffer_length != 0:
+            return None
+        
+        # get rid of old data
+        num_bytes_in_rx_buffer = self.serial.in_waiting
+        if num_bytes_in_rx_buffer > self.rx_buffer_length:
+            print('getting rid of old data')
+            for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
+                self.serial.read()
+        
+        # read the buffer
+        data=[]
+        for i in range(self.rx_buffer_length):
+            data.append(ord(self.serial.read()))
         return data
 
 class Microcontroller_Simulation():
