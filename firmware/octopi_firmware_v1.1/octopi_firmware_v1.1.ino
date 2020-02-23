@@ -355,6 +355,14 @@ void loop() {
     buffer_tx[0] = byte(x_pos_NBytesUnsigned>>16);
     buffer_tx[1] = byte((x_pos_NBytesUnsigned>>8)%256);
     buffer_tx[2] = byte(x_pos_NBytesUnsigned%256);
+    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
+    buffer_tx[3] = byte(y_pos_NBytesUnsigned>>16);
+    buffer_tx[4] = byte((y_pos_NBytesUnsigned>>8)%256);
+    buffer_tx[5] = byte(y_pos_NBytesUnsigned%256);
+    long z_pos_NBytesUnsigned = signed2NBytesUnsigned(z_pos,N_BYTES_POS);
+    buffer_tx[6] = byte(z_pos_NBytesUnsigned>>16);
+    buffer_tx[7] = byte((z_pos_NBytesUnsigned>>8)%256);
+    buffer_tx[8] = byte(z_pos_NBytesUnsigned%256);
     SerialUSB.write(buffer_tx,MSG_LENGTH);
     flag_send_pos_update = false;
   }
