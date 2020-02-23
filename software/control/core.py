@@ -497,8 +497,10 @@ class AutoFocusController(QObject):
         for i in range(self.N):
             self.navigationController.move_z(self.deltaZ)
             steps_moved = steps_moved + 1
+            self.liveController.turn_on_illumination()
             self.camera.send_trigger()
             image = self.camera.read_frame()
+            self.liveController.turn_off_illumination()
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             self.image_to_display.emit(image)
             QApplication.processEvents()
