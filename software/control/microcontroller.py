@@ -113,9 +113,9 @@ class Microcontroller():
 
     def read_received_packet(self):
         # wait to receive data
-        while self.serialconn.in_waiting==0:
+        while self.serial.in_waiting==0:
             pass
-        while self.serialconn.in_waiting % self.rx_buffer_length != 0:
+        while self.serial.in_waiting % self.rx_buffer_length != 0:
             pass
 
         num_bytes_in_rx_buffer = self.serial.in_waiting
@@ -129,7 +129,7 @@ class Microcontroller():
         # read the buffer
         data=[]
         for i in range(self.rx_buffer_length):
-            data.append(ord(self.serialconn.read()))
+            data.append(ord(self.serial.read()))
 
         '''
         YfocusPhase = self.data2byte_to_int(data[0],data[1])*2*np.pi/65535.
