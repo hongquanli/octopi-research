@@ -27,7 +27,7 @@ class StreamHandler(QObject):
     packet_image_for_tracking = Signal(np.ndarray, int, float)
     signal_new_frame_received = Signal()
 
-    def __init__(self,crop_width=3000,crop_height=3000,display_resolution_scaling=0.5):
+    def __init__(self,crop_width=Acquisition.CROP_WIDTH,crop_height=Acquisition.CROP_HEIGHT,display_resolution_scaling=0.5):
         QObject.__init__(self)
         self.fps_display = 1
         self.fps_save = 1
@@ -97,7 +97,8 @@ class StreamHandler(QObject):
         # send image to display
         time_now = time.time()
         if time_now-self.timestamp_last_display >= 1/self.fps_display:
-            self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+            # self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+            self.image_to_display.emit(utils.crop_image(image_cropped,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
             self.timestamp_last_display = time_now
 
         # send image to write
