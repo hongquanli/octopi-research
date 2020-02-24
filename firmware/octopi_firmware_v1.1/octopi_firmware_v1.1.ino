@@ -179,6 +179,7 @@ void setup() {
   digitalWrite(X_driver_uart, true);
   while(!STEPPER_SERIAL);
   X_driver.begin();
+  X_driver.I_scale_analog(false);
   X_driver.rms_current(500); //I_run and holdMultiplier
   X_driver.microsteps(8);
   X_driver.TPOWERDOWN(2);
@@ -190,6 +191,7 @@ void setup() {
   digitalWrite(Y_driver_uart, true);
   while(!STEPPER_SERIAL);
   Y_driver.begin();
+  Y_driver.I_scale_analog(false);  
   Y_driver.rms_current(500); //I_run and holdMultiplier
   Y_driver.microsteps(8);
   Y_driver.pwm_autoscale(true);
@@ -201,6 +203,7 @@ void setup() {
   digitalWrite(Z_driver_uart, true);
   while(!STEPPER_SERIAL);
   Z_driver.begin();
+  Z_driver.I_scale_analog(false);  
   Z_driver.rms_current(500,0.5); //I_run and holdMultiplier
   Z_driver.microsteps(8);
   Z_driver.TPOWERDOWN(2);
@@ -468,23 +471,23 @@ void timer_interruptHandler(){
 void ISR_focusWheel_A(){
   if(digitalRead(focusWheel_B)==1)
   {
-    focusPosition = focusPosition + 2;
+    focusPosition = focusPosition + 1;
     digitalWrite(13,HIGH);
   }
   else
   {
-    focusPosition = focusPosition - 2;
+    focusPosition = focusPosition - 1;
     digitalWrite(13,LOW);
   }
 }
 void ISR_focusWheel_B(){
   if(digitalRead(focusWheel_A)==1)
   {
-    focusPosition = focusPosition - 2;
+    focusPosition = focusPosition - 1;
   }
   else
   {
-    focusPosition = focusPosition + 2;
+    focusPosition = focusPosition + 1;
   }
 }
 
