@@ -20,6 +20,8 @@ volatile int buffer_rx_ptr;
 
 static const int N_BYTES_POS = 3;
 
+static const long RANGE_XY_mm = 26;
+
 // v0.1.0 pin def
 /*
 static const int X_dir  = 36;
@@ -177,7 +179,7 @@ void setup() {
   digitalWrite(X_driver_uart, true);
   while(!STEPPER_SERIAL);
   X_driver.begin();
-  X_driver.rms_current(100); //I_run and holdMultiplier
+  X_driver.rms_current(500); //I_run and holdMultiplier
   X_driver.microsteps(8);
   X_driver.TPOWERDOWN(2);
   X_driver.pwm_autoscale(true);
@@ -264,7 +266,6 @@ void setup() {
   joystick_offset_x = analogRead(A0);
   joystick_offset_y = analogRead(A1);
   
-  
   Timer3.attachInterrupt(timer_interruptHandler);
   Timer3.start(TIMER_PERIOD); 
 
@@ -323,6 +324,12 @@ void loop() {
     if(abs(deltaX_float)>joystickSensitivity){
       stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
       runSpeed_flag_X = true;
+      /*
+      if(stepper_X.currentPosition()>RANGE_XY_mm*steps_per_mm_XY/2&&deltaX_float>0)
+        runSpeed_flag_X = false;
+      if(stepper_X.currentPosition()<-RANGE_XY_mm*steps_per_mm_XY/2&&deltaX_float<0)
+        runSpeed_flag_X = false;
+      */
     }
     else {
     //if(stepper_X.distanceToGo()==0)
@@ -336,13 +343,26 @@ void loop() {
     if(abs(deltaY)>joystickSensitivity){
       stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
       runSpeed_flag_Y = true;
+      /*
+      if(stepper_Y.currentPosition()>RANGE_XY_mm*steps_per_mm_XY/2&&deltaY_float>0)
+        runSpeed_flag_Y = false;
+      if(stepper_Y.currentPosition()<-RANGE_XY_mm*steps_per_mm_XY/2&&deltaY_float<0)
+        runSpeed_flag_Y = false;
+      */
     }
     else {
     //if(stepper_Y.distanceToGo()==0)
       stepper_Y.setSpeed(0);
       runSpeed_flag_Y = false;
     }
-
+    /*
+    int set_home = analogRead(A2);
+    if(set_home<500)
+    {
+      stepper_X.setCurrentPosition(0);
+      stepper_Y.setCurrentPosition(0);
+    }
+    */
     stepper_Z.moveTo(focusPosition);
     //@@@@@@
     flag_read_joystick = false;
@@ -350,19 +370,24 @@ void loop() {
 
   if(flag_send_pos_update)
   {
-    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
-    //long x_pos_NBytesUnsigned = 8388608L-1L;
+    // long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
+    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS);
     buffer_tx[0] = byte(x_pos_NBytesUnsigned>>16);
     buffer_tx[1] = byte((x_pos_NBytesUnsigned>>8)%256);
     buffer_tx[2] = byte(x_pos_NBytesUnsigned%256);
-    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
+    
+    //long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
+    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS);
     buffer_tx[3] = byte(y_pos_NBytesUnsigned>>16);
     buffer_tx[4] = byte((y_pos_NBytesUnsigned>>8)%256);
     buffer_tx[5] = byte(y_pos_NBytesUnsigned%256);
-    long z_pos_NBytesUnsigned = signed2NBytesUnsigned(z_pos,N_BYTES_POS);
+    
+    //long z_pos_NBytesUnsigned = signed2NBytesUnsigned(z_pos,N_BYTES_POS);
+    long z_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Z.currentPosition(),N_BYTES_POS);    
     buffer_tx[6] = byte(z_pos_NBytesUnsigned>>16);
     buffer_tx[7] = byte((z_pos_NBytesUnsigned>>8)%256);
     buffer_tx[8] = byte(z_pos_NBytesUnsigned%256);
+    
     SerialUSB.write(buffer_tx,MSG_LENGTH);
     flag_send_pos_update = false;
   }
