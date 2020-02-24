@@ -53,7 +53,9 @@ class Camera(object):
         # self.camera.register_capture_callback(self,self._on_frame_callback)
         if self.is_color:
             # self.set_wb_ratios(self.get_awb_ratios())
-            self.set_wb_ratios(1.28125,1.0,2.9453125)
+            print(self.get_awb_ratios())
+            # self.set_wb_ratios(1.28125,1.0,2.9453125)
+            self.set_wb_ratios(2,1,2)
 
     def set_callback(self,function):
         self.new_image_callback_external = function

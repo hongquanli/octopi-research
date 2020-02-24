@@ -796,8 +796,11 @@ class MultiPointController(QObject):
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
                         saving_path = os.path.join(current_path, file_ID + '_bf' + '.' + Acquisition.IMAGE_FORMAT)
+                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                        self.image_to_display.emit(utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
+                        if self.camera.is_color:
+                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
-                        self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
                         QApplication.processEvents()
 
                     # take fluorescence
@@ -810,8 +813,11 @@ class MultiPointController(QObject):
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
                         saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
-                        cv2.imwrite(saving_path,image)
-                        self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                        self.image_to_display.emit(utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
+                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                        if self.camera.is_color:
+                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)                        
+                        cv2.imwrite(saving_path,image)                        
                         QApplication.processEvents()
                     
                     if self.do_bfdf is not True and self.do_fluorescence is not True:
