@@ -260,6 +260,9 @@ class ImageDisplay(QObject):
         except:
             print('imageDisplay queue is full, image discarded')
 
+    def emit_directly(self,image):
+        self.image_to_display.emit(image)
+
     def close(self):
         self.queue.join()
         self.stop_signal_received = True

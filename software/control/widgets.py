@@ -184,7 +184,7 @@ class LiveControlWidget(QFrame):
         # line 3: display fps and resolution scaling
         self.entry_displayFPS = QDoubleSpinBox()
         self.entry_displayFPS.setMinimum(1) 
-        self.entry_displayFPS.setMaximum(30) 
+        self.entry_displayFPS.setMaximum(240) 
         self.entry_displayFPS.setSingleStep(1)
         self.entry_displayFPS.setValue(self.fps_display)
 

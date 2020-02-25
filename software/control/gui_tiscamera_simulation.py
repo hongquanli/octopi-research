@@ -94,6 +94,7 @@ class OctopiGUI(QMainWindow):
 		# make connections
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
 		self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+		# self.streamHandler.image_to_display.connect(self.imageDisplay.emit_directly) # test emitting image to display without queueing and threading
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
 		self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
 		self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
