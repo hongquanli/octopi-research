@@ -199,6 +199,9 @@ class Microcontroller_Simulation():
     def read_received_packet(self):
         pass
 
+    def read_received_packet_nowait(self):
+        return None
+
 
 # from Gravity machine
 def split_int_2byte(number):

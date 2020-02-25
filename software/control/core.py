@@ -118,7 +118,7 @@ class StreamHandler(QObject):
         self.handler_busy = False
         camera.image_locked = False
 
-
+    '''
     def on_new_frame_from_simulation(self,image,frame_ID,timestamp):
         # check whether image is a local copy or pointer, if a pointer, needs to prevent the image being modified while this function is being executed
         
@@ -144,6 +144,7 @@ class StreamHandler(QObject):
             self.timestamp_last_track = time_now
 
         self.handler_busy = False
+    '''
 
 class ImageSaver(QObject):
 

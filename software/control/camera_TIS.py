@@ -3,6 +3,9 @@ from collections import namedtuple
 from time import sleep
 import sys
 import time #@@@
+import numpy as np
+from scipy import misc
+import cv2
 
 try:
     import gi
@@ -213,7 +216,7 @@ class Camera_Simulation(object):
         pass
 
     def set_callback(self,function):
-        pass
+        self.new_image_callback_external = function
 
     def enable_callback(self):
         pass
@@ -240,7 +243,7 @@ class Camera_Simulation(object):
         pass
 
     def start_streaming(self):
-        pass
+        self.frame_ID = 0
 
     def stop_streaming(self):
         pass
@@ -255,7 +258,17 @@ class Camera_Simulation(object):
         pass
 
     def send_trigger(self):
-        pass
+        self.frame_ID = self.frame_ID + 1
+        self.timestamp = time.time()
+        if self.frame_ID == 1:
+            self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
+            self.current_frame[901:1100,901:1100] = 200
+        else:
+            self.current_frame = np.roll(self.current_frame,10,axis=0)
+            pass 
+            # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
+        if self.new_image_callback_external is not None:
+            self.new_image_callback_external(self)
 
     def read_frame(self):
         pass
