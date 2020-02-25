@@ -373,14 +373,14 @@ void loop() {
 
   if(flag_send_pos_update)
   {
-    // long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
-    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS);
+    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
+    //long x_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS);
     buffer_tx[0] = byte(x_pos_NBytesUnsigned>>16);
     buffer_tx[1] = byte((x_pos_NBytesUnsigned>>8)%256);
     buffer_tx[2] = byte(x_pos_NBytesUnsigned%256);
     
-    //long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
-    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS);
+    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
+    //long y_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS);
     buffer_tx[3] = byte(y_pos_NBytesUnsigned>>16);
     buffer_tx[4] = byte((y_pos_NBytesUnsigned>>8)%256);
     buffer_tx[5] = byte(y_pos_NBytesUnsigned%256);
