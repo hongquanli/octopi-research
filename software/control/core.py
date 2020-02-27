@@ -831,6 +831,9 @@ class MultiPointController(QObject):
                     if k < self.NZ - 1:
                         self.navigationController.move_z(self.deltaZ)
 
+                # update FOV counter
+                self.FOV_counter = self.FOV_counter + 1
+                
                 # move z back
                 self.navigationController.move_z(-self.deltaZ*(self.NZ-1))
 
