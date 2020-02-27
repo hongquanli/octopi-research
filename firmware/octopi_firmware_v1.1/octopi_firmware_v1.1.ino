@@ -17,10 +17,12 @@ static const int MSG_LENGTH = 9;
 byte buffer_rx[500];
 byte buffer_tx[MSG_LENGTH];
 volatile int buffer_rx_ptr;
-
 static const int N_BYTES_POS = 3;
 
-static const long RANGE_XY_mm = 26;
+static const long X_NEG_LIMIT_MM = -12.5;
+static const long X_POS_LIMIT_MM = 12.5;
+static const long Y_NEG_LIMIT_MM = -12.5;
+static const long Y_POS_LIMIT_MM = 12.5;
 
 // v0.1.0 pin def
 /*
@@ -125,6 +127,9 @@ volatile int deltaX = 0;
 volatile int deltaY = 0;
 volatile float deltaX_float = 0;
 volatile float deltaY_float = 0;
+
+long target_position;
+//long relative_position;
 
 // focus
 static const int focusWheel_A  = 4;
@@ -285,13 +290,38 @@ void loop() {
     if (buffer_rx_ptr == CMD_LENGTH) {
       buffer_rx_ptr = 0;
       if(buffer_rx[0]==0)
-        //stepper_X.runToNewPosition(stepper_X.targetPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
-        stepper_X.runToNewPosition(stepper_X.currentPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
+      {
+        int relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+        if(relative_position>0)
+          //target_position = min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY);
+          target_position = 0.16*steps_per_mm_XY;
+          //Serial.print("pos");
+        else
+          //target_position = max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY);
+          target_position = -0.16*steps_per_mm_XY;
+          //Serial.print("neg");
+        stepper_X.runToNewPosition(target_position);
+      }        
       else if(buffer_rx[0]==1)
-        //stepper_Y.runToNewPosition(stepper_Y.targetPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
-        stepper_Y.runToNewPosition(stepper_Y.currentPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
-      else if(buffer_rx[0]==2){
-        //stepper_Z.runToNewPosition(stepper_Z.targetPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
+      {
+        int relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+        if(relative_position>0)
+        {
+          target_position = stepper_Y.currentPosition()+relative_position;
+          if(target_position > Y_POS_LIMIT_MM*steps_per_mm_XY)
+            target_position = Y_POS_LIMIT_MM*steps_per_mm_XY;
+        }
+        else
+        {
+          //target_position = max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY);
+          target_position = stepper_Y.currentPosition()+relative_position;
+          if(target_position < Y_NEG_LIMIT_MM*steps_per_mm_XY)
+            target_position = Y_NEG_LIMIT_MM*steps_per_mm_XY;
+        }
+        stepper_Y.runToNewPosition(target_position);
+      }
+      else if(buffer_rx[0]==2)
+      {
         stepper_Z.runToNewPosition(stepper_Z.currentPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
         focusPosition = focusPosition + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3]));
       }
@@ -321,51 +351,48 @@ void loop() {
   }
 
   if(flag_read_joystick) {
-    //float deltaX = joystick.getHorizontal() - 512;
-    deltaX = analogRead(A0) - joystick_offset_x;
-    deltaX_float = deltaX;
-    if(abs(deltaX_float)>joystickSensitivity){
-      stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
-      runSpeed_flag_X = true;
-      /*
-      if(stepper_X.currentPosition()>RANGE_XY_mm*steps_per_mm_XY/2&&deltaX_float>0)
-        runSpeed_flag_X = false;
-      if(stepper_X.currentPosition()<-RANGE_XY_mm*steps_per_mm_XY/2&&deltaX_float<0)
-        runSpeed_flag_X = false;
-      */
-    }
-    else {
-    //if(stepper_X.distanceToGo()==0)
-      stepper_X.setSpeed(0);
-      runSpeed_flag_X = false;
-    }
-
-    //float deltaY = joystick.getVertical() - 512;
-    deltaY = analogRead(A1) - joystick_offset_y;
-    deltaY_float = deltaY;
-    if(abs(deltaY)>joystickSensitivity){
-      stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
-      runSpeed_flag_Y = true;
-      /*
-      if(stepper_Y.currentPosition()>RANGE_XY_mm*steps_per_mm_XY/2&&deltaY_float>0)
-        runSpeed_flag_Y = false;
-      if(stepper_Y.currentPosition()<-RANGE_XY_mm*steps_per_mm_XY/2&&deltaY_float<0)
-        runSpeed_flag_Y = false;
-      */
-    }
-    else {
-    //if(stepper_Y.distanceToGo()==0)
-      stepper_Y.setSpeed(0);
-      runSpeed_flag_Y = false;
-    }
-    /*
-    int set_home = analogRead(A2);
-    if(set_home<500)
-    {
-      stepper_X.setCurrentPosition(0);
-      stepper_Y.setCurrentPosition(0);
-    }
-    */
+//    deltaX = analogRead(A0) - joystick_offset_x;
+//    deltaX_float = deltaX;
+//    if(abs(deltaX_float)>joystickSensitivity){
+//      stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
+//      runSpeed_flag_X = true;
+//      /*
+//      if(stepper_X.currentPosition()>RANGE_XY_mm*steps_per_mm_XY/2&&deltaX_float>0)
+//        runSpeed_flag_X = false;
+//      if(stepper_X.currentPosition()<-RANGE_XY_mm*steps_per_mm_XY/2&&deltaX_float<0)
+//        runSpeed_flag_X = false;
+//      */
+//    }
+//    else {
+//      stepper_X.setSpeed(0);
+//      runSpeed_flag_X = false;
+//    }
+//
+//    deltaY = analogRead(A1) - joystick_offset_y;
+//    deltaY_float = deltaY;
+//    if(abs(deltaY)>joystickSensitivity){
+//      stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
+//      runSpeed_flag_Y = true;
+//      /*
+//      if(stepper_Y.currentPosition()>RANGE_XY_mm*steps_per_mm_XY/2&&deltaY_float>0)
+//        runSpeed_flag_Y = false;
+//      if(stepper_Y.currentPosition()<-RANGE_XY_mm*steps_per_mm_XY/2&&deltaY_float<0)
+//        runSpeed_flag_Y = false;
+//      */
+//    }
+//    else {
+//      stepper_Y.setSpeed(0);
+//      runSpeed_flag_Y = false;
+//    }
+//    /*
+//    int set_home = analogRead(A2);
+//    if(set_home<500)
+//    {
+//      stepper_X.setCurrentPosition(0);
+//      stepper_Y.setCurrentPosition(0);
+//    }
+//    */
+    
     stepper_Z.moveTo(focusPosition);
     //@@@@@@
     flag_read_joystick = false;
@@ -373,14 +400,14 @@ void loop() {
 
   if(flag_send_pos_update)
   {
-    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
-    //long x_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS);
+    //long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
+    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS);
     buffer_tx[0] = byte(x_pos_NBytesUnsigned>>16);
     buffer_tx[1] = byte((x_pos_NBytesUnsigned>>8)%256);
     buffer_tx[2] = byte(x_pos_NBytesUnsigned%256);
     
-    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
-    //long y_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS);
+    //long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
+    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS);
     buffer_tx[3] = byte(y_pos_NBytesUnsigned>>16);
     buffer_tx[4] = byte((y_pos_NBytesUnsigned>>8)%256);
     buffer_tx[5] = byte(y_pos_NBytesUnsigned%256);
