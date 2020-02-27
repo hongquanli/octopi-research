@@ -945,6 +945,12 @@ class ImageDisplayWindow(QMainWindow):
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
 
+        # set window size
+        desktopWidget = QDesktopWidget();
+        width = desktopWidget.height()*0.9
+        height = width
+        self.setFixedSize(width,height)
+
     def display_image(self,image):
         self.graphics_widget.img.setImage(image,autoLevels=False)
         # print('display image')
