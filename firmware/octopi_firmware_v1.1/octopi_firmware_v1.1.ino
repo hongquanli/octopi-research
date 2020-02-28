@@ -19,10 +19,10 @@ byte buffer_tx[MSG_LENGTH];
 volatile int buffer_rx_ptr;
 static const int N_BYTES_POS = 3;
 
-static const long X_NEG_LIMIT_MM = -12.5;
-static const long X_POS_LIMIT_MM = 12.5;
-static const long Y_NEG_LIMIT_MM = -12.5;
-static const long Y_POS_LIMIT_MM = 12.5;
+static const long X_NEG_LIMIT_MM = -12;
+static const long X_POS_LIMIT_MM = 12;
+static const long Y_NEG_LIMIT_MM = -12;
+static const long Y_POS_LIMIT_MM = 12;
 
 // v0.1.0 pin def
 /*
@@ -84,8 +84,10 @@ TMC2209Stepper Z_driver(&STEPPER_SERIAL, R_SENSE, X_driver_ADDRESS);
 AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, X_step, X_dir);
 AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
 AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
-constexpr uint32_t steps_per_mm_XY = 1600;
-constexpr uint32_t steps_per_mm_Z = 5333;
+//constexpr uint32_t steps_per_mm_XY = 1600;
+//constexpr uint32_t steps_per_mm_Z = 5333;
+static const long steps_per_mm_XY = 1600;
+static const long steps_per_mm_Z = 5333;
 //constexpr float MAX_VELOCITY_X_mm = 7;
 //constexpr float MAX_VELOCITY_Y_mm = 7;
 constexpr float MAX_VELOCITY_X_mm = 3;
@@ -291,33 +293,14 @@ void loop() {
       buffer_rx_ptr = 0;
       if(buffer_rx[0]==0)
       {
-        int relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        if(relative_position>0)
-          //target_position = min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY);
-          target_position = 0.16*steps_per_mm_XY;
-          //Serial.print("pos");
-        else
-          //target_position = max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY);
-          target_position = -0.16*steps_per_mm_XY;
-          //Serial.print("neg");
+        long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+        target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY) );
         stepper_X.runToNewPosition(target_position);
       }        
       else if(buffer_rx[0]==1)
       {
-        int relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        if(relative_position>0)
-        {
-          target_position = stepper_Y.currentPosition()+relative_position;
-          if(target_position > Y_POS_LIMIT_MM*steps_per_mm_XY)
-            target_position = Y_POS_LIMIT_MM*steps_per_mm_XY;
-        }
-        else
-        {
-          //target_position = max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY);
-          target_position = stepper_Y.currentPosition()+relative_position;
-          if(target_position < Y_NEG_LIMIT_MM*steps_per_mm_XY)
-            target_position = Y_NEG_LIMIT_MM*steps_per_mm_XY;
-        }
+        long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+        target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY) );
         stepper_Y.runToNewPosition(target_position);
       }
       else if(buffer_rx[0]==2)
@@ -433,7 +416,7 @@ void loop() {
     stepper_Y.runSpeed();
   else
     stepper_Y.run();
-  
+
   stepper_Z.run();
 }
 
