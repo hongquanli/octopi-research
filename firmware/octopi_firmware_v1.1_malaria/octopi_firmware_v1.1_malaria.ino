@@ -240,9 +240,9 @@ void setup() {
   stepper_Y.setEnablePin(Y_en);
   stepper_Z.setEnablePin(Z_en);
   
-  stepper_X1.setPinsInverted(false, false, true);
-  stepper_X2.setPinsInverted(false, false, true);
-  stepper_Y.setPinsInverted(false, false, true);
+  stepper_X1.setPinsInverted(true, false, true);
+  stepper_X2.setPinsInverted(true, false, true);
+  stepper_Y.setPinsInverted(true, false, true);
   stepper_Z.setPinsInverted(false, false, true);
   
   stepper_X1.setMaxSpeed(MAX_VELOCITY_X_mm*steps_per_mm_XY);
