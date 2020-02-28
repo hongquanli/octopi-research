@@ -19,11 +19,6 @@ byte buffer_tx[MSG_LENGTH];
 volatile int buffer_rx_ptr;
 static const int N_BYTES_POS = 3;
 
-static const long X_NEG_LIMIT_MM = -12;
-static const long X_POS_LIMIT_MM = 12;
-static const long Y_NEG_LIMIT_MM = -12;
-static const long Y_POS_LIMIT_MM = 12;
-
 // v0.1.0 pin def
 /*
 static const int X_dir  = 36;
@@ -96,10 +91,31 @@ constexpr float MAX_VELOCITY_Z_mm = 2;
 constexpr float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Z_mm = 10;   // 20 mm/s/s
+static const long X_NEG_LIMIT_MM = -12;
+static const long X_POS_LIMIT_MM = 12;
+static const long Y_NEG_LIMIT_MM = -12;
+static const long Y_POS_LIMIT_MM = 12;
+static const long Z_NEG_LIMIT_MM = -1;
+static const long Z_POS_LIMIT_MM = 1;
+
 bool runSpeed_flag_X = false;
 bool runSpeed_flag_Y = false;
 bool runSpeed_flag_Z = false;
+long X_commanded_target_position = 0;
+long Y_commanded_target_position = 0;
+long Z_commanded_target_position = 0;
+bool X_commanded_movement_in_progress = false;
+bool Y_commanded_movement_in_progress = false;
+bool Z_commanded_movement_in_progress = false;
 
+volatile long X_pos = 0;
+volatile long Y_pos = 0;
+volatile long Z_pos = 0;
+
+// encoder
+bool X_use_encoder = false;
+bool Y_use_encoder = false;
+bool Z_use_encoder = false;
 
 #include <DueTimer.h>
 static const int TIMER_PERIOD = 500; // in us
@@ -113,18 +129,7 @@ int joystick_offset_x = 512;
 int joystick_offset_y = 512;
 constexpr int joystickSensitivity = 10; // range from 5 to 100 (for comparison with number in the range of 0-512)
 
-/*
-#include <Wire.h>
-#include "SparkFun_Qwiic_Joystick_Arduino_Library.h" //Click here to get the library: http://librarymanager/All#SparkFun_joystick
-JOYSTICK joystick; //Create instance of this object
-#include "SparkFun_Qwiic_Twist_Arduino_Library.h" //Click here to get the library: http://librarymanager/All#SparkFun_Twist
-TWIST twist; //Create instance of this object
-*/
-
-volatile long x_pos = 0;
-volatile long y_pos = 0;
-volatile long z_pos = 0;
-
+// joystick
 volatile int deltaX = 0;
 volatile int deltaY = 0;
 volatile float deltaX_float = 0;
@@ -258,9 +263,9 @@ void setup() {
 //  attachInterrupt(digitalPinToInterrupt(focusWheel_A), ISR_focusWheel_A, RISING);
 //  attachInterrupt(digitalPinToInterrupt(focusWheel_B), ISR_focusWheel_B, RISING);
 
-  x_pos = 0;
-  y_pos = 0;
-  z_pos = 0;
+  X_pos = 0;
+  Y_pos = 0;
+  Z_pos = 0;
 
   // focus
   pinMode(focusWheel_A,INPUT);
@@ -294,21 +299,24 @@ void loop() {
       if(buffer_rx[0]==0)
       {
         long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY) );
-        //stepper_X.runToNewPosition(target_position);
-        stepper_X.moveTo(target_position);
-      }        
+        X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY) );
+        stepper_X.moveTo(X_commanded_target_position);
+        X_commanded_movement_in_progress = true;
+      }
       else if(buffer_rx[0]==1)
       {
         long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY) );
-        //stepper_Y.runToNewPosition(target_position);
-        stepper_Y.moveTo(target_position);
+        Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY) );
+        stepper_Y.moveTo(Y_commanded_target_position);
+        Y_commanded_movement_in_progress = true;
       }
       else if(buffer_rx[0]==2)
       {
-        stepper_Z.runToNewPosition(stepper_Z.currentPosition() + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3])));
-        focusPosition = focusPosition + int(buffer_rx[1]*2-1)*(int(buffer_rx[2])*256 + int(buffer_rx[3]));
+        long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+        Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT_MM*steps_per_mm_Z):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT_MM*steps_per_mm_Z) );
+        stepper_Z.runToNewPosition(Z_commanded_target_position);
+        //stepper_Z.moveTo(Z_commanded_target_position);
+        //Z_commanded_movement_in_progress = true;
       }
       else if(buffer_rx[0]==3)
         led_switch(buffer_rx[1]);
@@ -335,85 +343,119 @@ void loop() {
     }
   }
 
+
   if(flag_read_joystick) 
   {
-    deltaX = analogRead(A0) - joystick_offset_x;
-    deltaX_float = deltaX;
-    if(abs(deltaX_float)>joystickSensitivity)
+    // read x joystick
+    if(!X_commanded_movement_in_progress) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
-      stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
-      runSpeed_flag_X = true;
-      if(stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_XY && deltaX_float>0)
+      deltaX = analogRead(A0) - joystick_offset_x;
+      deltaX_float = -deltaX;
+      if(abs(deltaX_float)>joystickSensitivity)
+      {
+        stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
+        runSpeed_flag_X = true;
+        if(stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_XY && deltaX_float>0)
+        {
+          runSpeed_flag_X = false;
+          stepper_X.setSpeed(0);
+        }
+        if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_XY && deltaX_float<0)
+          {
+          runSpeed_flag_X = false;
+          stepper_X.setSpeed(0);
+        }
+      }
+      else
+      {
         runSpeed_flag_X = false;
-      if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_XY && deltaX_float<0)
-        runSpeed_flag_X = false;
+        stepper_X.setSpeed(0);
+      }
     }
     else
       runSpeed_flag_X = false;
 
-    deltaY = analogRead(A1) - joystick_offset_y;
-    deltaY_float = deltaY;
-    if(abs(deltaY_float)>joystickSensitivity)
+    // read y joystick
+    if(!Y_commanded_movement_in_progress)
     {
-      stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
-      runSpeed_flag_Y = true;
-      if(stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_XY && deltaY_float>0)
+      deltaY = analogRead(A1) - joystick_offset_y;
+      deltaY_float = deltaY;
+      if(abs(deltaY)>joystickSensitivity)
+      {
+        stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
+        runSpeed_flag_Y = true;
+        if(stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_XY && deltaY_float>0)
+        {
+          runSpeed_flag_Y = false;
+          stepper_Y.setSpeed(0);
+        }
+        if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_XY && deltaY_float<0)
+        {
+          runSpeed_flag_Y = false;
+          stepper_Y.setSpeed(0);
+        }
+      }
+      else
+      {
         runSpeed_flag_Y = false;
-      if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_XY && deltaY_float<0)
-        runSpeed_flag_Y = false;
+        stepper_Y.setSpeed(0);
+      }
     }
     else
       runSpeed_flag_Y = false;
 
-    /*
-    int set_home = analogRead(A2);
-    if(set_home<500)
-    {
-      stepper_X.setCurrentPosition(0);
-      stepper_Y.setCurrentPosition(0);
-    }
-    */
-    
+    // focus control
     stepper_Z.moveTo(focusPosition);
-    //@@@@@@
+    
     flag_read_joystick = false;
   }
 
+  // send position update to computer
   if(flag_send_pos_update)
   {
-    //long x_pos_NBytesUnsigned = signed2NBytesUnsigned(x_pos,N_BYTES_POS);
-    long x_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS);
-    buffer_tx[0] = byte(x_pos_NBytesUnsigned>>16);
-    buffer_tx[1] = byte((x_pos_NBytesUnsigned>>8)%256);
-    buffer_tx[2] = byte(x_pos_NBytesUnsigned%256);
+    long X_pos_NBytesUnsigned = ( X_use_encoder?signed2NBytesUnsigned(X_pos,N_BYTES_POS):signed2NBytesUnsigned(stepper_X.currentPosition(),N_BYTES_POS) );
+    buffer_tx[0] = byte(X_pos_NBytesUnsigned>>16);
+    buffer_tx[1] = byte((X_pos_NBytesUnsigned>>8)%256);
+    buffer_tx[2] = byte(X_pos_NBytesUnsigned%256);
     
-    //long y_pos_NBytesUnsigned = signed2NBytesUnsigned(y_pos,N_BYTES_POS);
-    long y_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS);
-    buffer_tx[3] = byte(y_pos_NBytesUnsigned>>16);
-    buffer_tx[4] = byte((y_pos_NBytesUnsigned>>8)%256);
-    buffer_tx[5] = byte(y_pos_NBytesUnsigned%256);
-    
-    //long z_pos_NBytesUnsigned = signed2NBytesUnsigned(z_pos,N_BYTES_POS);
-    long z_pos_NBytesUnsigned = signed2NBytesUnsigned(stepper_Z.currentPosition(),N_BYTES_POS);    
-    buffer_tx[6] = byte(z_pos_NBytesUnsigned>>16);
-    buffer_tx[7] = byte((z_pos_NBytesUnsigned>>8)%256);
-    buffer_tx[8] = byte(z_pos_NBytesUnsigned%256);
+    long Y_pos_NBytesUnsigned = ( Y_use_encoder?signed2NBytesUnsigned(Y_pos,N_BYTES_POS):signed2NBytesUnsigned(stepper_Y.currentPosition(),N_BYTES_POS) );
+    buffer_tx[3] = byte(Y_pos_NBytesUnsigned>>16);
+    buffer_tx[4] = byte((Y_pos_NBytesUnsigned>>8)%256);
+    buffer_tx[5] = byte(Y_pos_NBytesUnsigned%256);
+
+    long Z_pos_NBytesUnsigned = ( Z_use_encoder?signed2NBytesUnsigned(Z_pos,N_BYTES_POS):signed2NBytesUnsigned(stepper_Z.currentPosition(),N_BYTES_POS) );
+    buffer_tx[6] = byte(Z_pos_NBytesUnsigned>>16);
+    buffer_tx[7] = byte((Z_pos_NBytesUnsigned>>8)%256);
+    buffer_tx[8] = byte(Z_pos_NBytesUnsigned%256);
     
     SerialUSB.write(buffer_tx,MSG_LENGTH);
     flag_send_pos_update = false;
   }
 
+  // encoded movement
+  if(X_use_encoder)
+    stepper_X.setCurrentPosition(X_pos);
+  if(Y_use_encoder)
+    stepper_Y.setCurrentPosition(Y_pos);
+  if(Z_use_encoder)
+    stepper_Z.setCurrentPosition(Z_pos);
+
+  // check if commanded position has been reached
+  if(X_commanded_movement_in_progress && stepper_X.currentPosition()==X_commanded_target_position)
+    X_commanded_movement_in_progress = false;
+  if(Y_commanded_movement_in_progress && stepper_Y.currentPosition()==Y_commanded_target_position)
+    Y_commanded_movement_in_progress = false;
 
   // move motors
-  if(runSpeed_flag_X)
-    stepper_X.runSpeed();
-  else
+  if(X_commanded_movement_in_progress)
     stepper_X.run();
-
-  if(runSpeed_flag_Y)
-    stepper_Y.runSpeed();
-  else
+  else if(runSpeed_flag_X)
+    stepper_X.runSpeed();
+    
+  if(Y_commanded_movement_in_progress)
     stepper_Y.run();
+  else if(runSpeed_flag_Y)
+    stepper_Y.runSpeed();
   
   stepper_Z.run();
 }
@@ -501,28 +543,28 @@ void ISR_focusWheel_B(){
 
 void ISR_X_encoder_A(){
   if(digitalRead(X_encoder_B)==1)
-    x_pos = x_pos + 1;
+    X_pos = X_pos + 1;
   else
-    x_pos = x_pos - 1;
+    X_pos = X_pos - 1;
 }
 void ISR_X_encoder_B(){
   if(digitalRead(X_encoder_A)==1)
-    x_pos = x_pos - 1;
+    X_pos = X_pos - 1;
   else
-    x_pos = x_pos + 1;
+    X_pos = X_pos + 1;
 }
 
 void ISR_Y_encoder_A(){
   if(digitalRead(Y_encoder_B)==1)
-    y_pos = y_pos + 1;
+    Y_pos = Y_pos + 1;
   else
-    y_pos = y_pos - 1;
+    Y_pos = Y_pos - 1;
 }
 void ISR_Y_encoder_B(){
   if(digitalRead(Y_encoder_A)==1)
-    y_pos = y_pos - 1;
+    Y_pos = Y_pos - 1;
   else
-    y_pos = y_pos + 1;
+    Y_pos = Y_pos + 1;
 }
 
 // utils
