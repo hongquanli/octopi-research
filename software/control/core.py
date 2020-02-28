@@ -442,12 +442,16 @@ class NavigationController(QObject):
         pos = self.microcontroller.read_received_packet_nowait()
         if pos is None:
             return
-        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY
-        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY
-        self.z_pos = utils.unsigned_to_signed(pos[6:9],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Z
+        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
+        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
+        self.z_pos = utils.unsigned_to_signed(pos[6:9],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Z  # @@@TODO@@@: move to microcontroller?
         self.xPos.emit(self.x_pos)
         self.yPos.emit(self.y_pos)
         self.zPos.emit(self.z_pos*1000)
+
+    def home(self):
+        self.microcontroller.move_x(-self.x_pos)
+        self.microcontroller.move_y(-self.y_pos)
 
 class AutoFocusController(QObject):
 
@@ -830,12 +834,12 @@ class MultiPointController(QObject):
                     # move z
                     if k < self.NZ - 1:
                         self.navigationController.move_z(self.deltaZ)
-
-                # update FOV counter
-                self.FOV_counter = self.FOV_counter + 1
                 
                 # move z back
                 self.navigationController.move_z(-self.deltaZ*(self.NZ-1))
+
+                # update FOV counter
+                self.FOV_counter = self.FOV_counter + 1
 
                 # move x
                 if j < self.NX - 1:

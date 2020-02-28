@@ -23,7 +23,7 @@ class Microcontroller():
         if not arduino_ports:
             raise IOError("No Arduino found")
         if len(arduino_ports) > 1:
-            warnings.warn('Multiple Arduinos found - using the first')
+            print('Multiple Arduinos found - using the first')
         else:
             print('Using Arduino found at : {}'.format(arduino_ports[0]))
 
