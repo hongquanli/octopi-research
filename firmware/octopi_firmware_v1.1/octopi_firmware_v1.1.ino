@@ -315,8 +315,9 @@ void loop() {
         long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
         Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT_MM*steps_per_mm_Z):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT_MM*steps_per_mm_Z) );
         stepper_Z.runToNewPosition(Z_commanded_target_position);
+        focusPosition = Z_commanded_target_position;
         //stepper_Z.moveTo(Z_commanded_target_position);
-        //Z_commanded_movement_in_progress = true;
+        Z_commanded_movement_in_progress = true;
       }
       else if(buffer_rx[0]==3)
         led_switch(buffer_rx[1]);
@@ -445,6 +446,8 @@ void loop() {
     X_commanded_movement_in_progress = false;
   if(Y_commanded_movement_in_progress && stepper_Y.currentPosition()==Y_commanded_target_position)
     Y_commanded_movement_in_progress = false;
+  if(Z_commanded_movement_in_progress && stepper_Z.currentPosition()==Z_commanded_target_position)
+    Z_commanded_movement_in_progress = false;
 
   // move motors
   if(X_commanded_movement_in_progress)
