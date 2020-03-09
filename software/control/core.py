@@ -358,7 +358,7 @@ class LiveController(QObject):
         if mode == TriggerMode.HARDWARE:
             self.camera.set_hardware_triggered_acquisition()
         if mode == TriggerMode.CONTINUOUS:
-            self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
+            self.camera.set_continuous_acquisition()
 
     def set_trigger_fps(self,fps):
         if self.trigger_mode == TriggerMode.SOFTWARE:
