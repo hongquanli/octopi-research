@@ -200,6 +200,7 @@ class LiveControlWidget(QFrame):
         self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
         self.slider_resolutionScaling.valueChanged.connect(self.streamHandler.set_display_resolution_scaling)
         self.dropdown_modeSelection.currentIndexChanged.connect(self.update_microscope_mode)
+        self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
         self.btn_live.clicked.connect(self.toggle_live)
 
         # layout
@@ -234,6 +235,9 @@ class LiveControlWidget(QFrame):
     def update_microscope_mode(self,index):
         self.liveController.turn_off_illumination()
         self.liveController.set_microscope_mode(self.dropdown_modeSelection.currentText())
+
+    def update_trigger_mode(self):
+        self.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
