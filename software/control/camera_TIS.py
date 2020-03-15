@@ -271,7 +271,7 @@ class Camera_Simulation(object):
             self.new_image_callback_external(self)
 
     def read_frame(self):
-        pass
+        return self.current_frame
 
     def _on_new_buffer(self, appsink):
         pass

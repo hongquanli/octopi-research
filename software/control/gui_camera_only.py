@@ -48,9 +48,8 @@ class OctopiGUI(QMainWindow):
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,self.liveController)
+		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-
-		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
 		# layout widgets
 		layout = QGridLayout() #layout = QStackedLayout()
@@ -78,7 +77,6 @@ class OctopiGUI(QMainWindow):
 	def closeEvent(self, event):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
-		self.navigationController.home()
 		self.liveController.stop_live()
 		self.camera.close()
 		self.imageSaver.close()
