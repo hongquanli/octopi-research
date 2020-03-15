@@ -956,7 +956,7 @@ class ImageDisplayWindow(QMainWindow):
 
         # set window size
         desktopWidget = QDesktopWidget();
-        width = desktopWidget.height()*0.9
+        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
         height = width
         self.setFixedSize(width,height)
 

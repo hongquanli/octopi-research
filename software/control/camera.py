@@ -1,15 +1,17 @@
 import argparse
 import cv2
 import time
-
-try:
-    import control.gxipy as gx
-except ImportError:
-    print('gxipy import error')
+import numpy as np
 
 class Camera(object):
 
     def __init__(self,sn=None):
+
+        try:
+            import control.gxipy as gx
+        except ImportError:
+            print('gxipy import error')
+
         # many to be purged
         self.sn = sn
         self.device_manager = gx.DeviceManager()
@@ -182,12 +184,11 @@ class Camera(object):
         # print(self.frameID)
 
 
-class Camera_Simulation(object)
+class Camera_Simulation(object):
     
     def __init__(self,sn=None):
         # many to be purged
         self.sn = sn
-        self.device_manager = gx.DeviceManager()
         self.device_info_list = None
         self.device_index = 0
         self.camera = None
