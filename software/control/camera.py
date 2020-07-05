@@ -2,15 +2,14 @@ import argparse
 import cv2
 import time
 import numpy as np
+try:
+    import control.gxipy as gx
+except:
+    print('gxipy import error')
 
 class Camera(object):
 
     def __init__(self,sn=None):
-
-        try:
-            import control.gxipy as gx
-        except ImportError:
-            print('gxipy import error')
 
         # many to be purged
         self.sn = sn

@@ -38,12 +38,7 @@ class OctopiGUI(QMainWindow):
 		self.centralWidget.setLayout(layout)
 		self.setCentralWidget(self.centralWidget)
 
-		# load window
-		self.imageDisplayWindow = core.ImageDisplayWindow()
-		self.imageDisplayWindow.show()
-
 		# make connections
-		self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
 		self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
 		self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
 		self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
