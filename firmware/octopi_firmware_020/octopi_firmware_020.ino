@@ -1,11 +1,11 @@
 #include <TMCStepper.h>
 #include <TMCStepper_UTILITY.h>
+#include <DueTimer.h>
+#include <AccelStepper.h>
 
-static inline int sgn(int val) {
- if (val < 0) return -1;
- if (val==0) return 0;
- return 1;
-}
+/***************************************************************************************************/
+/***************************************** Communications ******************************************/
+/***************************************************************************************************/
 
 // byte[0]: which motor to move: 0 x, 1 y, 2 z, 3 LED, 4 Laser
 // byte[1]: what direction: 1 forward, 0 backward
@@ -19,68 +19,56 @@ byte buffer_tx[MSG_LENGTH];
 volatile int buffer_rx_ptr;
 static const int N_BYTES_POS = 3;
 
-// v0.1.0 pin def
-/*
-static const int X_dir  = 36;
-static const int X_step = 37;
-static const int X_driver_uart = 24;
-static const int X_en = 45;
+/***************************************************************************************************/
+/**************************************** Pin definations ******************************************/
+/***************************************************************************************************/
+// v0.2.0 pin def
 
-static const int Y_dir = 30;
-static const int Y_step = 31;
-static const int Y_driver_uart = 25;
-static const int Y_en = 49;
-
+// linear actuators
+static const int X_dir  = 28;
+static const int X_step = 26;
+static const int Y_dir = 24;
+static const int Y_step = 22;
 static const int Z_dir = 27;
-static const int Z_step = 28;
-static const int Z_driver_uart = 23;
-static const int Z_en = 51;
+static const int Z_step = 29;
 
-static const int LED = 38;
-static const int LASER = 39;
-static const int SHUTTER = 40;
-*/
-
-// v0.1.1 pin def
-static const int X_dir  = 36;
-static const int X_step = 37;
-static const int X_driver_uart = 24;
-static const int X_en = 41;
-
-static const int Y_dir = 30;
-static const int Y_step = 31;
-static const int Y_driver_uart = 25;
-static const int Y_en = 39;
-
-static const int Z_dir = 27;
-static const int Z_step = 28;
-static const int Z_driver_uart = 23;
-static const int Z_en = 38;
-
+// illumination
 static const int LED = 48;
 static const int LASER = 49;
 static const int SHUTTER = 50;
 
+// encoders
 static const int X_encoder_A = 6;
 static const int X_encoder_B = 7;
 static const int Y_encoder_A = 8;
 static const int Y_encoder_B = 9;
-//static const int Z_encoder_A = 4;
-//static const int Z_encoder_B = 5;
 
-#define STEPPER_SERIAL Serial1 
+// focus wheel
+static const int focusWheel_A  = 40;
+static const int focusWheel_B  = 41;
+static const int focusWheel_CS  = 42;
+static const int focusWheel_IDX  = 43;
+volatile long focusPosition = 0;
+
+// joy stick
+#define joystick_X A4
+#define joystick_Y A5
+
+/***************************************************************************************************/
+/******************************************* steppers **********************************************/
+/***************************************************************************************************/
+#define STEPPER_SERIAL Serial3
 static const uint8_t X_driver_ADDRESS = 0b00;
+static const uint8_t Y_driver_ADDRESS = 0b01;
+static const uint8_t Z_driver_ADDRESS = 0b11;
 static const float R_SENSE = 0.11f;
 TMC2209Stepper X_driver(&STEPPER_SERIAL, R_SENSE, X_driver_ADDRESS);
-TMC2209Stepper Y_driver(&STEPPER_SERIAL, R_SENSE, X_driver_ADDRESS);
-TMC2209Stepper Z_driver(&STEPPER_SERIAL, R_SENSE, X_driver_ADDRESS);
+TMC2209Stepper Y_driver(&STEPPER_SERIAL, R_SENSE, Y_driver_ADDRESS);
+TMC2209Stepper Z_driver(&STEPPER_SERIAL, R_SENSE, Z_driver_ADDRESS);
 
-#include <AccelStepper.h>
 AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, X_step, X_dir);
 AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
 AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
-//constexpr uint32_t steps_per_mm_XY = 1600;
-//constexpr uint32_t steps_per_mm_Z = 5333;
 static const long steps_per_mm_XY = 1600;
 static const long steps_per_mm_Z = 5333;
 //constexpr float MAX_VELOCITY_X_mm = 7;
@@ -90,7 +78,7 @@ constexpr float MAX_VELOCITY_Y_mm = 3;
 constexpr float MAX_VELOCITY_Z_mm = 2;
 constexpr float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
-constexpr float MAX_ACCELERATION_Z_mm = 10;   // 20 mm/s/s
+constexpr float MAX_ACCELERATION_Z_mm = 20;   // 20 mm/s/s
 static const long X_NEG_LIMIT_MM = -12;
 static const long X_POS_LIMIT_MM = 12;
 static const long Y_NEG_LIMIT_MM = -12;
@@ -108,6 +96,8 @@ bool X_commanded_movement_in_progress = false;
 bool Y_commanded_movement_in_progress = false;
 bool Z_commanded_movement_in_progress = false;
 
+long target_position;
+
 volatile long X_pos = 0;
 volatile long Y_pos = 0;
 volatile long Z_pos = 0;
@@ -117,7 +107,9 @@ bool X_use_encoder = false;
 bool Y_use_encoder = false;
 bool Z_use_encoder = false;
 
-#include <DueTimer.h>
+/***************************************************************************************************/
+/******************************************* steppers **********************************************/
+/***************************************************************************************************/
 static const int TIMER_PERIOD = 500; // in us
 static const int interval_read_joystick = 10000; // in us
 static const int interval_send_pos_update = 50000; // in us
@@ -135,18 +127,10 @@ volatile int deltaY = 0;
 volatile float deltaX_float = 0;
 volatile float deltaY_float = 0;
 
-long target_position;
-//long relative_position;
 
-// focus
-static const int focusWheel_A  = 4;
-static const int focusWheel_B  = 3;
-static const int focusWheel_CS  = 2;
-static const int focusWheel_IDX  = 5;
-volatile long focusPosition = 0;
-
-//#include <Adafruit_ADS1015.h>
-//Adafruit_ADS1115 ads1115(0x48);
+/***************************************************************************************************/
+/********************************************* setup ***********************************************/
+/***************************************************************************************************/
 
 void setup() {
 
@@ -168,15 +152,12 @@ void setup() {
   pinMode(SHUTTER, OUTPUT);
   digitalWrite(LED, LOW);
   
-  pinMode(X_driver_uart, OUTPUT);
   pinMode(X_dir, OUTPUT);
   pinMode(X_step, OUTPUT);
 
-  pinMode(Y_driver_uart, OUTPUT);
   pinMode(Y_dir, OUTPUT);
   pinMode(Y_step, OUTPUT);
 
-  pinMode(Z_driver_uart, OUTPUT);
   pinMode(Z_dir, OUTPUT);
   pinMode(Z_step, OUTPUT);
 
@@ -188,7 +169,6 @@ void setup() {
   // initialize stepper driver
   STEPPER_SERIAL.begin(115200);
   
-  digitalWrite(X_driver_uart, true);
   while(!STEPPER_SERIAL);
   X_driver.begin();
   X_driver.I_scale_analog(false);
@@ -198,9 +178,7 @@ void setup() {
   X_driver.pwm_autoscale(true);
   X_driver.en_spreadCycle(false);
   X_driver.toff(4);
-  digitalWrite(X_driver_uart, false);
   
-  digitalWrite(Y_driver_uart, true);
   while(!STEPPER_SERIAL);
   Y_driver.begin();
   Y_driver.I_scale_analog(false);  
@@ -210,9 +188,7 @@ void setup() {
   Y_driver.TPOWERDOWN(2);
   Y_driver.en_spreadCycle(false);
   Y_driver.toff(4);
-  digitalWrite(Y_driver_uart, false);
 
-  digitalWrite(Z_driver_uart, true);
   while(!STEPPER_SERIAL);
   Z_driver.begin();
   Z_driver.I_scale_analog(false);  
@@ -221,11 +197,6 @@ void setup() {
   Z_driver.TPOWERDOWN(2);
   Z_driver.pwm_autoscale(true);
   Z_driver.toff(4);
-  digitalWrite(Z_driver_uart, false);
-
-  stepper_X.setEnablePin(X_en);
-  stepper_Y.setEnablePin(Y_en);
-  stepper_Z.setEnablePin(Z_en);
   
   stepper_X.setPinsInverted(false, false, true);
   stepper_Y.setPinsInverted(false, false, true);
@@ -260,8 +231,6 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(X_encoder_B), ISR_X_encoder_B, RISING);
   attachInterrupt(digitalPinToInterrupt(Y_encoder_A), ISR_Y_encoder_A, RISING);
   attachInterrupt(digitalPinToInterrupt(Y_encoder_B), ISR_Y_encoder_B, RISING);
-//  attachInterrupt(digitalPinToInterrupt(focusWheel_A), ISR_focusWheel_A, RISING);
-//  attachInterrupt(digitalPinToInterrupt(focusWheel_B), ISR_focusWheel_B, RISING);
 
   X_pos = 0;
   Y_pos = 0;
@@ -278,8 +247,8 @@ void setup() {
   
   // joystick
   analogReadResolution(10);
-  joystick_offset_x = analogRead(A0);
-  joystick_offset_y = analogRead(A1);
+  joystick_offset_x = analogRead(joystick_X);
+  joystick_offset_y = analogRead(joystick_Y);
   
   Timer3.attachInterrupt(timer_interruptHandler);
   Timer3.start(TIMER_PERIOD); 
@@ -287,6 +256,10 @@ void setup() {
   //ADC
   //ads1115.begin();
 }
+
+/***************************************************************************************************/
+/********************************************** loop ***********************************************/
+/***************************************************************************************************/
 
 void loop() {
 
@@ -350,7 +323,7 @@ void loop() {
     // read x joystick
     if(!X_commanded_movement_in_progress) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
-      deltaX = analogRead(A0) - joystick_offset_x;
+      deltaX = analogRead(joystick_X) - joystick_offset_x;
       deltaX_float = -deltaX;
       if(abs(deltaX_float)>joystickSensitivity)
       {
@@ -379,7 +352,7 @@ void loop() {
     // read y joystick
     if(!Y_commanded_movement_in_progress)
     {
-      deltaY = analogRead(A1) - joystick_offset_y;
+      deltaY = analogRead(joystick_Y) - joystick_offset_y;
       deltaY_float = deltaY;
       if(abs(deltaY)>joystickSensitivity)
       {
@@ -570,10 +543,18 @@ void ISR_Y_encoder_B(){
     Y_pos = Y_pos + 1;
 }
 
-// utils
+/***************************************************************************************************/
+/*********************************************  utils  *********************************************/
+/***************************************************************************************************/
 long signed2NBytesUnsigned(long signedLong,int N)
 {
   long NBytesUnsigned = signedLong + pow(256L,N)/2;
   //long NBytesUnsigned = signedLong + 8388608L;
   return NBytesUnsigned;
+}
+
+static inline int sgn(int val) {
+ if (val < 0) return -1;
+ if (val==0) return 0;
+ return 1;
 }
