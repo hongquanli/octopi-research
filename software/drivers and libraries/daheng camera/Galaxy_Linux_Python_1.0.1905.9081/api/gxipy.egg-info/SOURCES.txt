@@ -1,0 +1,10 @@
+setup.py
+gxipy/__init__.py
+gxipy/dxwrapper.py
+gxipy/gxiapi.py
+gxipy/gxidef.py
+gxipy/gxwrapper.py
+gxipy.egg-info/PKG-INFO
+gxipy.egg-info/SOURCES.txt
+gxipy.egg-info/dependency_links.txt
+gxipy.egg-info/top_level.txt

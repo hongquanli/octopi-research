@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CFrameRateControl</class>
+ <widget class="QDialog" name="CFrameRateControl">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>351</width>
+    <height>145</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>FrameRateControl</string>
+  </property>
+  <widget class="QGroupBox" name="FrameRate_Control">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>331</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>FrameRate Control</string>
+   </property>
+   <widget class="QDoubleSpinBox" name="AcquisitionFrameRateSpinBox">
+    <property name="geometry">
+     <rect>
+      <x>208</x>
+      <y>55</y>
+      <width>101</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AcquisitionFrameRateLabel">
+    <property name="geometry">
+     <rect>
+      <x>18</x>
+      <y>61</y>
+      <width>171</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AcquisitionFrameRate</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AcquisitionFrameRateModeLabel">
+    <property name="geometry">
+     <rect>
+      <x>18</x>
+      <y>25</y>
+      <width>211</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AcquisitionFrameRateMode</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="AcquisitionFrameRateMode">
+    <property name="geometry">
+     <rect>
+      <x>208</x>
+      <y>20</y>
+      <width>101</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QPushButton" name="FrameRateControl_Close">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>110</y>
+     <width>131</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::StrongFocus</enum>
+   </property>
+   <property name="text">
+    <string>Close</string>
+   </property>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>AcquisitionFrameRateMode</tabstop>
+  <tabstop>AcquisitionFrameRateSpinBox</tabstop>
+  <tabstop>FrameRateControl_Close</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>
