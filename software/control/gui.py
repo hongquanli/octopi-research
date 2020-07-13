@@ -92,11 +92,6 @@ class OctopiGUI(QMainWindow):
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 
-		
-
-
-		self.camera.start_streaming()
-
 	def closeEvent(self, event):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 

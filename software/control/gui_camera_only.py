@@ -72,8 +72,6 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
 		self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
 
-		self.camera.start_streaming()
-
 	def closeEvent(self, event):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
