@@ -41,8 +41,7 @@ class OctopiGUI(QMainWindow):
 		# open the camera
 		# camera start streaming
 		self.camera.open()
-		# self.camera.set_software_triggered_acquisition()
-		self.camera.set_continuous_acquisition()
+		self.camera.set_software_triggered_acquisition()
 		self.camera.set_callback(self.streamHandler.on_new_frame)
 		self.camera.enable_callback()
 
