@@ -315,14 +315,16 @@ class LiveController(QObject):
 
     def start_live(self):
         self.is_live = True
+        self.camera.start_streaming()
         if self.trigger_mode == TriggerMode.SOFTWARE:
             self._start_software_triggerred_acquisition()
 
     def stop_live(self):
-    	if self.is_live:
+        if self.is_live:
             self.is_live = False
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
+            self.camera.stop_streaming()
             self.turn_off_illumination()
 
     # software trigger related
@@ -355,10 +357,18 @@ class LiveController(QObject):
     def set_trigger_mode(self,mode):
         if mode == TriggerMode.SOFTWARE:
             self.camera.set_software_triggered_acquisition()
+            if self.is_live:
+                self._start_software_triggerred_acquisition()
         if mode == TriggerMode.HARDWARE:
-            self.camera.set_hardware_triggered_acquisition()
-        if mode == TriggerMode.CONTINUOUS:
+            print('hardware trigger to be added')
+            #self.camera.set_hardware_triggered_acquisition()
+        if mode == TriggerMode.CONTINUOUS: 
+            if self.trigger_mode == TriggerMode.SOFTWARE:
+                self._stop_software_triggerred_acquisition()
+            if self.mode == TriggerMode.HARDWARE:
+                pass #@@@ to be implemented
             self.camera.set_continuous_acquisition()
+        self.trigger_mode = mode
 
     def set_trigger_fps(self,fps):
         if self.trigger_mode == TriggerMode.SOFTWARE:
@@ -746,7 +756,7 @@ class MultiPointController(QObject):
                 self.camera.callback_was_enabled = False
     '''
     def _on_acquisitionTimer_timeout(self):
-    	# check if the last single acquisition is ongoing
+        # check if the last single acquisition is ongoing
         if self.single_acquisition_in_progress is True:
             # skip time point if self.deltat is nonzero
             if self.deltat > 0.1: # @@@ to do: make this more elegant - note that both self.deltat is not 0 and self.deltat is not .0 don't work
@@ -755,7 +765,7 @@ class MultiPointController(QObject):
                 if self.time_point >= self.Nt:
                     self.acquisitionTimer.stop()
                 else:
-                	print('the last acquisition has not completed, skip time point ' + str(self.time_point))
+                    print('the last acquisition has not completed, skip time point ' + str(self.time_point))
             return
         # if not, run single acquisition
         self._run_single_acquisition()
@@ -878,7 +888,7 @@ class MultiPointController(QObject):
         if self.time_point >= self.Nt:
             print('Multipoint acquisition finished')
             if self.acquisitionTimer.isActive():
-            	self.acquisitionTimer.stop()
+                self.acquisitionTimer.stop()
             self.acquisitionFinished.emit()
 
         self.single_acquisition_in_progress = False
