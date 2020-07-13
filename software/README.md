@@ -6,7 +6,9 @@ If you're using Daheng cameras, follow instructions in the `drivers and librarie
 
 ### install software dependencies
 ```
-sudo apt-get intall python3-pip
+sudo rm /var/lib/apt/lists/lock
+sudo apt-get update
+sudo apt-get install python3-pip
 sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
 pip3 install qtpy pyserial
@@ -15,9 +17,9 @@ pip3 install qtpy pyserial
 ### enable access to serial ports without sudo
 
 ```
-sudo usermod -aG $USER dialout
+sudo usermod -aG dialout $USER
 ```
-
+RE  
 ### (optional) install pytorch and torchvision on Jetson Nano
 Follow instructions on https://forums.developer.nvidia.com/t/pytorch-for-jetson-nano-version-1-5-0-now-available/72048
 
