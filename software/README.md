@@ -19,7 +19,7 @@ pip3 install qtpy pyserial
 ```
 sudo usermod -aG dialout $USER
 ```
-RE  
+ 
 ### (optional) install pytorch and torchvision on Jetson Nano
 Follow instructions on https://forums.developer.nvidia.com/t/pytorch-for-jetson-nano-version-1-5-0-now-available/72048
 
