@@ -237,7 +237,7 @@ class LiveControlWidget(QFrame):
         self.liveController.set_microscope_mode(self.dropdown_modeSelection.currentText())
 
     def update_trigger_mode(self):
-        self.set_trigger_mode(self.dropdown_triggerManu.currentText())
+        self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
@@ -664,7 +664,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_fluorescence.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
-        	self.btn_startAcquisition.setEnabled(enabled)
+            self.btn_startAcquisition.setEnabled(enabled)
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, multipointController, navigationController, main=None, *args, **kwargs):
@@ -674,4 +674,3 @@ class TrackingControllerWidget(QFrame):
         self.base_path_is_set = False
         # self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
