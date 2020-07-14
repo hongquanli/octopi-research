@@ -6,3 +6,6 @@ tracking is developed with Krishnamurthy et al.: https://www.biorxiv.org/content
 
 ## Getting started
 The microscope is controled by an Arduino Due and a computer running Ubuntu. The computer can be one of the Nvidia Jetson platforms (e.g. Jetson Nano, Jetson Xavier NX) or a regular laptop/workstation. Instructions for using the firmware and software can be found in the respective folders.
+
+## Acknowlegement
+The latest software code was developed with inspiration from https://github.com/jonatanalvelid/Tempesta-RedSTED
