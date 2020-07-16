@@ -13,6 +13,8 @@ GigE Vision Camera:
 Installation
 ====================
 
+0. Make the installer executable "chmod +x Galaxy_camera.run"
+
 1. Installation command: "./Galaxy_camera.run"
 
 2. When you do not see any error message in the installation and the end shown as below, your installation is compelete.
