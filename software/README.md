@@ -1,8 +1,4 @@
 ## Setting up the environments
-### install camera drivers
-If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
-
-If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
 
 ### install software dependencies
 ```
@@ -13,6 +9,13 @@ sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
 pip3 install qtpy pyserial
 ```
+
+### install camera drivers
+If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
+
+If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
+
+
 
 ### enable access to serial ports without sudo
 
