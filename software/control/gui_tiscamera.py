@@ -28,13 +28,13 @@ class OctopiGUI(QMainWindow):
 
 		# load objects
 		if SIMULATION is True:
-			self.camera = camera.Camera_Simulation()
+			self.camera = camera.Camera(sn=48910098)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
-			self.camera = camera.Camera(sn=17910085)
+			self.camera = camera.Camera(sn=48910098)
 			self.microcontroller = microcontroller.Microcontroller()
 		
-		self.streamHandler = core.StreamHandler()
+		self.streamHandler = core.StreamHandler(1000,1000)
 		self.liveController = core.LiveController(self.camera,self.microcontroller)
 		self.navigationController = core.NavigationController(self.microcontroller)
 		#self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)

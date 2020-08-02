@@ -20,7 +20,7 @@ CameraProperty = namedtuple("CameraProperty", "status value min max default step
 
 class Camera(object):
 
-    def __init__(self,sn=None,width=640,height=480,framerate=30,color=False):
+    def __init__(self,sn=None,width=1920,height=1080,framerate=30,color=False):
         Gst.init(sys.argv)
         self.height = height
         self.width = width
@@ -44,9 +44,9 @@ class Camera(object):
             format="GRAY8"
 
         if(framerate == 2500000):    
-            p = 'tcambin serial="%s" name=source ! video/x-raw,format=%s,width=%d,height=%d,framerate=%d/10593' % (serial,format,width,height,framerate,)
+            p = 'tcambin serial="%s" name=source ! video/x-raw,format=%s,width=%d,height=%d,framerate=%d/10593' % (sn,format,width,height,framerate,)
         else:
-            p = 'tcambin serial="%s" name=source ! video/x-raw,format=%s,width=%d,height=%d,framerate=%d/1' % (serial,format,width,height,framerate,)
+            p = 'tcambin serial="%s" name=source ! video/x-raw,format=%s,width=%d,height=%d,framerate=%d/1' % (sn,format,width,height,framerate,)
 
         p += ' ! videoconvert ! appsink name=sink'
 
