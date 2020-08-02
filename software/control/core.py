@@ -93,6 +93,7 @@ class StreamHandler(QObject):
 
         # crop image
         image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
+        image_cropped = np.squeeze(image_cropped)
 
         # send image to display
         time_now = time.time()
