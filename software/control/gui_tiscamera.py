@@ -34,7 +34,7 @@ class OctopiGUI(QMainWindow):
 			self.camera = camera.Camera(sn=48910098)
 			self.microcontroller = microcontroller.Microcontroller()
 		
-		self.streamHandler = core.StreamHandler(1000,1000)
+		self.streamHandler = core.StreamHandler()
 		self.liveController = core.LiveController(self.camera,self.microcontroller)
 		self.navigationController = core.NavigationController(self.microcontroller)
 		#self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
@@ -102,8 +102,6 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
 		#self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		#self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-
-		self.camera.start_streaming()
 
 	def closeEvent(self, event):
 		event.accept()
