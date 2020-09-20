@@ -969,8 +969,10 @@ class ImageDisplayWindow(QMainWindow):
         self.ROI.addScaleHandle((0,0), (1,1))
         self.ROI.addScaleHandle((1,1), (0,0))
         self.graphics_widget.view.addItem(self.ROI)
-
+        self.ROI.hide()
         self.ROI.sigRegionChanged.connect(self.updateROI)
+        self.roi_pos = self.ROI.pos()
+        self.roi_size = self.ROI.size()
 
         ## Layout
         layout = QGridLayout()
@@ -989,13 +991,14 @@ class ImageDisplayWindow(QMainWindow):
         # print('display image')
 
     def updateROI(self):
-        print(self.ROI.pos())
-        print(self.ROI.size())
         self.roi_pos = self.ROI.pos()
         self.roi_size = self.ROI.size()
 
-    def show_ROI_selector():
+    def show_ROI_selector(self):
         self.ROI.show()
 
-    def hide_ROI_selector():
+    def hide_ROI_selector(self):
         self.ROI.hide()
+
+    def get_roi(self):
+        return self.roi_pos,self.roi_size
