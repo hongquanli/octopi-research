@@ -950,6 +950,9 @@ class ImageDisplayWindow(QMainWindow):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
         self.widget = QWidget()
 
+        # interpret image data as row-major instead of col-major
+        pg.setConfigOptions(imageAxisOrder='row-major')
+
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.graphics_widget.view = self.graphics_widget.addViewBox()
         
