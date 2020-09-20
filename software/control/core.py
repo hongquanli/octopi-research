@@ -940,7 +940,7 @@ class TrackingController(QObject):
     def start_a_new_track(self):
         self.tracking_frame_counter = 0
 
-# from gravity machine
+# based on code from gravity machine
 class ImageDisplayWindow(QMainWindow):
 
     def __init__(self, window_title=''):
@@ -960,6 +960,16 @@ class ImageDisplayWindow(QMainWindow):
         self.graphics_widget.img = pg.ImageItem(border='w')
         self.graphics_widget.view.addItem(self.graphics_widget.img)
 
+        ## Create ROI
+        self.ROI = pg.ROI((0.5,0.5),(500,500))
+        self.ROI.setZValue(10)
+        self.ROI.addScaleHandle((0,0), (1,1))
+        self.ROI.addScaleHandle((1,1), (0,0))
+        self.graphics_widget.view.addItem(self.ROI)
+
+        self.ROI.sigRegionChanged.connect(self.updateROI)
+
+        ## Layout
         layout = QGridLayout()
         layout.addWidget(self.graphics_widget, 0, 0) 
         self.widget.setLayout(layout)
@@ -974,3 +984,15 @@ class ImageDisplayWindow(QMainWindow):
     def display_image(self,image):
         self.graphics_widget.img.setImage(image,autoLevels=False)
         # print('display image')
+
+    def updateROI(self):
+        print(self.ROI.pos())
+        print(self.ROI.size())
+        self.roi_pos = self.ROI.pos()
+        self.roi_size = self.ROI.size()
+
+    def show_ROI_selector():
+        self.ROI.show()
+
+    def hide_ROI_selector():
+        self.ROI.hide()
