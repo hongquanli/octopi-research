@@ -22,6 +22,7 @@ from datetime import datetime
 
 from lxml import etree as ET
 
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -271,6 +272,16 @@ class ImageDisplay(QObject):
         self.stop_signal_received = True
         self.thread.join()
 
+class Configuration:
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
+        self.id = mode_id
+        self.name = name
+        self.exposure_time = exposure_time
+        self.analog_gain = analog_gain
+        self.illumination_source = illumination_source
+        self.illumination_intensity = illumination_intensity
+        self.camera_sn = camera_sn
+
 class LiveController(QObject):
 
     def __init__(self,camera,microcontroller,configurationManager):
@@ -305,8 +316,7 @@ class LiveController(QObject):
         self.microcontroller.turn_off_illumination()
 
     def set_illumination(self,illumination_source,intensity):
-        # self.microcontroller.set_illumination(illumination_source,intensity)
-        pass
+        self.microcontroller.set_illumination(illumination_source,intensity)
 
     def start_live(self):
         self.is_live = True
@@ -541,18 +551,20 @@ class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
     image_to_display = Signal(np.ndarray)
+    signal_current_configuration = Signal(Configuration)
 
     x_pos = Signal(float)
     y_pos = Signal(float)
     z_pos = Signal(float)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager):
         QObject.__init__(self)
 
         self.camera = camera
         self.navigationController = navigationController
         self.liveController = liveController
         self.autofocusController = autofocusController
+        self.configurationManager = configurationManager
         self.NX = 1
         self.NY = 1
         self.NZ = 1
@@ -587,10 +599,6 @@ class MultiPointController(QObject):
         self.deltaZ = delta_um/1000
     def set_deltat(self,delta):
         self.deltat = delta
-    def set_bfdf_flag(self,flag):
-        self.do_bfdf = flag
-    def set_fluorescence_flag(self,flag):
-        self.do_fluorescence = flag
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
@@ -610,6 +618,11 @@ class MultiPointController(QObject):
             os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         except:
             pass
+
+    def set_selected_configurations(self, selected_configurations_name):
+        self.selected_configurations = []
+        for configuration_name in selected_configurations_name:
+            self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
     def run_acquisition(self): # @@@ to do: change name to run_experiment
         print('start multipoint')
@@ -789,11 +802,11 @@ class MultiPointController(QObject):
 
                     file_ID = str(i) + '_' + str(j) + '_' + str(k)
 
-                    # take bf
-                    if self.do_bfdf:
-                        self.liveController.set_microscope_mode(MicroscopeMode.BFDF)
+                    # iterate through selected modes
+                    for config in self.selected_configurations:
+                        # self.liveController.set_microscope_mode(config)
+                        self.signal_current_configuration.emit(config)
                         self.liveController.turn_on_illumination()
-                        print('take bf image')
                         self.camera.send_trigger() 
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
@@ -805,26 +818,8 @@ class MultiPointController(QObject):
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
                         QApplication.processEvents()
-
-                    # take fluorescence
-                    if self.do_fluorescence:
-                        self.liveController.set_microscope_mode(MicroscopeMode.FLUORESCENCE)
-                        self.liveController.turn_on_illumination()
-                        self.camera.send_trigger()
-                        image = self.camera.read_frame()
-                        print('take fluorescence image')
-                        self.liveController.turn_off_illumination()
-                        image = utils.crop_image(image,self.crop_width,self.crop_height)
-                        saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
-                        self.image_to_display.emit(utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
-                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        if self.camera.is_color:
-                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)                        
-                        cv2.imwrite(saving_path,image)                        
-                        QApplication.processEvents()
                     
-                    if self.do_bfdf is not True and self.do_fluorescence is not True:
-                        QApplication.processEvents()
+                    # QApplication.processEvents()
 
                     # move z
                     if k < self.NZ - 1:
@@ -981,16 +976,6 @@ class ImageDisplayWindow(QMainWindow):
 
     def get_roi(self):
         return self.roi_pos,self.roi_size
-
-class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
-        self.id = mode_id
-        self.name = name
-        self.exposure_time = exposure_time
-        self.analog_gain = analog_gain
-        self.illumination_source = illumination_source
-        self.illumination_intensity = illumination_intensity
-        self.camera_sn = camera_sn
 
 class ConfigurationManager(QObject):
     def __init__(self,filename='configurations.xml'):
