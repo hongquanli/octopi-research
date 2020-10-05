@@ -47,6 +47,23 @@ class Microcontroller():
         cmd[1] = state
         self.serial.write(cmd)
 
+    def turn_on_illumination(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = 5
+        self.serial.write(cmd)
+
+    def turn_off_illumination(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = 6
+        self.serial.write(cmd)
+
+    def set_illumination(self,illumination_source,intensity):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = illumination_source
+        cmd[1] = int((intensity/100)*65535) >> 8
+        cmd[2] = int((intensity/100)*65535) & 0xff
+        self.serial.write(cmd)
+
     def move_x(self,delta):
         direction = int((np.sign(delta)+1)/2)
         n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
@@ -201,6 +218,15 @@ class Microcontroller_Simulation():
 
     def read_received_packet_nowait(self):
         return None
+
+    def turn_on_illumination(self):
+        pass
+
+    def turn_off_illumination(self):
+        pass
+
+    def set_illumination(self,illumination_source,intensity):
+        pass
 
 
 # from Gravity machine
