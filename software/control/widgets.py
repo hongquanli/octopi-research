@@ -473,9 +473,10 @@ class AutoFocusWidget(QFrame):
         self.btn_autofocus.setChecked(False)
 
 class MultiPointWidget(QFrame):
-    def __init__(self, multipointController, main=None, *args, **kwargs):
+    def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
+        self.configurationManager = configurationManager
         self.base_path_is_set = False
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -541,8 +542,11 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
 
-        self.checkbox_bfdf = QCheckBox('BF/DF')
-        self.checkbox_fluorescence = QCheckBox('Fluorescence')
+        self.list_configurations = QListWidget()
+        for microscope_configuration in self.configurationManager.configurations:
+            self.list_configurations.addItems([microscope_configuration.name])
+        self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
+
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
@@ -578,8 +582,7 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(self.entry_Nt, 1,7)
 
         grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(self.checkbox_bfdf)
-        grid_line3.addWidget(self.checkbox_fluorescence)
+        grid_line3.addWidget(self.list_configurations)
         grid_line3.addWidget(self.checkbox_withAutofocus)
         grid_line3.addWidget(self.btn_startAcquisition)
 
@@ -602,8 +605,6 @@ class MultiPointWidget(QFrame):
         self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
-        self.checkbox_bfdf.stateChanged.connect(self.multipointController.set_bfdf_flag)
-        self.checkbox_fluorescence.stateChanged.connect(self.multipointController.set_fluorescence_flag)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
@@ -649,8 +650,7 @@ class MultiPointWidget(QFrame):
         self.entry_NZ.setEnabled(enabled)
         self.entry_dt.setEnabled(enabled)
         self.entry_Nt.setEnabled(enabled)
-        self.checkbox_bfdf.setEnabled(enabled)
-        self.checkbox_fluorescence.setEnabled(enabled)
+        self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
