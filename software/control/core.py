@@ -305,7 +305,8 @@ class LiveController(QObject):
         self.microcontroller.turn_off_illumination()
 
     def set_illumination(self,illumination_source,intensity):
-        self.microcontroller.set_illumination(illumination_source,intensity)
+        # self.microcontroller.set_illumination(illumination_source,intensity)
+        pass
 
     def start_live(self):
         self.is_live = True
@@ -383,7 +384,7 @@ class LiveController(QObject):
         # set camera exposure time and analog gain
         self.camera.set_exposure_time(self.currentConfiguration.exposure_time)
         self.camera.set_analog_gain(self.currentConfiguration.analog_gain)
-        
+
         # set illumination
         self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
 
@@ -1011,10 +1012,10 @@ class ConfigurationManager(QObject):
                 Configuration(
                     mode_id = mode.get('ID'),
                     name = mode.get('Name'),
-                    exposure_time = mode.get('ExposureTime'),
-                    analog_gain = mode.get('AnalogGain'),
-                    illumination_source = mode.get('IlluminationSource'),
-                    illumination_intensity = mode.get('IlluminationIntensity'),
+                    exposure_time = float(mode.get('ExposureTime')),
+                    analog_gain = float(mode.get('AnalogGain')),
+                    illumination_source = int(mode.get('IlluminationSource')),
+                    illumination_intensity = float(mode.get('IlluminationIntensity')),
                     camera_sn = mode.get('CameraSN'))
             )
 
