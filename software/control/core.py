@@ -273,11 +273,12 @@ class ImageDisplay(QObject):
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller):
+    def __init__(self,camera,microcontroller,configurationManager):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
-        self.microscope_mode = None
+        self.configurationManager = configurationManager
+        self.currentConfiguration = None
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
         self.is_live = False
         self.was_live_before_autofocus = False
@@ -296,25 +297,15 @@ class LiveController(QObject):
         self.counter = 0
         self.timestamp_last = 0
 
-        self.exposure_time_bfdf_preset = None
-        self.exposure_time_fl_preset = None
-        self.exposure_time_fl_preview_preset = None
-        self.analog_gain_bfdf_preset = None
-        self.analog_gain_fl_preset = None
-        self.analog_gain_fl_preview_preset = None
-
     # illumination control
     def turn_on_illumination(self):
-        if self.mode == MicroscopeMode.BFDF:
-            self.microcontroller.toggle_LED(1)
-        else:
-            self.microcontroller.toggle_laser(1)
+        self.microcontroller.turn_on_illumination()
 
     def turn_off_illumination(self):
-        if self.mode == MicroscopeMode.BFDF:
-            self.microcontroller.toggle_LED(0)
-        else:
-            self.microcontroller.toggle_laser(0)
+        self.microcontroller.turn_off_illumination()
+
+    def set_illumination(self,illumination_source,intensity):
+        self.microcontroller.set_illumination(illumination_source,intensity)
 
     def start_live(self):
         self.is_live = True
@@ -379,24 +370,22 @@ class LiveController(QObject):
     
     # set microscope mode
     # @@@ to do: change softwareTriggerGenerator to TriggerGeneratror
-    def set_microscope_mode(self,mode):
-        print("setting microscope mode to " + mode)
+    def set_microscope_mode(self,configuration):
+
+        self.currentConfiguration = configuration
+        print("setting microscope mode to " + self.currentConfiguration.name)
         
         # temporarily stop live while changing mode
         if self.is_live is True:
             self.timer_software_trigger.stop()
             self.turn_off_illumination()
+
+        # set camera exposure time and analog gain
+        self.camera.set_exposure_time(self.currentConfiguration.exposure_time)
+        self.camera.set_analog_gain(self.currentConfiguration.analog_gain)
         
-        self.mode = mode
-        if self.mode == MicroscopeMode.BFDF:
-            self.camera.set_exposure_time(self.exposure_time_bfdf_preset)
-            self.camera.set_analog_gain(self.analog_gain_bfdf_preset)
-        elif self.mode == MicroscopeMode.FLUORESCENCE:
-            self.camera.set_exposure_time(self.exposure_time_fl_preset)
-            self.camera.set_analog_gain(self.analog_gain_fl_preset)
-        elif self.mode == MicroscopeMode.FLUORESCENCE_PREVIEW:
-            self.camera.set_exposure_time(self.exposure_time_fl_preview_preset)
-            self.camera.set_analog_gain(self.analog_gain_fl_preview_preset)
+        # set illumination
+        self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
 
         # restart live 
         if self.is_live is True:
@@ -405,19 +394,6 @@ class LiveController(QObject):
 
     def get_trigger_mode(self):
         return self.trigger_mode
-
-    def set_exposure_time_bfdf_preset(self,exposure_time):
-        self.exposure_time_bfdf_preset = exposure_time
-    def set_exposure_time_fl_preset(self,exposure_time):
-        self.exposure_time_fl_preset = exposure_time
-    def set_exposure_time_fl_preview_preset(self,exposure_time):
-        self.exposure_time_fl_preview_preset = exposure_time
-    def set_analog_gain_bfdf_preset(self,analog_gain):
-        self.analog_gain_bfdf_preset = analog_gain
-    def set_analog_gain_fl_preset(self,analog_gain):
-        self.analog_gain_fl_preset = analog_gain
-    def set_analog_gain_fl_preview_preset(self,analog_gain):
-        self.analog_gain_fl_preview_preset = analog_gain
 
     # slot
     def on_new_frame(self):
@@ -1006,12 +982,13 @@ class ImageDisplayWindow(QMainWindow):
         return self.roi_pos,self.roi_size
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None):
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
         self.id = mode_id
         self.name = name
         self.exposure_time = exposure_time
         self.analog_gain = analog_gain
         self.illumination_source = illumination_source
+        self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
 
 class ConfigurationManager(QObject):
@@ -1037,9 +1014,9 @@ class ConfigurationManager(QObject):
                     exposure_time = mode.get('ExposureTime'),
                     analog_gain = mode.get('AnalogGain'),
                     illumination_source = mode.get('IlluminationSource'),
+                    illumination_intensity = mode.get('IlluminationIntensity'),
                     camera_sn = mode.get('CameraSN'))
             )
-        print(self.num_configurations)
 
     def update_configuration(self,configuration_id,attribute_name,new_value):
         list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
