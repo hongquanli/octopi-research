@@ -44,15 +44,21 @@ static const int Y_encoder_A = 8;
 static const int Y_encoder_B = 9;
 
 // focus wheel
-static const int focusWheel_A  = 40;
-static const int focusWheel_B  = 41;
-static const int focusWheel_CS  = 42;
+static const int focusWheel_A  = 41;
+static const int focusWheel_B  = 42;
 static const int focusWheel_IDX  = 43;
 volatile long focusPosition = 0;
+
+// analog input
+#define analog_in_0 A7
+#define analog_in_1 A8
 
 // joy stick
 #define joystick_X A4
 #define joystick_Y A5
+
+// rocker switch
+#define rocker 40
 
 /***************************************************************************************************/
 /******************************************* steppers **********************************************/
@@ -108,7 +114,7 @@ bool Y_use_encoder = false;
 bool Z_use_encoder = false;
 
 /***************************************************************************************************/
-/******************************************* steppers **********************************************/
+/******************************************* joystick **********************************************/
 /***************************************************************************************************/
 static const int TIMER_PERIOD = 500; // in us
 static const int interval_read_joystick = 10000; // in us
@@ -119,14 +125,17 @@ volatile bool flag_read_joystick = false;
 volatile bool flag_send_pos_update = false;
 int joystick_offset_x = 512;
 int joystick_offset_y = 512;
-constexpr int joystickSensitivity = 10; // range from 5 to 100 (for comparison with number in the range of 0-512)
+constexpr int joystickSensitivity = 25; // range from 5 to 100 (for comparison with number in the range of 0-512)
 
 // joystick
-volatile int deltaX = 0;
-volatile int deltaY = 0;
-volatile float deltaX_float = 0;
-volatile float deltaY_float = 0;
+int deltaX = 0;
+int deltaY = 0;
+float deltaX_float = 0;
+float deltaY_float = 0;
+float speed_XY_factor = 0;
 
+// rocker
+bool rocker_state = false;
 
 /***************************************************************************************************/
 /********************************************* setup ***********************************************/
@@ -165,6 +174,8 @@ void setup() {
   pinMode(LASER, OUTPUT);
   digitalWrite(LED, LOW);
   digitalWrite(LASER, LOW);
+
+  pinMode(rocker,INPUT);
 
   // initialize stepper driver
   STEPPER_SERIAL.begin(115200);
@@ -214,19 +225,11 @@ void setup() {
   stepper_Y.enableOutputs();
   stepper_Z.enableOutputs();
 
-  /*
-  joystick.begin(Wire1);
-  twist.begin(Wire1);
-  twist.setCount(0);
-  */
-
   // xyz encoder
   pinMode(X_encoder_A,INPUT);
   pinMode(X_encoder_B,INPUT);
   pinMode(Y_encoder_A,INPUT);
   pinMode(Y_encoder_B,INPUT);
-//  pinMode(Z_encoder_A,INPUT);
-//  pinMode(Z_encoder_B,INPUT);
   attachInterrupt(digitalPinToInterrupt(X_encoder_A), ISR_X_encoder_A, RISING);
   attachInterrupt(digitalPinToInterrupt(X_encoder_B), ISR_X_encoder_B, RISING);
   attachInterrupt(digitalPinToInterrupt(Y_encoder_A), ISR_Y_encoder_A, RISING);
@@ -240,8 +243,6 @@ void setup() {
   pinMode(focusWheel_A,INPUT);
   pinMode(focusWheel_B,INPUT);
   pinMode(focusWheel_IDX,INPUT);
-  pinMode(focusWheel_CS,OUTPUT);
-  digitalWrite(focusWheel_CS,LOW);
   attachInterrupt(digitalPinToInterrupt(focusWheel_A), ISR_focusWheel_A, RISING);
   attachInterrupt(digitalPinToInterrupt(focusWheel_B), ISR_focusWheel_B, RISING);
   
@@ -317,9 +318,15 @@ void loop() {
     }
   }
 
-
   if(flag_read_joystick) 
   {
+    // read rocker state (may be moved)
+    rocker_state = digitalRead(rocker);
+    
+    // read speed_XY_factor (range 0-1)
+    speed_XY_factor = float(analogRead(analog_in_1))/1023;
+    // speed_XY_factor = rocker_state ? speed_XY_factor : 0; // for testing the rocker
+    
     // read x joystick
     if(!X_commanded_movement_in_progress) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
@@ -327,7 +334,7 @@ void loop() {
       deltaX_float = -deltaX;
       if(abs(deltaX_float)>joystickSensitivity)
       {
-        stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_X_mm*steps_per_mm_XY);
+        stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_XY);
         runSpeed_flag_X = true;
         if(stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_XY && deltaX_float>0)
         {
@@ -353,10 +360,10 @@ void loop() {
     if(!Y_commanded_movement_in_progress)
     {
       deltaY = analogRead(joystick_Y) - joystick_offset_y;
-      deltaY_float = deltaY;
+      deltaY_float = -deltaY;
       if(abs(deltaY)>joystickSensitivity)
       {
-        stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
+        stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
         runSpeed_flag_Y = true;
         if(stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_XY && deltaY_float>0)
         {
