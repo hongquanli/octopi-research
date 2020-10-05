@@ -179,7 +179,7 @@ class LiveControlWidget(QFrame):
         for microscope_configuration in self.configurationManager.configurations:
             self.dropdown_modeSelection.addItems([microscope_configuration.name])
         self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
-        self.liveController.set_microscope_mode(self.currentConfiguration.name)
+        self.liveController.set_microscope_mode(self.currentConfiguration)
 
         self.btn_live = QPushButton("Live")
         self.btn_live.setCheckable(True)
