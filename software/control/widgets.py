@@ -155,6 +155,7 @@ class LiveControlWidget(QFrame):
         self.streamHandler.set_display_fps(self.fps_display)
         
         self.triggerMode = TriggerMode.SOFTWARE
+        # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration = self.configurationManager.configurations[0]
 
         self.add_components()
@@ -255,7 +256,7 @@ class LiveControlWidget(QFrame):
             self.liveController.stop_live()
 
     def update_microscope_mode(self,current_microscope_mode_name):
-        # identify the mode selected
+        # identify the mode selected (note that this references the object in self.configurationManager.configurations)
         self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
         # update the exposure time and analog gain settings according to the selected configuration
         self.entry_exposureTime.setValue(float(self.currentConfiguration.exposure_time))
