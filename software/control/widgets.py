@@ -39,6 +39,10 @@ class CameraSettingsWidget(QFrame):
         self.entry_analogGain.setValue(0)
         self.camera.set_analog_gain(0)
 
+        # connection
+        self.entry_exposureTime.valueChanged.connect(self.camera.set_exposure_time)
+        self.entry_analogGain.valueChanged.connect(self.camera.set_analog_gain)
+
         # layout
         grid_ctrl = QGridLayout()
         grid_ctrl.addWidget(QLabel('Exposure Time (ms)'), 0,0)
@@ -50,25 +54,16 @@ class CameraSettingsWidget(QFrame):
         self.grid.addLayout(grid_ctrl,0,0)
         self.setLayout(self.grid)
 
-    def load_bf_preset(self):
-        self.entry_exposureTime.setValue(self.entry_exposureTimeBFPreset.value())
-        self.entry_exposureTime.repaint() # update doesn't work
-        self.entry_analogGain.setValue(self.entry_analogGainBFPreset.value())
-        self.entry_analogGain.repaint()
+    def set_exposure_time(self,exposure_time):
+        self.entry_exposureTime.setValue(exposure_time)
 
-    def load_fl_preset(self):
-        self.entry_exposureTime.setValue(self.entry_exposureTimeFLPreset.value())
-        self.entry_exposureTime.repaint() # update doesn't work
-        self.entry_analogGain.setValue(self.entry_analogGainFLPreset.value())
-        self.entry_analogGain.repaint()
+    def set_analog_gain(self,analog_gain):
+        self.entry_analogGain.setValue(analog_gain)
 
-    def load_fl_preview_preset(self):
-        self.entry_exposureTime.setValue(self.entry_exposureTimeFLPreviewPreset.value())
-        self.entry_exposureTime.repaint() # update doesn't work
-        self.entry_analogGain.setValue(self.entry_analogGainFLPreviewPreset.value())
-        self.entry_analogGain.repaint()
 
 class LiveControlWidget(QFrame):
+    signal_newExposureTime = Signal(float)
+    signal_newAnalogGain = Signal(float)
     def __init__(self, streamHandler, liveController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.liveController = liveController
@@ -116,8 +111,14 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.setMinimum(0.01) 
         self.entry_exposureTime.setMaximum(4000) 
         self.entry_exposureTime.setSingleStep(1)
-        self.entry_exposureTime.setValue(20)
+        self.entry_exposureTime.setValue(0)
+
         self.entry_analogGain = QDoubleSpinBox()
+        self.entry_analogGain = QDoubleSpinBox()
+        self.entry_analogGain.setMinimum(0) 
+        self.entry_analogGain.setMaximum(24) 
+        self.entry_analogGain.setSingleStep(0.1)
+        self.entry_analogGain.setValue(0)
 
         self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
         self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
@@ -202,6 +203,10 @@ class LiveControlWidget(QFrame):
         else:
             self.liveController.stop_live()
 
+    def update_camera_settings(self):
+        self.signal_newAnalogGain.emit(self.entry_analogGain.value())
+        self.signal_newExposureTime.emit(self.entry_exposureTime.value())
+
     def update_microscope_mode_by_name(self,current_microscope_mode_name):
         # identify the mode selected (note that this references the object in self.configurationManager.configurations)
         self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
@@ -218,10 +223,12 @@ class LiveControlWidget(QFrame):
     def update_config_exposure_time(self,new_value):
         self.currentConfiguration.exposure_time = new_value
         self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
+        self.signal_newExposureTime.emit(new_value)
 
     def update_config_analog_gain(self,new_value):
         self.currentConfiguration.analog_gain = new_value
         self.configurationManager.update_configuration(self.currentConfiguration.id,'AnalogGain',new_value)
+        self.signal_newAnalogGain.emit(new_value)
 
     def update_config_illumination_intensity(self,new_value):
         self.currentConfiguration.illumination_intensity = new_value

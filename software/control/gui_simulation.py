@@ -86,6 +86,9 @@ class OctopiGUI(QMainWindow):
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		# self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
+		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+		self.liveControlWidget.update_camera_settings()
 
 	def closeEvent(self, event):
 		event.accept()
