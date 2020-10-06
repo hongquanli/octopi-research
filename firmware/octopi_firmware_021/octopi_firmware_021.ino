@@ -19,10 +19,18 @@ byte buffer_tx[MSG_LENGTH];
 volatile int buffer_rx_ptr;
 static const int N_BYTES_POS = 3;
 
+// command sets
+static const int MOVE_X = 0;
+static const int MOVE_Y = 1;
+static const int MOVE_Z = 2;
+static const int TURN_ON_ILLUMINATION = 5;
+static const int TURN_OFF_ILLUMINATION = 6;
+static const int SET_ILLUMINATION = 7;
+
 /***************************************************************************************************/
 /**************************************** Pin definations ******************************************/
 /***************************************************************************************************/
-// v0.2.0 pin def
+// v0.2.1 pin def
 
 // linear actuators
 static const int X_dir  = 28;
@@ -33,9 +41,10 @@ static const int Z_dir = 27;
 static const int Z_step = 29;
 
 // illumination
-static const int LED = 48;
-static const int LASER = 49;
-static const int SHUTTER = 50;
+static const int LED = 30;
+static const int LASER_405nm = 31;
+static const int LASER_488nm = 32;
+static const int LASER_638nm = 33;
 
 // encoders
 static const int X_encoder_A = 6;
@@ -79,8 +88,8 @@ static const long steps_per_mm_XY = 1600;
 static const long steps_per_mm_Z = 5333;
 //constexpr float MAX_VELOCITY_X_mm = 7;
 //constexpr float MAX_VELOCITY_Y_mm = 7;
-constexpr float MAX_VELOCITY_X_mm = 3;
-constexpr float MAX_VELOCITY_Y_mm = 3;
+constexpr float MAX_VELOCITY_X_mm = 20;
+constexpr float MAX_VELOCITY_Y_mm = 20;
 constexpr float MAX_VELOCITY_Z_mm = 2;
 constexpr float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
@@ -125,7 +134,7 @@ volatile bool flag_read_joystick = false;
 volatile bool flag_send_pos_update = false;
 int joystick_offset_x = 512;
 int joystick_offset_y = 512;
-constexpr int joystickSensitivity = 25; // range from 5 to 100 (for comparison with number in the range of 0-512)
+constexpr int joystickSensitivity = 50; // for comparison with number in the range of 0-512
 
 // joystick
 int deltaX = 0;
@@ -136,6 +145,80 @@ float speed_XY_factor = 0;
 
 // rocker
 bool rocker_state = false;
+
+/***************************************************************************************************/
+/***************************************** illumination ********************************************/
+/***************************************************************************************************/
+int illumination_source = 0;
+uint16_t illumination_intensity = 65535;
+void turn_on_illumination();
+void turn_off_illumination();
+void set_illumination_source(int source);
+
+static const int ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2;
+static const int ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 5;
+static const int ILLUMINATION_SOURCE_405NM = 11;
+static const int ILLUMINATION_SOURCE_488NM = 12;
+static const int ILLUMINATION_SOURCE_638NM = 13;
+
+void turn_on_illumination()
+{
+  switch(illumination_source)
+  {
+    case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
+      break;
+    case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
+      digitalWrite(LED,HIGH);
+      break;
+    case ILLUMINATION_SOURCE_405NM:
+      digitalWrite(LASER_405nm,HIGH);
+      break;
+    case ILLUMINATION_SOURCE_488NM:
+      digitalWrite(LASER_488nm,HIGH);
+      break;
+    case ILLUMINATION_SOURCE_638NM:
+      digitalWrite(LASER_638nm,HIGH);
+      break;
+  }
+}
+
+void turn_off_illumination()
+{
+  switch(illumination_source)
+  {
+    case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
+      break;
+    case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
+      digitalWrite(LED,LOW);
+      break;
+    case ILLUMINATION_SOURCE_405NM:
+      digitalWrite(LASER_405nm,LOW);
+      break;
+    case ILLUMINATION_SOURCE_488NM:
+      digitalWrite(LASER_488nm,LOW);
+      break;
+    case ILLUMINATION_SOURCE_638NM:
+      digitalWrite(LASER_638nm,LOW);
+      break;
+  }
+}
+
+void set_illumination(int source, uint16_t intensity)
+{
+  illumination_source = source;
+  illumination_intensity = intensity;
+}
+
 
 /***************************************************************************************************/
 /********************************************* setup ***********************************************/
@@ -154,11 +237,16 @@ void setup() {
   // enable pins
   pinMode(LED, OUTPUT);
   digitalWrite(LED, LOW);
-  
-  pinMode(LASER, OUTPUT);
-  digitalWrite(LED, LOW);
 
-  pinMode(SHUTTER, OUTPUT);
+  pinMode(LASER_405nm, OUTPUT);
+  digitalWrite(LASER_405nm, LOW);
+
+  pinMode(LASER_488nm, OUTPUT);
+  digitalWrite(LASER_488nm, LOW);
+
+  pinMode(LASER_638nm, OUTPUT);
+  digitalWrite(LASER_638nm, LOW);
+
   digitalWrite(LED, LOW);
   
   pinMode(X_dir, OUTPUT);
@@ -169,11 +257,6 @@ void setup() {
 
   pinMode(Z_dir, OUTPUT);
   pinMode(Z_step, OUTPUT);
-
-  pinMode(LED, OUTPUT);
-  pinMode(LASER, OUTPUT);
-  digitalWrite(LED, LOW);
-  digitalWrite(LASER, LOW);
 
   pinMode(rocker,INPUT);
 
@@ -270,50 +353,52 @@ void loop() {
     buffer_rx_ptr = buffer_rx_ptr + 1;
     if (buffer_rx_ptr == CMD_LENGTH) {
       buffer_rx_ptr = 0;
-      if(buffer_rx[0]==0)
+      switch(buffer_rx[0])
       {
-        long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY) );
-        stepper_X.moveTo(X_commanded_target_position);
-        X_commanded_movement_in_progress = true;
+        case MOVE_X:
+        {
+          long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+          X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY) );
+          stepper_X.moveTo(X_commanded_target_position);
+          X_commanded_movement_in_progress = true;
+          break;
+        }
+        case MOVE_Y:
+        {
+          long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+          Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY) );
+          stepper_Y.moveTo(Y_commanded_target_position);
+          Y_commanded_movement_in_progress = true;
+          break;
+        }
+        case MOVE_Z:
+        {
+          long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
+          Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT_MM*steps_per_mm_Z):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT_MM*steps_per_mm_Z) );
+          stepper_Z.runToNewPosition(Z_commanded_target_position);
+          focusPosition = Z_commanded_target_position;
+          //stepper_Z.moveTo(Z_commanded_target_position);
+          Z_commanded_movement_in_progress = true;
+          break;
+        }
+        case TURN_ON_ILLUMINATION:
+        {
+          turn_on_illumination();
+          break;
+        }
+        case TURN_OFF_ILLUMINATION:
+        {
+          turn_off_illumination();
+          break;
+        }
+        case SET_ILLUMINATION:
+        {
+          set_illumination(buffer_rx[1],uint16_t(buffer_rx[2])<<8 + uint16_t(buffer_rx[3]));
+          break;
+        }
+        default:
+          break;
       }
-      else if(buffer_rx[0]==1)
-      {
-        long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY) );
-        stepper_Y.moveTo(Y_commanded_target_position);
-        Y_commanded_movement_in_progress = true;
-      }
-      else if(buffer_rx[0]==2)
-      {
-        long relative_position = long(buffer_rx[1]*2-1)*(long(buffer_rx[2])*256 + long(buffer_rx[3]));
-        Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT_MM*steps_per_mm_Z):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT_MM*steps_per_mm_Z) );
-        stepper_Z.runToNewPosition(Z_commanded_target_position);
-        focusPosition = Z_commanded_target_position;
-        //stepper_Z.moveTo(Z_commanded_target_position);
-        Z_commanded_movement_in_progress = true;
-      }
-      else if(buffer_rx[0]==3)
-        led_switch(buffer_rx[1]);
-      else if(buffer_rx[0]==4)
-        laser_switch(buffer_rx[1]);
-      else if(buffer_rx[0]==5)
-        shutter_switch(buffer_rx[1]);
-      else if(buffer_rx[0]==6){
-        // read ADC
-        // int16_t adc0 = ads1115.readADC_SingleEnded(0);
-        // SerialUSB.write(byte(adc0 >> 8));
-        // SerialUSB.write(byte(adc0 & 255));
-      }
-      
-      /*
-      SerialUSB.print(buffer_rx[0]);
-      SerialUSB.print(buffer_rx[1]);
-      SerialUSB.print(buffer_rx[2]);
-      SerialUSB.print(buffer_rx[3]);
-      SerialUSB.print('#');
-      */
-      
       //break; // exit the while loop after reading one message
     }
   }
@@ -441,37 +526,6 @@ void loop() {
     stepper_Y.runSpeed();
   
   stepper_Z.run();
-}
-
-////////////////////////////////// LED/LASER/SHUTTER switches ////////////////////////////
-void led_switch(int state)
-{
-  if(state>0)
-  {
-    digitalWrite(LED, HIGH);
-    digitalWrite(13, HIGH);
-  }
-  else
-  {
-    digitalWrite(LED, LOW);
-    digitalWrite(13, LOW);
-  }
-}
-
-void laser_switch(int state)
-{
-  if(state>0)
-    digitalWrite(LASER, HIGH);
-  else
-    digitalWrite(LASER, LOW);
-}
-
-void shutter_switch(int state)
-{
-  if(state>0)
-    digitalWrite(SHUTTER, HIGH);
-  else
-    digitalWrite(SHUTTER, LOW);
 }
 
 /***************************************************
