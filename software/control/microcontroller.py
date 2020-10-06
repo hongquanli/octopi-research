@@ -49,19 +49,20 @@ class Microcontroller():
 
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = 5
+        cmd[0] = CMD_SET.TURN_ON_ILLUMINATION
         self.serial.write(cmd)
 
     def turn_off_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = 6
+        cmd[0] = CMD_SET.TURN_OFF_ILLUMINATION
         self.serial.write(cmd)
 
     def set_illumination(self,illumination_source,intensity):
         cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = illumination_source
-        cmd[1] = int((intensity/100)*65535) >> 8
-        cmd[2] = int((intensity/100)*65535) & 0xff
+        cmd[0] = CMD_SET.SET_ILLUMINATION
+        cmd[1] = illumination_source
+        cmd[2] = int((intensity/100)*65535) >> 8
+        cmd[3] = int((intensity/100)*65535) & 0xff
         self.serial.write(cmd)
 
     def move_x(self,delta):
@@ -70,7 +71,7 @@ class Microcontroller():
         if n_microsteps > 65535:
             n_microsteps = 65535
         cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = 0
+        cmd[0] = CMD_SET.MOVE_X
         cmd[1] = direction
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
@@ -83,7 +84,7 @@ class Microcontroller():
         if n_microsteps > 65535:
             n_microsteps = 65535
         cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = 1
+        cmd[0] = CMD_SET.MOVE_Y
         cmd[1] = direction
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
@@ -96,7 +97,7 @@ class Microcontroller():
         if n_microsteps > 65535:
             n_microsteps = 65535
         cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = 2
+        cmd[0] = CMD_SET.MOVE_Z
         cmd[1] = 1-direction
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
