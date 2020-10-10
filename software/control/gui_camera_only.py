@@ -26,17 +26,11 @@ class OctopiGUI(QMainWindow):
 		self.camera = camera.Camera()
 		self.microcontroller = microcontroller.Microcontroller_Simulation()
 		
+		self.configurationManager = core.ConfigurationManager()
 		self.streamHandler = core.StreamHandler()
-		self.liveController = core.LiveController(self.camera,self.microcontroller)
+		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
-
-		'''
-		# thread
-		self.thread_multiPoint = QThread()
-		self.thread_multiPoint.start()
-		self.multipointController.moveToThread(self.thread_multiPoint)
-		'''
 
 		# open the camera
 		# camera start streaming
@@ -47,7 +41,7 @@ class OctopiGUI(QMainWindow):
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,self.liveController)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController)
+		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
 
 		# layout widgets
@@ -70,7 +64,10 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
 		self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
-
+		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
+		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+		self.liveControlWidget.update_camera_settings()
+		
 	def closeEvent(self, event):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
