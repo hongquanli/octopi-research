@@ -286,7 +286,7 @@ class Configuration:
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager):
+    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
@@ -296,6 +296,7 @@ class LiveController(QObject):
         self.is_live = False
         self.was_live_before_autofocus = False
         self.was_live_before_multipoint = False
+        self.control_illumination = control_illumination
 
         self.fps_software_trigger = 1;
         self.timer_software_trigger_interval = (1/self.fps_software_trigger)*1000
@@ -334,11 +335,13 @@ class LiveController(QObject):
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
             self.camera.stop_streaming()
-            self.turn_off_illumination()
+            if self.control_illumination:
+                self.turn_off_illumination()
 
     # software trigger related
     def trigger_acquisition_software(self):
-        self.turn_on_illumination()
+        if self.control_illumination:
+            self.turn_on_illumination()
         self.trigger_ID = self.trigger_ID + 1
         self.camera.send_trigger()
         # measure real fps
@@ -393,18 +396,21 @@ class LiveController(QObject):
         # temporarily stop live while changing mode
         if self.is_live is True:
             self.timer_software_trigger.stop()
-            self.turn_off_illumination()
+            if self.control_illumination:
+                self.turn_off_illumination()
 
         # set camera exposure time and analog gain
         self.camera.set_exposure_time(self.currentConfiguration.exposure_time)
         self.camera.set_analog_gain(self.currentConfiguration.analog_gain)
 
         # set illumination
-        self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
+        if self.control_illumination:
+            self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
 
         # restart live 
         if self.is_live is True:
-            self.turn_on_illumination()
+            if self.control_illumination:
+                self.turn_on_illumination()
             self.timer_software_trigger.start()
 
     def get_trigger_mode(self):
@@ -413,7 +419,8 @@ class LiveController(QObject):
     # slot
     def on_new_frame(self):
         if self.fps_software_trigger <= 5:
-            self.turn_off_illumination()
+            if self.control_illumination:
+                self.turn_off_illumination()
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
