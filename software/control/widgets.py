@@ -233,6 +233,7 @@ class LiveControlWidget(QFrame):
     def update_config_illumination_intensity(self,new_value):
         self.currentConfiguration.illumination_intensity = new_value
         self.configurationManager.update_configuration(self.currentConfiguration.id,'IlluminationIntensity',new_value)
+        self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
 
     def set_microscope_mode(self,config):
         # self.liveController.set_microscope_mode(config)

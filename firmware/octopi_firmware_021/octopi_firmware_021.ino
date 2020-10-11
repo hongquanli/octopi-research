@@ -2,6 +2,8 @@
 #include <TMCStepper_UTILITY.h>
 #include <DueTimer.h>
 #include <AccelStepper.h>
+#include <Adafruit_DotStar.h>
+#include <SPI.h>
 
 /***************************************************************************************************/
 /***************************************** Communications ******************************************/
@@ -151,27 +153,43 @@ bool rocker_state = false;
 /***************************************************************************************************/
 int illumination_source = 0;
 uint16_t illumination_intensity = 65535;
+static const int LED_MATRIX_MAX_INTENSITY = 150;
+bool illumination_is_on = false;
 void turn_on_illumination();
 void turn_off_illumination();
-void set_illumination_source(int source);
 
 static const int ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3;
 static const int ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 5;
 static const int ILLUMINATION_SOURCE_405NM = 11;
 static const int ILLUMINATION_SOURCE_488NM = 12;
 static const int ILLUMINATION_SOURCE_638NM = 13;
 
+Adafruit_DotStar matrix(64, DOTSTAR_BRG);
+void set_all(Adafruit_DotStar & matrix, int r, int g, int b);
+void set_left(Adafruit_DotStar & matrix, int r, int g, int b);
+void set_right(Adafruit_DotStar & matrix, int r, int g, int b);
+void clear_matrix(Adafruit_DotStar & matrix);
+void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint16_t intensity);
+
 void turn_on_illumination()
 {
+  illumination_is_on = true;
   switch(illumination_source)
   {
     case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,illumination_intensity);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF,illumination_intensity);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF,illumination_intensity);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR,illumination_intensity);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
       digitalWrite(LED,HIGH);
@@ -193,10 +211,16 @@ void turn_off_illumination()
   switch(illumination_source)
   {
     case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
+      clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
+      clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
+      clear_matrix(matrix);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
+      clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
       digitalWrite(LED,LOW);
@@ -211,12 +235,15 @@ void turn_off_illumination()
       digitalWrite(LASER_638nm,LOW);
       break;
   }
+  illumination_is_on = false;
 }
 
 void set_illumination(int source, uint16_t intensity)
 {
   illumination_source = source;
   illumination_intensity = intensity;
+  if(illumination_is_on)
+    turn_on_illumination(); //update the illumination
 }
 
 
@@ -339,6 +366,10 @@ void setup() {
 
   //ADC
   //ads1115.begin();
+
+  // led matrix
+  matrix.begin();
+  
 }
 
 /***************************************************************************************************/
@@ -393,7 +424,7 @@ void loop() {
         }
         case SET_ILLUMINATION:
         {
-          set_illumination(buffer_rx[1],uint16_t(buffer_rx[2])<<8 + uint16_t(buffer_rx[3]));
+          set_illumination(buffer_rx[1],(uint16_t(buffer_rx[2])<<8) + uint16_t(buffer_rx[3])); //important to have "<<8" with in "()"
           break;
         }
         default:
@@ -524,7 +555,7 @@ void loop() {
     stepper_Y.run();
   else if(runSpeed_flag_Y)
     stepper_Y.runSpeed();
-  
+
   stepper_Z.run();
 }
 
@@ -618,4 +649,58 @@ static inline int sgn(int val) {
  if (val < 0) return -1;
  if (val==0) return 0;
  return 1;
+}
+
+/***************************************************************************************************/
+/*******************************************  LED Array  *******************************************/
+/***************************************************************************************************/
+void set_all(Adafruit_DotStar & matrix, int r, int g, int b)
+{
+  for (int i = 0; i < 64; i++)
+    matrix.setPixelColor(i,r,g,b);
+}
+
+void set_left(Adafruit_DotStar & matrix, int r, int g, int b)
+{
+  for (int i = 0; i < 32; i++)
+    matrix.setPixelColor(i,r,g,b);
+}
+
+void set_right(Adafruit_DotStar & matrix, int r, int g, int b)
+{
+  for (int i = 32; i < 64; i++)
+    matrix.setPixelColor(i,r,g,b);
+}
+
+void clear_matrix(Adafruit_DotStar & matrix)
+{
+  for (int i = 0; i < 64; i++)
+    matrix.setPixelColor(i,0,0,0);
+  matrix.show();
+}
+
+void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint16_t intensity_uint16)
+{
+
+  uint8_t intensity = (float(intensity_uint16)/65535)*LED_MATRIX_MAX_INTENSITY;
+
+  // clear matrix
+  set_all(matrix, 0, 0, 0);
+    
+  switch(pattern)
+  {
+    case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
+      set_all(matrix, intensity, intensity, intensity);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
+      set_left(matrix, intensity, intensity, intensity);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
+      set_right(matrix, intensity, intensity, intensity);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
+      set_left(matrix,0,intensity,0);
+      set_right(matrix,0,0,intensity);
+  }
+  matrix.show();
 }
