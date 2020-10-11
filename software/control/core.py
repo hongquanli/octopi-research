@@ -608,6 +608,9 @@ class MultiPointController(QObject):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
+    def set_display_resolution_scaling(self, display_resolution_scaling):
+        self.display_resolution_scaling = display_resolution_scaling/100
+
     def set_base_path(self,path):
         self.base_path = path
 

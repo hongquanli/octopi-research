@@ -151,6 +151,7 @@ class LiveControlWidget(QFrame):
         self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
         self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
         self.slider_resolutionScaling.valueChanged.connect(self.streamHandler.set_display_resolution_scaling)
+        self.slider_resolutionScaling.valueChanged.connect(self.liveController.set_display_resolution_scaling)
         self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
         self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
         self.btn_live.clicked.connect(self.toggle_live)
