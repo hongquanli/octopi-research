@@ -21,6 +21,8 @@ import cv2
 from datetime import datetime
 
 from lxml import etree as ET
+from pathlib import Path
+import control.utils_config as utils_config
 
 
 class StreamHandler(QObject):
@@ -866,7 +868,7 @@ class ImageDisplayWindow(QMainWindow):
         return self.roi_pos,self.roi_size
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename='configurations.xml'):
+    def __init__(self,filename=str(Path.home()) + "/configurations_default.xml"):
         QObject.__init__(self)
         self.config_filename = filename
         self.configurations = []
@@ -876,9 +878,11 @@ class ConfigurationManager(QObject):
         self.config_xml_tree.write(self.config_filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
     def read_configurations(self):
-        self.num_configurations = 0
+        if(os.path.isfile(self.config_filename)==False):
+            utils_config.generate_default_configuration(self.config_filename)
         self.config_xml_tree = ET.parse(self.config_filename)
         self.config_xml_tree_root = self.config_xml_tree.getroot()
+        self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations = self.num_configurations + 1
             self.configurations.append(
