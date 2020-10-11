@@ -310,6 +310,8 @@ class LiveController(QObject):
         self.counter = 0
         self.timestamp_last = 0
 
+        self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
+
     # illumination control
     def turn_on_illumination(self):
         self.microcontroller.turn_on_illumination()
@@ -372,7 +374,7 @@ class LiveController(QObject):
         if mode == TriggerMode.CONTINUOUS: 
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
-            if self.mode == TriggerMode.HARDWARE:
+            if self.trigger_mode == TriggerMode.HARDWARE:
                 pass #@@@ to be implemented
             self.camera.set_continuous_acquisition()
         self.trigger_mode = mode
@@ -412,6 +414,9 @@ class LiveController(QObject):
     def on_new_frame(self):
         if self.fps_software_trigger <= 5:
             self.turn_off_illumination()
+
+    def set_display_resolution_scaling(self, display_resolution_scaling):
+        self.display_resolution_scaling = display_resolution_scaling/100
 
 class NavigationController(QObject):
 
@@ -608,9 +613,6 @@ class MultiPointController(QObject):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
-    def set_display_resolution_scaling(self, display_resolution_scaling):
-        self.display_resolution_scaling = display_resolution_scaling/100
-
     def set_base_path(self,path):
         self.base_path = path
 
@@ -633,47 +635,68 @@ class MultiPointController(QObject):
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
 
-        self.time_point = 0
-        self.single_acquisition_in_progress = False
-        self.acquisitionTimer = QTimer()
-        self.acquisitionTimer.setInterval(self.deltat*1000)
-        self.acquisitionTimer.timeout.connect(self._on_acquisitionTimer_timeout)
-        self.acquisitionTimer.start()
-        self.acquisitionTimer.timeout.emit() # trigger the first acquisition
+        # timer-based acquisition triggering - in between acquisitions, microscope settings include stage positions can be adjusted
+        if self.deltat > 0:
+            self.time_point = 0
+            self.single_acquisition_in_progress = False
+            self.acquisitionTimer = QTimer()
+            self.acquisitionTimer.setInterval(self.deltat*1000)
+            self.acquisitionTimer.timeout.connect(self._on_acquisitionTimer_timeout)
+            self.acquisitionTimer.start()
+            self.acquisitionTimer.timeout.emit() # trigger the first acquisition
+        
+        # continous, for loop-based multipoint
+        else:
+            # stop live
+            if self.liveController.is_live:
+                self.liveController.was_live_before_multipoint = True
+                self.liveController.stop_live() # @@@ to do: also uncheck the live button
+            else:
+                self.liveController.was_live_before_multipoint = False
+
+            # disable callback
+            if self.camera.callback_is_enabled:
+                self.camera.callback_was_enabled_before_multipoint = True
+                self.camera.stop_streaming()
+                self.camera.disable_callback()
+                self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
+            else:
+                self.camera.callback_was_enabled_before_multipoint = False
+
+            for self.time_point in range(self.Nt):
+                self._run_multipoint_single()
+
+            # re-enable callback
+            if self.camera.callback_was_enabled_before_multipoint:
+                self.camera.stop_streaming()
+                self.camera.enable_callback()
+                self.camera.start_streaming()
+                self.camera.callback_was_enabled_before_multipoint = False
+            
+            if self.liveController.was_live_before_multipoint:
+                self.liveController.start_live()
+
+            # emit acquisitionFinished signal
+            self.acquisitionFinished.emit()
 
     def _on_acquisitionTimer_timeout(self):
         # check if the last single acquisition is ongoing
         if self.single_acquisition_in_progress is True:
-            # skip time point if self.deltat is nonzero
-            if self.deltat > 0.1: # @@@ to do: make this more elegant - note that both self.deltat is not 0 and self.deltat is not .0 don't work
-                self.time_point = self.time_point + 1
-                # stop the timer if number of time points is equal to Nt (despite some time points may have been skipped)
-                if self.time_point >= self.Nt:
-                    self.acquisitionTimer.stop()
-                else:
-                    print('the last acquisition has not completed, skip time point ' + str(self.time_point))
+            self.time_point = self.time_point + 1
+            # stop the timer if number of time points is equal to Nt (despite some time points may have been skipped)
+            if self.time_point >= self.Nt:
+                self.acquisitionTimer.stop()
+            else:
+                print('the last acquisition has not completed, skip time point ' + str(self.time_point))
             return
         # if not, run single acquisition
         self._run_single_acquisition()
 
-    def _run_single_acquisition(self):           
-        self.single_acquisition_in_progress = True
+    def _run_multipoint_single(self):
+        
         self.FOV_counter = 0
-
         print('multipoint acquisition - time point ' + str(self.time_point))
 
-        # stop live
-        if self.liveController.is_live:
-            self.liveController.was_live_before_multipoint = True
-            self.liveController.stop_live() # @@@ to do: also uncheck the live button
-
-        # disable callback
-        if self.camera.callback_is_enabled:
-            self.camera.callback_was_enabled_before_multipoint = True
-            self.camera.stop_streaming()
-            self.camera.disable_callback()
-            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-        
         # do the multipoint acquisition
 
         # for each time point, create a new folder
@@ -737,6 +760,29 @@ class MultiPointController(QObject):
 
         # move y back
         self.navigationController.move_y(-self.deltaY*(self.NY-1))
+
+
+    def _run_single_acquisition(self):
+
+        self.single_acquisition_in_progress = True
+        
+        # stop live
+        if self.liveController.is_live:
+            self.liveController.was_live_before_multipoint = True
+            self.liveController.stop_live() # @@@ to do: also uncheck the live button
+        else:
+            self.liveController.was_live_before_multipoint = False
+
+        # disable callback
+        if self.camera.callback_is_enabled:
+            self.camera.callback_was_enabled_before_multipoint = True
+            self.camera.stop_streaming()
+            self.camera.disable_callback()
+            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
+        else:
+            self.camera.callback_was_enabled_before_multipoint = False
+
+        self._run_multipoint_single()
                         
         # re-enable callback
         if self.camera.callback_was_enabled_before_multipoint:
@@ -747,8 +793,9 @@ class MultiPointController(QObject):
         
         if self.liveController.was_live_before_multipoint:
             self.liveController.start_live()
-            # emit acquisitionFinished signal
-            self.acquisitionFinished.emit()
+
+        # emit acquisitionFinished signal
+        self.acquisitionFinished.emit()
         
         # update time_point for the next scheduled single acquisition (if any)
         self.time_point = self.time_point + 1
