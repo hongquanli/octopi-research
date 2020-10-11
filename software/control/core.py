@@ -558,6 +558,7 @@ class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
     image_to_display = Signal(np.ndarray)
+    image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
 
     x_pos = Signal(float)
@@ -729,7 +730,9 @@ class MultiPointController(QObject):
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
                         saving_path = os.path.join(current_path, file_ID + '_bf' + '.' + Acquisition.IMAGE_FORMAT)
                         # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        self.image_to_display.emit(utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
+                        image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                        self.image_to_display.emit(image_to_display)
+                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                         if self.camera.is_color:
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
@@ -916,6 +919,67 @@ class ImageDisplayWindow(QMainWindow):
 
     def get_roi(self):
         return self.roi_pos,self.roi_size
+
+class ImageArrayDisplayWindow(QMainWindow):
+
+    def __init__(self, window_title=''):
+        super().__init__()
+        self.setWindowTitle(window_title)
+        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
+        self.widget = QWidget()
+
+        # interpret image data as row-major instead of col-major
+        pg.setConfigOptions(imageAxisOrder='row-major')
+
+        self.graphics_widget_1 = pg.GraphicsLayoutWidget()
+        self.graphics_widget_1.view = self.graphics_widget_1.addViewBox()
+        self.graphics_widget_1.view.setAspectLocked(True)
+        self.graphics_widget_1.img = pg.ImageItem(border='w')
+        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img)
+
+        self.graphics_widget_2 = pg.GraphicsLayoutWidget()
+        self.graphics_widget_2.view = self.graphics_widget_2.addViewBox()
+        self.graphics_widget_2.view.setAspectLocked(True)
+        self.graphics_widget_2.img = pg.ImageItem(border='w')
+        self.graphics_widget_2.view.addItem(self.graphics_widget_2.img)
+
+        self.graphics_widget_3 = pg.GraphicsLayoutWidget()
+        self.graphics_widget_3.view = self.graphics_widget_3.addViewBox()
+        self.graphics_widget_3.view.setAspectLocked(True)
+        self.graphics_widget_3.img = pg.ImageItem(border='w')
+        self.graphics_widget_3.view.addItem(self.graphics_widget_3.img)
+
+        self.graphics_widget_4 = pg.GraphicsLayoutWidget()
+        self.graphics_widget_4.view = self.graphics_widget_4.addViewBox()
+        self.graphics_widget_4.view.setAspectLocked(True)
+        self.graphics_widget_4.img = pg.ImageItem(border='w')
+        self.graphics_widget_4.view.addItem(self.graphics_widget_4.img)
+
+        ## Layout
+        layout = QGridLayout()
+        layout.addWidget(self.graphics_widget_1, 0, 0)
+        layout.addWidget(self.graphics_widget_2, 0, 1)
+        layout.addWidget(self.graphics_widget_3, 1, 0)
+        layout.addWidget(self.graphics_widget_4, 1, 1) 
+        self.widget.setLayout(layout)
+        self.setCentralWidget(self.widget)
+
+        # set window size
+        desktopWidget = QDesktopWidget();
+        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
+        height = width
+        self.setFixedSize(width,height)
+
+    def display_image(self,image,illumination_source):
+        if illumination_source < 11:
+            self.graphics_widget_1.img.setImage(image,autoLevels=False)
+        elif illumination_source == 11:
+            self.graphics_widget_2.img.setImage(image,autoLevels=False)
+        elif illumination_source == 12:
+            self.graphics_widget_3.img.setImage(image,autoLevels=False)
+        elif illumination_source == 13:
+            self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
     def __init__(self,filename=str(Path.home()) + "/configurations_default.xml"):
