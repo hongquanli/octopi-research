@@ -20,6 +20,11 @@ import pyqtgraph as pg
 import cv2
 from datetime import datetime
 
+from lxml import etree as ET
+from pathlib import Path
+import control.utils_config as utils_config
+
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -269,13 +274,24 @@ class ImageDisplay(QObject):
         self.stop_signal_received = True
         self.thread.join()
 
+class Configuration:
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
+        self.id = mode_id
+        self.name = name
+        self.exposure_time = exposure_time
+        self.analog_gain = analog_gain
+        self.illumination_source = illumination_source
+        self.illumination_intensity = illumination_intensity
+        self.camera_sn = camera_sn
+
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller):
+    def __init__(self,camera,microcontroller,configurationManager):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
-        self.microscope_mode = None
+        self.configurationManager = configurationManager
+        self.currentConfiguration = None
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
         self.is_live = False
         self.was_live_before_autofocus = False
@@ -294,25 +310,15 @@ class LiveController(QObject):
         self.counter = 0
         self.timestamp_last = 0
 
-        self.exposure_time_bfdf_preset = None
-        self.exposure_time_fl_preset = None
-        self.exposure_time_fl_preview_preset = None
-        self.analog_gain_bfdf_preset = None
-        self.analog_gain_fl_preset = None
-        self.analog_gain_fl_preview_preset = None
-
     # illumination control
     def turn_on_illumination(self):
-        if self.mode == MicroscopeMode.BFDF:
-            self.microcontroller.toggle_LED(1)
-        else:
-            self.microcontroller.toggle_laser(1)
+        self.microcontroller.turn_on_illumination()
 
     def turn_off_illumination(self):
-        if self.mode == MicroscopeMode.BFDF:
-            self.microcontroller.toggle_LED(0)
-        else:
-            self.microcontroller.toggle_laser(0)
+        self.microcontroller.turn_off_illumination()
+
+    def set_illumination(self,illumination_source,intensity):
+        self.microcontroller.set_illumination(illumination_source,intensity)
 
     def start_live(self):
         self.is_live = True
@@ -377,24 +383,22 @@ class LiveController(QObject):
     
     # set microscope mode
     # @@@ to do: change softwareTriggerGenerator to TriggerGeneratror
-    def set_microscope_mode(self,mode):
-        print("setting microscope mode to " + mode)
+    def set_microscope_mode(self,configuration):
+
+        self.currentConfiguration = configuration
+        print("setting microscope mode to " + self.currentConfiguration.name)
         
         # temporarily stop live while changing mode
         if self.is_live is True:
             self.timer_software_trigger.stop()
             self.turn_off_illumination()
-        
-        self.mode = mode
-        if self.mode == MicroscopeMode.BFDF:
-            self.camera.set_exposure_time(self.exposure_time_bfdf_preset)
-            self.camera.set_analog_gain(self.analog_gain_bfdf_preset)
-        elif self.mode == MicroscopeMode.FLUORESCENCE:
-            self.camera.set_exposure_time(self.exposure_time_fl_preset)
-            self.camera.set_analog_gain(self.analog_gain_fl_preset)
-        elif self.mode == MicroscopeMode.FLUORESCENCE_PREVIEW:
-            self.camera.set_exposure_time(self.exposure_time_fl_preview_preset)
-            self.camera.set_analog_gain(self.analog_gain_fl_preview_preset)
+
+        # set camera exposure time and analog gain
+        self.camera.set_exposure_time(self.currentConfiguration.exposure_time)
+        self.camera.set_analog_gain(self.currentConfiguration.analog_gain)
+
+        # set illumination
+        self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
 
         # restart live 
         if self.is_live is True:
@@ -403,19 +407,6 @@ class LiveController(QObject):
 
     def get_trigger_mode(self):
         return self.trigger_mode
-
-    def set_exposure_time_bfdf_preset(self,exposure_time):
-        self.exposure_time_bfdf_preset = exposure_time
-    def set_exposure_time_fl_preset(self,exposure_time):
-        self.exposure_time_fl_preset = exposure_time
-    def set_exposure_time_fl_preview_preset(self,exposure_time):
-        self.exposure_time_fl_preview_preset = exposure_time
-    def set_analog_gain_bfdf_preset(self,analog_gain):
-        self.analog_gain_bfdf_preset = analog_gain
-    def set_analog_gain_fl_preset(self,analog_gain):
-        self.analog_gain_fl_preset = analog_gain
-    def set_analog_gain_fl_preview_preset(self,analog_gain):
-        self.analog_gain_fl_preview_preset = analog_gain
 
     # slot
     def on_new_frame(self):
@@ -562,18 +553,20 @@ class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
     image_to_display = Signal(np.ndarray)
+    signal_current_configuration = Signal(Configuration)
 
     x_pos = Signal(float)
     y_pos = Signal(float)
     z_pos = Signal(float)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager):
         QObject.__init__(self)
 
         self.camera = camera
         self.navigationController = navigationController
         self.liveController = liveController
         self.autofocusController = autofocusController
+        self.configurationManager = configurationManager
         self.NX = 1
         self.NY = 1
         self.NZ = 1
@@ -608,10 +601,6 @@ class MultiPointController(QObject):
         self.deltaZ = delta_um/1000
     def set_deltat(self,delta):
         self.deltat = delta
-    def set_bfdf_flag(self,flag):
-        self.do_bfdf = flag
-    def set_fluorescence_flag(self,flag):
-        self.do_fluorescence = flag
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
@@ -631,6 +620,11 @@ class MultiPointController(QObject):
             os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         except:
             pass
+
+    def set_selected_configurations(self, selected_configurations_name):
+        self.selected_configurations = []
+        for configuration_name in selected_configurations_name:
+            self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
     def run_acquisition(self): # @@@ to do: change name to run_experiment
         print('start multipoint')
@@ -644,118 +638,6 @@ class MultiPointController(QObject):
         self.acquisitionTimer.start()
         self.acquisitionTimer.timeout.emit() # trigger the first acquisition
 
-    '''
-    def run_acquisition(self):
-        # stop live
-        if self.liveController.is_live:
-            self.liveController.was_live = True
-            self.liveController.stop_live() # @@@ to do: also uncheck the live button
-
-        thread = Thread(target=self.acquisition_thread)
-        thread.start()
-        thread.join()
-        # restart live
-        if self.liveController.was_live:
-            self.liveController.start_live()
-        # emit acquisitionFinished signal
-        self.acquisitionFinished.emit()
-
-    def acquisition_thread(self):
-
-        if self.liveController.get_trigger_mode() == TriggerMode.SOFTWARE: # @@@ to do: move trigger mode to camera
-            
-            print('start multipoint')
-            print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
-
-            # disable callback
-            if self.camera.callback_is_enabled:
-                self.camera.callback_is_enabled = False
-                self.camera.callback_was_enabled = True
-                self.camera.stop_streaming()
-                self.camera.disable_callback()
-                self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-            
-            # do the multipoint acquisition
-            for l in range(self.Nt):
-
-                # for each time point, create a new folder
-                os.mkdir(os.path.join(self.base_path,self.experiment_ID,str(l)))
-                current_path = os.path.join(self.base_path,self.experiment_ID,str(l))
-
-                # along y
-                for i in range(self.NY):
-
-                    # along x
-                    for j in range(self.NX):
-
-                        # z-stack
-                        for k in range(self.NZ):
-
-                            # perform AF only if when not taking z stack
-                            if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                                self.autofocusController.autofocus()
-
-                            file_ID = str(i) + '_' + str(j) + '_' + str(k)
-
-                            # take bf
-                            if self.do_bfdf:
-                                self.liveController.set_microscope_mode(MicroscopeMode.BFDF)
-                                self.liveController.turn_on_illumination()
-                                self.camera.send_trigger()
-                                image = self.camera.read_frame()
-                                self.liveController.turn_off_illumination()
-                                image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                saving_path = os.path.join(current_path, file_ID + '_bf' + '.' + Acquisition.IMAGE_FORMAT)
-                                cv2.imwrite(saving_path,image)
-                                self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-
-                            # take fluorescence
-                            if self.do_fluorescence:
-                                self.liveController.set_microscope_mode(MicroscopeMode.FLUORESCENCE)
-                                self.liveController.turn_on_illumination()
-                                self.camera.send_trigger()
-                                image = self.camera.read_frame()
-                                self.liveController.turn_off_illumination()
-                                image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
-                                cv2.imwrite(saving_path,image)
-                                self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-
-                            # move z
-                            if k < self.NZ - 1:
-                                self.navigationController.move_z(self.deltaZ)
-
-                        # move z back
-                        self.navigationController.move_z(-self.deltaZ*(self.NZ-1))
-
-                        # move x
-                        if j < self.NX - 1:
-                            self.navigationController.move_x(self.deltaX)
-
-                    # move x back
-                    self.navigationController.move_x(-self.deltaX*(self.NX-1))
-
-                    # move y
-                    if i < self.NY - 1:
-                        self.navigationController.move_y(self.deltaY)
-
-                # move y back
-                self.navigationController.move_y(-self.deltaY*(self.NY-1))
-                            
-                # sleep until the next acquisition # @@@ to do: change to timer instead
-                if l < self.Nt - 1:
-                    time.sleep(self.deltat)
-
-            print('Multipoint acquisition finished')
-
-            # re-enable callback
-            if self.camera.callback_was_enabled:
-                self.camera.stop_streaming()
-                self.camera.enable_callback()
-                self.camera.start_streaming()
-                self.camera.callback_is_enabled = True
-                self.camera.callback_was_enabled = False
-    '''
     def _on_acquisitionTimer_timeout(self):
         # check if the last single acquisition is ongoing
         if self.single_acquisition_in_progress is True:
@@ -810,11 +692,11 @@ class MultiPointController(QObject):
 
                     file_ID = str(i) + '_' + str(j) + '_' + str(k)
 
-                    # take bf
-                    if self.do_bfdf:
-                        self.liveController.set_microscope_mode(MicroscopeMode.BFDF)
+                    # iterate through selected modes
+                    for config in self.selected_configurations:
+                        # self.liveController.set_microscope_mode(config)
+                        self.signal_current_configuration.emit(config)
                         self.liveController.turn_on_illumination()
-                        print('take bf image')
                         self.camera.send_trigger() 
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
@@ -826,26 +708,8 @@ class MultiPointController(QObject):
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
                         QApplication.processEvents()
-
-                    # take fluorescence
-                    if self.do_fluorescence:
-                        self.liveController.set_microscope_mode(MicroscopeMode.FLUORESCENCE)
-                        self.liveController.turn_on_illumination()
-                        self.camera.send_trigger()
-                        image = self.camera.read_frame()
-                        print('take fluorescence image')
-                        self.liveController.turn_off_illumination()
-                        image = utils.crop_image(image,self.crop_width,self.crop_height)
-                        saving_path = os.path.join(current_path, file_ID + '_fluorescence' + '.' + Acquisition.IMAGE_FORMAT)
-                        self.image_to_display.emit(utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
-                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        if self.camera.is_color:
-                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)                        
-                        cv2.imwrite(saving_path,image)                        
-                        QApplication.processEvents()
                     
-                    if self.do_bfdf is not True and self.do_fluorescence is not True:
-                        QApplication.processEvents()
+                    # QApplication.processEvents()
 
                     # move z
                     if k < self.NZ - 1:
@@ -1002,3 +866,38 @@ class ImageDisplayWindow(QMainWindow):
 
     def get_roi(self):
         return self.roi_pos,self.roi_size
+
+class ConfigurationManager(QObject):
+    def __init__(self,filename=str(Path.home()) + "/configurations_default.xml"):
+        QObject.__init__(self)
+        self.config_filename = filename
+        self.configurations = []
+        self.read_configurations()
+        
+    def save_configurations(self):
+        self.config_xml_tree.write(self.config_filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
+
+    def read_configurations(self):
+        if(os.path.isfile(self.config_filename)==False):
+            utils_config.generate_default_configuration(self.config_filename)
+        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree_root = self.config_xml_tree.getroot()
+        self.num_configurations = 0
+        for mode in self.config_xml_tree_root.iter('mode'):
+            self.num_configurations = self.num_configurations + 1
+            self.configurations.append(
+                Configuration(
+                    mode_id = mode.get('ID'),
+                    name = mode.get('Name'),
+                    exposure_time = float(mode.get('ExposureTime')),
+                    analog_gain = float(mode.get('AnalogGain')),
+                    illumination_source = int(mode.get('IlluminationSource')),
+                    illumination_intensity = float(mode.get('IlluminationIntensity')),
+                    camera_sn = mode.get('CameraSN'))
+            )
+
+    def update_configuration(self,configuration_id,attribute_name,new_value):
+        list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+        self.save_configurations()

@@ -39,67 +39,9 @@ class CameraSettingsWidget(QFrame):
         self.entry_analogGain.setValue(0)
         self.camera.set_analog_gain(0)
 
-        self.entry_exposureTimeBFPreset = QDoubleSpinBox()
-        self.entry_exposureTimeBFPreset.setMinimum(self.camera.EXPOSURE_TIME_MS_MIN)
-        self.entry_exposureTimeBFPreset.setMaximum(self.camera.EXPOSURE_TIME_MS_MAX)
-        self.entry_exposureTimeBFPreset.setSingleStep(1)
-        self.entry_exposureTimeBFPreset.setValue(20)
-        self.liveController.set_exposure_time_bfdf_preset(20)
-
-        self.entry_analogGainBFPreset = QDoubleSpinBox()
-        self.entry_analogGainBFPreset.setMinimum(self.camera.GAIN_MIN) 
-        self.entry_analogGainBFPreset.setMaximum(self.camera.GAIN_MAX) 
-        self.entry_analogGainBFPreset.setSingleStep(self.camera.GAIN_STEP)
-        self.entry_analogGainBFPreset.setValue(0)
-        self.liveController.set_analog_gain_bfdf_preset(0)
-
-        self.entry_exposureTimeFLPreset = QDoubleSpinBox()
-        self.entry_exposureTimeFLPreset.setMinimum(self.camera.EXPOSURE_TIME_MS_MIN)
-        self.entry_exposureTimeFLPreset.setMaximum(self.camera.EXPOSURE_TIME_MS_MAX)
-        self.entry_exposureTimeFLPreset.setSingleStep(1)
-        self.entry_exposureTimeFLPreset.setValue(100)
-        self.liveController.set_exposure_time_fl_preset(100)
-
-        self.entry_analogGainFLPreset = QDoubleSpinBox()
-        self.entry_analogGainFLPreset.setMinimum(self.camera.GAIN_MIN) 
-        self.entry_analogGainFLPreset.setMaximum(self.camera.GAIN_MAX) 
-        self.entry_analogGainFLPreset.setSingleStep(self.camera.GAIN_STEP)
-        self.entry_analogGainFLPreset.setValue(10)
-        self.liveController.set_analog_gain_fl_preset(10)
-
-        self.entry_exposureTimeFLPreviewPreset = QDoubleSpinBox()
-        self.entry_exposureTimeFLPreviewPreset.setMinimum(self.camera.EXPOSURE_TIME_MS_MIN)
-        self.entry_exposureTimeFLPreviewPreset.setMaximum(self.camera.EXPOSURE_TIME_MS_MAX)
-        self.entry_exposureTimeFLPreviewPreset.setSingleStep(1)
-        self.entry_exposureTimeFLPreviewPreset.setValue(20)
-        self.liveController.set_exposure_time_fl_preview_preset(20)
-
-        self.entry_analogGainFLPreviewPreset = QDoubleSpinBox()
-        self.entry_analogGainFLPreviewPreset.setMinimum(self.camera.GAIN_MIN) 
-        self.entry_analogGainFLPreviewPreset.setMaximum(self.camera.GAIN_MAX) 
-        self.entry_analogGainFLPreviewPreset.setSingleStep(self.camera.GAIN_STEP)
-        self.entry_analogGainFLPreviewPreset.setValue(24)
-        self.liveController.set_analog_gain_fl_preview_preset(24)
-
-        self.btn_brightFieldPreset = QPushButton("BF/DF Preset")
-        self.btn_brightFieldPreset.setDefault(False)
-        self.btn_fluorescencePreset = QPushButton("FL Preset")
-        self.btn_fluorescencePreset.setDefault(False)
-        self.btn_fluorescencePreviewPreset = QPushButton("FL Preview Preset")
-        self.btn_fluorescencePreviewPreset.setDefault(False)
-
         # connection
-        self.btn_brightFieldPreset.clicked.connect(self.load_bf_preset)
-        self.btn_fluorescencePreset.clicked.connect(self.load_fl_preset)
-        self.btn_fluorescencePreviewPreset.clicked.connect(self.load_fl_preview_preset)
         self.entry_exposureTime.valueChanged.connect(self.camera.set_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.camera.set_analog_gain)
-        self.entry_exposureTimeBFPreset.valueChanged.connect(self.liveController.set_exposure_time_bfdf_preset)
-        self.entry_analogGainBFPreset.valueChanged.connect(self.liveController.set_analog_gain_bfdf_preset)
-        self.entry_exposureTimeFLPreset.valueChanged.connect(self.liveController.set_exposure_time_fl_preset)
-        self.entry_analogGainFLPreset.valueChanged.connect(self.liveController.set_analog_gain_fl_preset)
-        self.entry_exposureTimeFLPreviewPreset.valueChanged.connect(self.liveController.set_exposure_time_fl_preview_preset)
-        self.entry_analogGainFLPreviewPreset.valueChanged.connect(self.liveController.set_analog_gain_fl_preview_preset)
 
         # layout
         grid_ctrl = QGridLayout()
@@ -108,54 +50,37 @@ class CameraSettingsWidget(QFrame):
         grid_ctrl.addWidget(QLabel('Analog Gain'), 1,0)
         grid_ctrl.addWidget(self.entry_analogGain, 1,1)
 
-        grid_ctrl_preset = QGridLayout()
-        grid_ctrl_preset.addWidget(self.entry_exposureTimeBFPreset, 0,0)
-        grid_ctrl_preset.addWidget(self.entry_analogGainBFPreset, 0,1)
-        grid_ctrl_preset.addWidget(self.btn_brightFieldPreset, 0,2)
-        grid_ctrl_preset.addWidget(self.entry_exposureTimeFLPreset, 1,0)
-        grid_ctrl_preset.addWidget(self.entry_analogGainFLPreset, 1,1)
-        grid_ctrl_preset.addWidget(self.btn_fluorescencePreset, 1,2)
-        grid_ctrl_preset.addWidget(self.entry_exposureTimeFLPreviewPreset, 2,0)
-        grid_ctrl_preset.addWidget(self.entry_analogGainFLPreviewPreset, 2,1)
-        grid_ctrl_preset.addWidget(self.btn_fluorescencePreviewPreset, 2,2)
-
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)
-        self.grid.addLayout(grid_ctrl_preset,1,0)
-
         self.setLayout(self.grid)
 
-    def load_bf_preset(self):
-        self.entry_exposureTime.setValue(self.entry_exposureTimeBFPreset.value())
-        self.entry_exposureTime.repaint() # update doesn't work
-        self.entry_analogGain.setValue(self.entry_analogGainBFPreset.value())
-        self.entry_analogGain.repaint()
+    def set_exposure_time(self,exposure_time):
+        self.entry_exposureTime.setValue(exposure_time)
 
-    def load_fl_preset(self):
-        self.entry_exposureTime.setValue(self.entry_exposureTimeFLPreset.value())
-        self.entry_exposureTime.repaint() # update doesn't work
-        self.entry_analogGain.setValue(self.entry_analogGainFLPreset.value())
-        self.entry_analogGain.repaint()
+    def set_analog_gain(self,analog_gain):
+        self.entry_analogGain.setValue(analog_gain)
 
-    def load_fl_preview_preset(self):
-        self.entry_exposureTime.setValue(self.entry_exposureTimeFLPreviewPreset.value())
-        self.entry_exposureTime.repaint() # update doesn't work
-        self.entry_analogGain.setValue(self.entry_analogGainFLPreviewPreset.value())
-        self.entry_analogGain.repaint()
 
 class LiveControlWidget(QFrame):
-    def __init__(self, streamHandler, liveController, main=None, *args, **kwargs):
+    signal_newExposureTime = Signal(float)
+    signal_newAnalogGain = Signal(float)
+    def __init__(self, streamHandler, liveController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.liveController = liveController
         self.streamHandler = streamHandler
+        self.configurationManager = configurationManager
         self.fps_trigger = 10
         self.fps_display = 10
         self.liveController.set_trigger_fps(self.fps_trigger)
         self.streamHandler.set_display_fps(self.fps_display)
         
         self.triggerMode = TriggerMode.SOFTWARE
+        # note that this references the object in self.configurationManager.configurations
+        self.currentConfiguration = self.configurationManager.configurations[0]
+
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
     def add_components(self):
         # line 0: trigger mode
@@ -170,18 +95,45 @@ class LiveControlWidget(QFrame):
         self.entry_triggerFPS.setSingleStep(1)
         self.entry_triggerFPS.setValue(self.fps_trigger)
 
-        # line 2: choose microscope mode / toggle live mode @@@ change mode to microscope_mode
+        # line 2: choose microscope mode / toggle live mode 
         self.dropdown_modeSelection = QComboBox()
-        self.dropdown_modeSelection.addItems([MicroscopeMode.BFDF, MicroscopeMode.FLUORESCENCE, MicroscopeMode.FLUORESCENCE_PREVIEW])
-        self.dropdown_modeSelection.setCurrentText(MicroscopeMode.BFDF)
-        self.liveController.set_microscope_mode(self.dropdown_modeSelection.currentText())
+        for microscope_configuration in self.configurationManager.configurations:
+            self.dropdown_modeSelection.addItems([microscope_configuration.name])
+        self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
 
         self.btn_live = QPushButton("Live")
         self.btn_live.setCheckable(True)
         self.btn_live.setChecked(False)
         self.btn_live.setDefault(False)
 
-        # line 3: display fps and resolution scaling
+        # line 3: exposure time and analog gain associated with the current mode
+        self.entry_exposureTime = QDoubleSpinBox()
+        self.entry_exposureTime.setMinimum(0.01) 
+        self.entry_exposureTime.setMaximum(4000) 
+        self.entry_exposureTime.setSingleStep(1)
+        self.entry_exposureTime.setValue(0)
+
+        self.entry_analogGain = QDoubleSpinBox()
+        self.entry_analogGain = QDoubleSpinBox()
+        self.entry_analogGain.setMinimum(0) 
+        self.entry_analogGain.setMaximum(24) 
+        self.entry_analogGain.setSingleStep(0.1)
+        self.entry_analogGain.setValue(0)
+
+        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
+        self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
+        self.slider_illuminationIntensity.setMinimum(0)
+        self.slider_illuminationIntensity.setMaximum(100)
+        self.slider_illuminationIntensity.setValue(100)
+        self.slider_illuminationIntensity.setSingleStep(0.1)
+
+        self.entry_illuminationIntensity = QDoubleSpinBox()
+        self.entry_illuminationIntensity.setMinimum(0.1) 
+        self.entry_illuminationIntensity.setMaximum(100) 
+        self.entry_illuminationIntensity.setSingleStep(0.1)
+        self.entry_illuminationIntensity.setValue(100)
+
+        # line 4: display fps and resolution scaling
         self.entry_displayFPS = QDoubleSpinBox()
         self.entry_displayFPS.setMinimum(1) 
         self.entry_displayFPS.setMaximum(240) 
@@ -199,31 +151,50 @@ class LiveControlWidget(QFrame):
         self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
         self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
         self.slider_resolutionScaling.valueChanged.connect(self.streamHandler.set_display_resolution_scaling)
-        self.dropdown_modeSelection.currentIndexChanged.connect(self.update_microscope_mode)
+        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
         self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
         self.btn_live.clicked.connect(self.toggle_live)
+        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
+        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
+        self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
+        self.entry_illuminationIntensity.valueChanged.connect(self.slider_illuminationIntensity.setValue)
+        self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
 
         # layout
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('Trigger Mode'), 0,0)
         grid_line0.addWidget(self.dropdown_triggerManu, 0,1)
+        grid_line0.addWidget(QLabel('Trigger FPS'), 0,2)
+        grid_line0.addWidget(self.entry_triggerFPS, 0,3)
 
         grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Trigger FPS'), 0,0)
-        grid_line1.addWidget(self.entry_triggerFPS, 0,1)
-        grid_line1.addWidget(self.dropdown_modeSelection, 0,2)
-        grid_line1.addWidget(self.btn_live, 0,3)
+        grid_line1.addWidget(QLabel('Microscope Configuration'), 0,0)
+        grid_line1.addWidget(self.dropdown_modeSelection, 0,1)
+        grid_line1.addWidget(self.btn_live, 0,2)
 
         grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('Display FPS'), 0,0)
-        grid_line2.addWidget(self.entry_displayFPS, 0,1)
-        grid_line2.addWidget(QLabel('Display Resolution'), 0,2)
-        grid_line2.addWidget(self.slider_resolutionScaling,0,3)
+        grid_line2.addWidget(QLabel('Exposure Time (ms)'), 0,0)
+        grid_line2.addWidget(self.entry_exposureTime, 0,1)
+        grid_line2.addWidget(QLabel('Analog Gain'), 0,2)
+        grid_line2.addWidget(self.entry_analogGain, 0,3)
+
+        grid_line4 = QGridLayout()
+        grid_line4.addWidget(QLabel('Illumination'), 0,0)
+        grid_line4.addWidget(self.slider_illuminationIntensity, 0,1)
+        grid_line4.addWidget(self.entry_illuminationIntensity, 0,2)
+
+        grid_line3 = QGridLayout()
+        grid_line3.addWidget(QLabel('Display FPS'), 0,0)
+        grid_line3.addWidget(self.entry_displayFPS, 0,1)
+        grid_line3.addWidget(QLabel('Display Resolution'), 0,2)
+        grid_line3.addWidget(self.slider_resolutionScaling,0,3)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
         self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line2,2,0)
+        self.grid.addLayout(grid_line4,3,0)
+        self.grid.addLayout(grid_line3,4,0)
         self.setLayout(self.grid)
 
     def toggle_live(self,pressed):
@@ -232,12 +203,42 @@ class LiveControlWidget(QFrame):
         else:
             self.liveController.stop_live()
 
-    def update_microscope_mode(self,index):
-        self.liveController.turn_off_illumination()
-        self.liveController.set_microscope_mode(self.dropdown_modeSelection.currentText())
+    def update_camera_settings(self):
+        self.signal_newAnalogGain.emit(self.entry_analogGain.value())
+        self.signal_newExposureTime.emit(self.entry_exposureTime.value())
+
+    def update_microscope_mode_by_name(self,current_microscope_mode_name):
+        # identify the mode selected (note that this references the object in self.configurationManager.configurations)
+        self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
+        # update the exposure time and analog gain settings according to the selected configuration
+        self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
+        self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
+        self.entry_illuminationIntensity.setValue(self.currentConfiguration.illumination_intensity)
+        # update the microscope to the current configuration
+        self.liveController.set_microscope_mode(self.currentConfiguration)
 
     def update_trigger_mode(self):
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
+
+    def update_config_exposure_time(self,new_value):
+        self.currentConfiguration.exposure_time = new_value
+        self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
+        self.signal_newExposureTime.emit(new_value)
+
+    def update_config_analog_gain(self,new_value):
+        self.currentConfiguration.analog_gain = new_value
+        self.configurationManager.update_configuration(self.currentConfiguration.id,'AnalogGain',new_value)
+        self.signal_newAnalogGain.emit(new_value)
+
+    def update_config_illumination_intensity(self,new_value):
+        self.currentConfiguration.illumination_intensity = new_value
+        self.configurationManager.update_configuration(self.currentConfiguration.id,'IlluminationIntensity',new_value)
+        self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
+
+    def set_microscope_mode(self,config):
+        # self.liveController.set_microscope_mode(config)
+        self.dropdown_modeSelection.setCurrentText(config.name)
+
 
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
@@ -484,9 +485,10 @@ class AutoFocusWidget(QFrame):
         self.btn_autofocus.setChecked(False)
 
 class MultiPointWidget(QFrame):
-    def __init__(self, multipointController, main=None, *args, **kwargs):
+    def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
+        self.configurationManager = configurationManager
         self.base_path_is_set = False
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -552,8 +554,11 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
 
-        self.checkbox_bfdf = QCheckBox('BF/DF')
-        self.checkbox_fluorescence = QCheckBox('Fluorescence')
+        self.list_configurations = QListWidget()
+        for microscope_configuration in self.configurationManager.configurations:
+            self.list_configurations.addItems([microscope_configuration.name])
+        self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
+
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
@@ -589,8 +594,7 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(self.entry_Nt, 1,7)
 
         grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(self.checkbox_bfdf)
-        grid_line3.addWidget(self.checkbox_fluorescence)
+        grid_line3.addWidget(self.list_configurations)
         grid_line3.addWidget(self.checkbox_withAutofocus)
         grid_line3.addWidget(self.btn_startAcquisition)
 
@@ -613,8 +617,6 @@ class MultiPointWidget(QFrame):
         self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
-        self.checkbox_bfdf.stateChanged.connect(self.multipointController.set_bfdf_flag)
-        self.checkbox_fluorescence.stateChanged.connect(self.multipointController.set_fluorescence_flag)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
@@ -639,6 +641,7 @@ class MultiPointWidget(QFrame):
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.run_acquisition()
         else:
             # self.multipointController.stop_acquisition() # to implement
@@ -660,8 +663,7 @@ class MultiPointWidget(QFrame):
         self.entry_NZ.setEnabled(enabled)
         self.entry_dt.setEnabled(enabled)
         self.entry_Nt.setEnabled(enabled)
-        self.checkbox_bfdf.setEnabled(enabled)
-        self.checkbox_fluorescence.setEnabled(enabled)
+        self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
