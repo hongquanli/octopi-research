@@ -72,7 +72,9 @@ class OctopiGUI(QMainWindow):
 
 		# load window
 		self.imageDisplayWindow = core.ImageDisplayWindow()
+		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
 		self.imageDisplayWindow.show()
+		self.imageArrayDisplayWindow.show()
 
 		# make connections
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
@@ -86,6 +88,7 @@ class OctopiGUI(QMainWindow):
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		# self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+		self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
@@ -99,3 +102,4 @@ class OctopiGUI(QMainWindow):
 		self.imageSaver.close()
 		self.imageDisplay.close()
 		self.imageDisplayWindow.close()
+		self.imageArrayDisplayWindow.close()
