@@ -216,6 +216,7 @@ class ImageSaver(QObject):
         # create a new folder
         try:
             os.mkdir(os.path.join(self.base_path,self.experiment_ID))
+            # to do: save configuration
         except:
             pass
         # reset the counter
@@ -587,7 +588,7 @@ class MultiPointController(QObject):
         self.deltaX = Acquisition.DX
         self.deltaY = Acquisition.DY
         self.deltaZ = Acquisition.DZ/1000
-        self.deltat = 0
+        self.deltat = 1
         self.do_bfdf = False
         self.do_fluorescence = False
         self.do_autofocus = False
@@ -631,6 +632,7 @@ class MultiPointController(QObject):
         # create a new folder
         try:
             os.mkdir(os.path.join(self.base_path,self.experiment_ID))
+            self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
         except:
             pass
 
@@ -686,6 +688,7 @@ class MultiPointController(QObject):
 
             # emit acquisitionFinished signal
             self.acquisitionFinished.emit()
+            QApplication.processEvents()
 
     def _on_acquisitionTimer_timeout(self):
         # check if the last single acquisition is ongoing
@@ -735,9 +738,9 @@ class MultiPointController(QObject):
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
-                        saving_path = os.path.join(current_path, file_ID + '_bf' + '.' + Acquisition.IMAGE_FORMAT)
+                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
                         # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                        image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                         if self.camera.is_color:
@@ -815,6 +818,7 @@ class MultiPointController(QObject):
             if self.acquisitionTimer.isActive():
                 self.acquisitionTimer.stop()
             self.acquisitionFinished.emit()
+            QApplication.processEvents()
 
         self.single_acquisition_in_progress = False
 
@@ -996,7 +1000,10 @@ class ConfigurationManager(QObject):
         self.read_configurations()
         
     def save_configurations(self):
-        self.config_xml_tree.write(self.config_filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
+        self.write_configuration(self.config_filename)
+
+    def write_configuration(self,filename):
+        self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
     def read_configurations(self):
         if(os.path.isfile(self.config_filename)==False):
