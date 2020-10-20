@@ -82,6 +82,8 @@ class LiveControlWidget(QFrame):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
+        self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
+
     def add_components(self):
         # line 0: trigger mode
         self.triggerMode = None
@@ -209,32 +211,37 @@ class LiveControlWidget(QFrame):
         self.signal_newExposureTime.emit(self.entry_exposureTime.value())
 
     def update_microscope_mode_by_name(self,current_microscope_mode_name):
+        self.is_switching_mode = True
         # identify the mode selected (note that this references the object in self.configurationManager.configurations)
         self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
+        # update the microscope to the current configuration
+        self.liveController.set_microscope_mode(self.currentConfiguration)
         # update the exposure time and analog gain settings according to the selected configuration
         self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
         self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
         self.entry_illuminationIntensity.setValue(self.currentConfiguration.illumination_intensity)
-        # update the microscope to the current configuration
-        self.liveController.set_microscope_mode(self.currentConfiguration)
+        self.is_switching_mode = False
 
     def update_trigger_mode(self):
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
     def update_config_exposure_time(self,new_value):
-        self.currentConfiguration.exposure_time = new_value
-        self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
-        self.signal_newExposureTime.emit(new_value)
+        if self.is_switching_mode == False:
+            self.currentConfiguration.exposure_time = new_value
+            self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
+            self.signal_newExposureTime.emit(new_value)
 
     def update_config_analog_gain(self,new_value):
-        self.currentConfiguration.analog_gain = new_value
-        self.configurationManager.update_configuration(self.currentConfiguration.id,'AnalogGain',new_value)
-        self.signal_newAnalogGain.emit(new_value)
+        if self.is_switching_mode == False:
+            self.currentConfiguration.analog_gain = new_value
+            self.configurationManager.update_configuration(self.currentConfiguration.id,'AnalogGain',new_value)
+            self.signal_newAnalogGain.emit(new_value)
 
     def update_config_illumination_intensity(self,new_value):
-        self.currentConfiguration.illumination_intensity = new_value
-        self.configurationManager.update_configuration(self.currentConfiguration.id,'IlluminationIntensity',new_value)
-        self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
+        if self.is_switching_mode == False:
+            self.currentConfiguration.illumination_intensity = new_value
+            self.configurationManager.update_configuration(self.currentConfiguration.id,'IlluminationIntensity',new_value)
+            self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
 
     def set_microscope_mode(self,config):
         # self.liveController.set_microscope_mode(config)
