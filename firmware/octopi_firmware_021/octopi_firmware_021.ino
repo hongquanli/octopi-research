@@ -696,10 +696,10 @@ void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint16_t
       set_all(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity*BLUE_ADJUSTMENT_FACTOR, intensity*RED_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
-      set_left(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity, intensity);
+      set_left(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity*BLUE_ADJUSTMENT_FACTOR, intensity*RED_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
-      set_right(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity, intensity);
+      set_right(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity*BLUE_ADJUSTMENT_FACTOR, intensity*RED_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
       set_left(matrix,0,intensity*BLUE_ADJUSTMENT_FACTOR,0);
