@@ -100,8 +100,8 @@ static const long X_NEG_LIMIT_MM = -12;
 static const long X_POS_LIMIT_MM = 12;
 static const long Y_NEG_LIMIT_MM = -12;
 static const long Y_POS_LIMIT_MM = 12;
-static const long Z_NEG_LIMIT_MM = -1;
-static const long Z_POS_LIMIT_MM = 1;
+static const long Z_NEG_LIMIT_MM = -5;
+static const long Z_POS_LIMIT_MM = 5;
 
 bool runSpeed_flag_X = false;
 bool runSpeed_flag_Y = false;
@@ -153,8 +153,10 @@ bool rocker_state = false;
 /***************************************************************************************************/
 int illumination_source = 0;
 uint16_t illumination_intensity = 65535;
-static const int LED_MATRIX_MAX_INTENSITY = 150;
-static const float GREEN_ADJUSTMENT_FACTOR = 1.5;
+static const int LED_MATRIX_MAX_INTENSITY = 100;
+static const float GREEN_ADJUSTMENT_FACTOR = 2.5;
+static const float RED_ADJUSTMENT_FACTOR = 0.7;
+static const float BLUE_ADJUSTMENT_FACTOR = 1;
 bool illumination_is_on = false;
 void turn_on_illumination();
 void turn_off_illumination();
@@ -691,7 +693,7 @@ void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint16_t
   switch(pattern)
   {
     case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
-      set_all(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity, intensity);
+      set_all(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity*BLUE_ADJUSTMENT_FACTOR, intensity*RED_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
       set_left(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity, intensity);
@@ -700,8 +702,8 @@ void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint16_t
       set_right(matrix, intensity*GREEN_ADJUSTMENT_FACTOR, intensity, intensity);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
-      set_left(matrix,0,intensity,0);
-      set_right(matrix,0,0,intensity);
+      set_left(matrix,0,intensity*BLUE_ADJUSTMENT_FACTOR,0);
+      set_right(matrix,0,0,intensity*RED_ADJUSTMENT_FACTOR);
   }
   matrix.show();
 }
