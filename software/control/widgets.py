@@ -93,7 +93,7 @@ class LiveControlWidget(QFrame):
         # line 1: fps
         self.entry_triggerFPS = QDoubleSpinBox()
         self.entry_triggerFPS.setMinimum(0.02) 
-        self.entry_triggerFPS.setMaximum(200) 
+        self.entry_triggerFPS.setMaximum(1000) 
         self.entry_triggerFPS.setSingleStep(1)
         self.entry_triggerFPS.setValue(self.fps_trigger)
 
@@ -270,7 +270,7 @@ class RecordingWidget(QFrame):
 
         self.entry_saveFPS = QDoubleSpinBox()
         self.entry_saveFPS.setMinimum(0.02) 
-        self.entry_saveFPS.setMaximum(200) 
+        self.entry_saveFPS.setMaximum(1000) 
         self.entry_saveFPS.setSingleStep(1)
         self.entry_saveFPS.setValue(1)
         self.streamHandler.set_save_fps(1)
