@@ -362,9 +362,11 @@ class NavigationWidget(QFrame):
         self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
         self.entry_dX = QDoubleSpinBox()
         self.entry_dX.setMinimum(0) 
-        self.entry_dX.setMaximum(5) 
+        self.entry_dX.setMaximum(25) 
         self.entry_dX.setSingleStep(0.2)
         self.entry_dX.setValue(0)
+        self.entry_dX.setDecimals(3)
+
         self.btn_moveX_forward = QPushButton('Forward')
         self.btn_moveX_forward.setDefault(False)
         self.btn_moveX_backward = QPushButton('Backward')
@@ -375,9 +377,10 @@ class NavigationWidget(QFrame):
         self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
         self.entry_dY = QDoubleSpinBox()
         self.entry_dY.setMinimum(0)
-        self.entry_dY.setMaximum(5)
+        self.entry_dY.setMaximum(25)
         self.entry_dY.setSingleStep(0.2)
         self.entry_dY.setValue(0)
+        self.entry_dY.setDecimals(3)
         self.btn_moveY_forward = QPushButton('Forward')
         self.btn_moveY_forward.setDefault(False)
         self.btn_moveY_backward = QPushButton('Backward')
@@ -391,6 +394,7 @@ class NavigationWidget(QFrame):
         self.entry_dZ.setMaximum(1000) 
         self.entry_dZ.setSingleStep(0.2)
         self.entry_dZ.setValue(0)
+        self.entry_dZ.setDecimals(3)
         self.btn_moveZ_forward = QPushButton('Forward')
         self.btn_moveZ_forward.setDefault(False)
         self.btn_moveZ_backward = QPushButton('Backward')
@@ -423,6 +427,10 @@ class NavigationWidget(QFrame):
         self.grid.addLayout(grid_line2,2,0)
         self.setLayout(self.grid)
 
+        self.entry_dX.valueChanged.connect(self.set_deltaX)
+        self.entry_dY.valueChanged.connect(self.set_deltaY)
+        self.entry_dZ.valueChanged.connect(self.set_deltaZ)
+
         self.btn_moveX_forward.clicked.connect(self.move_x_forward)
         self.btn_moveX_backward.clicked.connect(self.move_x_backward)
         self.btn_moveY_forward.clicked.connect(self.move_y_forward)
@@ -444,6 +452,16 @@ class NavigationWidget(QFrame):
     def move_z_backward(self):
         self.navigationController.move_z(-self.entry_dZ.value()/1000)
 
+    def set_deltaX(self,value):
+        deltaX = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        self.entry_dX.setValue(deltaX)
+    def set_deltaY(self,value):
+        deltaY = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        self.entry_dY.setValue(deltaY)
+    def set_deltaZ(self,value):
+        deltaZ = round(value/1000*Motion.STEPS_PER_MM_Z)/(Motion.STEPS_PER_MM_Z/1000)
+        self.entry_dZ.setValue(deltaZ)
+
 class AutoFocusWidget(QFrame):
     def __init__(self, autofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -457,6 +475,7 @@ class AutoFocusWidget(QFrame):
         self.entry_delta.setMaximum(20) 
         self.entry_delta.setSingleStep(0.2)
         self.entry_delta.setValue(3)
+        self.entry_delta.setDecimals(3)
         self.autofocusController.set_deltaZ(3)
 
         self.entry_N = QSpinBox()
@@ -485,9 +504,14 @@ class AutoFocusWidget(QFrame):
         
         # connections
         self.btn_autofocus.clicked.connect(self.autofocusController.autofocus)
-        self.entry_delta.valueChanged.connect(self.autofocusController.set_deltaZ)
+        self.entry_delta.valueChanged.connect(self.set_deltaZ)
         self.entry_N.valueChanged.connect(self.autofocusController.set_N)
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
+
+    def set_deltaZ(self,value):
+        deltaZ = round(value/1000*Motion.STEPS_PER_MM_Z)/(Motion.STEPS_PER_MM_Z/1000)
+        self.entry_delta.setValue(deltaZ)
+        self.autofocusController.set_deltaZ(deltaZ)
 
     def autofocus_is_finished(self):
         self.btn_autofocus.setChecked(False)
@@ -514,26 +538,28 @@ class MultiPointWidget(QFrame):
         self.lineEdit_experimentID = QLineEdit()
 
         self.entry_deltaX = QDoubleSpinBox()
-        self.entry_deltaX.setMinimum(0.2) 
+        self.entry_deltaX.setMinimum(0) 
         self.entry_deltaX.setMaximum(5) 
-        self.entry_deltaX.setSingleStep(1)
+        self.entry_deltaX.setSingleStep(0.1)
         self.entry_deltaX.setValue(Acquisition.DX)
+        self.entry_deltaX.setDecimals(3)
 
         self.entry_NX = QSpinBox()
         self.entry_NX.setMinimum(1) 
-        self.entry_NX.setMaximum(20) 
+        self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
         self.entry_NX.setValue(1)
 
         self.entry_deltaY = QDoubleSpinBox()
-        self.entry_deltaY.setMinimum(0.2) 
+        self.entry_deltaY.setMinimum(0) 
         self.entry_deltaY.setMaximum(5) 
-        self.entry_deltaY.setSingleStep(1)
+        self.entry_deltaY.setSingleStep(0.1)
         self.entry_deltaY.setValue(Acquisition.DX)
+        self.entry_deltaY.setDecimals(3)
         
         self.entry_NY = QSpinBox()
         self.entry_NY.setMinimum(1) 
-        self.entry_NY.setMaximum(20) 
+        self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
         self.entry_NY.setValue(1)
 
@@ -542,6 +568,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaZ.setMaximum(1000) 
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
+        self.entry_deltaZ.setDecimals(3)
         
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
@@ -617,9 +644,9 @@ class MultiPointWidget(QFrame):
         # self.timer = QTimer()
 
         # connections
-        self.entry_deltaX.valueChanged.connect(self.multipointController.set_deltaX)
-        self.entry_deltaY.valueChanged.connect(self.multipointController.set_deltaY)
-        self.entry_deltaZ.valueChanged.connect(self.multipointController.set_deltaZ)
+        self.entry_deltaX.valueChanged.connect(self.set_deltaX)
+        self.entry_deltaY.valueChanged.connect(self.set_deltaY)
+        self.entry_deltaZ.valueChanged.connect(self.set_deltaZ)
         self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
         self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
         self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
@@ -629,6 +656,21 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+
+    def set_deltaX(self,value):
+        deltaX = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        self.entry_deltaX.setValue(deltaX)
+        self.multipointController.set_deltaX(deltaX)
+
+    def set_deltaY(self,value):
+        deltaY = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        self.entry_deltaY.setValue(deltaY)
+        self.multipointController.set_deltaY(deltaY)
+
+    def set_deltaZ(self,value):
+        deltaZ = round(value/1000*Motion.STEPS_PER_MM_Z)/(Motion.STEPS_PER_MM_Z/1000)
+        self.entry_deltaZ.setValue(deltaZ)
+        self.multipointController.set_deltaZ(deltaZ)
 
     def set_saving_dir(self):
         dialog = QFileDialog()
