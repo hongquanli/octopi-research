@@ -28,8 +28,8 @@ class OctopiGUI(QMainWindow):
 		self.microcontroller = microcontroller.Microcontroller_Simulation()
 		self.navigationController = core.NavigationController(self.microcontroller)
 
-		self.camera_1 = camera.Camera_Simulation(sn='FW0190110139') # tracking
-		self.camera_2 = camera.Camera_Simulation(sn='FU0190090030')	# fluorescence
+		self.camera_1 = camera.Camera(sn='FW0200050063') # tracking
+		self.camera_2 = camera.Camera(sn='FW0200050068')	# fluorescence
 		
 		self.configurationManager = core.ConfigurationManager(filename=str(Path.home()) + "/configurations_PDAF.xml")
 
