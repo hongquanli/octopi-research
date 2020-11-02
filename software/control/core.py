@@ -445,18 +445,21 @@ class NavigationController(QObject):
 
     def move_x(self,delta):
         self.microcontroller.move_x(delta)
-        self.x_pos = self.x_pos + delta
-        #self.xPos.emit(self.x_pos)
 
     def move_y(self,delta):
         self.microcontroller.move_y(delta)
-        self.y_pos = self.y_pos + delta
-        #self.yPos.emit(self.y_pos)
 
     def move_z(self,delta):
         self.microcontroller.move_z(delta)
-        self.z_pos = self.z_pos + delta
-        #self.zPos.emit(self.z_pos*1000)
+
+    def move_x_usteps(self,usteps):
+        self.microcontroller.move_x_usteps(usteps)
+
+    def move_y_usteps(self,usteps):
+        self.microcontroller.move_y_usteps(usteps)
+
+    def move_z_usteps(self,usteps):
+        self.microcontroller.move_z_usteps(usteps)
 
     def update_pos(self):
         pos = self.microcontroller.read_received_packet_nowait()
@@ -470,8 +473,10 @@ class NavigationController(QObject):
         self.zPos.emit(self.z_pos*1000)
 
     def home(self):
-        self.microcontroller.move_x(-self.x_pos)
-        self.microcontroller.move_y(-self.y_pos)
+        #self.microcontroller.move_x(-self.x_pos)
+        #self.microcontroller.move_y(-self.y_pos)
+        pass # disable software homing
+
 
 class AutoFocusController(QObject):
 
@@ -486,6 +491,7 @@ class AutoFocusController(QObject):
         self.liveController = liveController
         self.N = None
         self.deltaZ = None
+        self.deltaZ_usteps = None
         self.crop_width = AF.CROP_WIDTH
         self.crop_height = AF.CROP_HEIGHT
 
@@ -494,6 +500,7 @@ class AutoFocusController(QObject):
 
     def set_deltaZ(self,deltaZ_um):
         self.deltaZ = deltaZ_um/1000
+        self.deltaZ_usteps = round((deltaZ_um/1000)*Motion.STEPS_PER_MM_Z)
 
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
@@ -518,12 +525,12 @@ class AutoFocusController(QObject):
         focus_measure_vs_z = [0]*self.N
         focus_measure_max = 0
 
-        z_af_offset = self.deltaZ*round(self.N/2)
-        self.navigationController.move_z(-z_af_offset)
+        z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
+        self.navigationController.move_z(-z_af_offset_usteps)
 
         steps_moved = 0
         for i in range(self.N):
-            self.navigationController.move_z(self.deltaZ)
+            self.navigationController.move_z_usteps(self.deltaZ_usteps)
             steps_moved = steps_moved + 1
             self.liveController.turn_on_illumination()
             self.camera.send_trigger()
@@ -543,7 +550,7 @@ class AutoFocusController(QObject):
                 break
 
         idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
-        self.navigationController.move_z((idx_in_focus-steps_moved)*self.deltaZ)
+        self.navigationController.move_z_usteps((idx_in_focus-steps_moved)*self.deltaZ_usteps)
         if idx_in_focus == 0:
             print('moved to the bottom end of the AF range')
         if idx_in_focus == self.N-1:
@@ -609,10 +616,13 @@ class MultiPointController(QObject):
         self.Nt = N
     def set_deltaX(self,delta):
         self.deltaX = delta
+        self.deltaX_usteps = round(delta*Motion.STEPS_PER_MM_XY)
     def set_deltaY(self,delta):
         self.deltaY = delta
+        self.deltaY_usteps = round(delta*Motion.STEPS_PER_MM_XY)
     def set_deltaZ(self,delta_um):
         self.deltaZ = delta_um/1000
+        self.deltaZ_usteps = round((delta_um/1000)*Motion.STEPS_PER_MM_Z)
     def set_deltat(self,delta):
         self.deltat = delta
     def set_af_flag(self,flag):
@@ -752,27 +762,27 @@ class MultiPointController(QObject):
 
                     # move z
                     if k < self.NZ - 1:
-                        self.navigationController.move_z(self.deltaZ)
+                        self.navigationController.move_z_usteps(self.deltaZ_usteps)
                 
                 # move z back
-                self.navigationController.move_z(-self.deltaZ*(self.NZ-1))
+                self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
 
                 # update FOV counter
                 self.FOV_counter = self.FOV_counter + 1
 
                 # move x
                 if j < self.NX - 1:
-                    self.navigationController.move_x(self.deltaX)
+                    self.navigationController.move_x_usteps(self.deltaX_usteps)
 
             # move x back
-            self.navigationController.move_x(-self.deltaX*(self.NX-1))
+            self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
 
             # move y
             if i < self.NY - 1:
-                self.navigationController.move_y(self.deltaY)
+                self.navigationController.move_y_usteps(self.deltaY_usteps)
 
         # move y back
-        self.navigationController.move_y(-self.deltaY*(self.NY-1))
+        self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
 
 
     def _run_single_acquisition(self):

@@ -78,6 +78,19 @@ class Microcontroller():
         self.serial.write(cmd)
         time.sleep(WaitTime.BASE + WaitTime.X*abs(delta))
 
+    def move_x_usteps(self,usteps):
+        direction = int((np.sign(usteps)+1)/2)
+        n_microsteps = abs(usteps)
+        if n_microsteps > 65535:
+            n_microsteps = 65535
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = CMD_SET.MOVE_X
+        cmd[1] = direction
+        cmd[2] = int(n_microsteps) >> 8
+        cmd[3] = int(n_microsteps) & 0xff
+        self.serial.write(cmd)
+        time.sleep(WaitTime.BASE + WaitTime.X*abs(usteps)/Motion.STEPS_PER_MM_XY)
+
     def move_y(self,delta):
         direction = int((np.sign(delta)+1)/2)
         n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
@@ -91,6 +104,19 @@ class Microcontroller():
         self.serial.write(cmd)
         time.sleep(WaitTime.BASE + WaitTime.Y*abs(delta))
 
+    def move_y_usteps(self,usteps):
+        direction = int((np.sign(usteps)+1)/2)
+        n_microsteps = abs(usteps)
+        if n_microsteps > 65535:
+            n_microsteps = 65535
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = CMD_SET.MOVE_Y
+        cmd[1] = direction
+        cmd[2] = int(n_microsteps) >> 8
+        cmd[3] = int(n_microsteps) & 0xff
+        self.serial.write(cmd)
+        time.sleep(WaitTime.BASE + WaitTime.Y*abs(delta)/Motion.STEPS_PER_MM_XY)
+
     def move_z(self,delta):
         direction = int((np.sign(delta)+1)/2)
         n_microsteps = abs(delta*Motion.STEPS_PER_MM_Z)
@@ -103,6 +129,19 @@ class Microcontroller():
         cmd[3] = int(n_microsteps) & 0xff
         self.serial.write(cmd)
         time.sleep(WaitTime.BASE + WaitTime.Z*abs(delta))
+
+    def move_z_usteps(self,usteps):
+        direction = int((np.sign(usteps)+1)/2)
+        n_microsteps = abs(usteps)
+        if n_microsteps > 65535:
+            n_microsteps = 65535
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[0] = CMD_SET.MOVE_Z
+        cmd[1] = 1-direction
+        cmd[2] = int(n_microsteps) >> 8
+        cmd[3] = int(n_microsteps) & 0xff
+        self.serial.write(cmd)
+        time.sleep(WaitTime.BASE + WaitTime.Z*abs(usteps)/Motion.STEPS_PER_MM_Z)
 
     def send_command(self,command):
         cmd = bytearray(self.tx_buffer_length)
@@ -209,6 +248,15 @@ class Microcontroller_Simulation():
         pass
 
     def move_z(self,delta):
+        pass
+
+    def move_x_usteps(self,usteps):
+        pass
+
+    def move_y_usteps(self,usteps):
+        pass
+
+    def move_z_usteps(self,usteps):
         pass
 
     def send_command(self,command):
