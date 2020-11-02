@@ -115,7 +115,7 @@ class Microcontroller():
         cmd[2] = int(n_microsteps) >> 8
         cmd[3] = int(n_microsteps) & 0xff
         self.serial.write(cmd)
-        time.sleep(WaitTime.BASE + WaitTime.Y*abs(delta)/Motion.STEPS_PER_MM_XY)
+        time.sleep(WaitTime.BASE + WaitTime.Y*abs(usteps)/Motion.STEPS_PER_MM_XY)
 
     def move_z(self,delta):
         direction = int((np.sign(delta)+1)/2)

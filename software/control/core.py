@@ -593,8 +593,11 @@ class MultiPointController(QObject):
         self.NZ = 1
         self.Nt = 1
         self.deltaX = Acquisition.DX
+        self.deltaX_usteps = round(self.deltaX*Motion.STEPS_PER_MM_XY)
         self.deltaY = Acquisition.DY
+        self.deltaY_usteps = round(self.deltaY*Motion.STEPS_PER_MM_XY)
         self.deltaZ = Acquisition.DZ/1000
+        self.deltaZ_usteps = round(self.deltaZ*Motion.STEPS_PER_MM_Z)
         self.deltat = 1
         self.do_bfdf = False
         self.do_fluorescence = False
