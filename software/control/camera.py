@@ -133,6 +133,23 @@ class Camera(object):
     def stop_streaming(self):
         self.camera.stream_off()
 
+    def set_pixel_format(self,format):
+        if self.camera.PixelFormat.is_implemented() and self.camera.PixelFormat.is_writable():
+            if format == 'MONO8':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO8)
+            if format == 'MONO12':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO12)
+            if format == 'MONO14':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO14)
+            if format == 'MONO16':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO16)
+            if format == 'BAYER_RG8':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG8)
+            if format == 'BAYER_RG12':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG12)
+        else:
+            print("pixel format is not implemented or not writable")
+
     def set_continuous_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
 
