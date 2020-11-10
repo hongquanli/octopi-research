@@ -39,9 +39,14 @@ class CameraSettingsWidget(QFrame):
         self.entry_analogGain.setValue(0)
         self.camera.set_analog_gain(0)
 
+        self.dropdown_pixelFormat = QComboBox()
+        self.dropdown_pixelFormat.addItems(['MONO8','MONO12','MONO14','MONO16','BAYER_RG8','BAYER_RG12'])
+        # to do: load and save pixel format in configurations
+
         # connection
         self.entry_exposureTime.valueChanged.connect(self.camera.set_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.camera.set_analog_gain)
+        self.dropdown_pixelFormat.currentTextChanged.connect(self.camera.set_pixel_format)
 
         # layout
         grid_ctrl = QGridLayout()
@@ -49,6 +54,8 @@ class CameraSettingsWidget(QFrame):
         grid_ctrl.addWidget(self.entry_exposureTime, 0,1)
         grid_ctrl.addWidget(QLabel('Analog Gain'), 1,0)
         grid_ctrl.addWidget(self.entry_analogGain, 1,1)
+        grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
+        grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)

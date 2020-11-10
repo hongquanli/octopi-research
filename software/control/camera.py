@@ -267,6 +267,9 @@ class Camera_Simulation(object):
     def stop_streaming(self):
         pass
 
+    def set_pixel_format(self,format):
+        print(format)
+
     def set_continuous_acquisition(self):
         pass
 
