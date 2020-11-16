@@ -348,10 +348,14 @@ void setup() {
   pinMode(X_encoder_B,INPUT);
   pinMode(Y_encoder_A,INPUT);
   pinMode(Y_encoder_B,INPUT);
-  attachInterrupt(digitalPinToInterrupt(X_encoder_A), ISR_X_encoder_A, RISING);
-  attachInterrupt(digitalPinToInterrupt(X_encoder_B), ISR_X_encoder_B, RISING);
-  attachInterrupt(digitalPinToInterrupt(Y_encoder_A), ISR_Y_encoder_A, RISING);
-  attachInterrupt(digitalPinToInterrupt(Y_encoder_B), ISR_Y_encoder_B, RISING);
+  pinMode(Z_encoder_A,INPUT);
+  pinMode(Z_encoder_B,INPUT);
+  attachInterrupt(digitalPinToInterrupt(X_encoder_A), ISR_X_encoder_A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(X_encoder_B), ISR_X_encoder_B, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Y_encoder_A), ISR_Y_encoder_A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Y_encoder_B), ISR_Y_encoder_B, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Z_encoder_A), ISR_Z_encoder_A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Z_encoder_B), ISR_Z_encoder_B, CHANGE);
 
   X_pos = 0;
   Y_pos = 0;
@@ -618,29 +622,54 @@ void ISR_focusWheel_B(){
 }
 
 void ISR_X_encoder_A(){
-  if(digitalRead(X_encoder_B)==1)
+  if(digitalRead(X_encoder_B)==0 && digitalRead(X_encoder_A)==1)
+    X_pos = X_pos + 1;
+  else if (digitalRead(X_encoder_B)==1 && digitalRead(X_encoder_A)==0)
     X_pos = X_pos + 1;
   else
     X_pos = X_pos - 1;
 }
 void ISR_X_encoder_B(){
-  if(digitalRead(X_encoder_A)==1)
+  if(digitalRead(X_encoder_B)==0 && digitalRead(X_encoder_A)==1 )
+    X_pos = X_pos - 1;
+  else if (digitalRead(X_encoder_B)==1 && digitalRead(X_encoder_A)==0)
     X_pos = X_pos - 1;
   else
     X_pos = X_pos + 1;
 }
 
 void ISR_Y_encoder_A(){
-  if(digitalRead(Y_encoder_B)==1)
+  if(digitalRead(Y_encoder_B)==0 && digitalRead(Y_encoder_A)==1)
+    Y_pos = Y_pos + 1;
+  else if (digitalRead(Y_encoder_B)==1 && digitalRead(Y_encoder_A)==0)
     Y_pos = Y_pos + 1;
   else
     Y_pos = Y_pos - 1;
 }
 void ISR_Y_encoder_B(){
-  if(digitalRead(Y_encoder_A)==1)
+  if(digitalRead(Y_encoder_B)==0 && digitalRead(Y_encoder_A)==1 )
+    Y_pos = Y_pos - 1;
+  else if (digitalRead(Y_encoder_B)==1 && digitalRead(Y_encoder_A)==0)
     Y_pos = Y_pos - 1;
   else
     Y_pos = Y_pos + 1;
+}
+
+void ISR_Z_encoder_A(){
+  if(digitalRead(Z_encoder_B)==0 && digitalRead(Z_encoder_A)==1 )
+    Z_pos = Z_pos + 1;
+  else if (digitalRead(Z_encoder_B)==1 && digitalRead(Z_encoder_A)==0)
+    Z_pos = Z_pos + 1;
+  else
+    Z_pos = Z_pos - 1;
+}
+void ISR_Z_encoder_B(){
+  if(digitalRead(Z_encoder_B)==0 && digitalRead(Z_encoder_A)==1 )
+    Z_pos = Z_pos - 1;
+  else if (digitalRead(Z_encoder_B)==1 && digitalRead(Z_encoder_A)==0)
+    Z_pos = Z_pos - 1;
+  else
+    Z_pos = Z_pos + 1;
 }
 
 /***************************************************************************************************/
