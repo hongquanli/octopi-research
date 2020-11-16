@@ -65,5 +65,15 @@ def generate_default_configuration(filename):
     mode_7.set('IlluminationSource','13')
     mode_7.set('IlluminationIntensity','100')
     mode_7.set('CameraSN','')
+
+    mode_8 = ET.SubElement(top,'mode')
+    mode_8.set('ID','8')
+    mode_8.set('Name','Fluorescence 561 nm Ex')
+    mode_8.set('ExposureTime','100')
+    mode_8.set('AnalogGain','10')
+    mode_8.set('IlluminationSource','13')
+    mode_8.set('IlluminationIntensity','100')
+    mode_8.set('CameraSN','')
+
     tree = ET.ElementTree(top)
     tree.write(filename,encoding="utf-8", xml_declaration=True, pretty_print=True)
