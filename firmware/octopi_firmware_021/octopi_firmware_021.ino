@@ -47,12 +47,17 @@ static const int LED = 30;
 static const int LASER_405nm = 31;
 static const int LASER_488nm = 32;
 static const int LASER_638nm = 33;
+static const int LASER_561nm = 34;
 
-// encoders
-static const int X_encoder_A = 6;
-static const int X_encoder_B = 7;
-static const int Y_encoder_A = 8;
-static const int Y_encoder_B = 9;
+// encoders and limit switches
+static const int X_encoder_A = 2;
+static const int X_encoder_B = 3;
+static const int X_LIM = 4;
+static const int Y_encoder_A = 5;
+static const int Y_encoder_B = 6;
+static const int Y_LIM = 7;
+static const int Z_encoder_A = 8;
+static const int Z_encoder_B = 9;
 
 // focus wheel
 static const int focusWheel_A  = 41;
