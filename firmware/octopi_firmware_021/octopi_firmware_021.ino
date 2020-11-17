@@ -289,6 +289,9 @@ void setup() {
   pinMode(LASER_638nm, OUTPUT);
   digitalWrite(LASER_638nm, LOW);
 
+  pinMode(LASER_561nm, OUTPUT);
+  digitalWrite(LASER_561nm, LOW);
+
   digitalWrite(LED, LOW);
   
   pinMode(X_dir, OUTPUT);
