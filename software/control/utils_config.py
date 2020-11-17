@@ -71,7 +71,7 @@ def generate_default_configuration(filename):
     mode_8.set('Name','Fluorescence 561 nm Ex')
     mode_8.set('ExposureTime','100')
     mode_8.set('AnalogGain','10')
-    mode_8.set('IlluminationSource','13')
+    mode_8.set('IlluminationSource','14')
     mode_8.set('IlluminationIntensity','100')
     mode_8.set('CameraSN','')
 

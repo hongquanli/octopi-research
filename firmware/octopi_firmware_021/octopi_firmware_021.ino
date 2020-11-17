@@ -174,6 +174,7 @@ static const int ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 5;
 static const int ILLUMINATION_SOURCE_405NM = 11;
 static const int ILLUMINATION_SOURCE_488NM = 12;
 static const int ILLUMINATION_SOURCE_638NM = 13;
+static const int ILLUMINATION_SOURCE_561NM = 14;
 
 Adafruit_DotStar matrix(64, DOTSTAR_BRG);
 void set_all(Adafruit_DotStar & matrix, int r, int g, int b);
@@ -211,6 +212,9 @@ void turn_on_illumination()
     case ILLUMINATION_SOURCE_638NM:
       digitalWrite(LASER_638nm,HIGH);
       break;
+    case ILLUMINATION_SOURCE_561NM:
+      digitalWrite(LASER_561nm,HIGH);
+      break;
   }
 }
 
@@ -241,6 +245,9 @@ void turn_off_illumination()
       break;
     case ILLUMINATION_SOURCE_638NM:
       digitalWrite(LASER_638nm,LOW);
+      break;
+    case ILLUMINATION_SOURCE_561NM:
+      digitalWrite(LASER_561nm,LOW);
       break;
   }
   illumination_is_on = false;
