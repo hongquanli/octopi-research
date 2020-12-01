@@ -528,6 +528,12 @@ class AutoFocusController(QObject):
         z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
         self.navigationController.move_z(-z_af_offset_usteps)
 
+        # maneuver for achiving uniform step size and repeatability when using open-loop control
+        self.navigationController.move_z_usteps(80)
+		time.sleep(0.1)
+		self.navigationController.move_z_usteps(-80)
+		time.sleep(0.1)
+
         steps_moved = 0
         for i in range(self.N):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
@@ -549,7 +555,13 @@ class AutoFocusController(QObject):
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
 
-        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+        # maneuver for achiving uniform step size and repeatability when using open-loop control
+        self.navigationController.move_z_usteps(80)
+		time.sleep(0.1)
+		self.navigationController.move_z_usteps(-80)
+		time.sleep(0.1)
+
+		idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
         self.navigationController.move_z_usteps((idx_in_focus-steps_moved)*self.deltaZ_usteps)
         if idx_in_focus == 0:
             print('moved to the bottom end of the AF range')
@@ -739,6 +751,13 @@ class MultiPointController(QObject):
                     # perform AF only if when not taking z stack
                     if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                         self.autofocusController.autofocus()
+
+                    if (self.Nz > 1)
+                    	# maneuver for achiving uniform step size and repeatability when using open-loop control
+                        self.navigationController.move_z_usteps(80)
+                        time.sleep(0.1)
+                        self.navigationController.move_z_usteps(-80)
+                        time.sleep(0.1)
 
                     file_ID = str(i) + '_' + str(j) + '_' + str(k)
 
