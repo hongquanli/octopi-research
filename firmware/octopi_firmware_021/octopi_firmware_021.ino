@@ -372,9 +372,9 @@ void setup() {
   Z_pos = 0;
 
   // focus
-  pinMode(focusWheel_A,INPUT);
-  pinMode(focusWheel_B,INPUT);
-  pinMode(focusWheel_IDX,INPUT);
+  pinMode(focusWheel_A,INPUT_PULLUP);
+  pinMode(focusWheel_B,INPUT_PULLUP);
+  pinMode(focusWheel_IDX,INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(focusWheel_A), ISR_focusWheel_A, RISING);
   attachInterrupt(digitalPinToInterrupt(focusWheel_B), ISR_focusWheel_B, RISING);
   
