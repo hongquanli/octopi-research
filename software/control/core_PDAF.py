@@ -21,38 +21,72 @@ import pyqtgraph as pg
 import cv2
 from datetime import datetime
 
+import skimage # pip3 install -U scikit-image
+import skimage.registration
+
 class PDAFController(QObject):
 
-    def __init__(self):
+    # input: stream from camera 1, stream from camera 2
+    # input: from internal_states shared variables
+    # output: amount of defocus, which may be read by or emitted to focusTrackingController (that manages focus tracking on/off, PID coefficients)
+
+    def __init__(self,internal_states):
         QObject.__init__(self)
+        self.coefficient_shift2defocus = 1
+        self.registration_upsample_factor = 5
         self.image1_received = False
         self.image2_received = False
+        self.locked = False
+        self.shared_variables = internal_states
 
     def register_image_from_camera_1(self,image):
-        self.image1 = image
+        if(self.locked==True):
+            return
+        self.image1 = np.copy(image)
         self.image1_received = True
         if(self.image2_received):
-            self.compute_defocus()
+            self.calculate_defocus()
 
     def register_image_from_camera_2(self,image):
-        self.image2 = image
+        if(self.locked==True):
+            return
+        self.image2 = np.copy(image)
+        self.image2 = np.fliplr(self.image2) # can be flipud depending on camera orientation
         self.image2_received = True
+        if(self.image1_received):
+            self.calculate_defocus()
 
-    def compute_defocus(self):
-        print('computing defocus')
+    def calculate_defocus(self):
+        self.locked = True
+        # cropping parameters
+        self.x = self.shared_variables.x
+        self.y = self.shared_variables.y
+        self.w = self.shared_variables.w*2 # double check which dimension to multiply
+        self.h = self.shared_variables.h
+        # crop
+        self.image1 = self.image1[(self.y-int(self.h/2)):(self.y+int(self.h/2)),(self.x-int(self.w/2)):(self.x+int(self.w/2))]
+        self.image2 = self.image2[(self.y-int(self.h/2)):(self.y+int(self.h/2)),(self.x-int(self.w/2)):(self.x+int(self.w/2))] # additional offsets may need to be added
+        shift = self._compute_shift_from_image_pair()
+        self.defocus = shift*self.coefficient_shift2defocus
+        self.image1_received = False
+        self.image2_received = False
+        self.locked = False
+
+    def _compute_shift_from_image_pair(self):
+        # method 1: calculate 2D cross correlation -> find peak or centroid
+        '''
         I1 = np.array(self.image1,dtype=np.int)
         I2 = np.array(self.image2,dtype=np.int)
         I1 = I1 - np.mean(I1)
         I2 = I2 - np.mean(I2)
-
         xcorr = cv2.filter2D(I1,cv2.CV_32F,I2)
-        # cv2.imshow('xcorr',np.array(255*xcorr/np.max(xcorr), dtype = np.uint8 ))
-        # cv2.imshow('xcorr',self.image2)
         cv2.imshow('xcorr',np.array(255*xcorr/np.max(xcorr),dtype=np.uint8))
-        print(np.max(xcorr))
         cv2.waitKey(15)  
-        pass
-
+        '''
+        # method 2: use skimage.registration.phase_cross_correlation
+        shifts,error,phasediff = skimage.registration.phase_cross_correlation(self.image1,self.image2,upsample_factor=self.registration_upsample_factor,space='real')
+        print(shifts) # for debugging
+        return shifts[0] # can be shifts[1] - depending on camera orientation
 
     def close(self):
         pass
