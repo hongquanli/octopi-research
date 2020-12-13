@@ -752,7 +752,7 @@ class MultiPointController(QObject):
                     if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                         self.autofocusController.autofocus()
 
-                    if (self.Nz > 1):
+                    if (self.NZ > 1):
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
                         self.navigationController.move_z_usteps(80)
                         time.sleep(0.1)
