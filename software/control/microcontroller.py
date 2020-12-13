@@ -15,11 +15,11 @@ class Microcontroller():
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
         self.rx_buffer_length = MicrocontrollerDef.MSG_LENGTH
 
-        # AUTO-DETECT the Arduino! By Deepak
+        # AUTO-DETECT the Arduino! Based on Deepak's code
         arduino_ports = [
                 p.device
                 for p in serial.tools.list_ports.comports()
-                if 'Arduino' in p.description]
+                if 'Arduino Due' == p.description]
         if not arduino_ports:
             raise IOError("No Arduino found")
         if len(arduino_ports) > 1:
