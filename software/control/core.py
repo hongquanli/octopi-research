@@ -526,7 +526,7 @@ class AutoFocusController(QObject):
         focus_measure_max = 0
 
         z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
-        self.navigationController.move_z(-z_af_offset_usteps)
+        self.navigationController.move_z_usteps(-z_af_offset_usteps)
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         self.navigationController.move_z_usteps(80)
