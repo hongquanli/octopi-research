@@ -25,7 +25,7 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load objects
-		self.microcontroller = microcontroller.Microcontroller_Simulation()
+		self.microcontroller = microcontroller.Microcontroller()
 		self.navigationController = core.NavigationController(self.microcontroller)
 
 		self.camera_1 = camera.Camera(sn='FW0200050063') # tracking

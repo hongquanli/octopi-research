@@ -179,7 +179,7 @@ class Microcontroller():
 
         # get rid of old data
         if num_bytes_in_rx_buffer > self.rx_buffer_length:
-            print('getting rid of old data')
+            # print('getting rid of old data')
             for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
                 self.serial.read()
         
@@ -218,7 +218,7 @@ class Microcontroller():
         # get rid of old data
         num_bytes_in_rx_buffer = self.serial.in_waiting
         if num_bytes_in_rx_buffer > self.rx_buffer_length:
-            print('getting rid of old data')
+            # print('getting rid of old data')
             for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
                 self.serial.read()
         

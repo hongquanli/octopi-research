@@ -18,8 +18,8 @@ import control.microcontroller as microcontroller
 
 class Internal_States():
 	def __init__(self):
-		self.w = 300
-		self.h = 300
+		self.w = 500
+		self.h = 500
 		self.x = 1500
 		self.y = 1500
 
@@ -33,12 +33,12 @@ class OctopiGUI(QMainWindow):
 
 		# load objects
 		self.internal_states = Internal_States()
-		self.microcontroller = microcontroller.Microcontroller_Simulation()
+		self.microcontroller = microcontroller.Microcontroller()
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.PDAFController = core_PDAF.PDAFController(self.internal_states)
 
-		self.camera_1 = camera.Camera_Simulation(sn='FW0200050063') # tracking
-		self.camera_2 = camera.Camera_Simulation(sn='FW0200050068')	# fluorescence
+		self.camera_1 = camera.Camera(sn='FW0200050063') # tracking
+		self.camera_2 = camera.Camera(sn='FW0200050068')	# fluorescence
 		
 		self.configurationManager = core.ConfigurationManager(filename=str(Path.home()) + "/configurations_PDAF.xml")
 
