@@ -335,7 +335,7 @@ class LiveController(QObject):
             self.is_live = False
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
-            self.camera.stop_streaming()
+            # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
             if self.control_illumination:
                 self.turn_off_illumination()
 
@@ -749,7 +749,13 @@ class MultiPointController(QObject):
                 for k in range(self.NZ):
 
                     # perform AF only if when not taking z stack
-                    if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                    # if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                    # temporary: replace the above line with the line below to AF every FOV
+                    if (self.NZ == 1) and (self.do_autofocus):
+                        # temporary (next 3 lines, to be modified) - use 405 nm for autofocus
+                        configuration_name_AF = 'Fluorescence 405 nm Ex'
+                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                        self.signal_current_configuration.emit(config_AF)
                         self.autofocusController.autofocus()
 
                     if (self.NZ > 1):

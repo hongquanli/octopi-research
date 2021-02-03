@@ -191,7 +191,8 @@ class Camera(object):
              bpp),
             buffer=buf.extract_dup(0, buf.get_size()),
             dtype=numpy.uint8)
-
+    def set_pixel_format(self,format):
+        pass
 class Camera_Simulation(object):
 
     def __init__(self,sn=None,width=640,height=480,framerate=30,color=False):
@@ -283,4 +284,7 @@ class Camera_Simulation(object):
         pass
 
     def _gstbuffer_to_opencv(self):
+        pass
+
+    def set_pixel_format(self,format):
         pass

@@ -22,8 +22,8 @@ class WaitTime:
 
 class AF:
     STOP_THRESHOLD = 0.85
-    CROP_WIDTH = 500
-    CROP_HEIGHT = 500
+    CROP_WIDTH = 800
+    CROP_HEIGHT = 800
     def __init__(self):
         pass
 
