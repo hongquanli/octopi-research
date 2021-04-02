@@ -153,7 +153,7 @@ class LiveControlWidget(QFrame):
         self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
         self.slider_resolutionScaling.setMinimum(10)
         self.slider_resolutionScaling.setMaximum(100)
-        self.slider_resolutionScaling.setValue(50)
+        self.slider_resolutionScaling.setValue(100)
         self.slider_resolutionScaling.setSingleStep(10)
 
         # connections
