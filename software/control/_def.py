@@ -28,8 +28,10 @@ class AF:
         pass
 
 class Motion:
-    # STEPS_PER_MM_XY = 1600 # microsteps (nanotech 5 um/step)
-    STEPS_PER_MM_XY = 800 # microsteps (PBCLinear 10 um/step) 
+    REVERSE_X = 1  # set to -1 to reverse direction
+    REVERSE_Y = 1  # set to -1 to reverse direction
+    STEPS_PER_MM_X = 800 # microsteps (PBCLinear 10 um/step)
+    STEPS_PER_MM_Y = 800  # microsteps (PBCLinear 10 um/step)
     STEPS_PER_MM_Z = 5333  # microsteps
     def __init__(self):
         pass

@@ -40,7 +40,7 @@ class Microcontroller():
         cmd[0] = 3
         cmd[1] = state
         self.serial.write(cmd)
-    
+
     def toggle_laser(self,state):
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = 4
@@ -66,58 +66,57 @@ class Microcontroller():
         self.serial.write(cmd)
 
     def move_x(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_X
-        cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-        time.sleep(WaitTime.BASE + WaitTime.X*abs(delta))
+        if delta == 0:
+            return
+
+        n_microsteps = abs(delta*Motion.STEPS_PER_MM_X)
+        sign_delta = np.sign(delta) * Motion.REVERSE_X
+        while n_microsteps > 65535:
+            self.move_x_usteps(sign_delta * 65535)
+            n_microsteps -= 65535
+        self.move_x_usteps(sign_delta * n_microsteps)
+        time.sleep(WaitTime.BASE)
 
     def move_x_usteps(self,usteps):
+        assert abs(usteps) <= 65535, 'Number of microsteps must be 65535 or fewer'
         direction = int((np.sign(usteps)+1)/2)
-        n_microsteps = abs(usteps)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
+        abs_microsteps = int(abs(usteps))
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = CMD_SET.MOVE_X
         cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
+        cmd[2] = abs_microsteps >> 8
+        cmd[3] = abs_microsteps & 0xff
         self.serial.write(cmd)
-        time.sleep(WaitTime.BASE + WaitTime.X*abs(usteps)/Motion.STEPS_PER_MM_XY)
+        time.sleep(WaitTime.X * abs_microsteps/Motion.STEPS_PER_MM_X)
 
     def move_y(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_Y
-        cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-        time.sleep(WaitTime.BASE + WaitTime.Y*abs(delta))
+        if delta == 0:
+            return
+
+        n_microsteps = abs(delta*Motion.STEPS_PER_MM_Y)
+        sign_delta = np.sign(delta) * Motion.REVERSE_Y
+        while n_microsteps > 65535:
+            self.move_y_usteps(sign_delta * 65535)
+            n_microsteps -= 65535
+        self.move_y_usteps(sign_delta * n_microsteps)
+        time.sleep(WaitTime.BASE)
 
     def move_y_usteps(self,usteps):
+        assert abs(usteps) <= 65535, 'Number of microsteps must be 65535 or fewer'
         direction = int((np.sign(usteps)+1)/2)
-        n_microsteps = abs(usteps)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
+        abs_microsteps = int(abs(usteps))
         cmd = bytearray(self.tx_buffer_length)
         cmd[0] = CMD_SET.MOVE_Y
         cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
+        cmd[2] = abs_microsteps >> 8
+        cmd[3] = abs_microsteps & 0xff
         self.serial.write(cmd)
-        time.sleep(WaitTime.BASE + WaitTime.Y*abs(usteps)/Motion.STEPS_PER_MM_XY)
+        time.sleep(WaitTime.Y * abs_microsteps/Motion.STEPS_PER_MM_Y)
 
     def move_z(self,delta):
+        if delta == 0:
+            return
+
         direction = int((np.sign(delta)+1)/2)
         n_microsteps = abs(delta*Motion.STEPS_PER_MM_Z)
         if n_microsteps > 65535:
@@ -153,7 +152,7 @@ class Microcontroller():
         cmd[3] = int(command[2])                                                   #Homing
         cmd[4] = int(command[3])                                                   #tracking
         cmd[5],cmd[6] = self.split_signed_int_2byte(round(command[4]*100))         #Xerror
-        cmd[7],cmd[8] = self.split_signed_int_2byte(round(command[5]*100))         #Yerror                           
+        cmd[7],cmd[8] = self.split_signed_int_2byte(round(command[5]*100))         #Yerror
         cmd[9],cmd[10] = self.split_signed_int_2byte(round(command[6]*100))        #Zerror
         cmd[11],cmd[12] = self.split_int_2byte(round(0))#command[9]*10))               #averageDt (millisecond with two digit after coma) BUG
         cmd[13] = int(command[8])                                               # LED intensity
@@ -162,7 +161,7 @@ class Microcontroller():
         cmd[14] = int(command[9])
         # Adding Sampling Interval for other Video Streams
         # Minimum 10 ms (0.01 s) Maximum: 3600 s (1 hour)
-        # Min value: 1 to 360000 
+        # Min value: 1 to 360000
         # print('Interval command sent {}'.format(command[10]))
         cmd[15], cmd[16] = self.split_int_2byte(round(100*command[10]))
         '''
@@ -182,7 +181,7 @@ class Microcontroller():
             # print('getting rid of old data')
             for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
                 self.serial.read()
-        
+
         # read the buffer
         data=[]
         for i in range(self.rx_buffer_length):
@@ -214,14 +213,14 @@ class Microcontroller():
             return None
         if self.serial.in_waiting % self.rx_buffer_length != 0:
             return None
-        
+
         # get rid of old data
         num_bytes_in_rx_buffer = self.serial.in_waiting
         if num_bytes_in_rx_buffer > self.rx_buffer_length:
             # print('getting rid of old data')
             for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
                 self.serial.read()
-        
+
         # read the buffer
         data=[]
         for i in range(self.rx_buffer_length):
@@ -237,18 +236,18 @@ class Microcontroller_Simulation():
 
     def toggle_LED(self,state):
         pass
-    
+
     def toggle_laser(self,state):
         pass
 
     def move_x(self,delta):
-        pass
+        print('Move_x: moving by {} mm'.format(delta))
 
     def move_y(self,delta):
-        pass
+        print('Move_y: moving by {} mm'.format(delta))
 
     def move_z(self,delta):
-        pass
+        print('Move_z: moving by {} mm'.format(delta))
 
     def move_x_usteps(self,usteps):
         pass
