@@ -1,5 +1,5 @@
 # set QT_API environment variable
-import os 
+import os
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
@@ -18,7 +18,7 @@ class CameraSettingsWidget(QFrame):
         self.camera = camera
         self.liveController = liveController
         # add components to self.grid
-        self.add_components()        
+        self.add_components()
         # set frame style
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -26,15 +26,15 @@ class CameraSettingsWidget(QFrame):
 
         # add buttons and input fields
         self.entry_exposureTime = QDoubleSpinBox()
-        self.entry_exposureTime.setMinimum(self.camera.EXPOSURE_TIME_MS_MIN) 
-        self.entry_exposureTime.setMaximum(self.camera.EXPOSURE_TIME_MS_MAX) 
+        self.entry_exposureTime.setMinimum(self.camera.EXPOSURE_TIME_MS_MIN)
+        self.entry_exposureTime.setMaximum(self.camera.EXPOSURE_TIME_MS_MAX)
         self.entry_exposureTime.setSingleStep(1)
         self.entry_exposureTime.setValue(20)
         self.camera.set_exposure_time(20)
 
         self.entry_analogGain = QDoubleSpinBox()
-        self.entry_analogGain.setMinimum(self.camera.GAIN_MIN) 
-        self.entry_analogGain.setMaximum(self.camera.GAIN_MAX) 
+        self.entry_analogGain.setMinimum(self.camera.GAIN_MIN)
+        self.entry_analogGain.setMaximum(self.camera.GAIN_MAX)
         self.entry_analogGain.setSingleStep(self.camera.GAIN_STEP)
         self.entry_analogGain.setValue(0)
         self.camera.set_analog_gain(0)
@@ -80,7 +80,7 @@ class LiveControlWidget(QFrame):
         self.fps_display = 10
         self.liveController.set_trigger_fps(self.fps_trigger)
         self.streamHandler.set_display_fps(self.fps_display)
-        
+
         self.triggerMode = TriggerMode.SOFTWARE
         # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration = self.configurationManager.configurations[0]
@@ -99,12 +99,12 @@ class LiveControlWidget(QFrame):
 
         # line 1: fps
         self.entry_triggerFPS = QDoubleSpinBox()
-        self.entry_triggerFPS.setMinimum(0.02) 
-        self.entry_triggerFPS.setMaximum(1000) 
+        self.entry_triggerFPS.setMinimum(0.02)
+        self.entry_triggerFPS.setMaximum(1000)
         self.entry_triggerFPS.setSingleStep(1)
         self.entry_triggerFPS.setValue(self.fps_trigger)
 
-        # line 2: choose microscope mode / toggle live mode 
+        # line 2: choose microscope mode / toggle live mode
         self.dropdown_modeSelection = QComboBox()
         for microscope_configuration in self.configurationManager.configurations:
             self.dropdown_modeSelection.addItems([microscope_configuration.name])
@@ -117,15 +117,15 @@ class LiveControlWidget(QFrame):
 
         # line 3: exposure time and analog gain associated with the current mode
         self.entry_exposureTime = QDoubleSpinBox()
-        self.entry_exposureTime.setMinimum(0.001) 
-        self.entry_exposureTime.setMaximum(4000) 
+        self.entry_exposureTime.setMinimum(0.001)
+        self.entry_exposureTime.setMaximum(4000)
         self.entry_exposureTime.setSingleStep(1)
         self.entry_exposureTime.setValue(0)
 
         self.entry_analogGain = QDoubleSpinBox()
         self.entry_analogGain = QDoubleSpinBox()
-        self.entry_analogGain.setMinimum(0) 
-        self.entry_analogGain.setMaximum(24) 
+        self.entry_analogGain.setMinimum(0)
+        self.entry_analogGain.setMaximum(24)
         self.entry_analogGain.setSingleStep(0.1)
         self.entry_analogGain.setValue(0)
 
@@ -137,15 +137,15 @@ class LiveControlWidget(QFrame):
         self.slider_illuminationIntensity.setSingleStep(0.1)
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
-        self.entry_illuminationIntensity.setMinimum(0.1) 
-        self.entry_illuminationIntensity.setMaximum(100) 
+        self.entry_illuminationIntensity.setMinimum(0.1)
+        self.entry_illuminationIntensity.setMaximum(100)
         self.entry_illuminationIntensity.setSingleStep(0.1)
         self.entry_illuminationIntensity.setValue(100)
 
         # line 4: display fps and resolution scaling
         self.entry_displayFPS = QDoubleSpinBox()
-        self.entry_displayFPS.setMinimum(1) 
-        self.entry_displayFPS.setMaximum(240) 
+        self.entry_displayFPS.setMinimum(1)
+        self.entry_displayFPS.setMaximum(240)
         self.entry_displayFPS.setSingleStep(1)
         self.entry_displayFPS.setValue(self.fps_display)
 
@@ -268,7 +268,7 @@ class RecordingWidget(QFrame):
         self.btn_setSavingDir = QPushButton('Browse')
         self.btn_setSavingDir.setDefault(False)
         self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        
+
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
@@ -276,15 +276,15 @@ class RecordingWidget(QFrame):
         self.lineEdit_experimentID = QLineEdit()
 
         self.entry_saveFPS = QDoubleSpinBox()
-        self.entry_saveFPS.setMinimum(0.02) 
-        self.entry_saveFPS.setMaximum(1000) 
+        self.entry_saveFPS.setMinimum(0.02)
+        self.entry_saveFPS.setMaximum(1000)
         self.entry_saveFPS.setSingleStep(1)
         self.entry_saveFPS.setValue(1)
         self.streamHandler.set_save_fps(1)
 
         self.entry_timeLimit = QSpinBox()
-        self.entry_timeLimit.setMinimum(-1) 
-        self.entry_timeLimit.setMaximum(60*60*24*30) 
+        self.entry_timeLimit.setMinimum(-1)
+        self.entry_timeLimit.setMaximum(60*60*24*30)
         self.entry_timeLimit.setSingleStep(1)
         self.entry_timeLimit.setValue(-1)
 
@@ -368,8 +368,8 @@ class NavigationWidget(QFrame):
         self.label_Xpos.setNum(0)
         self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
         self.entry_dX = QDoubleSpinBox()
-        self.entry_dX.setMinimum(0) 
-        self.entry_dX.setMaximum(25) 
+        self.entry_dX.setMinimum(0)
+        self.entry_dX.setMaximum(25)
         self.entry_dX.setSingleStep(0.2)
         self.entry_dX.setValue(0)
         self.entry_dX.setDecimals(3)
@@ -378,7 +378,7 @@ class NavigationWidget(QFrame):
         self.btn_moveX_forward.setDefault(False)
         self.btn_moveX_backward = QPushButton('Backward')
         self.btn_moveX_backward.setDefault(False)
-        
+
         self.label_Ypos = QLabel()
         self.label_Ypos.setNum(0)
         self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -397,8 +397,8 @@ class NavigationWidget(QFrame):
         self.label_Zpos.setNum(0)
         self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
         self.entry_dZ = QDoubleSpinBox()
-        self.entry_dZ.setMinimum(0) 
-        self.entry_dZ.setMaximum(1000) 
+        self.entry_dZ.setMinimum(0)
+        self.entry_dZ.setMaximum(1000)
         self.entry_dZ.setSingleStep(0.2)
         self.entry_dZ.setValue(0)
         self.entry_dZ.setDecimals(3)
@@ -406,7 +406,7 @@ class NavigationWidget(QFrame):
         self.btn_moveZ_forward.setDefault(False)
         self.btn_moveZ_backward = QPushButton('Backward')
         self.btn_moveZ_backward.setDefault(False)
-        
+
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('X (mm)'), 0,0)
         grid_line0.addWidget(self.label_Xpos, 0,1)
@@ -444,7 +444,7 @@ class NavigationWidget(QFrame):
         self.btn_moveY_backward.clicked.connect(self.move_y_backward)
         self.btn_moveZ_forward.clicked.connect(self.move_z_forward)
         self.btn_moveZ_backward.clicked.connect(self.move_z_backward)
-        
+
     def move_x_forward(self):
         self.navigationController.move_x(self.entry_dX.value())
         print('move x')
@@ -460,10 +460,10 @@ class NavigationWidget(QFrame):
         self.navigationController.move_z(-self.entry_dZ.value()/1000)
 
     def set_deltaX(self,value):
-        deltaX = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        deltaX = round(value*Motion.STEPS_PER_MM_X)/Motion.STEPS_PER_MM_X
         self.entry_dX.setValue(deltaX)
     def set_deltaY(self,value):
-        deltaY = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        deltaY = round(value*Motion.STEPS_PER_MM_Y)/Motion.STEPS_PER_MM_Y
         self.entry_dY.setValue(deltaY)
     def set_deltaZ(self,value):
         deltaZ = round(value/1000*Motion.STEPS_PER_MM_Z)/(Motion.STEPS_PER_MM_Z/1000)
@@ -478,16 +478,16 @@ class AutoFocusWidget(QFrame):
 
     def add_components(self):
         self.entry_delta = QDoubleSpinBox()
-        self.entry_delta.setMinimum(0.2) 
-        self.entry_delta.setMaximum(20) 
+        self.entry_delta.setMinimum(0.2)
+        self.entry_delta.setMaximum(20)
         self.entry_delta.setSingleStep(0.2)
         self.entry_delta.setValue(3)
         self.entry_delta.setDecimals(3)
         self.autofocusController.set_deltaZ(3)
 
         self.entry_N = QSpinBox()
-        self.entry_N.setMinimum(3) 
-        self.entry_N.setMaximum(20) 
+        self.entry_N.setMinimum(3)
+        self.entry_N.setMaximum(20)
         self.entry_N.setSingleStep(1)
         self.entry_N.setValue(10)
         self.autofocusController.set_N(10)
@@ -508,7 +508,7 @@ class AutoFocusWidget(QFrame):
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
         self.setLayout(self.grid)
-        
+
         # connections
         self.btn_autofocus.clicked.connect(self.autofocusController.autofocus)
         self.entry_delta.valueChanged.connect(self.set_deltaZ)
@@ -537,7 +537,7 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir = QPushButton('Browse')
         self.btn_setSavingDir.setDefault(False)
         self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        
+
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
@@ -545,53 +545,53 @@ class MultiPointWidget(QFrame):
         self.lineEdit_experimentID = QLineEdit()
 
         self.entry_deltaX = QDoubleSpinBox()
-        self.entry_deltaX.setMinimum(0) 
-        self.entry_deltaX.setMaximum(5) 
+        self.entry_deltaX.setMinimum(0)
+        self.entry_deltaX.setMaximum(5)
         self.entry_deltaX.setSingleStep(0.1)
         self.entry_deltaX.setValue(Acquisition.DX)
         self.entry_deltaX.setDecimals(3)
 
         self.entry_NX = QSpinBox()
-        self.entry_NX.setMinimum(1) 
-        self.entry_NX.setMaximum(50) 
+        self.entry_NX.setMinimum(1)
+        self.entry_NX.setMaximum(50)
         self.entry_NX.setSingleStep(1)
         self.entry_NX.setValue(1)
 
         self.entry_deltaY = QDoubleSpinBox()
-        self.entry_deltaY.setMinimum(0) 
-        self.entry_deltaY.setMaximum(5) 
+        self.entry_deltaY.setMinimum(0)
+        self.entry_deltaY.setMaximum(5)
         self.entry_deltaY.setSingleStep(0.1)
         self.entry_deltaY.setValue(Acquisition.DX)
         self.entry_deltaY.setDecimals(3)
-        
+
         self.entry_NY = QSpinBox()
-        self.entry_NY.setMinimum(1) 
-        self.entry_NY.setMaximum(50) 
+        self.entry_NY.setMinimum(1)
+        self.entry_NY.setMaximum(50)
         self.entry_NY.setSingleStep(1)
         self.entry_NY.setValue(1)
 
         self.entry_deltaZ = QDoubleSpinBox()
-        self.entry_deltaZ.setMinimum(0) 
-        self.entry_deltaZ.setMaximum(1000) 
+        self.entry_deltaZ.setMinimum(0)
+        self.entry_deltaZ.setMaximum(1000)
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
-        
+
         self.entry_NZ = QSpinBox()
-        self.entry_NZ.setMinimum(1) 
-        self.entry_NZ.setMaximum(100) 
+        self.entry_NZ.setMinimum(1)
+        self.entry_NZ.setMaximum(100)
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
-        
+
 
         self.entry_dt = QDoubleSpinBox()
-        self.entry_dt.setMinimum(0) 
-        self.entry_dt.setMaximum(3600) 
+        self.entry_dt.setMinimum(0)
+        self.entry_dt.setMaximum(3600)
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(1)
 
         self.entry_Nt = QSpinBox()
-        self.entry_Nt.setMinimum(1) 
+        self.entry_Nt.setMinimum(1)
         self.entry_Nt.setMaximum(50000)   # @@@ to be changed
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
@@ -665,12 +665,12 @@ class MultiPointWidget(QFrame):
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
 
     def set_deltaX(self,value):
-        deltaX = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        deltaX = round(value*Motion.STEPS_PER_MM_X)/Motion.STEPS_PER_MM_X
         self.entry_deltaX.setValue(deltaX)
         self.multipointController.set_deltaX(deltaX)
 
     def set_deltaY(self,value):
-        deltaY = round(value*Motion.STEPS_PER_MM_XY)/Motion.STEPS_PER_MM_XY
+        deltaY = round(value*Motion.STEPS_PER_MM_Y)/Motion.STEPS_PER_MM_Y
         self.entry_deltaY.setValue(deltaY)
         self.multipointController.set_deltaY(deltaY)
 
@@ -694,7 +694,7 @@ class MultiPointWidget(QFrame):
             msg.exec_()
             return
         if pressed:
-            # @@@ to do: add a widgetManger to enable and disable widget 
+            # @@@ to do: add a widgetManger to enable and disable widget
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())

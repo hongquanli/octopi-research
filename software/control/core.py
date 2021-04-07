@@ -465,8 +465,8 @@ class NavigationController(QObject):
         pos = self.microcontroller.read_received_packet_nowait()
         if pos is None:
             return
-        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
-        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
+        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_X # @@@TODO@@@: move to microcontroller?
+        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Y # @@@TODO@@@: move to microcontroller?
         self.z_pos = utils.unsigned_to_signed(pos[6:9],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Z  # @@@TODO@@@: move to microcontroller?
         self.xPos.emit(self.x_pos)
         self.yPos.emit(self.y_pos)
@@ -605,9 +605,9 @@ class MultiPointController(QObject):
         self.NZ = 1
         self.Nt = 1
         self.deltaX = Acquisition.DX
-        self.deltaX_usteps = round(self.deltaX*Motion.STEPS_PER_MM_XY)
+        self.deltaX_usteps = round(self.deltaX*Motion.STEPS_PER_MM_X)
         self.deltaY = Acquisition.DY
-        self.deltaY_usteps = round(self.deltaY*Motion.STEPS_PER_MM_XY)
+        self.deltaY_usteps = round(self.deltaY*Motion.STEPS_PER_MM_Y)
         self.deltaZ = Acquisition.DZ/1000
         self.deltaZ_usteps = round(self.deltaZ*Motion.STEPS_PER_MM_Z)
         self.deltat = 1
@@ -631,10 +631,10 @@ class MultiPointController(QObject):
         self.Nt = N
     def set_deltaX(self,delta):
         self.deltaX = delta
-        self.deltaX_usteps = round(delta*Motion.STEPS_PER_MM_XY)
+        self.deltaX_usteps = round(delta*Motion.STEPS_PER_MM_X)
     def set_deltaY(self,delta):
         self.deltaY = delta
-        self.deltaY_usteps = round(delta*Motion.STEPS_PER_MM_XY)
+        self.deltaY_usteps = round(delta*Motion.STEPS_PER_MM_Y)
     def set_deltaZ(self,delta_um):
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)*Motion.STEPS_PER_MM_Z)
