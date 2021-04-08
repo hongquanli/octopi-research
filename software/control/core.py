@@ -800,17 +800,17 @@ class MultiPointController(QObject):
 
                 # move x
                 if j < self.NX - 1:
-                    self.navigationController.move_x_usteps(self.deltaX_usteps)
+                    self.navigationController.move_x(self.deltaX)
 
             # move x back
-            self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+            self.navigationController.move_x(-self.deltaX*(self.NX-1))
 
             # move y
             if i < self.NY - 1:
-                self.navigationController.move_y_usteps(self.deltaY_usteps)
+                self.navigationController.move_y(self.deltaY)
 
         # move y back
-        self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
+        self.navigationController.move_y(-self.deltaY*(self.NY-1))
 
 
     def _run_single_acquisition(self):
