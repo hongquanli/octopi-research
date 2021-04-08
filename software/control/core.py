@@ -1,5 +1,5 @@
 # set QT_API environment variable
-import os 
+import os
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
@@ -72,7 +72,7 @@ class StreamHandler(QObject):
     def set_save_fps(self,fps):
         self.fps_save = fps
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -127,7 +127,7 @@ class StreamHandler(QObject):
     '''
     def on_new_frame_from_simulation(self,image,frame_ID,timestamp):
         # check whether image is a local copy or pointer, if a pointer, needs to prevent the image being modified while this function is being executed
-        
+
         self.handler_busy = True
 
         # crop image
@@ -186,14 +186,14 @@ class ImageSaver(QObject):
                 if file_ID == 0:
                     os.mkdir(os.path.join(self.base_path,self.experiment_ID,str(folder_ID)))
                 saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '.' + self.image_format)
-                
+
                 cv2.imwrite(saving_path,image)
                 self.counter = self.counter + 1
                 self.queue.task_done()
                 self.image_lock.release()
             except:
                 pass
-                            
+
     def enqueue(self,image,frame_ID,timestamp):
         try:
             self.queue.put_nowait([image,frame_ID,timestamp])
@@ -241,8 +241,8 @@ class ImageDisplay(QObject):
         self.image_lock = Lock()
         self.stop_signal_received = False
         self.thread = Thread(target=self.process_queue)
-        self.thread.start()        
-        
+        self.thread.start()
+
     def process_queue(self):
         while True:
             # stop the thread if stop signal is received
@@ -375,7 +375,7 @@ class LiveController(QObject):
         if mode == TriggerMode.HARDWARE:
             print('hardware trigger to be added')
             #self.camera.set_hardware_triggered_acquisition()
-        if mode == TriggerMode.CONTINUOUS: 
+        if mode == TriggerMode.CONTINUOUS:
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
             if self.trigger_mode == TriggerMode.HARDWARE:
@@ -386,14 +386,14 @@ class LiveController(QObject):
     def set_trigger_fps(self,fps):
         if self.trigger_mode == TriggerMode.SOFTWARE:
             self._set_software_trigger_fps(fps)
-    
+
     # set microscope mode
     # @@@ to do: change softwareTriggerGenerator to TriggerGeneratror
     def set_microscope_mode(self,configuration):
 
         self.currentConfiguration = configuration
         print("setting microscope mode to " + self.currentConfiguration.name)
-        
+
         # temporarily stop live while changing mode
         if self.is_live is True:
             self.timer_software_trigger.stop()
@@ -408,7 +408,7 @@ class LiveController(QObject):
         if self.control_illumination:
             self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
 
-        # restart live 
+        # restart live
         if self.is_live is True:
             if self.control_illumination:
                 self.turn_on_illumination()
@@ -465,8 +465,8 @@ class NavigationController(QObject):
         pos = self.microcontroller.read_received_packet_nowait()
         if pos is None:
             return
-        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
-        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
+        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_X # @@@TODO@@@: move to microcontroller?
+        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Y # @@@TODO@@@: move to microcontroller?
         self.z_pos = utils.unsigned_to_signed(pos[6:9],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Z  # @@@TODO@@@: move to microcontroller?
         self.xPos.emit(self.x_pos)
         self.yPos.emit(self.y_pos)
@@ -502,7 +502,7 @@ class AutoFocusController(QObject):
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)*Motion.STEPS_PER_MM_Z)
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -519,7 +519,7 @@ class AutoFocusController(QObject):
             self.camera.stop_streaming()
             self.camera.disable_callback()
             self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-        
+
         # @@@ to add: increase gain, decrease exposure time
         # @@@ can move the execution into a thread
         focus_measure_vs_z = [0]*self.N
@@ -577,7 +577,7 @@ class AutoFocusController(QObject):
         if self.liveController.was_live_before_autofocus:
             self.liveController.start_live()
             self.liveController.was_live = False
-        
+
         print('autofocus finished')
         self.autofocusFinished.emit()
 
@@ -605,9 +605,9 @@ class MultiPointController(QObject):
         self.NZ = 1
         self.Nt = 1
         self.deltaX = Acquisition.DX
-        self.deltaX_usteps = round(self.deltaX*Motion.STEPS_PER_MM_XY)
+        self.deltaX_usteps = round(self.deltaX*Motion.STEPS_PER_MM_X)
         self.deltaY = Acquisition.DY
-        self.deltaY_usteps = round(self.deltaY*Motion.STEPS_PER_MM_XY)
+        self.deltaY_usteps = round(self.deltaY*Motion.STEPS_PER_MM_Y)
         self.deltaZ = Acquisition.DZ/1000
         self.deltaZ_usteps = round(self.deltaZ*Motion.STEPS_PER_MM_Z)
         self.deltat = 1
@@ -631,10 +631,10 @@ class MultiPointController(QObject):
         self.Nt = N
     def set_deltaX(self,delta):
         self.deltaX = delta
-        self.deltaX_usteps = round(delta*Motion.STEPS_PER_MM_XY)
+        self.deltaX_usteps = round(delta*Motion.STEPS_PER_MM_X)
     def set_deltaY(self,delta):
         self.deltaY = delta
-        self.deltaY_usteps = round(delta*Motion.STEPS_PER_MM_XY)
+        self.deltaY_usteps = round(delta*Motion.STEPS_PER_MM_Y)
     def set_deltaZ(self,delta_um):
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)*Motion.STEPS_PER_MM_Z)
@@ -643,7 +643,7 @@ class MultiPointController(QObject):
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -665,7 +665,7 @@ class MultiPointController(QObject):
         self.selected_configurations = []
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
-        
+
     def run_acquisition(self): # @@@ to do: change name to run_experiment
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
@@ -679,7 +679,7 @@ class MultiPointController(QObject):
             self.acquisitionTimer.timeout.connect(self._on_acquisitionTimer_timeout)
             self.acquisitionTimer.start()
             self.acquisitionTimer.timeout.emit() # trigger the first acquisition
-        
+
         # continous, for loop-based multipoint
         else:
             # stop live
@@ -707,7 +707,7 @@ class MultiPointController(QObject):
                 self.camera.enable_callback()
                 self.camera.start_streaming()
                 self.camera.callback_was_enabled_before_multipoint = False
-            
+
             if self.liveController.was_live_before_multipoint:
                 self.liveController.start_live()
 
@@ -729,7 +729,7 @@ class MultiPointController(QObject):
         self._run_single_acquisition()
 
     def _run_multipoint_single(self):
-        
+
         self.FOV_counter = 0
         print('multipoint acquisition - time point ' + str(self.time_point))
 
@@ -772,7 +772,7 @@ class MultiPointController(QObject):
                         # self.liveController.set_microscope_mode(config)
                         self.signal_current_configuration.emit(config)
                         self.liveController.turn_on_illumination()
-                        self.camera.send_trigger() 
+                        self.camera.send_trigger()
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
@@ -785,13 +785,13 @@ class MultiPointController(QObject):
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
                         QApplication.processEvents()
-                    
+
                     # QApplication.processEvents()
 
                     # move z
                     if k < self.NZ - 1:
                         self.navigationController.move_z_usteps(self.deltaZ_usteps)
-                
+
                 # move z back
                 self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
 
@@ -800,23 +800,23 @@ class MultiPointController(QObject):
 
                 # move x
                 if j < self.NX - 1:
-                    self.navigationController.move_x_usteps(self.deltaX_usteps)
+                    self.navigationController.move_x(self.deltaX)
 
             # move x back
-            self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+            self.navigationController.move_x(-self.deltaX*(self.NX-1))
 
             # move y
             if i < self.NY - 1:
-                self.navigationController.move_y_usteps(self.deltaY_usteps)
+                self.navigationController.move_y(self.deltaY)
 
         # move y back
-        self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
+        self.navigationController.move_y(-self.deltaY*(self.NY-1))
 
 
     def _run_single_acquisition(self):
 
         self.single_acquisition_in_progress = True
-        
+
         # stop live
         if self.liveController.is_live:
             self.liveController.was_live_before_multipoint = True
@@ -834,20 +834,20 @@ class MultiPointController(QObject):
             self.camera.callback_was_enabled_before_multipoint = False
 
         self._run_multipoint_single()
-                        
+
         # re-enable callback
         if self.camera.callback_was_enabled_before_multipoint:
             self.camera.stop_streaming()
             self.camera.enable_callback()
             self.camera.start_streaming()
             self.camera.callback_was_enabled_before_multipoint = False
-        
+
         if self.liveController.was_live_before_multipoint:
             self.liveController.start_live()
 
         # emit acquisitionFinished signal
         self.acquisitionFinished.emit()
-        
+
         # update time_point for the next scheduled single acquisition (if any)
         self.time_point = self.time_point + 1
 
@@ -879,7 +879,7 @@ class TrackingController(QObject):
             # initialize the PID controller
             pass
 
-        # crop the image, resize the image 
+        # crop the image, resize the image
         # [to fill]
 
         # get the location
@@ -921,10 +921,10 @@ class ImageDisplayWindow(QMainWindow):
 
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.graphics_widget.view = self.graphics_widget.addViewBox()
-        
+
         ## lock the aspect ratio so pixels are always square
         self.graphics_widget.view.setAspectLocked(True)
-        
+
         ## Create image item
         self.graphics_widget.img = pg.ImageItem(border='w')
         self.graphics_widget.view.addItem(self.graphics_widget.img)
@@ -942,7 +942,7 @@ class ImageDisplayWindow(QMainWindow):
 
         ## Layout
         layout = QGridLayout()
-        layout.addWidget(self.graphics_widget, 0, 0) 
+        layout.addWidget(self.graphics_widget, 0, 0)
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
 
@@ -1010,7 +1010,7 @@ class ImageArrayDisplayWindow(QMainWindow):
         layout.addWidget(self.graphics_widget_1, 0, 0)
         layout.addWidget(self.graphics_widget_2, 0, 1)
         layout.addWidget(self.graphics_widget_3, 1, 0)
-        layout.addWidget(self.graphics_widget_4, 1, 1) 
+        layout.addWidget(self.graphics_widget_4, 1, 1)
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
 
@@ -1036,7 +1036,7 @@ class ConfigurationManager(QObject):
         self.config_filename = filename
         self.configurations = []
         self.read_configurations()
-        
+
     def save_configurations(self):
         self.write_configuration(self.config_filename)
 
