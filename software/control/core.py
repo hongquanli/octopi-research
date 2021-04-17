@@ -742,6 +742,8 @@ class MultiPointController(QObject):
         # along y
         for i in range(self.NY):
 
+            self.FOV_counter = 0 # so that AF at the beginning of each new row
+
             # along x
             for j in range(self.NX):
 
@@ -749,14 +751,14 @@ class MultiPointController(QObject):
                 for k in range(self.NZ):
 
                     # perform AF only if when not taking z stack
-                    # if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                    if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                     # temporary: replace the above line with the line below to AF every FOV
-                    if (self.NZ == 1) and (self.do_autofocus):
-                        # temporary (next 3 lines, to be modified) - use 405 nm for autofocus
-                        configuration_name_AF = 'Fluorescence 405 nm Ex'
+                    # if (self.NZ == 1) and (self.do_autofocus):
+                        configuration_name_AF = 'BF LED matrix full'
                         config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                         self.signal_current_configuration.emit(config_AF)
                         self.autofocusController.autofocus()
+                        time.sleep(4) # temporary
 
                     if (self.NZ > 1):
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
