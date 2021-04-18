@@ -43,10 +43,37 @@ class CameraSettingsWidget(QFrame):
         self.dropdown_pixelFormat.addItems(['MONO8','MONO12','MONO14','MONO16','BAYER_RG8','BAYER_RG12'])
         # to do: load and save pixel format in configurations
 
+        self.entry_ROI_offset_x = QSpinBox()
+        self.entry_ROI_offset_x.setValue(CAMERA.ROI_OFFSET_X_DEFAULT)
+        self.entry_ROI_offset_x.setFixedWidth(40)
+        self.entry_ROI_offset_x.setMinimum(-1500)
+        self.entry_ROI_offset_x.setMaximum(1500)
+        self.entry_ROI_offset_x.setKeyboardTracking(False)
+        self.entry_ROI_offset_y = QSpinBox()
+        self.entry_ROI_offset_y.setValue(CAMERA.ROI_OFFSET_Y_DEFAULT)
+        self.entry_ROI_offset_y.setFixedWidth(40)
+        self.entry_ROI_offset_y.setMinimum(-1500)
+        self.entry_ROI_offset_y.setMaximum(1500)
+        self.entry_ROI_offset_y.setKeyboardTracking(False)
+        self.entry_ROI_width = QSpinBox()
+        self.entry_ROI_width.setMaximum(4000)
+        self.entry_ROI_width.setValue(CAMERA.ROI_WIDTH_DEFAULT)
+        self.entry_ROI_width.setFixedWidth(60)
+        self.entry_ROI_width.setKeyboardTracking(False)
+        self.entry_ROI_height = QSpinBox()
+        self.entry_ROI_height.setMaximum(3000)
+        self.entry_ROI_height.setValue(CAMERA.ROI_HEIGHT_DEFAULT)
+        self.entry_ROI_height.setFixedWidth(60)
+        self.entry_ROI_height.setKeyboardTracking(False)
+
         # connection
         self.entry_exposureTime.valueChanged.connect(self.camera.set_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.camera.set_analog_gain)
         self.dropdown_pixelFormat.currentTextChanged.connect(self.camera.set_pixel_format)
+        self.entry_ROI_offset_x.valueChanged.connect(self.set_ROI)
+        self.entry_ROI_offset_y.valueChanged.connect(self.set_ROI)
+        self.entry_ROI_height.valueChanged.connect(self.set_ROI)
+        self.entry_ROI_width.valueChanged.connect(self.set_ROI)
 
         # layout
         grid_ctrl = QGridLayout()
@@ -57,8 +84,22 @@ class CameraSettingsWidget(QFrame):
         grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
         grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
 
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(QLabel('ROI'))
+        hbox1.addStretch()
+        hbox1.addWidget(QLabel('height'))
+        hbox1.addWidget(self.entry_ROI_height)
+        hbox1.addWidget(QLabel('width'))
+        hbox1.addWidget(self.entry_ROI_width)
+        
+        hbox1.addWidget(QLabel('offset y'))
+        hbox1.addWidget(self.entry_ROI_offset_y)
+        hbox1.addWidget(QLabel('offset x'))
+        hbox1.addWidget(self.entry_ROI_offset_x)
+
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)
+        self.grid.addLayout(hbox1,1,0)
         self.setLayout(self.grid)
 
     def set_exposure_time(self,exposure_time):
@@ -67,6 +108,8 @@ class CameraSettingsWidget(QFrame):
     def set_analog_gain(self,analog_gain):
         self.entry_analogGain.setValue(analog_gain)
 
+    def set_ROI(self):
+    	self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
