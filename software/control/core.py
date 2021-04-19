@@ -336,6 +336,8 @@ class LiveController(QObject):
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
             # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
+            if self.trigger_mode == TriggerMode.CONTINUOUS:
+            	self.camera.stop_streaming()
             if self.control_illumination:
                 self.turn_off_illumination()
 
@@ -374,7 +376,7 @@ class LiveController(QObject):
                 self._start_software_triggerred_acquisition()
         if mode == TriggerMode.HARDWARE:
             print('hardware trigger to be added')
-            self.camera.reset_camera_acquisition_counter()
+            # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
         if mode == TriggerMode.CONTINUOUS: 
             if self.trigger_mode == TriggerMode.SOFTWARE:

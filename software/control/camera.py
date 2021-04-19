@@ -220,7 +220,7 @@ class Camera(object):
             return
         self.current_frame = numpy_image
         self.frame_ID_software = self.frame_ID_software + 1
-        self.frame_ID = raw_image.get_frame_ID()
+        self.frame_ID = raw_image.get_frame_id()
         self.timestamp = time.time()
         self.new_image_callback_external(self)
 
@@ -298,7 +298,7 @@ class Camera(object):
                 self.start_streaming()
 
     def reset_camera_acquisition_counter(self):
-        if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable()
+        if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
             self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE0)
         else:
             print("CounterEventSource is not implemented or not writable")
