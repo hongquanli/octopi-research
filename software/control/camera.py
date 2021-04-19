@@ -27,6 +27,7 @@ class Camera(object):
         self.exposure_time = 0
         self.analog_gain = 0
         self.frame_ID = -1
+        self.frame_ID_software = -1
         self.timestamp = 0
 
         self.image_locked = False
@@ -218,7 +219,8 @@ class Camera(object):
         if numpy_image is None:
             return
         self.current_frame = numpy_image
-        self.frame_ID = self.frame_ID + 1 # @@@ read frame ID from the camera
+        self.frame_ID_software = self.frame_ID_software + 1
+        self.frame_ID = raw_image.get_frame_ID()
         self.timestamp = time.time()
         self.new_image_callback_external(self)
 
@@ -290,12 +292,21 @@ class Camera(object):
             if self.camera.Height.is_implemented() and self.camera.Height.is_writable():
                 self.camera.Height.set(self.ROI_height)
             else:
-                print("OffsetX is not implemented or not writable")
+                print("Height is not implemented or not writable")
             # restart streaming if it was previously on
             if was_streaming == True:
                 self.start_streaming()
 
+    def reset_camera_acquisition_counter(self):
+        if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable()
+            self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE0)
+        else:
+            print("CounterEventSource is not implemented or not writable")
 
+        if self.camera.CounterReset.is_implemented():
+            self.camera.CounterReset.send_command()
+        else:
+            print("CounterReset is not implemented")
 
 class Camera_Simulation(object):
     
@@ -359,7 +370,7 @@ class Camera_Simulation(object):
         pass
 
     def start_streaming(self):
-        self.frame_ID = 0
+        self.frame_ID_software = 0
 
     def stop_streaming(self):
         pass
@@ -393,4 +404,10 @@ class Camera_Simulation(object):
         return self.current_frame
 
     def _on_frame_callback(self, user_param, raw_image):
+        pass
+
+    def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
+        pass
+
+    def reset_camera_acquisition_counter(self):
         pass

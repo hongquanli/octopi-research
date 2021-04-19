@@ -185,7 +185,7 @@ class ImageSaver(QObject):
                 # create a new folder
                 if file_ID == 0:
                     os.mkdir(os.path.join(self.base_path,self.experiment_ID,str(folder_ID)))
-                saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '.' + self.image_format)
+                saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '_' + str(frame_ID) + '.' + self.image_format)
                 
                 cv2.imwrite(saving_path,image)
                 self.counter = self.counter + 1
@@ -374,7 +374,8 @@ class LiveController(QObject):
                 self._start_software_triggerred_acquisition()
         if mode == TriggerMode.HARDWARE:
             print('hardware trigger to be added')
-            #self.camera.set_hardware_triggered_acquisition()
+            self.camera.reset_camera_acquisition_counter()
+            self.camera.set_hardware_triggered_acquisition()
         if mode == TriggerMode.CONTINUOUS: 
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
