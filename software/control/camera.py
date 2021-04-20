@@ -183,7 +183,8 @@ class Camera(object):
 
     def set_hardware_triggered_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
-        self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE0)
+        self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
+        self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
 
     def send_trigger(self):
         if self.is_streaming:
@@ -308,6 +309,18 @@ class Camera(object):
         else:
             print("CounterReset is not implemented")
 
+    def set_line3_to_strobe(self):
+        self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
+        self.camera.LineSelector.set(gx.GxLineSelectorEntry.Line3)
+        self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
+        self.camera.LineSource.set(gx.GxLineSourceEntry.STROBE)
+
+    def set_line3_to_exposure_active(self):
+        self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
+        self.camera.LineSelector.set(gx.GxLineSelectorEntry.Line3)
+        self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
+        self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
+
 class Camera_Simulation(object):
     
     def __init__(self,sn=None):
@@ -410,4 +423,10 @@ class Camera_Simulation(object):
         pass
 
     def reset_camera_acquisition_counter(self):
+        pass
+
+    def set_line3_to_strobe(self):
+        pass
+
+    def set_line3_to_exposure_active(self):
         pass
