@@ -28,6 +28,7 @@ class Camera(object):
         self.analog_gain = 0
         self.frame_ID = -1
         self.frame_ID_software = -1
+        self.frame_ID_offset_hardware_trigger = 0
         self.timestamp = 0
 
         self.image_locked = False
@@ -185,6 +186,7 @@ class Camera(object):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
         self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
+        self.frame_ID_offset_hardware_trigger = self.frame_ID
 
     def send_trigger(self):
         if self.is_streaming:
@@ -337,6 +339,8 @@ class Camera_Simulation(object):
         self.exposure_time = 0
         self.analog_gain = 0
         self.frame_ID = -1
+        self.frame_ID_software = -1
+        self.frame_ID_offset_hardware_trigger = 0
         self.timestamp = 0
 
         self.image_locked = False
