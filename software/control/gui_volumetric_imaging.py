@@ -24,7 +24,7 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load objects
-		self.camera = camera.Camera_Simulation()
+		self.camera = camera.Camera()
 		self.microcontroller = microcontroller.Microcontroller_Simulation()
 		
 		self.configurationManager = core.ConfigurationManager()

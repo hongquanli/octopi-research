@@ -185,7 +185,7 @@ class Camera(object):
     def set_hardware_triggered_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
-        self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
+        # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
         self.frame_ID_offset_hardware_trigger = self.frame_ID
 
     def send_trigger(self):
@@ -302,7 +302,7 @@ class Camera(object):
 
     def reset_camera_acquisition_counter(self):
         if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
-            self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE0)
+            self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2)
         else:
             print("CounterEventSource is not implemented or not writable")
 
