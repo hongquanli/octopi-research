@@ -68,6 +68,7 @@ volatile long focusPosition = 0;
 // analog input
 #define analog_in_0 A6
 #define analog_in_1 A7
+bool joystick_not_connected = false;
 
 // joy stick
 #define joystick_X A4
@@ -382,6 +383,8 @@ void setup() {
   analogReadResolution(10);
   joystick_offset_x = analogRead(joystick_X);
   joystick_offset_y = analogRead(joystick_Y);
+  if(joystick_offset_x<400 && joystick_offset_y<400)
+    joystick_not_connected = true;
   
   Timer3.attachInterrupt(timer_interruptHandler);
   Timer3.start(TIMER_PERIOD); 
@@ -456,7 +459,7 @@ void loop() {
     }
   }
 
-  if(flag_read_joystick) 
+  if(flag_read_joystick && joystick_not_connected == false) 
   {
     // read rocker state (may be moved)
     rocker_state = digitalRead(rocker);
