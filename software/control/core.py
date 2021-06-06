@@ -915,7 +915,7 @@ class TrackingController(QObject):
 # based on code from gravity machine
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self, window_title=''):
+    def __init__(self, invertX=True, window_title=''):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
@@ -926,7 +926,7 @@ class ImageDisplayWindow(QMainWindow):
         pg.setConfigOptions(imageAxisOrder='row-major')
 
         self.graphics_widget = pg.GraphicsLayoutWidget()
-        self.graphics_widget.view = self.graphics_widget.addViewBox()
+        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX)
         
         ## lock the aspect ratio so pixels are always square
         self.graphics_widget.view.setAspectLocked(True)
