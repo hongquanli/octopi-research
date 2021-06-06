@@ -915,7 +915,7 @@ class TrackingController(QObject):
 # based on code from gravity machine
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self, invertX=True, window_title=''):
+    def __init__(self, invertX=False, window_title=''):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
