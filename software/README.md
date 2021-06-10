@@ -9,10 +9,11 @@ sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
 pip3 install qtpy pyserial
 ```
-If opencv is not preinstalled (e.g. if you're not using a Jetson but a regular computer), run the following
+If opencv and lxml not preinstalled (e.g. if you're not using a Jetson but a regular computer), run the following
 ```
 pip3 install --upgrade setuptools pip
-pip3 install opencv-python
+pip3 install opencv-python opencv-contrib-python
+pip3 install lxml
 ```
 
 ### install camera drivers
