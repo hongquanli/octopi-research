@@ -9,7 +9,9 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 # app specific libraries
-import control.gui_camera_only_tiscamera as gui
+import control.gui_camera_only as gui
+#import control.gui_2cameras_async as gui
+#import control.gui_tiscamera as gui
 
 if __name__ == "__main__":
 

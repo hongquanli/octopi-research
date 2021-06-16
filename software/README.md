@@ -9,13 +9,17 @@ sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
 pip3 install qtpy pyserial
 ```
+If opencv and lxml not preinstalled (e.g. if you're not using a Jetson but a regular computer), run the following
+```
+pip3 install --upgrade setuptools pip
+pip3 install opencv-python opencv-contrib-python
+pip3 install lxml
+```
 
 ### install camera drivers
 If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
 
 If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
-
-
 
 ### enable access to serial ports without sudo
 
