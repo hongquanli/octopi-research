@@ -102,12 +102,12 @@ constexpr float MAX_VELOCITY_Z_mm = 2;
 constexpr float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
 constexpr float MAX_ACCELERATION_Z_mm = 20;   // 20 mm/s/s
-static const long X_NEG_LIMIT_MM = -12;
-static const long X_POS_LIMIT_MM = 12;
-static const long Y_NEG_LIMIT_MM = -12;
-static const long Y_POS_LIMIT_MM = 12;
-static const long Z_NEG_LIMIT_MM = -5;
-static const long Z_POS_LIMIT_MM = 5;
+static const long X_NEG_LIMIT_MM = -13;
+static const long X_POS_LIMIT_MM = 13;
+static const long Y_NEG_LIMIT_MM = -13;
+static const long Y_POS_LIMIT_MM = 13;
+static const long Z_NEG_LIMIT_MM = -20;
+static const long Z_POS_LIMIT_MM = 20;
 
 bool runSpeed_flag_X = false;
 bool runSpeed_flag_Y = false;
@@ -472,7 +472,7 @@ void loop() {
     if(!X_commanded_movement_in_progress) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
       deltaX = analogRead(joystick_X) - joystick_offset_x;
-      deltaX_float = -deltaX;
+      deltaX_float = deltaX;
       if(abs(deltaX_float)>joystickSensitivity)
       {
         stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_XY);
