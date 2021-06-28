@@ -21,16 +21,20 @@ class OctopiGUI(QMainWindow):
 	# variables
 	fps_software_trigger = 100
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, is_simulation = False, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load objects
-		self.microcontroller = microcontroller.Microcontroller()
-		self.navigationController = core.NavigationController(self.microcontroller)
+		if is_simulation:
+			self.microcontroller = microcontroller.Microcontroller_Simulation()
+			self.camera_1 = camera.Camera_Simulation(sn='FW0200050063') # tracking
+			self.camera_2 = camera.Camera_Simulation(sn='FW0200050068')	# fluorescence
+		else:
+			self.microcontroller = microcontroller.Microcontroller()
+			self.camera_1 = camera.Camera(sn='FW0200050063') # tracking
+			self.camera_2 = camera.Camera(sn='FW0200050068')	# fluorescence
 
-		self.camera_1 = camera.Camera(sn='FW0200050063') # tracking
-		self.camera_2 = camera.Camera(sn='FW0200050068')	# fluorescence
-		
+		self.navigationController = core.NavigationController(self.microcontroller)
 		self.configurationManager = core.ConfigurationManager(filename=str(Path.home()) + "/configurations_PDAF.xml")
 
 		self.streamHandler_1 = core.StreamHandler()
