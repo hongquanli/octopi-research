@@ -100,7 +100,7 @@ class TwoCamerasPDAFCalibrationController(QObject):
 
     z_pos = Signal(float)
 
-    def __init__(self,camera1,camera2,navigationController,liveController1,liveController2,configurationManager):
+    def __init__(self,camera1,camera2,navigationController,liveController1,liveController2,configurationManager=None):
         QObject.__init__(self)
 
         self.camera1 = camera1
@@ -154,7 +154,8 @@ class TwoCamerasPDAFCalibrationController(QObject):
         # create a new folder
         try:
             os.mkdir(os.path.join(self.base_path,self.experiment_ID))
-            self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
+            if self.configurationManager:
+                self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
         except:
             pass
 
@@ -221,43 +222,43 @@ class TwoCamerasPDAFCalibrationController(QObject):
         self.acquisitionFinished.emit()
         QApplication.processEvents()
 
-    # def _on_acquisitionTimer_timeout(self):
-    #     # check if the last single acquisition is ongoing
-    #     if self.single_acquisition_in_progress is True:
-    #         self.time_point = self.time_point + 1
-    #         # stop the timer if number of time points is equal to Nt (despite some time points may have been skipped)
-    #         if self.time_point >= self.Nt:
-    #             self.acquisitionTimer.stop()
-    #         else:
-    #             print('the last acquisition has not completed, skip time point ' + str(self.time_point))
-    #         return
-    #     # if not, run single acquisition
-    #     self._run_single_acquisition()
-
     def _run_multipoint_single(self):
-        
-        self.FOV_counter = 0
-        print('multipoint acquisition - time point ' + str(self.time_point))
-
-        # do the multipoint acquisition
-
         # for each time point, create a new folder
         current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
         os.mkdir(current_path)
-
+        
         # z-stack
         for k in range(self.NZ):
-
             file_ID = str(k)
+            if self.configurationManager:
+                # iterate through selected modes
+                for config in self.selected_configurations:
+                    self.signal_current_configuration.emit(config)
+                    self.camera1.send_trigger() 
+                    image = self.camera1.read_frame()
+                    image = utils.crop_image(image,self.crop_width,self.crop_height)
+                    saving_path = os.path.join(current_path, 'camera1_' + file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                    image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController1.display_resolution_scaling), round(self.crop_height*self.liveController1.display_resolution_scaling))
+                    self.image_to_display_camera1.emit(image_to_display)
+                    if self.camera1.is_color:
+                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                    cv2.imwrite(saving_path,image)
 
-            # iterate through selected modes
-            for config in self.selected_configurations:
-                self.signal_current_configuration.emit(config)
-
+                    self.camera2.send_trigger() 
+                    image = self.camera2.read_frame()
+                    image = utils.crop_image(image,self.crop_width,self.crop_height)
+                    saving_path = os.path.join(current_path, 'camera2_' + file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                    image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController2.display_resolution_scaling), round(self.crop_height*self.liveController2.display_resolution_scaling))
+                    self.image_to_display_camera2.emit(image_to_display)
+                    if self.camera2.is_color:
+                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                    cv2.imwrite(saving_path,image)
+                    QApplication.processEvents()
+            else:
                 self.camera1.send_trigger() 
                 image = self.camera1.read_frame()
                 image = utils.crop_image(image,self.crop_width,self.crop_height)
-                saving_path = os.path.join(current_path, 'camera1_' + file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                saving_path = os.path.join(current_path, 'camera1_' + file_ID + '.' + Acquisition.IMAGE_FORMAT)
                 image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController1.display_resolution_scaling), round(self.crop_height*self.liveController1.display_resolution_scaling))
                 self.image_to_display_camera1.emit(image_to_display)
                 if self.camera1.is_color:
@@ -267,71 +268,16 @@ class TwoCamerasPDAFCalibrationController(QObject):
                 self.camera2.send_trigger() 
                 image = self.camera2.read_frame()
                 image = utils.crop_image(image,self.crop_width,self.crop_height)
-                saving_path = os.path.join(current_path, 'camera2_' + file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                saving_path = os.path.join(current_path, 'camera2_' + file_ID + '.' + Acquisition.IMAGE_FORMAT)
                 image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController2.display_resolution_scaling), round(self.crop_height*self.liveController2.display_resolution_scaling))
                 self.image_to_display_camera2.emit(image_to_display)
                 if self.camera2.is_color:
                     image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                 cv2.imwrite(saving_path,image)
-
                 QApplication.processEvents()
-            
-            # QApplication.processEvents()
-
             # move z
             if k < self.NZ - 1:
                 self.navigationController.move_z_usteps(self.deltaZ_usteps)
         
         # move z back
         self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
-
-        # update FOV counter
-        self.FOV_counter = self.FOV_counter + 1
-
-
-    # def _run_single_acquisition(self):
-
-    #     self.single_acquisition_in_progress = True
-        
-    #     # stop live
-    #     if self.liveController.is_live:
-    #         self.liveController.was_live_before_multipoint = True
-    #         self.liveController.stop_live() # @@@ to do: also uncheck the live button
-    #     else:
-    #         self.liveController.was_live_before_multipoint = False
-
-    #     # disable callback
-    #     if self.camera.callback_is_enabled:
-    #         self.camera.callback_was_enabled_before_multipoint = True
-    #         self.camera.stop_streaming()
-    #         self.camera.disable_callback()
-    #         self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-    #     else:
-    #         self.camera.callback_was_enabled_before_multipoint = False
-
-    #     self._run_multipoint_single()
-                        
-    #     # re-enable callback
-    #     if self.camera.callback_was_enabled_before_multipoint:
-    #         self.camera.stop_streaming()
-    #         self.camera.enable_callback()
-    #         self.camera.start_streaming()
-    #         self.camera.callback_was_enabled_before_multipoint = False
-        
-    #     if self.liveController.was_live_before_multipoint:
-    #         self.liveController.start_live()
-
-    #     # emit acquisitionFinished signal
-    #     self.acquisitionFinished.emit()
-        
-    #     # update time_point for the next scheduled single acquisition (if any)
-    #     self.time_point = self.time_point + 1
-
-    #     if self.time_point >= self.Nt:
-    #         print('Multipoint acquisition finished')
-    #         if self.acquisitionTimer.isActive():
-    #             self.acquisitionTimer.stop()
-    #         self.acquisitionFinished.emit()
-    #         QApplication.processEvents()
-
-    #     self.single_acquisition_in_progress = False
