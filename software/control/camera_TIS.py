@@ -32,12 +32,17 @@ class Camera(object):
         self.new_image_callback_external = None
         self.image_locked = False
         self.is_streaming = False
+        self.is_color = color
 
         self.GAIN_MAX = 480
         self.GAIN_MIN = 0
         self.GAIN_STEP = 10
         self.EXPOSURE_TIME_MS_MIN = 0.02
         self.EXPOSURE_TIME_MS_MAX = 4000
+
+        self.callback_is_enabled = False
+        self.callback_was_enabled_before_autofocus = False
+        self.callback_was_enabled_before_multipoint = False
 
         format = "BGRx"
         if(color == False):
@@ -206,12 +211,17 @@ class Camera_Simulation(object):
         self.new_image_callback_external = None
         self.image_locked = False
         self.is_streaming = False
+        self.is_color = color
 
         self.GAIN_MAX = 480
         self.GAIN_MIN = 0
         self.GAIN_STEP = 10
         self.EXPOSURE_TIME_MS_MIN = 0.02
         self.EXPOSURE_TIME_MS_MAX = 4000
+
+        self.callback_is_enabled = False
+        self.callback_was_enabled_before_autofocus = False
+        self.callback_was_enabled_before_multipoint = False
 
     def open(self,index=0):
         pass
