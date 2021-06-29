@@ -516,6 +516,8 @@ class AutoFocusController(QObject):
         if self.liveController.is_live:
             self.liveController.was_live_before_autofocus = True
             self.liveController.stop_live()
+        else:
+            self.was_live_before_autofocus = False
 
         # temporarily disable call back -> image does not go through streamHandler
         if self.camera.callback_is_enabled:
@@ -523,7 +525,9 @@ class AutoFocusController(QObject):
             self.camera.stop_streaming()
             self.camera.disable_callback()
             self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-        
+        else:
+            self.camera.callback_was_enabled_before_autofocus = False
+
         # @@@ to add: increase gain, decrease exposure time
         # @@@ can move the execution into a thread
         focus_measure_vs_z = [0]*self.N
@@ -580,7 +584,7 @@ class AutoFocusController(QObject):
 
         if self.liveController.was_live_before_autofocus:
             self.liveController.start_live()
-            self.liveController.was_live = False
+            self.liveController.was_live_before_autofocus = False
         
         print('autofocus finished')
         self.autofocusFinished.emit()
@@ -686,6 +690,7 @@ class MultiPointController(QObject):
         
         # continous, for loop-based multipoint
         else:
+            self.configuration_before_running_multipoint = self.liveController.currentConfiguration
             # stop live
             if self.liveController.is_live:
                 self.liveController.was_live_before_multipoint = True
@@ -704,6 +709,9 @@ class MultiPointController(QObject):
 
             for self.time_point in range(self.Nt):
                 self._run_multipoint_single()
+
+            # restore the previous selected mode
+            self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
             # re-enable callback
             if self.camera.callback_was_enabled_before_multipoint:
@@ -762,7 +770,6 @@ class MultiPointController(QObject):
                         config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                         self.signal_current_configuration.emit(config_AF)
                         self.autofocusController.autofocus()
-                        time.sleep(4) # temporary
 
                     if (self.NZ > 1):
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
