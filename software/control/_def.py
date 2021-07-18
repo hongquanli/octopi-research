@@ -5,21 +5,6 @@ class TriggerMode:
     def __init__(self):
         pass
 
-class MicroscopeMode:
-    BFDF = 'BF/DF'
-    FLUORESCENCE = 'Fluorescence'
-    FLUORESCENCE_PREVIEW = 'Fluorescence Preview'
-    def __init__(self):
-        pass
-
-class WaitTime:
-    BASE = 0.1
-    X = 0.4*2.54     # per mm
-    Y = 0.4*2.54	 # per mm
-    Z = 0.2     # per mm
-    def __init__(self):
-        pass
-
 class AF:
     STOP_THRESHOLD = 0.85
     CROP_WIDTH = 800
