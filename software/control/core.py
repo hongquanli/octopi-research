@@ -857,9 +857,6 @@ class MultiPointController(QObject):
         
         if self.liveController.was_live_before_multipoint:
             self.liveController.start_live()
-
-        # emit acquisitionFinished signal
-        self.acquisitionFinished.emit()
         
         # update time_point for the next scheduled single acquisition (if any)
         self.time_point = self.time_point + 1
