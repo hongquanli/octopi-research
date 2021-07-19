@@ -24,6 +24,8 @@ from lxml import etree as ET
 from pathlib import Path
 import control.utils_config as utils_config
 
+import math
+
 
 class StreamHandler(QObject):
 
@@ -435,26 +437,36 @@ class NavigationController(QObject):
     xPos = Signal(float)
     yPos = Signal(float)
     zPos = Signal(float)
+    thetaPos = Signal(float)
 
     def __init__(self,microcontroller):
         QObject.__init__(self)
         self.microcontroller = microcontroller
-        self.x_pos = 0
-        self.y_pos = 0
-        self.z_pos = 0
-        self.timer_read_pos = QTimer()
-        self.timer_read_pos.setInterval(PosUpdate.INTERVAL_MS)
-        self.timer_read_pos.timeout.connect(self.update_pos)
-        self.timer_read_pos.start()
+        self.x_pos_mm = 0
+        self.y_pos_mm = 0
+        self.z_pos_mm = 0
+        self.theta_pos_rad = 0
+        self.x_microstepping = MICROSTEPPING_DEFAULT_X
+        self.y_microstepping = MICROSTEPPING_DEFAULT_Y
+        self.z_microstepping = MICROSTEPPING_DEFAULT_Z
+        self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
+
+        # to be moved to gui for transparency
+        self.microcontroller.set_callback(self.update_pos)
+
+        # self.timer_read_pos = QTimer()
+        # self.timer_read_pos.setInterval(PosUpdate.INTERVAL_MS)
+        # self.timer_read_pos.timeout.connect(self.update_pos)
+        # self.timer_read_pos.start()
 
     def move_x(self,delta):
-        self.microcontroller.move_x(delta)
+        self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
 
     def move_y(self,delta):
-        self.microcontroller.move_y(delta)
+        self.microcontroller.move_y_usteps(int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
 
     def move_z(self,delta):
-        self.microcontroller.move_z(delta)
+        self.microcontroller.move_z_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
 
     def move_x_usteps(self,usteps):
         self.microcontroller.move_x_usteps(usteps)
@@ -465,16 +477,31 @@ class NavigationController(QObject):
     def move_z_usteps(self,usteps):
         self.microcontroller.move_z_usteps(usteps)
 
-    def update_pos(self):
-        pos = self.microcontroller.read_received_packet_nowait()
-        if pos is None:
-            return
-        self.x_pos = utils.unsigned_to_signed(pos[0:3],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
-        self.y_pos = utils.unsigned_to_signed(pos[3:6],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_XY # @@@TODO@@@: move to microcontroller?
-        self.z_pos = utils.unsigned_to_signed(pos[6:9],MicrocontrollerDef.N_BYTES_POS)/Motion.STEPS_PER_MM_Z  # @@@TODO@@@: move to microcontroller?
-        self.xPos.emit(self.x_pos)
-        self.yPos.emit(self.y_pos)
-        self.zPos.emit(self.z_pos*1000)
+    def update_pos(self,microcontroller):
+        # get position from the microcontroller
+        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
+        # calculate position in mm or rad
+        if USE_ENCODER_X:
+            self.x_pos_mm = x_pos*ENCODER_STEP_SIZE_X_MM
+        else:
+            self.x_pos_mm = x_pos*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
+        if USE_ENCODER_Y:
+            self.y_pos_mm = y_pos*ENCODER_STEP_SIZE_Y_MM
+        else:
+            self.y_pos_mm = y_pos*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
+        if USE_ENCODER_Z:
+            self.z_pos_mm = z_pos*ENCODER_STEP_SIZE_Z_MM
+        else:
+            self.z_pos_mm = z_pos*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
+        if USE_ENCODER_THETA:
+            self.theta_pos_rad = theta_pos*ENCODER_STEP_SIZE_THETA
+        else:
+            self.theta_pos_rad = theta_pos*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+        # emit the updated position
+        self.xPos.emit(self.x_pos_mm)
+        self.yPos.emit(self.y_pos_mm)
+        self.zPos.emit(self.z_pos_mm*1000)
+        self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
 
     def home(self):
         #self.microcontroller.move_x(-self.x_pos)
