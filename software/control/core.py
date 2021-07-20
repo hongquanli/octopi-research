@@ -482,32 +482,53 @@ class NavigationController(QObject):
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
         # calculate position in mm or rad
         if USE_ENCODER_X:
-            self.x_pos_mm = x_pos*ENCODER_STEP_SIZE_X_MM
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
         else:
-            self.x_pos_mm = x_pos*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
         if USE_ENCODER_Y:
-            self.y_pos_mm = y_pos*ENCODER_STEP_SIZE_Y_MM
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
         else:
-            self.y_pos_mm = y_pos*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
         if USE_ENCODER_Z:
-            self.z_pos_mm = z_pos*ENCODER_STEP_SIZE_Z_MM
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
         else:
-            self.z_pos_mm = z_pos*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
         if USE_ENCODER_THETA:
-            self.theta_pos_rad = theta_pos*ENCODER_STEP_SIZE_THETA
+            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
         else:
-            self.theta_pos_rad = theta_pos*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
         self.yPos.emit(self.y_pos_mm)
         self.zPos.emit(self.z_pos_mm*1000)
         self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
 
-    def home(self):
-        #self.microcontroller.move_x(-self.x_pos)
-        #self.microcontroller.move_y(-self.y_pos)
-        pass # disable software homing
+    def home_x(self):
+        self.microcontroller.home_x()
 
+    def home_y(self):
+        self.microcontroller.home_y()
+
+    def home_z(self):
+        self.microcontroller.home_z()
+
+    def home_theta(self):
+        self.microcontroller.home_theta()
+
+    def zero_x(self):
+        self.microcontroller.zero_x()
+
+    def zero_y(self):
+        self.microcontroller.zero_y()
+
+    def zero_z(self):
+        self.microcontroller.zero_z()
+
+    def zero_theta(self):
+        self.microcontroller.zero_tehta()
+
+    def home(self):
+        pass
 
 class AutoFocusController(QObject):
 

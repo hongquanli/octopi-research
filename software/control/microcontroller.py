@@ -13,6 +13,10 @@ from qtpy.QtGui import *
 
 # add user to the dialout group to avoid the need to use sudo
 
+# to do (7/20/2021) - remove the time.sleep in all functions (except for __init__) to 
+# make all callable functions nonblocking, instead, user should check use is_busy() to
+# check if the microcontroller has finished executing the more recent command
+
 class Microcontroller():
     def __init__(self,parent=None):
         self.serial = None
@@ -105,7 +109,7 @@ class Microcontroller():
             cmd[5] = payload & 0xff
             self.send_command(cmd)
             while self.mcu_cmd_execution_in_progress == True:
-                sleep(self._motion_status_checking_interval)
+                time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -118,7 +122,7 @@ class Microcontroller():
         cmd[5] = payload & 0xff
         self.send_command(cmd)
         while self.mcu_cmd_execution_in_progress == True:
-            sleep(self._motion_status_checking_interval)
+            time.sleep(self._motion_status_checking_interval)
 
     def move_x_usteps_nonblocking(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
@@ -177,7 +181,7 @@ class Microcontroller():
             cmd[5] = payload & 0xff
             self.send_command(cmd)
             while self.mcu_cmd_execution_in_progress == True:
-                sleep(self._motion_status_checking_interval)
+                time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -190,7 +194,7 @@ class Microcontroller():
         cmd[5] = payload & 0xff
         self.send_command(cmd)
         while self.mcu_cmd_execution_in_progress == True:
-            sleep(self._motion_status_checking_interval)
+            time.sleep(self._motion_status_checking_interval)
 
     def move_y_usteps_nonblocking(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
@@ -249,7 +253,7 @@ class Microcontroller():
             cmd[5] = payload & 0xff
             self.send_command(cmd)
             while self.mcu_cmd_execution_in_progress == True:
-                sleep(self._motion_status_checking_interval)
+                time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -262,7 +266,7 @@ class Microcontroller():
         cmd[5] = payload & 0xff
         self.send_command(cmd)
         while self.mcu_cmd_execution_in_progress == True:
-            sleep(self._motion_status_checking_interval)
+            time.sleep(self._motion_status_checking_interval)
     
     def move_z_usteps_nonblocking(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Z*np.sign(usteps)
@@ -307,7 +311,7 @@ class Microcontroller():
             cmd[5] = payload & 0xff
             self.send_command(cmd)
             while self.mcu_cmd_execution_in_progress == True:
-                sleep(self._motion_status_checking_interval)
+                time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -320,7 +324,7 @@ class Microcontroller():
         cmd[5] = payload & 0xff
         self.send_command(cmd)
         while self.mcu_cmd_execution_in_progress == True:
-            sleep(self._motion_status_checking_interval)
+            time.sleep(self._motion_status_checking_interval)
 
     def move_theta_usteps_nonblocking(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_THETA*np.sign(usteps)
@@ -348,6 +352,86 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
+
+    def home_x(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = 0
+        cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def home_y(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = 1
+        cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def home_z(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = 2
+        cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def home_theta(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = 3
+        cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def zero_x(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = AXIS.X
+        cmd[3] = HOME_OR_ZERO.ZERO
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def zero_y(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = AXIS.Y
+        cmd[3] = HOME_OR_ZERO.ZERO
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def zero_z(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = AXIS.Z
+        cmd[3] = HOME_OR_ZERO.ZERO
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+            # to do: add timeout
+
+    def zero_theta(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = AXIS.THETA
+        cmd[3] = HOME_OR_ZERO.ZERO
+        self.send_command(cmd)
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+            # to do: add timeout
 
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
@@ -409,6 +493,9 @@ class Microcontroller():
     def get_button_and_switch_state(self):
         return self.button_and_switch_state
 
+    def is_busy(self):
+        return self.mcu_cmd_execution_in_progress
+
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
@@ -446,24 +533,20 @@ class Microcontroller_Simulation():
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
 
+        self._motion_status_checking_interval = 0.05
+
     def close(self):
         pass
-
-    '''
-    def move_x(self,delta):
-        pass
-
-    def move_y(self,delta):
-        pass
-
-    def move_z(self,delta):
-        pass
-    '''
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
+        '''
+        while self.mcu_cmd_execution_in_progress == True:
+            time.sleep(self._motion_status_checking_interval)
+        # time.sleep() will also sleep the QTimer
+        '''
 
     def move_y_usteps(self,usteps):
         self.y_pos = self.y_pos + usteps
@@ -480,6 +563,46 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
 
+    def home_x(self):
+        self.x_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def home_y(self):
+        self.y_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def home_z(self):
+        self.z_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def home_theta(self):
+        self.theta_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def zero_x(self):
+        self.x_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def zero_y(self):
+        self.y_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def zero_z(self):
+        self.z_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def zero_theta(self):
+        self.theta_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
     def read_received_packet(self):
         while True:
             msg=[]
@@ -492,6 +615,7 @@ class Microcontroller_Simulation():
             self._cmd_execution_status = msg[1]
             if (self._cmd_id_mcu == self._cmd_id) and (self._cmd_execution_status == CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS):
                 self.mcu_cmd_execution_in_progress = False
+            # print('mcu_cmd_execution_in_progress: ' + str(self.mcu_cmd_execution_in_progress))
             
             # self.x_pos = utils.unsigned_to_signed(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             # self.y_pos = utils.unsigned_to_signed(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
@@ -526,6 +650,9 @@ class Microcontroller_Simulation():
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
+    def is_busy(self):
+        return self.mcu_cmd_execution_in_progress
+
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
@@ -533,8 +660,9 @@ class Microcontroller_Simulation():
         self.mcu_cmd_execution_in_progress = True
         # for simulation
         self._mcu_cmd_execution_status = CMD_EXECUTION_STATUS.IN_PROGRESS
-        self.timer_update_command_execution_status.setInterval(1000)
+        self.timer_update_command_execution_status.setInterval(2000)
         self.timer_update_command_execution_status.start()
+        print('start timer')
 
     def _simulation_update_cmd_execution_status(self):
         print('simulation - MCU command execution finished')
