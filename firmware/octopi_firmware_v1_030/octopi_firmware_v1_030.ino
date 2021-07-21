@@ -8,6 +8,20 @@
 #define DOTSTAR_NUM_LEDS 128
 static const bool ENABLE_JOYSTICK = false;
 
+static const int FULLSTEPS_PER_REV_X = 200;
+static const int FULLSTEPS_PER_REV_Y = 200;
+static const int FULLSTEPS_PER_REV_Z = 200;
+static const int FULLSTEPS_PER_REV_THETA = 200;
+
+static const float SCREW_PITCH_X_MM = 1;
+static const float SCREW_PITCH_Y_MM = 1;
+static const float SCREW_PITCH_Z_MM = 0.012*25.4;
+
+static const int MICROSTEPPING_DEFAULT_X = 8;
+static const int MICROSTEPPING_DEFAULT_Y = 8;
+static const int MICROSTEPPING_DEFAULT_Z = 8;
+static const int MICROSTEPPING_DEFAULT_THETA = 8;
+
 /***************************************************************************************************/
 /***************************************** Communications ******************************************/
 /***************************************************************************************************/
@@ -116,8 +130,11 @@ TMC2209Stepper Z_driver(&STEPPER_SERIAL, R_SENSE, Z_driver_ADDRESS);
 AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, X_step, X_dir);
 AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
 AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
-static const long steps_per_mm_XY = 1600;
-static const long steps_per_mm_Z = 5333;
+
+static const long steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_DEFAULT_X/SCREW_PITCH_X_MM;
+static const long steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_DEFAULT_Y/SCREW_PITCH_Y_MM;
+static const long steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_DEFAULT_Z/SCREW_PITCH_Z_MM;
+
 //constexpr float MAX_VELOCITY_X_mm = 7;
 //constexpr float MAX_VELOCITY_Y_mm = 7;
 constexpr float MAX_VELOCITY_X_mm = 20;
@@ -378,12 +395,12 @@ void setup() {
   stepper_Y.setPinsInverted(false, false, true);
   stepper_Z.setPinsInverted(false, false, true);
   
-  stepper_X.setMaxSpeed(MAX_VELOCITY_X_mm*steps_per_mm_XY);
-  stepper_Y.setMaxSpeed(MAX_VELOCITY_Y_mm*steps_per_mm_XY);
+  stepper_X.setMaxSpeed(MAX_VELOCITY_X_mm*steps_per_mm_X);
+  stepper_Y.setMaxSpeed(MAX_VELOCITY_Y_mm*steps_per_mm_Y);
   stepper_Z.setMaxSpeed(MAX_VELOCITY_Z_mm*steps_per_mm_Z);
   
-  stepper_X.setAcceleration(MAX_ACCELERATION_X_mm*steps_per_mm_XY);
-  stepper_Y.setAcceleration(MAX_ACCELERATION_Y_mm*steps_per_mm_XY);
+  stepper_X.setAcceleration(MAX_ACCELERATION_X_mm*steps_per_mm_X);
+  stepper_Y.setAcceleration(MAX_ACCELERATION_Y_mm*steps_per_mm_Y);
   stepper_Z.setAcceleration(MAX_ACCELERATION_Z_mm*steps_per_mm_Z);
 
   stepper_X.enableOutputs();
@@ -453,7 +470,7 @@ void loop() {
         case MOVE_X:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_XY) );
+          X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_X):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_X) );
           stepper_X.moveTo(X_commanded_target_position);
           X_commanded_movement_in_progress = true;
           mcu_cmd_execution_in_progress = true;
@@ -462,7 +479,7 @@ void loop() {
         case MOVE_Y:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_XY):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_XY) );
+          Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_Y):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_Y) );
           stepper_Y.moveTo(Y_commanded_target_position);
           Y_commanded_movement_in_progress = true;
           mcu_cmd_execution_in_progress = true;
@@ -554,14 +571,14 @@ void loop() {
       deltaX_float = deltaX;
       if(abs(deltaX_float)>joystickSensitivity)
       {
-        stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_XY);
+        stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_X);
         runSpeed_flag_X = true;
-        if(stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_XY && deltaX_float>0)
+        if(stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_X && deltaX_float>0)
         {
           runSpeed_flag_X = false;
           stepper_X.setSpeed(0);
         }
-        if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_XY && deltaX_float<0)
+        if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_X && deltaX_float<0)
           {
           runSpeed_flag_X = false;
           stepper_X.setSpeed(0);
@@ -583,14 +600,14 @@ void loop() {
       deltaY_float = -deltaY;
       if(abs(deltaY)>joystickSensitivity)
       {
-        stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_XY);
+        stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
         runSpeed_flag_Y = true;
-        if(stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_XY && deltaY_float>0)
+        if(stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_Y && deltaY_float>0)
         {
           runSpeed_flag_Y = false;
           stepper_Y.setSpeed(0);
         }
-        if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_XY && deltaY_float<0)
+        if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_Y && deltaY_float<0)
         {
           runSpeed_flag_Y = false;
           stepper_Y.setSpeed(0);
