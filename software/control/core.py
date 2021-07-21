@@ -693,6 +693,8 @@ class MultiPointWorker(QObject):
                 while time.time() > self.timestamp_acquisition_started + self.time_point*self.dt:
                     print('skip time point ' + str(self.time_point+1))
                     self.time_point = self.time_point+1
+                if self.time_point == self.Nt:
+                    break # no waiting after taking the last time point
                 # wait until it's time to do the next acquisition
                 while time.time() < self.timestamp_acquisition_started + self.time_point*self.dt:
                     time.sleep(0.05)
@@ -704,7 +706,7 @@ class MultiPointWorker(QObject):
 
     def run_single_time_point(self):
         self.FOV_counter = 0
-        print('multipoint acquisition - time point ' + str(self.time_point))
+        print('multipoint acquisition - time point ' + str(self.time_point+1))
         
         # for each time point, create a new folder
         current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
