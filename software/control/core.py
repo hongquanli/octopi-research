@@ -324,7 +324,10 @@ class LiveController(QObject):
         self.microcontroller.turn_off_illumination()
 
     def set_illumination(self,illumination_source,intensity):
-        self.microcontroller.set_illumination(illumination_source,intensity)
+        if illumination_source < 10: # LED matrix
+            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+        else:
+            self.microcontroller.set_illumination(illumination_source,intensity)
 
     def start_live(self):
         self.is_live = True

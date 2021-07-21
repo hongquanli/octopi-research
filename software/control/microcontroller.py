@@ -69,12 +69,21 @@ class Microcontroller():
         cmd[1] = CMD_SET.TURN_OFF_ILLUMINATION
         self.send_command(cmd)
 
-    def set_illumination(self,illumination_source,intensity):
+    def set_illumination(self,illumination_source,intensity,r=None,g=None,b=None):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION
         cmd[2] = illumination_source
         cmd[3] = int((intensity/100)*65535) >> 8
         cmd[4] = int((intensity/100)*65535) & 0xff
+        self.send_command(cmd)
+
+    def set_illumination_led_matrix(self,illumination_source,r,g,b):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_LED_MATRIX
+        cmd[2] = illumination_source
+        cmd[3] = min(int(r*255),255)
+        cmd[4] = min(int(g*255),255)
+        cmd[5] = min(int(b*255),255)
         self.send_command(cmd)
 
     '''
@@ -365,12 +374,16 @@ class Microcontroller():
             self._cmd_id_mcu = msg[0]
             self._cmd_execution_status = msg[1]
             if (self._cmd_id_mcu == self._cmd_id) and (self._cmd_execution_status == CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS):
-                self.mcu_cmd_execution_in_progress = False
-            
-            self.x_pos = utils.unsigned_to_signed(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            self.y_pos = utils.unsigned_to_signed(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            self.z_pos = utils.unsigned_to_signed(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            self.theta_pos = utils.unsigned_to_signed(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+                if self.mcu_cmd_execution_in_progress == True:
+                    self.mcu_cmd_execution_in_progress = False
+                    print('   mcu command ' + str(self._cmd_id) + ' complete')
+
+            # print('command id ' + str(self._cmd_id) + '; mcu command ' + str(self._cmd_id_mcu) + ' status: ' + str(msg[1]) )
+
+            self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+            self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+            self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+            self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
             self.button_and_switch_state = msg[18]
 
@@ -389,12 +402,20 @@ class Microcontroller():
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
-    def _int_to_payload(signed_int,number_of_bytes):
+    def _int_to_payload(self,signed_int,number_of_bytes):
         if signed_int >= 0:
             payload = signed_int
         else:
             payload = 2**(8*number_of_bytes) + signed_int # find two's completement
         return payload
+
+    def _payload_to_int(self,payload,number_of_bytes):
+        signed = 0
+        for i in range(number_of_bytes):
+            signed = signed + int(payload[i])*(256**(number_of_bytes-1-i))
+        if signed >= 256**number_of_bytes/2:
+            signed = signed - 256**number_of_bytes
+        return signed
 
 class Microcontroller_Simulation():
     def __init__(self,parent=None):
@@ -549,6 +570,11 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': set illumination')
+
+    def set_illumination_led_matrix(self,illumination_source,r,g,b):
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+        print('   mcu command ' + str(self._cmd_id) + ': set illumination (led matrix)')
 
     def get_pos(self):
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
