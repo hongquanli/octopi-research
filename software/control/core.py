@@ -637,6 +637,166 @@ class AutoFocusController(QObject):
         print('autofocus finished')
         self.autofocusFinished.emit()
 
+class MultiPointWorker(QObject):
+
+    finished = Signal()
+    image_to_display = Signal(np.ndarray)
+    image_to_display_multi = Signal(np.ndarray,int)
+    signal_current_configuration = Signal(Configuration)
+
+    def __init__(self,multiPointController):
+        QObject.__init__(self)
+        self.multiPointController = multiPointController
+
+        self.camera = self.multiPointController.camera
+        self.microcontroller = self.multiPointController.microcontroller
+        self.navigationController = self.multiPointController.navigationController
+        self.liveController = self.multiPointController.liveController
+        self.autofocusController = self.multiPointController.autofocusController
+        self.configurationManager = self.multiPointController.configurationManager
+        self.NX = self.multiPointController.NX
+        self.NY = self.multiPointController.NY
+        self.NZ = self.multiPointController.NZ
+        self.Nt = self.multiPointController.Nt
+        self.deltaX = self.multiPointController.deltaX
+        self.deltaX_usteps = self.multiPointController.deltaX_usteps
+        self.deltaY = self.multiPointController.deltaY
+        self.deltaY_usteps = self.multiPointController.deltaY_usteps
+        self.deltaZ = self.multiPointController.deltaZ
+        self.deltaZ_usteps = self.multiPointController.deltaZ_usteps
+        self.dt = self.multiPointController.deltat
+        self.do_bfdf = self.multiPointController.do_bfdf
+        self.do_fluorescence = self.multiPointController.do_fluorescence
+        self.do_autofocus = self.multiPointController.do_autofocus
+        self.crop_width = self.multiPointController.crop_width
+        self.crop_height = self.multiPointController.crop_height
+        self.display_resolution_scaling = self.multiPointController.display_resolution_scaling
+        self.counter = self.multiPointController.counter
+        self.experiment_ID = self.multiPointController.experiment_ID
+        self.base_path = self.multiPointController.base_path
+        self.selected_configurations = self.multiPointController.selected_configurations
+
+        self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
+        self.time_point = 0
+
+    def run(self):
+        while self.time_point < self.Nt:
+            # continous acquisition
+            if self.dt == 0:
+                self.run_single_time_point()
+                self.time_point = self.time_point + 1
+            # timed acquisition
+            else:
+                self.run_single_time_point()
+                self.time_point = self.time_point + 1
+                # check if the aquisition has taken longer than dt or integer multiples of dt, if so skip the next time point(s)
+                while time.time() > self.timestamp_acquisition_started + self.time_point*self.dt:
+                    print('skip time point ' + str(self.time_point+1))
+                    self.time_point = self.time_point+1
+                # wait until it's time to do the next acquisition
+                while time.time() < self.timestamp_acquisition_started + self.time_point*self.dt:
+                    time.sleep(0.05)
+        self.finished.emit()
+
+    def wait_till_operation_is_completed(self):
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
+
+    def run_single_time_point(self):
+        self.FOV_counter = 0
+        print('multipoint acquisition - time point ' + str(self.time_point))
+        
+        # for each time point, create a new folder
+        current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
+        os.mkdir(current_path)
+
+        # along y
+        for i in range(self.NY):
+
+            self.FOV_counter = 0 # so that AF at the beginning of each new row
+
+            # along x
+            for j in range(self.NX):
+
+                # z-stack
+                for k in range(self.NZ):
+
+                    # perform AF only if when not taking z stack
+                    if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                    # temporary: replace the above line with the line below to AF every FOV
+                    # if (self.NZ == 1) and (self.do_autofocus):
+                        configuration_name_AF = 'BF LED matrix full'
+                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                        self.signal_current_configuration.emit(config_AF)
+                        self.autofocusController.autofocus()
+
+                    if (self.NZ > 1):
+                        # maneuver for achiving uniform step size and repeatability when using open-loop control
+                        self.navigationController.move_z_usteps(80)
+                        self.wait_till_operation_is_completed()
+                        self.navigationController.move_z_usteps(-80)
+                        self.wait_till_operation_is_completed()
+
+                    file_ID = str(i) + '_' + str(j) + '_' + str(k)
+
+                    # iterate through selected modes
+                    for config in self.selected_configurations:
+                        # self.liveController.set_microscope_mode(config)
+                        self.signal_current_configuration.emit(config)
+                        self.liveController.turn_on_illumination()
+                        self.wait_till_operation_is_completed()
+                        self.camera.send_trigger() 
+                        image = self.camera.read_frame()
+                        self.liveController.turn_off_illumination()
+                        image = utils.crop_image(image,self.crop_width,self.crop_height)
+                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                        image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
+                        self.image_to_display.emit(image_to_display)
+                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                        if self.camera.is_color:
+                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                        cv2.imwrite(saving_path,image)
+                        QApplication.processEvents()
+                    
+                    # QApplication.processEvents()
+
+                    if self.NZ > 1:
+                        # move z
+                        if k < self.NZ - 1:
+                            self.navigationController.move_z_usteps(self.deltaZ_usteps)
+                            self.wait_till_operation_is_completed()
+                
+                if self.NZ > 1:
+                    # move z back
+                    self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
+                    self.wait_till_operation_is_completed()
+
+                # update FOV counter
+                self.FOV_counter = self.FOV_counter + 1
+
+                if self.NX > 1:
+                    # move x
+                    if j < self.NX - 1:
+                        self.navigationController.move_x_usteps(self.deltaX_usteps)
+                        self.wait_till_operation_is_completed()
+
+            if self.NX > 1:
+                # move x back
+                self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+                self.wait_till_operation_is_completed()
+
+            if self.NY > 1:
+                # move y
+                if i < self.NY - 1:
+                    self.navigationController.move_y_usteps(self.deltaY_usteps)
+                    self.wait_till_operation_is_completed()
+
+        if self.NY > 1:
+            # move y back
+            self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
+            self.wait_till_operation_is_completed()
+
 class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
@@ -644,14 +804,11 @@ class MultiPointController(QObject):
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
 
-    x_pos = Signal(float)
-    y_pos = Signal(float)
-    z_pos = Signal(float)
-
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager):
         QObject.__init__(self)
 
         self.camera = camera
+        self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
         self.autofocusController = autofocusController
@@ -676,6 +833,7 @@ class MultiPointController(QObject):
         self.counter = 0
         self.experiment_ID = None
         self.base_path = None
+        self.selected_configurations = []
 
     def set_NX(self,N):
         self.NX = N
@@ -726,158 +884,7 @@ class MultiPointController(QObject):
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
 
-        # timer-based acquisition triggering - in between acquisitions, microscope settings include stage positions can be adjusted
-        if self.deltat > 0:
-            self.time_point = 0
-            self.single_acquisition_in_progress = False
-            self.acquisitionTimer = QTimer()
-            self.acquisitionTimer.setInterval(self.deltat*1000)
-            self.acquisitionTimer.timeout.connect(self._on_acquisitionTimer_timeout)
-            self.acquisitionTimer.start()
-            self.acquisitionTimer.timeout.emit() # trigger the first acquisition
-        
-        # continous, for loop-based multipoint
-        else:
-            self.configuration_before_running_multipoint = self.liveController.currentConfiguration
-            # stop live
-            if self.liveController.is_live:
-                self.liveController.was_live_before_multipoint = True
-                self.liveController.stop_live() # @@@ to do: also uncheck the live button
-            else:
-                self.liveController.was_live_before_multipoint = False
-
-            # disable callback
-            if self.camera.callback_is_enabled:
-                self.camera.callback_was_enabled_before_multipoint = True
-                self.camera.stop_streaming()
-                self.camera.disable_callback()
-                self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
-            else:
-                self.camera.callback_was_enabled_before_multipoint = False
-
-            for self.time_point in range(self.Nt):
-                self._run_multipoint_single()
-
-            # restore the previous selected mode
-            self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
-
-            # re-enable callback
-            if self.camera.callback_was_enabled_before_multipoint:
-                self.camera.stop_streaming()
-                self.camera.enable_callback()
-                self.camera.start_streaming()
-                self.camera.callback_was_enabled_before_multipoint = False
-            
-            if self.liveController.was_live_before_multipoint:
-                self.liveController.start_live()
-
-            # emit acquisitionFinished signal
-            self.acquisitionFinished.emit()
-            QApplication.processEvents()
-
-    def _on_acquisitionTimer_timeout(self):
-        # check if the last single acquisition is ongoing
-        if self.single_acquisition_in_progress is True:
-            self.time_point = self.time_point + 1
-            # stop the timer if number of time points is equal to Nt (despite some time points may have been skipped)
-            if self.time_point >= self.Nt:
-                self.acquisitionTimer.stop()
-            else:
-                print('the last acquisition has not completed, skip time point ' + str(self.time_point))
-            return
-        # if not, run single acquisition
-        self._run_single_acquisition()
-
-    def _run_multipoint_single(self):
-        
-        self.FOV_counter = 0
-        print('multipoint acquisition - time point ' + str(self.time_point))
-
-        # do the multipoint acquisition
-
-        # for each time point, create a new folder
-        current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
-        os.mkdir(current_path)
-
-        # along y
-        for i in range(self.NY):
-
-            self.FOV_counter = 0 # so that AF at the beginning of each new row
-
-            # along x
-            for j in range(self.NX):
-
-                # z-stack
-                for k in range(self.NZ):
-
-                    # perform AF only if when not taking z stack
-                    if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                    # temporary: replace the above line with the line below to AF every FOV
-                    # if (self.NZ == 1) and (self.do_autofocus):
-                        configuration_name_AF = 'BF LED matrix full'
-                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                        self.signal_current_configuration.emit(config_AF)
-                        self.autofocusController.autofocus()
-
-                    if (self.NZ > 1):
-                        # maneuver for achiving uniform step size and repeatability when using open-loop control
-                        self.navigationController.move_z_usteps(80)
-                        time.sleep(0.1)
-                        self.navigationController.move_z_usteps(-80)
-                        time.sleep(0.1)
-
-                    file_ID = str(i) + '_' + str(j) + '_' + str(k)
-
-                    # iterate through selected modes
-                    for config in self.selected_configurations:
-                        # self.liveController.set_microscope_mode(config)
-                        self.signal_current_configuration.emit(config)
-                        self.liveController.turn_on_illumination()
-                        self.camera.send_trigger() 
-                        image = self.camera.read_frame()
-                        self.liveController.turn_off_illumination()
-                        image = utils.crop_image(image,self.crop_width,self.crop_height)
-                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
-                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
-                        self.image_to_display.emit(image_to_display)
-                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                        if self.camera.is_color:
-                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                        cv2.imwrite(saving_path,image)
-                        QApplication.processEvents()
-                    
-                    # QApplication.processEvents()
-
-                    # move z
-                    if k < self.NZ - 1:
-                        self.navigationController.move_z_usteps(self.deltaZ_usteps)
-                
-                # move z back
-                self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
-
-                # update FOV counter
-                self.FOV_counter = self.FOV_counter + 1
-
-                # move x
-                if j < self.NX - 1:
-                    self.navigationController.move_x_usteps(self.deltaX_usteps)
-
-            # move x back
-            self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-
-            # move y
-            if i < self.NY - 1:
-                self.navigationController.move_y_usteps(self.deltaY_usteps)
-
-        # move y back
-        self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
-
-
-    def _run_single_acquisition(self):
-
-        self.single_acquisition_in_progress = True
-        
+        self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
         if self.liveController.is_live:
             self.liveController.was_live_before_multipoint = True
@@ -894,8 +901,30 @@ class MultiPointController(QObject):
         else:
             self.camera.callback_was_enabled_before_multipoint = False
 
-        self._run_multipoint_single()
-                        
+        # run the acquisition
+        self.timestamp_acquisition_started = time.time()
+        # create a QThread object
+        self.thread = QThread()
+        # create a worker object
+        self.multiPointWorker = MultiPointWorker(self)
+        # move the worker to the thread
+        self.multiPointWorker.moveToThread(self.thread)
+        # connect signals and slots
+        self.thread.started.connect(self.multiPointWorker.run)
+        self.multiPointWorker.finished.connect(self._on_acquisition_completed)
+        self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
+        self.multiPointWorker.finished.connect(self.thread.quit)
+        self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
+        self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
+        self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration)
+        self.thread.finished.connect(self.thread.deleteLater)
+        # start the thread
+        self.thread.start()
+
+    def _on_acquisition_completed(self):
+        # restore the previous selected mode
+        self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
+
         # re-enable callback
         if self.camera.callback_was_enabled_before_multipoint:
             self.camera.stop_streaming()
@@ -903,20 +932,22 @@ class MultiPointController(QObject):
             self.camera.start_streaming()
             self.camera.callback_was_enabled_before_multipoint = False
         
+        # re-enable live if it's previously on
         if self.liveController.was_live_before_multipoint:
             self.liveController.start_live()
         
-        # update time_point for the next scheduled single acquisition (if any)
-        self.time_point = self.time_point + 1
+        # emit the acquisition finished signal to enable the UI
+        self.acquisitionFinished.emit()
+        QApplication.processEvents()
 
-        if self.time_point >= self.Nt:
-            print('Multipoint acquisition finished')
-            if self.acquisitionTimer.isActive():
-                self.acquisitionTimer.stop()
-            self.acquisitionFinished.emit()
-            QApplication.processEvents()
+    def slot_image_to_display(self,image):
+        self.image_to_display.emit(image)
 
-        self.single_acquisition_in_progress = False
+    def slot_image_to_display_multi(self,image,illumination_source):
+        self.image_to_display_multi.emit(image,illumination_source)
+
+    def slot_current_configuration(self,configuration):
+        self.signal_current_configuration.emit(configuration)
 
 class TrackingController(QObject):
     def __init__(self,microcontroller,navigationController):
