@@ -43,6 +43,15 @@ static const int CMD_CHECKSUM_ERROR = 2;
 static const int CMD_INVALID = 3;
 static const int CMD_EXECUTION_ERROR = 4;
 
+static const int HOME_NEGATIVE = 1;
+static const int HOME_POSITIVE = 0;
+static const int HOME_OR_ZERO_ZERO = 2;
+
+static const int AXIS_X = 0;
+static const int AXIS_Y = 1;
+static const int AXIS_Z = 2;
+static const int AXIS_THETA = 3;
+
 /***************************************************************************************************/
 /**************************************** Pin definations ******************************************/
 /***************************************************************************************************/
@@ -470,6 +479,34 @@ void loop() {
           Z_commanded_movement_in_progress = false;
           // mcu_cmd_execution_in_progress = false; // because runToNewPosition is blocking, changing this flag is not needed
           break;
+        }
+        case HOME_OR_ZERO:
+        {
+          // zeroing
+          if(buffer_rx[3]==HOME_OR_ZERO_ZERO)
+          {
+            switch(buffer_rx[2])
+            {
+              case AXIS_X:
+                stepper_X.setCurrentPosition(0);
+                X_pos = 0;
+                break;
+              case AXIS_Y:
+                stepper_Y.setCurrentPosition(0);
+                Y_pos = 0;
+                break;
+              case AXIS_Z:
+                stepper_Z.setCurrentPosition(0);
+                Z_pos = 0;
+                break;
+            }
+            // atomic operation, no need to change mcu_cmd_execution_in_progress flag
+          }
+          // homing
+          else
+          {
+            ;
+          }
         }
         case TURN_ON_ILLUMINATION:
         {
