@@ -822,12 +822,15 @@ class MultiPointController(QObject):
         self.NY = 1
         self.NZ = 1
         self.Nt = 1
+        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
+        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaX = Acquisition.DX
-        self.deltaX_usteps = round(self.deltaX*Motion.STEPS_PER_MM_XY)
+        self.deltaX_usteps = round(self.deltaX/mm_per_ustep_X)
         self.deltaY = Acquisition.DY
-        self.deltaY_usteps = round(self.deltaY*Motion.STEPS_PER_MM_XY)
+        self.deltaY_usteps = round(self.deltaY/mm_per_ustep_Y)
         self.deltaZ = Acquisition.DZ/1000
-        self.deltaZ_usteps = round(self.deltaZ*Motion.STEPS_PER_MM_Z)
+        self.deltaZ_usteps = round(self.deltaZ/mm_per_ustep_Z)
         self.deltat = 0
         self.do_bfdf = False
         self.do_fluorescence = False
@@ -849,14 +852,17 @@ class MultiPointController(QObject):
     def set_Nt(self,N):
         self.Nt = N
     def set_deltaX(self,delta):
+    	mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
         self.deltaX = delta
-        self.deltaX_usteps = round(delta*Motion.STEPS_PER_MM_XY)
+        self.deltaX_usteps = round(delta/mm_per_ustep_X)
     def set_deltaY(self,delta):
+    	mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
         self.deltaY = delta
-        self.deltaY_usteps = round(delta*Motion.STEPS_PER_MM_XY)
+        self.deltaY_usteps = round(delta/mm_per_ustep_Y)
     def set_deltaZ(self,delta_um):
+        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = delta_um/1000
-        self.deltaZ_usteps = round((delta_um/1000)*Motion.STEPS_PER_MM_Z)
+        self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
     def set_deltat(self,delta):
         self.deltat = delta
     def set_af_flag(self,flag):
