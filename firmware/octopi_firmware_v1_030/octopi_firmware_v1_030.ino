@@ -6,7 +6,7 @@
 #include <SPI.h>
 
 #define DOTSTAR_NUM_LEDS 128
-static const bool ENABLE_JOYSTICK = false;
+static const bool ENABLE_JOYSTICK = true;
 
 static const int FULLSTEPS_PER_REV_X = 200;
 static const int FULLSTEPS_PER_REV_Y = 200;
@@ -183,6 +183,9 @@ bool is_homing_Z = false;
 volatile bool homing_X_completed = false;
 volatile bool homing_Y_completed = false;
 volatile bool homing_Z_completed = false;
+volatile long home_X_pos = 0;
+volatile long home_Y_pos = 0;
+volatile long home_Z_pos = 0;
 
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
@@ -539,6 +542,7 @@ void loop() {
               case AXIS_Z:
                 stepper_Z.setCurrentPosition(0);
                 Z_pos = 0;
+                focusPosition = 0;
                 break;
             }
             // atomic operation, no need to change mcu_cmd_execution_in_progress flag
@@ -609,7 +613,7 @@ void loop() {
     }
   }
 
-  // homing update
+  // homing - software limit reached
   if(is_homing_X)
   {
     if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_X || stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_X)
@@ -637,6 +641,15 @@ void loop() {
       homing_Z_completed = true;
     }
   }
+  // home found, moving to home - check if movement has completed
+  if(is_homing_X && !homing_X_completed && !runSpeed_flag_X && stepper_X.distanceToGo() == 0 )
+    homing_X_completed = true;
+  if(is_homing_Y && !homing_Y_completed && !runSpeed_flag_Y && stepper_Y.distanceToGo() == 0 )
+    homing_Y_completed = true;
+  if(is_homing_Z && !homing_Z_completed && !runSpeed_flag_Z && stepper_Z.distanceToGo() == 0 )
+    homing_Z_completed = true;
+
+  // homing complete
   if(is_homing_X && homing_X_completed)
   {
     is_homing_X = false;
@@ -826,9 +839,11 @@ void timer_interruptHandler(){
  {
   if(is_homing_X)
   {
+    home_X_pos = stepper_X.currentPosition();
     stepper_X.setSpeed(0);
     runSpeed_flag_X = false;
-    homing_X_completed = true;
+    stepper_X.moveTo(home_X_pos); // move to the home position
+    // homing_X_completed = true;
   }
  }
 
@@ -836,9 +851,11 @@ void timer_interruptHandler(){
  {
   if(is_homing_Y)
   {
+    home_Y_pos = stepper_Y.currentPosition();
     stepper_Y.setSpeed(0);
     runSpeed_flag_Y = false;
-    homing_Y_completed = true;
+    stepper_Y.moveTo(home_Y_pos); // move to the home position
+    // homing_Y_completed = true;
   }
  }
 
@@ -846,9 +863,11 @@ void timer_interruptHandler(){
  {
   if(is_homing_Z)
   {
+    home_Z_pos = stepper_Z.currentPosition();
     stepper_Z.setSpeed(0);
     runSpeed_flag_Z = false;
-    homing_Z_completed = true;
+    stepper_Z.moveTo(home_Z_pos); // move to the home position
+    //homing_Z_completed = true;
   }
  }
 /***************************************************
