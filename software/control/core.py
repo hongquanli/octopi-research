@@ -852,11 +852,11 @@ class MultiPointController(QObject):
     def set_Nt(self,N):
         self.Nt = N
     def set_deltaX(self,delta):
-    	mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
+        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
         self.deltaX = delta
         self.deltaX_usteps = round(delta/mm_per_ustep_X)
     def set_deltaY(self,delta):
-    	mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
         self.deltaY = delta
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
     def set_deltaZ(self,delta_um):
