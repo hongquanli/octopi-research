@@ -741,6 +741,7 @@ class MultiPointWorker(QObject):
                         self.wait_till_operation_is_completed()
                         self.navigationController.move_z_usteps(-80)
                         self.wait_till_operation_is_completed()
+                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                     file_ID = str(i) + '_' + str(j) + '_' + str(k)
 
@@ -771,6 +772,7 @@ class MultiPointWorker(QObject):
                         if k < self.NZ - 1:
                             self.navigationController.move_z_usteps(self.deltaZ_usteps)
                             self.wait_till_operation_is_completed()
+                            time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 
                 if self.NZ > 1:
                     # move z back
@@ -785,22 +787,26 @@ class MultiPointWorker(QObject):
                     if j < self.NX - 1:
                         self.navigationController.move_x_usteps(self.deltaX_usteps)
                         self.wait_till_operation_is_completed()
+                        time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
             if self.NX > 1:
                 # move x back
                 self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                 self.wait_till_operation_is_completed()
+                time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
             if self.NY > 1:
                 # move y
                 if i < self.NY - 1:
                     self.navigationController.move_y_usteps(self.deltaY_usteps)
                     self.wait_till_operation_is_completed()
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
 
         if self.NY > 1:
             # move y back
             self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
             self.wait_till_operation_is_completed()
+            time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
 
 class MultiPointController(QObject):
 
