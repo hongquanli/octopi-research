@@ -732,12 +732,11 @@ void loop() {
         stepper_Y.setSpeed(0);
       }
     }
-
-    // focus control
-    stepper_Z.moveTo(focusPosition);
-    
     flag_read_joystick = false;
   }
+  
+  // focus control
+  stepper_Z.moveTo(focusPosition);
 
   // send position update to computer
   if(flag_send_pos_update)
