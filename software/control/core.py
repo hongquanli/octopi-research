@@ -533,6 +533,90 @@ class NavigationController(QObject):
     def home(self):
         pass
 
+class AutofocusWorker(QObject):
+
+    finished = Signal()
+    image_to_display = Signal(np.ndarray)
+    # signal_current_configuration = Signal(Configuration)
+
+    def __init__(self,autofocusController):
+        QObject.__init__(self)
+        self.autofocusController = autofocusController
+
+        self.camera = self.autofocusController.camera
+        self.microcontroller = self.autofocusController.navigationController.microcontroller
+        self.navigationController = self.autofocusController.navigationController
+        self.liveController = self.autofocusController.liveController
+
+        self.N = self.autofocusController.N
+        self.deltaZ = self.autofocusController.deltaZ
+        self.deltaZ_usteps = self.autofocusController.deltaZ_usteps
+        
+        self.crop_width = self.autofocusController.crop_width
+        self.crop_height = self.autofocusController.crop_height
+
+    def run(self):
+        self.run_autofocus()
+        self.finished.emit()
+
+    def wait_till_operation_is_completed(self):
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
+
+    def run_autofocus(self):
+        # @@@ to add: increase gain, decrease exposure time
+        # @@@ can move the execution into a thread - done 08/21/2021
+        focus_measure_vs_z = [0]*self.N
+        focus_measure_max = 0
+
+        z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
+        self.navigationController.move_z_usteps(-z_af_offset_usteps)
+        self.wait_till_operation_is_completed()
+
+        # maneuver for achiving uniform step size and repeatability when using open-loop control
+        # can be moved to the firmware
+        self.navigationController.move_z_usteps(80)
+        self.wait_till_operation_is_completed()
+        self.navigationController.move_z_usteps(-80)
+        self.wait_till_operation_is_completed()
+
+        steps_moved = 0
+        for i in range(self.N):
+            self.navigationController.move_z_usteps(self.deltaZ_usteps)
+            self.wait_till_operation_is_completed()
+            steps_moved = steps_moved + 1
+            self.liveController.turn_on_illumination()
+            self.wait_till_operation_is_completed()
+            self.camera.send_trigger()
+            image = self.camera.read_frame()
+            self.liveController.turn_off_illumination()
+            image = utils.crop_image(image,self.crop_width,self.crop_height)
+            self.image_to_display.emit(image)
+            QApplication.processEvents()
+            timestamp_0 = time.time()
+            focus_measure = utils.calculate_focus_measure(image)
+            timestamp_1 = time.time()
+            print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
+            focus_measure_vs_z[i] = focus_measure
+            print(i,focus_measure)
+            focus_measure_max = max(focus_measure, focus_measure_max)
+            if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
+                break
+
+        # maneuver for achiving uniform step size and repeatability when using open-loop control
+        self.navigationController.move_z_usteps(80)
+        self.wait_till_operation_is_completed()
+        self.navigationController.move_z_usteps(-80)
+        self.wait_till_operation_is_completed()
+
+        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+        self.navigationController.move_z_usteps((idx_in_focus-steps_moved)*self.deltaZ_usteps)
+        self.wait_till_operation_is_completed()
+        if idx_in_focus == 0:
+            print('moved to the bottom end of the AF range')
+        if idx_in_focus == self.N-1:
+            print('moved to the top end of the AF range')
+
 class AutoFocusController(QObject):
 
     z_pos = Signal(float)
@@ -549,6 +633,7 @@ class AutoFocusController(QObject):
         self.deltaZ_usteps = None
         self.crop_width = AF.CROP_WIDTH
         self.crop_height = AF.CROP_HEIGHT
+        self.autofocus_in_progress = False
 
     def set_N(self,N):
         self.N = N
@@ -562,83 +647,66 @@ class AutoFocusController(QObject):
         self.crop_height = crop_height
 
     def autofocus(self):
-
         # stop live
         if self.liveController.is_live:
-            self.liveController.was_live_before_autofocus = True
+            self.was_live_before_autofocus = True
             self.liveController.stop_live()
         else:
             self.was_live_before_autofocus = False
 
         # temporarily disable call back -> image does not go through streamHandler
         if self.camera.callback_is_enabled:
-            self.camera.callback_was_enabled_before_autofocus = True
+            self.callback_was_enabled_before_autofocus = True
             self.camera.stop_streaming()
             self.camera.disable_callback()
             self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
         else:
-            self.camera.callback_was_enabled_before_autofocus = False
+            self.callback_was_enabled_before_autofocus = False
 
-        # @@@ to add: increase gain, decrease exposure time
-        # @@@ can move the execution into a thread
-        focus_measure_vs_z = [0]*self.N
-        focus_measure_max = 0
+        self.autofocus_in_progress = True
 
-        z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
-        self.navigationController.move_z_usteps(-z_af_offset_usteps)
-
-        # maneuver for achiving uniform step size and repeatability when using open-loop control
-        self.navigationController.move_z_usteps(80)
-        time.sleep(0.1)
-        self.navigationController.move_z_usteps(-80)
-        time.sleep(0.1)
-
-        steps_moved = 0
-        for i in range(self.N):
-            self.navigationController.move_z_usteps(self.deltaZ_usteps)
-            steps_moved = steps_moved + 1
-            self.liveController.turn_on_illumination()
-            self.camera.send_trigger()
-            image = self.camera.read_frame()
-            self.liveController.turn_off_illumination()
-            image = utils.crop_image(image,self.crop_width,self.crop_height)
-            self.image_to_display.emit(image)
-            QApplication.processEvents()
-            timestamp_0 = time.time() # @@@ to remove
-            focus_measure = utils.calculate_focus_measure(image)
-            timestamp_1 = time.time() # @@@ to remove
-            print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
-            focus_measure_vs_z[i] = focus_measure
-            print(i,focus_measure)
-            focus_measure_max = max(focus_measure, focus_measure_max)
-            if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
-                break
-
-        # maneuver for achiving uniform step size and repeatability when using open-loop control
-        self.navigationController.move_z_usteps(80)
-        time.sleep(0.1)
-        self.navigationController.move_z_usteps(-80)
-        time.sleep(0.1)
-
-        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
-        self.navigationController.move_z_usteps((idx_in_focus-steps_moved)*self.deltaZ_usteps)
-        if idx_in_focus == 0:
-            print('moved to the bottom end of the AF range')
-        if idx_in_focus == self.N-1:
-            print('moved to the top end of the AF range')
-
-        if self.camera.callback_was_enabled_before_autofocus:
+        # create a QThread object
+        self.thread = QThread()
+        # create a worker object
+        self.autofocusWorker = AutofocusWorker(self)
+        # move the worker to the thread
+        self.autofocusWorker.moveToThread(self.thread)
+        # connect signals and slots
+        self.thread.started.connect(self.autofocusWorker.run)
+        self.autofocusWorker.finished.connect(self._on_autofocus_completed)
+        self.autofocusWorker.finished.connect(self.autofocusWorker.deleteLater)
+        self.autofocusWorker.finished.connect(self.thread.quit)
+        self.autofocusWorker.image_to_display.connect(self.slot_image_to_display)
+        self.thread.finished.connect(self.thread.deleteLater)
+        # start the thread
+        self.thread.start()
+        
+    def _on_autofocus_completed(self):
+        # update the state
+        self.autofocus_in_progress = False
+        
+        # re-enable callback
+        if self.callback_was_enabled_before_autofocus:
             self.camera.stop_streaming()
             self.camera.enable_callback()
             self.camera.start_streaming()
-            self.camera.callback_was_enabled_before_autofocus = False
-
-        if self.liveController.was_live_before_autofocus:
-            self.liveController.start_live()
-            self.liveController.was_live_before_autofocus = False
         
-        print('autofocus finished')
+        # re-enable live if it's previously on
+        if self.was_live_before_autofocus:
+            self.liveController.start_live()
+
+        # emit the autofocus finished signal to enable the UI
         self.autofocusFinished.emit()
+        QApplication.processEvents()
+        print('autofocus finished')
+
+    def slot_image_to_display(self,image):
+        self.image_to_display.emit(image)
+
+    def wait_till_autofocus_has_completed(self):
+        while self.autofocus_in_progress == True:
+            time.sleep(0.005)
+        print('autofocus wait has completed, exit wait')
 
 class MultiPointWorker(QObject):
 
@@ -734,6 +802,7 @@ class MultiPointWorker(QObject):
                         config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                         self.signal_current_configuration.emit(config_AF)
                         self.autofocusController.autofocus()
+                        self.autofocusController.wait_till_autofocus_has_completed()
 
                     if (self.NZ > 1):
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
