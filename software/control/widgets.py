@@ -12,17 +12,15 @@ from control._def import *
 
 class CameraSettingsWidget(QFrame):
 
-    def __init__(self, camera, liveController, main=None, *args, **kwargs):
+    def __init__(self, camera, include_gain_exposure_time = True, main=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.camera = camera
-        self.liveController = liveController
-        # add components to self.grid
-        self.add_components()        
+        self.add_components(include_gain_exposure_time)        
         # set frame style
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
-    def add_components(self):
+    def add_components(self,include_gain_exposure_time):
 
         # add buttons and input fields
         self.entry_exposureTime = QDoubleSpinBox()
@@ -77,10 +75,11 @@ class CameraSettingsWidget(QFrame):
 
         # layout
         grid_ctrl = QGridLayout()
-        grid_ctrl.addWidget(QLabel('Exposure Time (ms)'), 0,0)
-        grid_ctrl.addWidget(self.entry_exposureTime, 0,1)
-        grid_ctrl.addWidget(QLabel('Analog Gain'), 1,0)
-        grid_ctrl.addWidget(self.entry_analogGain, 1,1)
+        if include_gain_exposure_time:
+            grid_ctrl.addWidget(QLabel('Exposure Time (ms)'), 0,0)
+            grid_ctrl.addWidget(self.entry_exposureTime, 0,1)
+            grid_ctrl.addWidget(QLabel('Analog Gain'), 1,0)
+            grid_ctrl.addWidget(self.entry_analogGain, 1,1)
         grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
         grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
 
