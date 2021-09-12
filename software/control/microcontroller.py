@@ -17,6 +17,8 @@ from qtpy.QtGui import *
 # make all callable functions nonblocking, instead, user should check use is_busy() to
 # check if the microcontroller has finished executing the more recent command
 
+# to do (7/28/2021) - add functions for configuring the stepper motors
+
 class Microcontroller():
     def __init__(self,parent=None):
         self.serial = None
