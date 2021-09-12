@@ -816,8 +816,8 @@ class MultiPointWorker(QObject):
 
                     # iterate through selected modes
                     for config in self.selected_configurations:
-                        # self.liveController.set_microscope_mode(config)
                         self.signal_current_configuration.emit(config)
+                        self.wait_till_operation_is_completed()
                         self.liveController.turn_on_illumination()
                         self.wait_till_operation_is_completed()
                         self.camera.send_trigger() 
@@ -1002,7 +1002,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
-        self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration)
+        self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.thread.finished.connect(self.thread.deleteLater)
         # start the thread
         self.thread.start()
