@@ -103,3 +103,4 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay.close()
 		self.imageDisplayWindow.close()
 		self.imageArrayDisplayWindow.close()
+		self.microcontroller.close()

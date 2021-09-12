@@ -55,10 +55,13 @@ class Microcontroller():
         print('Serial Connection Open')
 
         self.new_packet_callback_external = None
+        self.terminate_reading_received_packet_thread = False
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
-
+        
     def close(self):
+        self.terminate_reading_received_packet_thread = True
+        self.thread_read_received_packet.join()
         self.serial.close()
 
     def turn_on_illumination(self):
@@ -342,7 +345,7 @@ class Microcontroller():
         self.mcu_cmd_execution_in_progress = True
 
     def read_received_packet(self):
-        while True:
+        while self.terminate_reading_received_packet_thread == False:
             # wait to receive data
             if self.serial.in_waiting==0:
                 continue
