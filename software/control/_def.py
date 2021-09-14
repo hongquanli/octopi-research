@@ -99,7 +99,7 @@ class CMD_EXECUTION_STATUS:
 
 # change the following so that "backward" is "backward" - towards the single sided hall effect sensor
 
-STAGE_MOVEMENT_SIGN_X = 1
+STAGE_MOVEMENT_SIGN_X = -1
 STAGE_MOVEMENT_SIGN_Y = 1
 STAGE_MOVEMENT_SIGN_Z = 1
 STAGE_MOVEMENT_SIGN_THETA = 1
