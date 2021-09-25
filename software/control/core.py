@@ -441,6 +441,7 @@ class NavigationController(QObject):
     yPos = Signal(float)
     zPos = Signal(float)
     thetaPos = Signal(float)
+    signal_joystick_button_pressed = Signal()
 
     def __init__(self,microcontroller):
         QObject.__init__(self)
@@ -505,6 +506,11 @@ class NavigationController(QObject):
         self.yPos.emit(self.y_pos_mm)
         self.zPos.emit(self.z_pos_mm*1000)
         self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
+
+        if microcontroller.signal_joystick_button_pressed_event:
+            self.signal_joystick_button_pressed.emit()
+            print('joystick button pressed')
+            microcontroller.signal_joystick_button_pressed_event = False
 
     def home_x(self):
         self.microcontroller.home_x()

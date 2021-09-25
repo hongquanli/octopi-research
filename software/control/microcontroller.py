@@ -19,7 +19,7 @@ from qtpy.QtGui import *
 
 # to do (7/28/2021) - add functions for configuring the stepper motors
 
-class Microcontroller():
+class Microcontroller():    
     def __init__(self,parent=None):
         self.serial = None
         self.platform_name = platform.system()
@@ -36,6 +36,8 @@ class Microcontroller():
         self.z_pos = 0 # unit: microstep or encoder resolution
         self.theta_pos = 0 # unit: microstep or encoder resolution
         self.button_and_switch_state = 0
+        self.joystick_button_pressed = 0
+        self.signal_joystick_button_pressed_event = False
 
         # AUTO-DETECT the Arduino! Based on Deepak's code
         arduino_ports = [
@@ -337,6 +339,11 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
         #     # to do: add timeout
 
+    def ack_joystick_button_pressed(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
+        self.send_command(cmd)
+
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
@@ -391,6 +398,11 @@ class Microcontroller():
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
             self.button_and_switch_state = msg[18]
+            joystick_button_pressed = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
+            if self.joystick_button_pressed == False and joystick_button_pressed == True:
+                self.signal_joystick_button_pressed_event = True
+                self.ack_joystick_button_pressed()
+            self.joystick_button_pressed = joystick_button_pressed
 
             if self.new_packet_callback_external is not None:
                 self.new_packet_callback_external(self)
@@ -439,6 +451,8 @@ class Microcontroller_Simulation():
         self.z_pos = 0 # unit: microstep or encoder resolution
         self.theta_pos = 0 # unit: microstep or encoder resolution
         self.button_and_switch_state = 0
+        self.joystick_button_pressed = 0
+        self.signal_joystick_button_pressed_event = False
 
          # for simulation
         self.timestamp_last_command = time.time() # for simulation only

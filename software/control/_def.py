@@ -57,6 +57,9 @@ class CMD_SET:
     TURN_OFF_ILLUMINATION = 11
     SET_ILLUMINATION = 12
     SET_ILLUMINATION_LED_MATRIX = 13
+    ACK_JOYSTICK_BUTTON_PRESSED = 14
+
+BIT_POS_JOYSTICK_BUTTON = 0
 
 class HOME_OR_ZERO:
     HOME_NEGATIVE = 1 # motor moves along the negative direction (MCU coordinates)

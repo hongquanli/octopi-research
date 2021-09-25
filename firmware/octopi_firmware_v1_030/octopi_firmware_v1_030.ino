@@ -54,6 +54,7 @@ static const int TURN_ON_ILLUMINATION = 10;
 static const int TURN_OFF_ILLUMINATION = 11;
 static const int SET_ILLUMINATION = 12;
 static const int SET_ILLUMINATION_LED_MATRIX = 13;
+static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
 static const int IN_PROGRESS = 1;
@@ -69,6 +70,8 @@ static const int AXIS_X = 0;
 static const int AXIS_Y = 1;
 static const int AXIS_Z = 2;
 static const int AXIS_THETA = 3;
+
+static const int BIT_POS_JOYSTICK_BUTTON = 0;
 
 /***************************************************************************************************/
 /**************************************** Pin definations ******************************************/
@@ -106,6 +109,9 @@ static const int focusWheel_A  = 41;
 static const int focusWheel_B  = 42;
 static const int focusWheel_IDX  = 43;
 volatile long focusPosition = 0;
+
+// joystick button
+static const int joystick_button  = 44;
 
 // analog input
 #define analog_in_0 A6
@@ -174,6 +180,7 @@ volatile int32_t Z_pos = 0;
 bool X_use_encoder = false;
 bool Y_use_encoder = false;
 bool Z_use_encoder = false;
+bool closed_loop_position_control = false;
 
 // limit swittch
 bool is_homing_X = false;
@@ -199,7 +206,7 @@ volatile bool flag_read_joystick = false;
 volatile bool flag_send_pos_update = false;
 int joystick_offset_x = 512;
 int joystick_offset_y = 512;
-constexpr int joystickSensitivity = 50; // for comparison with number in the range of 0-512
+constexpr int joystickSensitivity = 75; // for comparison with number in the range of 0-512
 
 // joystick
 int deltaX = 0;
@@ -207,6 +214,9 @@ int deltaY = 0;
 float deltaX_float = 0;
 float deltaY_float = 0;
 float speed_XY_factor = 0;
+
+// joystick button
+volatile bool joystick_button_pressed = false;
 
 // rocker
 bool rocker_state = false;
@@ -463,7 +473,11 @@ void setup() {
   joystick_offset_y = analogRead(joystick_Y);
   if(joystick_offset_x<400 && joystick_offset_y<400)
     joystick_not_connected = true;
-  
+
+  // joystick button
+  pinMode(joystick_button,INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(joystick_button), ISR_joystick_button_pressed, FALLING);
+
   Timer3.attachInterrupt(timer_interruptHandler);
   Timer3.start(TIMER_PERIOD); 
 
@@ -582,6 +596,7 @@ void loop() {
             }
             mcu_cmd_execution_in_progress = true;
           }
+          break;
         }
         case TURN_ON_ILLUMINATION:
         {
@@ -604,6 +619,11 @@ void loop() {
         case SET_ILLUMINATION_LED_MATRIX:
         {
           set_illumination_led_matrix(buffer_rx[2],buffer_rx[3],buffer_rx[4],buffer_rx[5]);
+          break;
+        }
+        case ACK_JOYSTICK_BUTTON_PRESSED:
+        {
+          joystick_button_pressed = false;
           break;
         }
         default:
@@ -762,17 +782,20 @@ void loop() {
     buffer_tx[11] = byte((Z_pos_int32t>>16)%256);
     buffer_tx[12] = byte((Z_pos_int32t>>8)%256);
     buffer_tx[13] = byte((Z_pos_int32t)%256);
+
+    buffer_tx[18] &= ~ (1 << BIT_POS_JOYSTICK_BUTTON); // clear the joystick button bit
+    buffer_tx[18] = buffer_tx[18] | joystick_button_pressed << BIT_POS_JOYSTICK_BUTTON;
     
     SerialUSB.write(buffer_tx,MSG_LENGTH);
     flag_send_pos_update = false;
   }
 
   // encoded movement
-  if(X_use_encoder)
+  if(X_use_encoder && closed_loop_position_control)
     stepper_X.setCurrentPosition(X_pos);
-  if(Y_use_encoder)
+  if(Y_use_encoder && closed_loop_position_control)
     stepper_Y.setCurrentPosition(Y_pos);
-  if(Z_use_encoder)
+  if(Z_use_encoder && closed_loop_position_control)
     stepper_Z.setCurrentPosition(Z_pos);
 
   // check if commanded position has been reached
@@ -946,6 +969,16 @@ void ISR_Z_encoder_B(){
     Z_pos = Z_pos - 1;
   else
     Z_pos = Z_pos + 1;
+}
+
+/***************************************************
+ *  
+ *              joy stick button pressed 
+ *  
+ ***************************************************/
+void ISR_joystick_button_pressed()
+{
+  joystick_button_pressed = true;
 }
 
 /***************************************************************************************************/
