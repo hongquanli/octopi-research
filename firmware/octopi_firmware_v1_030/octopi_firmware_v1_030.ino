@@ -217,6 +217,7 @@ float speed_XY_factor = 0;
 
 // joystick button
 volatile bool joystick_button_pressed = false;
+volatile long joystick_button_pressed_timestamp = 0;
 
 // rocker
 bool rocker_state = false;
@@ -476,7 +477,7 @@ void setup() {
 
   // joystick button
   pinMode(joystick_button,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(joystick_button), ISR_joystick_button_pressed, FALLING);
+  attachInterrupt(digitalPinToInterrupt(joystick_button), ISR_joystick_button_pressed, RISING);
 
   Timer3.attachInterrupt(timer_interruptHandler);
   Timer3.start(TIMER_PERIOD); 
@@ -783,11 +784,16 @@ void loop() {
     buffer_tx[12] = byte((Z_pos_int32t>>8)%256);
     buffer_tx[13] = byte((Z_pos_int32t)%256);
 
+    // fail-safe clearing of the joystick_button_pressed bit (in case the ack is not received)
+    if(joystick_button_pressed && millis() - joystick_button_pressed_timestamp > 1000)
+      joystick_button_pressed = false;
+
     buffer_tx[18] &= ~ (1 << BIT_POS_JOYSTICK_BUTTON); // clear the joystick button bit
     buffer_tx[18] = buffer_tx[18] | joystick_button_pressed << BIT_POS_JOYSTICK_BUTTON;
     
     SerialUSB.write(buffer_tx,MSG_LENGTH);
     flag_send_pos_update = false;
+    
   }
 
   // encoded movement
@@ -979,6 +985,7 @@ void ISR_Z_encoder_B(){
 void ISR_joystick_button_pressed()
 {
   joystick_button_pressed = true;
+  joystick_button_pressed_timestamp = millis();
 }
 
 /***************************************************************************************************/
