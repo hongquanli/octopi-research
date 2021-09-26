@@ -44,7 +44,7 @@ class OctopiGUI(QMainWindow):
 		self.camera.enable_callback()
 
 		# load widgets
-		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,self.liveController)
+		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
 		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
@@ -103,3 +103,4 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay.close()
 		self.imageDisplayWindow.close()
 		self.imageArrayDisplayWindow.close()
+		self.microcontroller.close()

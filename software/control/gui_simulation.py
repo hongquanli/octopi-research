@@ -59,16 +59,22 @@ class OctopiGUI(QMainWindow):
 
 		# layout widgets
 		layout = QGridLayout() #layout = QStackedLayout()
-		layout.addWidget(self.cameraSettingWidget,0,0)
+		# layout.addWidget(self.cameraSettingWidget,0,0)
 		layout.addWidget(self.liveControlWidget,1,0)
 		layout.addWidget(self.navigationWidget,2,0)
 		layout.addWidget(self.autofocusWidget,3,0)
 		layout.addWidget(self.recordTabWidget,4,0)
-		
+
 		# transfer the layout to the central widget
 		self.centralWidget = QWidget()
 		self.centralWidget.setLayout(layout)
 		self.setCentralWidget(self.centralWidget)
+		
+		# widgets_ = QWidget()
+		# widgets_.setLayout(layout)
+		# scroll = QScrollArea()
+		# scroll.setWidget(widgets_)
+		# self.setCentralWidget(widgets_)
 
 		# load window
 		self.imageDisplayWindow = core.ImageDisplayWindow()
