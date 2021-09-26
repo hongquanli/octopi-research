@@ -60,6 +60,7 @@ class CMD_SET:
     ACK_JOYSTICK_BUTTON_PRESSED = 14
 
 BIT_POS_JOYSTICK_BUTTON = 0
+BIT_POS_SWITCH = 1
 
 class HOME_OR_ZERO:
     HOME_NEGATIVE = 1 # motor moves along the negative direction (MCU coordinates)

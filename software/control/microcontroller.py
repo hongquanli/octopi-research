@@ -38,6 +38,7 @@ class Microcontroller():
         self.button_and_switch_state = 0
         self.joystick_button_pressed = 0
         self.signal_joystick_button_pressed_event = False
+        self.switch_state = 0
 
         # AUTO-DETECT the Arduino! Based on Deepak's code
         arduino_ports = [
@@ -397,12 +398,16 @@ class Microcontroller():
             self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
-            self.button_and_switch_state = msg[18]
-            joystick_button_pressed = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
+            # joystick button
+            tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
+            joystick_button_pressed = tmp > 0
             if self.joystick_button_pressed == False and joystick_button_pressed == True:
                 self.signal_joystick_button_pressed_event = True
                 self.ack_joystick_button_pressed()
             self.joystick_button_pressed = joystick_button_pressed
+            # switch
+            tmp = self.button_and_switch_state & (1 << BIT_POS_SWITCH)
+            self.switch_state = tmp > 0
 
             if self.new_packet_callback_external is not None:
                 self.new_packet_callback_external(self)
@@ -453,6 +458,7 @@ class Microcontroller_Simulation():
         self.button_and_switch_state = 0
         self.joystick_button_pressed = 0
         self.signal_joystick_button_pressed_event = False
+        self.switch_state = 0
 
          # for simulation
         self.timestamp_last_command = time.time() # for simulation only
