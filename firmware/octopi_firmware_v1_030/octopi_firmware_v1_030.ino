@@ -5,6 +5,10 @@
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
 #include "def.h"
+//#include "def_gravitymachine.h"
+//#include "def_squid.h"
+//#include "def_platereader.h"
+//#include "def_squid_vertical.h"
 
 /***************************************************************************************************/
 /***************************************** Communications ******************************************/
