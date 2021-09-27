@@ -610,18 +610,24 @@ void loop() {
   // homing complete
   if(is_homing_X && homing_X_completed)
   {
+    stepper_X.setCurrentPosition(0);
+    X_pos = 0;
     is_homing_X = false;
     homing_X_completed = false;
     mcu_cmd_execution_in_progress = false;
   }
   if(is_homing_Y && homing_Y_completed)
   {
+    stepper_Y.setCurrentPosition(0);
+    Y_pos = 0;
     is_homing_Y = false;
     homing_Y_completed = false;
     mcu_cmd_execution_in_progress = false;
   }
   if(is_homing_Z && homing_Z_completed)
   {
+    stepper_Z.setCurrentPosition(0);
+    Z_pos = 0;
     is_homing_Z = false;
     homing_Z_completed = false;
     mcu_cmd_execution_in_progress = false;
