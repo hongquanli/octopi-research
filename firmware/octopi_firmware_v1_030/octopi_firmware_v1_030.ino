@@ -4,32 +4,11 @@
 #include <AccelStepper.h>
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
-
-#define DOTSTAR_NUM_LEDS 128
-static const bool ENABLE_JOYSTICK = true;
-
-static const int FULLSTEPS_PER_REV_X = 200;
-static const int FULLSTEPS_PER_REV_Y = 200;
-static const int FULLSTEPS_PER_REV_Z = 200;
-static const int FULLSTEPS_PER_REV_THETA = 200;
-
-static const float SCREW_PITCH_X_MM = 1;
-static const float SCREW_PITCH_Y_MM = 1;
-static const float SCREW_PITCH_Z_MM = 0.012*25.4;
-
-static const int MICROSTEPPING_DEFAULT_X = 8;
-static const int MICROSTEPPING_DEFAULT_Y = 8;
-static const int MICROSTEPPING_DEFAULT_Z = 8;
-static const int MICROSTEPPING_DEFAULT_THETA = 8;
-
-static const float HOMING_VELOCITY_X = 0.5;
-static const float HOMING_VELOCITY_Y = 0.5;
-static const float HOMING_VELOCITY_Z = 0.5;
+#include "def.h"
 
 /***************************************************************************************************/
 /***************************************** Communications ******************************************/
 /***************************************************************************************************/
-
 // byte[0]: which motor to move: 0 x, 1 y, 2 z, 3 LED, 4 Laser
 // byte[1]: what direction: 1 forward, 0 backward
 // byte[2]: how many micro steps - upper 8 bits
@@ -135,25 +114,6 @@ AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, X_step, X_dir);
 AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
 AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
 
-static const long steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_DEFAULT_X/SCREW_PITCH_X_MM;
-static const long steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_DEFAULT_Y/SCREW_PITCH_Y_MM;
-static const long steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_DEFAULT_Z/SCREW_PITCH_Z_MM;
-
-//constexpr float MAX_VELOCITY_X_mm = 7;
-//constexpr float MAX_VELOCITY_Y_mm = 7;
-constexpr float MAX_VELOCITY_X_mm = 20;
-constexpr float MAX_VELOCITY_Y_mm = 20;
-constexpr float MAX_VELOCITY_Z_mm = 2;
-constexpr float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
-constexpr float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
-constexpr float MAX_ACCELERATION_Z_mm = 20;   // 20 mm/s/s
-static const long X_NEG_LIMIT_MM = -130;
-static const long X_POS_LIMIT_MM = 130;
-static const long Y_NEG_LIMIT_MM = -130;
-static const long Y_POS_LIMIT_MM = 130;
-static const long Z_NEG_LIMIT_MM = -20;
-static const long Z_POS_LIMIT_MM = 20;
-
 bool runSpeed_flag_X = false;
 bool runSpeed_flag_Y = false;
 bool runSpeed_flag_Z = false;
@@ -169,11 +129,6 @@ long target_position;
 volatile int32_t X_pos = 0;
 volatile int32_t Y_pos = 0;
 volatile int32_t Z_pos = 0;
-
-// encoder
-bool X_use_encoder = false;
-bool Y_use_encoder = false;
-bool Z_use_encoder = false;
 
 // limit swittch
 bool is_homing_X = false;
@@ -199,7 +154,6 @@ volatile bool flag_read_joystick = false;
 volatile bool flag_send_pos_update = false;
 int joystick_offset_x = 512;
 int joystick_offset_y = 512;
-constexpr int joystickSensitivity = 50; // for comparison with number in the range of 0-512
 
 // joystick
 int deltaX = 0;
