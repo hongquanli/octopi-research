@@ -398,6 +398,7 @@ class Microcontroller():
             self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
+            self.button_and_switch_state = msg[18]
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
             joystick_button_pressed = tmp > 0
@@ -467,11 +468,13 @@ class Microcontroller_Simulation():
         self.timer_update_command_execution_status.timeout.connect(self._simulation_update_cmd_execution_status)
 
         self.new_packet_callback_external = None
+        self.terminate_reading_received_packet_thread = False
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
 
     def close(self):
-        pass
+        self.terminate_reading_received_packet_thread = True
+        self.thread_read_received_packet.join()
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + usteps
