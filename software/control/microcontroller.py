@@ -551,7 +551,7 @@ class Microcontroller_Simulation():
         self.send_command(cmd)
 
     def read_received_packet(self):
-        while True:
+        while self.terminate_reading_received_packet_thread == False:
             # only for simulation - update the command execution status
             if time.time() - self.timestamp_last_command > 0.5: # in the simulation, assume all the operation takes 0.5s to complete
                 if self._mcu_cmd_execution_status !=  CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS:
