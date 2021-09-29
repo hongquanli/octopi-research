@@ -645,8 +645,9 @@ class AutoFocusController(QObject):
         self.N = N
 
     def set_deltaZ(self,deltaZ_um):
+        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = deltaZ_um/1000
-        self.deltaZ_usteps = round((deltaZ_um/1000)*Motion.STEPS_PER_MM_Z)
+        self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width

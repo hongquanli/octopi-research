@@ -1,30 +1,16 @@
+import os
+import glob
+import numpy as np
+
 class TriggerMode:
     SOFTWARE = 'Software Trigger'
     HARDWARE = 'Hardware Trigger'
     CONTINUOUS = 'Continuous Acqusition'
-    def __init__(self):
-        pass
 
 class AF:
     STOP_THRESHOLD = 0.85
     CROP_WIDTH = 800
     CROP_HEIGHT = 800
-    def __init__(self):
-        pass
-
-class Motion:
-    STEPS_PER_MM_XY = 1600 # microsteps
-    STEPS_PER_MM_Z = 5333  # microsteps
-    def __init__(self):
-        pass
-'''
-# for octopi-malaria
-class Motion:
-    STEPS_PER_MM_XY = 40
-    STEPS_PER_MM_Z = 5333
-    def __init__(self):
-        pass
-'''
 
 class Acquisition:
     CROP_WIDTH = 3000
@@ -35,9 +21,6 @@ class Acquisition:
     DX = 0
     DY = 0
     DZ = 0
-
-    def __init__(self):
-        pass
 
 class PosUpdate:
     INTERVAL_MS = 25
@@ -101,8 +84,10 @@ class CMD_EXECUTION_STATUS:
     CMD_EXECUTION_ERROR = 4
     ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED = 100
 
+###########################################################
+#### machine specific configurations - to be overridden ###
+###########################################################
 # change the following so that "backward" is "backward" - towards the single sided hall effect sensor
-
 STAGE_MOVEMENT_SIGN_X = -1
 STAGE_MOVEMENT_SIGN_Y = 1
 STAGE_MOVEMENT_SIGN_Z = 1
@@ -160,3 +145,14 @@ SLEEP_TIME_S = 0.005
 LED_MATRIX_R_FACTOR = 0
 LED_MATRIX_G_FACTOR = 0
 LED_MATRIX_B_FACTOR = 1
+
+##########################################################
+#### start of loading machine specific configurations ####
+##########################################################
+config_files = glob.glob('.' + '/' + 'configuration*.txt')
+if config_files:
+    print('load machine-specific configuration')
+    exec(open(config_files[0]).read())
+##########################################################
+##### end of loading machine specific configurations #####
+##########################################################

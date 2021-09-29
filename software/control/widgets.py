@@ -601,12 +601,12 @@ class AutoFocusWidget(QFrame):
 
     def add_components(self):
         self.entry_delta = QDoubleSpinBox()
-        self.entry_delta.setMinimum(0.2) 
+        self.entry_delta.setMinimum(0) 
         self.entry_delta.setMaximum(20) 
         self.entry_delta.setSingleStep(0.2)
-        self.entry_delta.setValue(3)
         self.entry_delta.setDecimals(3)
-        self.autofocusController.set_deltaZ(3)
+        self.entry_delta.setValue(1.524)
+        self.autofocusController.set_deltaZ(1.524)
 
         self.entry_N = QSpinBox()
         self.entry_N.setMinimum(3) 
@@ -639,7 +639,8 @@ class AutoFocusWidget(QFrame):
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
 
     def set_deltaZ(self,value):
-        deltaZ = round(value/1000*Motion.STEPS_PER_MM_Z)/(Motion.STEPS_PER_MM_Z/1000)
+        mm_per_ustep = SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_delta.setValue(deltaZ)
         self.autofocusController.set_deltaZ(deltaZ)
 
