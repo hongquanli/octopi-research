@@ -166,7 +166,6 @@ volatile bool flag_read_joystick = false;
 volatile bool flag_send_pos_update = false;
 int joystick_offset_x = 512;
 int joystick_offset_y = 512;
-constexpr int joystickSensitivity = 75; // for comparison with number in the range of 0-512
 
 // joystick
 int deltaX = 0;
