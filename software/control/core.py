@@ -1252,3 +1252,94 @@ class ConfigurationManager(QObject):
         mode_to_update = list[0]
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
+
+class PlateReaderNavigationController(QObject):
+
+    signal_homing_complete = Signal()
+    signal_current_well = Signal(str)
+
+    def __init__(self,microcontroller):
+        QObject.__init__(self)
+        self.microcontroller = microcontroller
+        self.x_pos_mm = 0
+        self.y_pos_mm = 0
+        self.z_pos_mm = 0
+        self.x_microstepping = MICROSTEPPING_DEFAULT_X
+        self.y_microstepping = MICROSTEPPING_DEFAULT_Y
+        self.z_microstepping = MICROSTEPPING_DEFAULT_Z
+        self.column = ''
+        self.row = ''
+
+        # to be moved to gui for transparency
+        self.microcontroller.set_callback(self.update_pos)
+
+        self.is_homing = False
+
+    def move_x_usteps(self,usteps):
+        self.microcontroller.move_x_usteps(usteps)
+
+    def move_y_usteps(self,usteps):
+        self.microcontroller.move_y_usteps(usteps)
+
+    def move_z_usteps(self,usteps):
+        self.microcontroller.move_z_usteps(usteps)
+
+    def move_x_to_usteps(self,usteps):
+        self.microcontroller.move_x_to_usteps(usteps)
+
+    def move_y_to_usteps(self,usteps):
+        self.microcontroller.move_y_to_usteps(usteps)
+
+    def move_z_to_usteps(self,usteps):
+        self.microcontroller.move_z_to_usteps(usteps)
+
+    def moveto(self,column,row):
+        if column != '':
+            mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
+            x_mm = PLATE_READER.OFFSET_COLUMN_1_MM + (int(column)-1)*PLATE_READER.COLUMN_SPACING_MM
+            x_usteps = round(x_mm/mm_per_ustep_X)
+            self.move_x_to_usteps(x_usteps)
+        if row != '':
+            mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
+            y_mm = PLATE_READER.OFFSET_COLUMN_1_MM + (ord(row) - ord('A'))*PLATE_READER.COLUMN_SPACING_MM
+            y_usteps = round(y_mm/mm_per_ustep_Y)
+            self.move_y_to_usteps(y_usteps)
+
+    def update_pos(self,microcontroller):
+        # get position from the microcontroller
+        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
+        # calculate position in mm or rad
+        if USE_ENCODER_X:
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
+        else:
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
+        if USE_ENCODER_Y:
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
+        else:
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
+        if USE_ENCODER_Z:
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
+        else:
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
+        # check homing status
+        if self.is_homing and self.microcontroller.mcu_cmd_execution_in_progress == False:
+            self.signal_homing_complete.emit()
+        # for debugging
+        # print('X: ' + str(self.x_pos_mm) + ' Y: ' + str(self.y_pos_mm))
+        # check and emit current position
+        column = round((self.x_pos_mm - PLATE_READER.OFFSET_COLUMN_1_MM)/PLATE_READER.COLUMN_SPACING_MM)
+        if column >= 0 and column <= PLATE_READER.NUMBER_OF_COLUMNS:
+            column = str(column+1)
+        else:
+            column = ' '
+        row = round((self.y_pos_mm - PLATE_READER.OFFSET_ROW_A_MM)/PLATE_READER.ROW_SPACING_MM)
+        if row >= 0 and row <= PLATE_READER.NUMBER_OF_ROWS:
+            row = chr(ord('A')+row)
+        else:
+            row = ' '
+        self.signal_current_well.emit(row+column)
+
+    def home(self):
+        self.is_homing = True
+        self.microcontroller.home_xy()
+

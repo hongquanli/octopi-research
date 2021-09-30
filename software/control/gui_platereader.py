@@ -36,6 +36,9 @@ class OctopiGUI(QMainWindow):
 		self.trackingController = core.TrackingController(self.microcontroller,self.navigationController)
 		self.imageSaver = core.ImageSaver()
 
+		self.plateReaderNavigationController = core.PlateReaderNavigationController(self.microcontroller)
+
+
 		# open the camera
 		# camera start streaming
 		self.camera.open()
@@ -47,14 +50,16 @@ class OctopiGUI(QMainWindow):
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
 		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=False,show_display_options=False)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
-		self.plateReaderWidget = widgets.PlatereaderWidget(self.multipointController,self.configurationManager,show_configurations=False)
+		self.plateReaderAcquisitionWidget = widgets.PlateReaderAcquisitionWidget(self.multipointController,self.configurationManager,show_configurations=False)
+		self.plateReaderNavigationWidget = widgets.PlateReaderNavigationWidget(self.plateReaderNavigationController)
 
 		# layout widgets
 		layout = QGridLayout() #layout = QStackedLayout()
 		#layout.addWidget(self.cameraSettingWidget,0,0)
 		layout.addWidget(self.liveControlWidget,1,0)
+		layout.addWidget(self.plateReaderNavigationWidget,2,0)
 		layout.addWidget(self.autofocusWidget,3,0)
-		layout.addWidget(self.plateReaderWidget,4,0)
+		layout.addWidget(self.plateReaderAcquisitionWidget,4,0)
 		
 		# transfer the layout to the central widget
 		self.centralWidget = QWidget()
@@ -79,6 +84,11 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
+
+		self.microcontroller.set_callback(self.plateReaderNavigationController.update_pos)
+		self.plateReaderNavigationController.signal_homing_complete.connect(self.plateReaderNavigationWidget.slot_homing_complete)
+		self.plateReaderNavigationController.signal_homing_complete.connect(self.plateReaderAcquisitionWidget.slot_homing_complete)
+		self.plateReaderNavigationController.signal_current_well.connect(self.plateReaderNavigationWidget.label_current_location.setText)
 
 	def closeEvent(self, event):
 		event.accept()

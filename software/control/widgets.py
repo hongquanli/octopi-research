@@ -864,7 +864,7 @@ class TrackingControllerWidget(QFrame):
         # self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
-class PlatereaderWidget(QFrame):
+class PlateReaderAcquisitionWidget(QFrame):
     def __init__(self, multipointController, configurationManager = None, show_configurations = True, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
@@ -902,6 +902,8 @@ class PlatereaderWidget(QFrame):
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
+
+        self.btn_startAcquisition.setEnabled(False)
 
         # layout
         grid_line0 = QGridLayout()
@@ -989,3 +991,71 @@ class PlatereaderWidget(QFrame):
         self.checkbox_withAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
+
+    def slot_homing_complete(self):
+        self.btn_startAcquisition.setEnabled(True)
+    
+
+class PlateReaderNavigationWidget(QFrame):
+    def __init__(self, plateReaderNavigationController, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_components()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.plateReaderNavigationController = plateReaderNavigationController
+
+    def add_components(self):
+        self.dropdown_column = QComboBox()
+        self.dropdown_column.addItems([''])
+        self.dropdown_column.addItems([str(i+1) for i in range(PLATE_READER.NUMBER_OF_COLUMNS)])
+        self.dropdown_row = QComboBox()
+        self.dropdown_row.addItems([''])
+        self.dropdown_row.addItems([chr(i) for i in range(ord('A'),ord('A')+PLATE_READER.NUMBER_OF_ROWS)])
+        self.btn_moveto = QPushButton("Move To")
+        self.btn_home = QPushButton('Home')
+        self.label_current_location = QLabel()
+        self.label_current_location.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.label_current_location.setFixedWidth(50)
+
+        self.dropdown_column.setEnabled(False)
+        self.dropdown_row.setEnabled(False)
+        self.btn_moveto.setEnabled(False)
+        
+        # layout
+        grid_line0 = QHBoxLayout()
+        # tmp = QLabel('Saving Path')
+        # tmp.setFixedWidth(90)
+        grid_line0.addWidget(self.btn_home)
+        grid_line0.addWidget(QLabel('Column'))
+        grid_line0.addWidget(self.dropdown_column)
+        grid_line0.addWidget(QLabel('Row'))
+        grid_line0.addWidget(self.dropdown_row)
+        grid_line0.addWidget(self.btn_moveto)
+        grid_line0.addStretch()
+        grid_line0.addWidget(self.label_current_location)
+
+        self.grid = QGridLayout()
+        self.grid.addLayout(grid_line0,0,0)
+        self.setLayout(self.grid)
+
+        self.btn_home.clicked.connect(self.home)
+        self.btn_moveto.clicked.connect(self.move)
+
+    def home(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setText("Confirm your action")
+        msg.setInformativeText("Click OK to run homing")
+        msg.setWindowTitle("Confirmation")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Cancel)
+        retval = msg.exec_()
+        if QMessageBox.Ok == retval:
+            self.plateReaderNavigationController.home()
+
+    def move(self):
+        self.plateReaderNavigationController.moveto(self.dropdown_column.currentText(),self.dropdown_row.currentText())
+
+    def slot_homing_complete(self):
+        self.dropdown_column.setEnabled(True)
+        self.dropdown_row.setEnabled(True)
+        self.btn_moveto.setEnabled(True)
