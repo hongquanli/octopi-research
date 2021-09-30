@@ -865,25 +865,23 @@ class TrackingControllerWidget(QFrame):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
 class PlateReaderAcquisitionWidget(QFrame):
-    def __init__(self, multipointController, configurationManager = None, show_configurations = True, main=None, *args, **kwargs):
+    def __init__(self, plateReadingController, configurationManager = None, show_configurations = True, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.multipointController = multipointController
+        self.plateReadingController = plateReadingController
         self.configurationManager = configurationManager
         self.base_path_is_set = False
         self.add_components(show_configurations)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self,show_configurations):
-        
         self.btn_setSavingDir = QPushButton('Browse')
         self.btn_setSavingDir.setDefault(False)
         self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
         self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
-        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.plateReadingController.set_base_path(DEFAULT_SAVING_PATH)
         self.base_path_is_set = True
 
         self.lineEdit_experimentID = QLineEdit()
@@ -947,15 +945,15 @@ class PlateReaderAcquisitionWidget(QFrame):
         # self.timer = QTimer()
 
         # connections
-        self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
+        self.checkbox_withAutofocus.stateChanged.connect(self.plateReadingController.set_af_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
-        self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+        self.plateReadingController.acquisitionFinished.connect(self.acquisition_is_finished)
 
     def set_saving_dir(self):
         dialog = QFileDialog()
         save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
-        self.multipointController.set_base_path(save_dir_base)
+        self.plateReadingController.set_base_path(save_dir_base)
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
 
@@ -970,12 +968,12 @@ class PlateReaderAcquisitionWidget(QFrame):
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
-            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.run_acquisition()
+            self.plateReadingController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.plateReadingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.plateReadingController.set_selected_columns(list(map(int,[item.text() for item in self.list_columns.selectedItems()])))
+            self.plateReadingController.run_acquisition()
         else:
-            # self.multipointController.stop_acquisition() # to implement
-            # self.setEnabled_all(True)
+            self.plateReadingController.stop_acquisition() # to implement
             pass
 
     def acquisition_is_finished(self):
@@ -1059,3 +1057,12 @@ class PlateReaderNavigationWidget(QFrame):
         self.dropdown_column.setEnabled(True)
         self.dropdown_row.setEnabled(True)
         self.btn_moveto.setEnabled(True)
+
+    def update_current_location(self,location_str):
+        self.label_current_location.setText(location_str)
+        row = location_str[0]
+        column = location_str[1:]
+        self.dropdown_row.setCurrentText(row)
+        self.dropdown_column.setCurrentText(column)
+
+

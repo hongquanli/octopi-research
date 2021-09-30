@@ -13,6 +13,7 @@ from qtpy.QtGui import *
 import control.widgets as widgets
 import control.camera as camera
 import control.core as core
+import control.core_platereader as core_platereader
 import control.microcontroller as microcontroller
 
 class OctopiGUI(QMainWindow):
@@ -31,13 +32,10 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler = core.StreamHandler()
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
-		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
-		self.trackingController = core.TrackingController(self.microcontroller,self.navigationController)
-		self.imageSaver = core.ImageSaver()
-
 		self.plateReaderNavigationController = core.PlateReaderNavigationController(self.microcontroller)
-
+		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
+		self.plateReadingController = core_platereader.PlateReadingController(self.camera,self.plateReaderNavigationController,self.liveController,self.autofocusController,self.configurationManager)
+		self.imageSaver = core.ImageSaver()
 
 		# open the camera
 		# camera start streaming
@@ -50,7 +48,7 @@ class OctopiGUI(QMainWindow):
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
 		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=False,show_display_options=False)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
-		self.plateReaderAcquisitionWidget = widgets.PlateReaderAcquisitionWidget(self.multipointController,self.configurationManager,show_configurations=False)
+		self.plateReaderAcquisitionWidget = widgets.PlateReaderAcquisitionWidget(self.plateReadingController,self.configurationManager,show_configurations=False)
 		self.plateReaderNavigationWidget = widgets.PlateReaderNavigationWidget(self.plateReaderNavigationController)
 
 		# layout widgets
@@ -74,13 +72,12 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
 		self.streamHandler.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-		self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
-		# self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
-		# self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
-		# self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
+		# self.plateReaderNavigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
+		# self.plateReaderNavigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
+		# self.plateReaderNavigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-		# self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+		# self.plateReadingController.image_to_display.connect(self.imageDisplayWindow.display_image)
+		self.plateReadingController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
@@ -88,12 +85,12 @@ class OctopiGUI(QMainWindow):
 		self.microcontroller.set_callback(self.plateReaderNavigationController.update_pos)
 		self.plateReaderNavigationController.signal_homing_complete.connect(self.plateReaderNavigationWidget.slot_homing_complete)
 		self.plateReaderNavigationController.signal_homing_complete.connect(self.plateReaderAcquisitionWidget.slot_homing_complete)
-		self.plateReaderNavigationController.signal_current_well.connect(self.plateReaderNavigationWidget.label_current_location.setText)
+		self.plateReaderNavigationController.signal_current_well.connect(self.plateReaderNavigationWidget.update_current_location)
 
 	def closeEvent(self, event):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
-		self.navigationController.home()
+		self.plateReaderNavigationController.home()
 		self.liveController.stop_live()
 		self.camera.close()
 		self.imageSaver.close()

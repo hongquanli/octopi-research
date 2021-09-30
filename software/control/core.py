@@ -1305,6 +1305,20 @@ class PlateReaderNavigationController(QObject):
             y_usteps = round(y_mm/mm_per_ustep_Y)
             self.move_y_to_usteps(y_usteps)
 
+    def moveto_row(self,row):
+        # row: int, starting from 0
+        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
+        y_mm = PLATE_READER.OFFSET_COLUMN_1_MM + row*PLATE_READER.COLUMN_SPACING_MM
+        y_usteps = round(y_mm/mm_per_ustep_Y)
+        self.move_y_to_usteps(y_usteps)
+
+    def moveto_column(self,column):
+        # column: int, starting from 0
+        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
+        x_mm = PLATE_READER.OFFSET_COLUMN_1_MM + column*PLATE_READER.COLUMN_SPACING_MM
+        x_usteps = round(x_mm/mm_per_ustep_X)
+        self.move_x_to_usteps(x_usteps)
+
     def update_pos(self,microcontroller):
         # get position from the microcontroller
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
@@ -1343,3 +1357,8 @@ class PlateReaderNavigationController(QObject):
         self.is_homing = True
         self.microcontroller.home_xy()
 
+    def home_x(self):
+        self.microcontroller.home_x()
+
+    def home_y(self):
+        self.microcontroller.home_y()
