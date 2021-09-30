@@ -113,7 +113,7 @@ class CameraSettingsWidget(QFrame):
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
-    def __init__(self, streamHandler, liveController, configurationManager = None, main=None, *args, **kwargs):
+    def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=True, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.liveController = liveController
         self.streamHandler = streamHandler
@@ -127,13 +127,13 @@ class LiveControlWidget(QFrame):
         # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration = self.configurationManager.configurations[0]
 
-        self.add_components()
+        self.add_components(show_trigger_options,show_display_options)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
         self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
-    def add_components(self):
+    def add_components(self,show_trigger_options,show_display_options):
         # line 0: trigger mode
         self.triggerMode = None
         self.dropdown_triggerManu = QComboBox()
@@ -195,7 +195,7 @@ class LiveControlWidget(QFrame):
         self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
         self.slider_resolutionScaling.setMinimum(10)
         self.slider_resolutionScaling.setMaximum(100)
-        self.slider_resolutionScaling.setValue(50)
+        self.slider_resolutionScaling.setValue(DEFAULT_DISPLAY_CROP)
         self.slider_resolutionScaling.setSingleStep(10)
 
         # connections
@@ -242,11 +242,13 @@ class LiveControlWidget(QFrame):
         grid_line3.addWidget(self.slider_resolutionScaling,0,3)
 
         self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
+        if show_trigger_options:
+            self.grid.addLayout(grid_line0,0,0)
         self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line2,2,0)
         self.grid.addLayout(grid_line4,3,0)
-        self.grid.addLayout(grid_line3,4,0)
+        if show_display_options:
+            self.grid.addLayout(grid_line3,4,0)
         self.setLayout(self.grid)
 
     def toggle_live(self,pressed):
@@ -861,3 +863,129 @@ class TrackingControllerWidget(QFrame):
         self.base_path_is_set = False
         # self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+class PlatereaderWidget(QFrame):
+    def __init__(self, multipointController, configurationManager = None, show_configurations = True, main=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.multipointController = multipointController
+        self.configurationManager = configurationManager
+        self.base_path_is_set = False
+        self.add_components(show_configurations)
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def add_components(self,show_configurations):
+        
+        self.btn_setSavingDir = QPushButton('Browse')
+        self.btn_setSavingDir.setDefault(False)
+        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
+        
+        self.lineEdit_savingDir = QLineEdit()
+        self.lineEdit_savingDir.setReadOnly(True)
+        self.lineEdit_savingDir.setText('Choose a base saving directory')
+        self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
+        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.base_path_is_set = True
+
+        self.lineEdit_experimentID = QLineEdit()
+
+        self.list_columns = QListWidget()
+        for i in range(PLATE_READER.NUMBER_OF_COLUMNS):
+            self.list_columns.addItems([str(i+1)])
+        self.list_columns.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
+
+        self.list_configurations = QListWidget()
+        for microscope_configuration in self.configurationManager.configurations:
+            self.list_configurations.addItems([microscope_configuration.name])
+        self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
+
+        self.checkbox_withAutofocus = QCheckBox('With AF')
+        self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.btn_startAcquisition.setCheckable(True)
+        self.btn_startAcquisition.setChecked(False)
+
+        # layout
+        grid_line0 = QGridLayout()
+        tmp = QLabel('Saving Path')
+        tmp.setFixedWidth(90)
+        grid_line0.addWidget(tmp)
+        grid_line0.addWidget(self.lineEdit_savingDir, 0,1)
+        grid_line0.addWidget(self.btn_setSavingDir, 0,2)
+
+        grid_line1 = QGridLayout()
+        tmp = QLabel('Sample ID')
+        tmp.setFixedWidth(90)
+        grid_line1.addWidget(tmp)
+        grid_line1.addWidget(self.lineEdit_experimentID,0,1)
+
+        grid_line2 = QGridLayout()
+        tmp = QLabel('Columns')
+        tmp.setFixedWidth(90)
+        grid_line2.addWidget(tmp)
+        grid_line2.addWidget(self.list_columns, 0,1)
+
+        grid_line3 = QHBoxLayout()
+        tmp = QLabel('Configurations')
+        tmp.setFixedWidth(90)
+        grid_line3.addWidget(tmp)
+        grid_line3.addWidget(self.list_configurations)
+        # grid_line3.addWidget(self.checkbox_withAutofocus)
+
+        self.grid = QGridLayout()
+        self.grid.addLayout(grid_line0,0,0)
+        self.grid.addLayout(grid_line1,1,0)
+        self.grid.addLayout(grid_line2,2,0)
+        if show_configurations:
+            self.grid.addLayout(grid_line3,3,0)
+        else:
+            self.list_configurations.setCurrentRow(0) # select the first configuration
+        self.grid.addWidget(self.btn_startAcquisition,4,0)
+        self.setLayout(self.grid)
+
+        # add and display a timer - to be implemented
+        # self.timer = QTimer()
+
+        # connections
+        self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
+        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
+        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+        self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+
+    def set_saving_dir(self):
+        dialog = QFileDialog()
+        save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
+        self.multipointController.set_base_path(save_dir_base)
+        self.lineEdit_savingDir.setText(save_dir_base)
+        self.base_path_is_set = True
+
+    def toggle_acquisition(self,pressed):
+        if self.base_path_is_set == False:
+            self.btn_startAcquisition.setChecked(False)
+            msg = QMessageBox()
+            msg.setText("Please choose base saving directory first")
+            msg.exec_()
+            return
+        if pressed:
+            # @@@ to do: add a widgetManger to enable and disable widget 
+            # @@@ to do: emit signal to widgetManager to disable other widgets
+            self.setEnabled_all(False)
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.run_acquisition()
+        else:
+            # self.multipointController.stop_acquisition() # to implement
+            # self.setEnabled_all(True)
+            pass
+
+    def acquisition_is_finished(self):
+        self.btn_startAcquisition.setChecked(False)
+        self.setEnabled_all(True)
+
+    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=False):
+        self.btn_setSavingDir.setEnabled(enabled)
+        self.lineEdit_savingDir.setEnabled(enabled)
+        self.lineEdit_experimentID.setEnabled(enabled)
+        self.list_columns.setEnabled(enabled)
+        self.list_configurations.setEnabled(enabled)
+        self.checkbox_withAutofocus.setEnabled(enabled)
+        if exclude_btn_startAcquisition is not True:
+            self.btn_startAcquisition.setEnabled(enabled)
