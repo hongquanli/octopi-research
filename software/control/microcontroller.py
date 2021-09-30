@@ -139,6 +139,16 @@ class Microcontroller():
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
 
+    def move_x_to_usteps(self,usteps):
+        payload = self._int_to_payload(n_microsteps_partial,4)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.MOVETO_X
+        cmd[2] = payload >> 24
+        cmd[3] = (payload >> 16) & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
+        self.send_command(cmd)
+
     '''
     def move_y(self,delta):
         direction = int((np.sign(delta)+1)/2)
@@ -183,6 +193,16 @@ class Microcontroller():
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
+    
+    def move_y_to_usteps(self,usteps):
+        payload = self._int_to_payload(n_microsteps_partial,4)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.MOVETO_Y
+        cmd[2] = payload >> 24
+        cmd[3] = (payload >> 16) & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
+        self.send_command(cmd)
 
     '''
     def move_z(self,delta):
@@ -228,6 +248,16 @@ class Microcontroller():
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
+
+    def move_z_to_usteps(self,usteps):
+        payload = self._int_to_payload(n_microsteps_partial,4)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.MOVETO_Z
+        cmd[2] = payload >> 24
+        cmd[3] = (payload >> 16) & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
+        self.send_command(cmd)
 
     def move_theta_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_THETA*np.sign(usteps)
@@ -489,11 +519,12 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': move x')
-        '''
-        while self.mcu_cmd_execution_in_progress == True:
-            time.sleep(self._motion_status_checking_interval)
-        # time.sleep() will also sleep the QTimer
-        '''
+
+    def move_x_to_usteps(self,usteps):
+        self.x_pos = usteps
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+        print('   mcu command ' + str(self._cmd_id) + ': move x to')
 
     def move_y_usteps(self,usteps):
         self.y_pos = self.y_pos + usteps
@@ -501,11 +532,23 @@ class Microcontroller_Simulation():
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': move y')
 
+    def move_y_to_usteps(self,usteps):
+        self.y_pos = usteps
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+        print('   mcu command ' + str(self._cmd_id) + ': move y to')
+
     def move_z_usteps(self,usteps):
         self.z_pos = self.z_pos + usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': move z')
+
+    def move_z_to_usteps(self,usteps):
+        self.z_pos = usteps
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+        print('   mcu command ' + str(self._cmd_id) + ': move z to')
 
     def move_theta_usteps(self,usteps):
         self.theta_pos = self.theta_pos + usteps
@@ -529,6 +572,13 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': home z')
+
+    def home_xy(self):
+        self.x_pos = 0
+        self.y_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+        print('   mcu command ' + str(self._cmd_id) + ': home xy')
 
     def home_theta(self):
         self.theta_pos = 0

@@ -33,6 +33,9 @@ static const int MOVE_Y = 1;
 static const int MOVE_Z = 2;
 static const int MOVE_THETA = 3;
 static const int HOME_OR_ZERO = 5;
+static const int MOVETO_X = 6;
+static const int MOVETO_Y = 7;
+static const int MOVETO_Z = 8;
 static const int TURN_ON_ILLUMINATION = 10;
 static const int TURN_OFF_ILLUMINATION = 11;
 static const int SET_ILLUMINATION = 12;
@@ -492,12 +495,48 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT_MM*steps_per_mm_Z):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT_MM*steps_per_mm_Z) );
+          /*
           // mcu_cmd_execution_in_progress = true; // because runToNewPosition is blocking, changing this flag is not needed
           stepper_Z.runToNewPosition(Z_commanded_target_position);
           focusPosition = Z_commanded_target_position;
           //stepper_Z.moveTo(Z_commanded_target_position);
           Z_commanded_movement_in_progress = false;
           // mcu_cmd_execution_in_progress = false; // because runToNewPosition is blocking, changing this flag is not needed
+          */
+          focusPosition = Z_commanded_target_position;
+          stepper_Z.moveTo(Z_commanded_target_position);
+          Z_commanded_movement_in_progress = true;
+          runSpeed_flag_Z = false;
+          mcu_cmd_execution_in_progress = true;
+          break;
+        }
+        case MOVETO_X:
+        {
+          long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
+          stepper_X.moveTo(absolute_position);
+          X_commanded_movement_in_progress = true;
+          runSpeed_flag_X = false;
+          mcu_cmd_execution_in_progress = true;
+          break;
+        }
+        case MOVETO_Y:
+        {
+          long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
+          stepper_Y.moveTo(absolute_position);
+          Y_commanded_movement_in_progress = true;
+          runSpeed_flag_Y = false;
+          mcu_cmd_execution_in_progress = true;
+          break;
+        }
+        case MOVETO_Z:
+        {
+          long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
+          // mcu_cmd_execution_in_progress = true; // because runToNewPosition is blocking, changing this flag is not needed
+          stepper_Z.moveTo(absolute_position);
+          focusPosition = absolute_position;
+          Z_commanded_movement_in_progress = true;
+          runSpeed_flag_Z = false;
+          mcu_cmd_execution_in_progress = true;
           break;
         }
         case HOME_OR_ZERO:
@@ -804,7 +843,7 @@ void loop() {
   if(Y_commanded_movement_in_progress && stepper_Y.currentPosition()==Y_commanded_target_position)
   {
     Y_commanded_movement_in_progress = false;
-    mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+    mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
   if(Z_commanded_movement_in_progress && stepper_Z.currentPosition()==Z_commanded_target_position)
   {
