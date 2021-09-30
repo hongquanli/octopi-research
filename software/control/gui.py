@@ -19,13 +19,17 @@ class OctopiGUI(QMainWindow):
 	# variables
 	fps_software_trigger = 100
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, is_simulation, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load objects
-		self.camera = camera.Camera()
-		self.microcontroller = microcontroller.Microcontroller()
-		
+		if is_simulation:
+			self.camera = camera.Camera_Simulation()
+			self.microcontroller = microcontroller.Microcontroller_Simulation()
+		else:
+			self.camera = camera.Camera()
+			self.microcontroller = microcontroller.Microcontroller()
+			
 		self.configurationManager = core.ConfigurationManager()
 		self.streamHandler = core.StreamHandler()
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
