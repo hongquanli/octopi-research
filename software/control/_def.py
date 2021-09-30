@@ -1,6 +1,7 @@
 import os
 import glob
 import numpy as np
+from pathlib import Path
 
 class TriggerMode:
     SOFTWARE = 'Software Trigger'
@@ -55,6 +56,7 @@ class AXIS:
     Y = 1
     Z = 2
     THETA = 3
+    XY = 4
 
 class ILLUMINATION_CODE:
     ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
@@ -145,6 +147,16 @@ SLEEP_TIME_S = 0.005
 LED_MATRIX_R_FACTOR = 0
 LED_MATRIX_G_FACTOR = 0
 LED_MATRIX_B_FACTOR = 1
+
+DEFAULT_SAVING_PATH = str(Path.home()) + "/Downloads"
+
+class PLATE_READER:
+    NUMBER_OF_ROWS = 8
+    NUMBER_OF_COLUMNS = 12
+    ROW_SPACING_MM = 9
+    COLUMN_SPACING_MM = 9
+
+DEFAULT_DISPLAY_CROP = 50 # value ranges from 1 to 100 - image display crop size 
 
 ##########################################################
 #### start of loading machine specific configurations ####

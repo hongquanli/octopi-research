@@ -524,6 +524,9 @@ class NavigationController(QObject):
     def home_theta(self):
         self.microcontroller.home_theta()
 
+    def home_xy(self):
+        self.microcontroller.home_xy()
+
     def zero_x(self):
         self.microcontroller.zero_x()
 

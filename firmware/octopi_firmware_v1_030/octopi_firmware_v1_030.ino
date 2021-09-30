@@ -53,6 +53,7 @@ static const int AXIS_X = 0;
 static const int AXIS_Y = 1;
 static const int AXIS_Z = 2;
 static const int AXIS_THETA = 3;
+static const int AXES_XY = 4;
 
 static const int BIT_POS_JOYSTICK_BUTTON = 0;
 
@@ -146,6 +147,7 @@ bool closed_loop_position_control = false;
 bool is_homing_X = false;
 bool is_homing_Y = false;
 bool is_homing_Z = false;
+bool is_homing_XY = false;
 
 volatile bool homing_X_completed = false;
 volatile bool homing_Y_completed = false;
@@ -553,6 +555,22 @@ void loop() {
                 else
                   stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm);
                 break;
+              case AXES_XY:
+                is_homing_XY = true;
+                is_homing_X = true;
+                homing_X_completed = false;
+                runSpeed_flag_X = true;
+                if(buffer_rx[3]==HOME_NEGATIVE)
+                  stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                else
+                  stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                is_homing_Y = true;
+                homing_Y_completed = false;
+                runSpeed_flag_Y = true;
+                if(buffer_rx[4]==HOME_NEGATIVE)
+                  stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                else
+                  stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
             }
             mcu_cmd_execution_in_progress = true;
           }
@@ -636,7 +654,8 @@ void loop() {
     X_pos = 0;
     is_homing_X = false;
     homing_X_completed = false;
-    mcu_cmd_execution_in_progress = false;
+    if(is_homing_XY==false)
+      mcu_cmd_execution_in_progress = false;
   }
   if(is_homing_Y && homing_Y_completed)
   {
@@ -644,7 +663,8 @@ void loop() {
     Y_pos = 0;
     is_homing_Y = false;
     homing_Y_completed = false;
-    mcu_cmd_execution_in_progress = false;
+    if(is_homing_XY==false)
+      mcu_cmd_execution_in_progress = false;
   }
   if(is_homing_Z && homing_Z_completed)
   {
@@ -652,7 +672,13 @@ void loop() {
     Z_pos = 0;
     is_homing_Z = false;
     homing_Z_completed = false;
-    mcu_cmd_execution_in_progress = false;
+    if(is_homing_XY==false)
+      mcu_cmd_execution_in_progress = false;
+  }
+  if(is_homing_XY && !is_homing_X && !is_homing_Y)
+  {
+    is_homing_XY = false;
+    mcu_cmd_execution_in_progress = true;
   }
   
   // handle control panel input
