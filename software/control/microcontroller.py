@@ -611,7 +611,7 @@ class Microcontroller_Simulation():
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
             # only for simulation - update the command execution status
-            if time.time() - self.timestamp_last_command > 0.5: # in the simulation, assume all the operation takes 0.5s to complete
+            if time.time() - self.timestamp_last_command > 0.05: # in the simulation, assume all the operation takes 0.05s to complete
                 if self._mcu_cmd_execution_status !=  CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS:
                     self._mcu_cmd_execution_status = CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS
                     print('   mcu command ' + str(self._cmd_id) + ' complete')
@@ -640,7 +640,7 @@ class Microcontroller_Simulation():
             if self.new_packet_callback_external is not None:
                 self.new_packet_callback_external(self)
 
-            time.sleep(0.02) # simulate MCU packet transmission interval
+            time.sleep(0.005) # simulate MCU packet transmission interval
 
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
