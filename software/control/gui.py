@@ -23,6 +23,16 @@ class OctopiGUI(QMainWindow):
 	def __init__(self, is_simulation, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
+		# load window
+		if ENABLE_TRACKING:
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.imageDisplayWindow.show_ROI_selector()
+		else:
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
+		self.imageDisplayWindow.show()
+		self.imageArrayDisplayWindow.show()
+
 		# load objects
 		if is_simulation:
 			self.camera = camera.Camera_Simulation()
@@ -32,12 +42,12 @@ class OctopiGUI(QMainWindow):
 			self.microcontroller = microcontroller.Microcontroller()
 			
 		self.configurationManager = core.ConfigurationManager()
-		self.streamHandler = core.StreamHandler()
+		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
-		self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController)
+		self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
 
@@ -75,12 +85,6 @@ class OctopiGUI(QMainWindow):
 		self.centralWidget = QWidget()
 		self.centralWidget.setLayout(layout)
 		self.setCentralWidget(self.centralWidget)
-
-		# load window
-		self.imageDisplayWindow = core.ImageDisplayWindow()
-		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
-		self.imageDisplayWindow.show()
-		self.imageArrayDisplayWindow.show()
 
 		# make connections
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)

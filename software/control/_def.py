@@ -87,6 +87,9 @@ class CMD_EXECUTION_STATUS:
 ###########################################################
 #### machine specific configurations - to be overridden ###
 ###########################################################
+ROTATE_IMAGE_ANGLE = None
+FLIP_IMAGE = None # 'Horizontal', 'Vertical', 'Both'
+
 # change the following so that "backward" is "backward" - towards the single sided hall effect sensor
 STAGE_MOVEMENT_SIGN_X = -1
 STAGE_MOVEMENT_SIGN_Y = 1
@@ -174,11 +177,21 @@ DEFAULT_TRACKER = 'csrt'
 
 ENABLE_TRACKING = True
 TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS = False # set to true when doing multimodal acquisition
+if ENABLE_TRACKING:
+    DEFAULT_DISPLAY_CROP = 100
 
 class AF:
     STOP_THRESHOLD = 0.85
     CROP_WIDTH = 800
     CROP_HEIGHT = 800
+
+class Tracking:
+    SEARCH_AREA_RATIO = 10 #@@@ check
+    CROPPED_IMG_RATIO = 10 #@@@ check
+    BBOX_SCALE_FACTOR = 1.2
+    DEFAULT_TRACKER = "csrt"
+    INIT_METHODS = ["roi"]
+    DEFAULT_INIT_METHOD = "roi"
 
 ##########################################################
 #### start of loading machine specific configurations ####

@@ -101,6 +101,8 @@ class StreamHandler(QObject):
         # crop image
         image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
         image_cropped = np.squeeze(image_cropped)
+        # rotate and flip
+        image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 
         # send image to display
         time_now = time.time()
@@ -676,6 +678,14 @@ class AutoFocusController(QObject):
         self.autofocus_in_progress = True
 
         # create a QThread object
+        try:
+            if self.thread.isRunning():
+                print('*** autofocus thread is still running ***')
+                self.thread.terminate()
+                self.thread.wait()
+                print('*** autofocus threaded manually stopped ***')
+        except:
+            pass
         self.thread = QThread()
         # create a worker object
         self.autofocusWorker = AutofocusWorker(self)
@@ -687,14 +697,12 @@ class AutoFocusController(QObject):
         self.autofocusWorker.finished.connect(self.autofocusWorker.deleteLater)
         self.autofocusWorker.finished.connect(self.thread.quit)
         self.autofocusWorker.image_to_display.connect(self.slot_image_to_display)
-        self.thread.finished.connect(self.thread.deleteLater)
+        # self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self.thread.quit)
         # start the thread
         self.thread.start()
         
     def _on_autofocus_completed(self):
-        # update the state
-        self.autofocus_in_progress = False
-        
         # re-enable callback
         if self.callback_was_enabled_before_autofocus:
             self.camera.stop_streaming()
@@ -710,8 +718,12 @@ class AutoFocusController(QObject):
         QApplication.processEvents()
         print('autofocus finished')
 
+        # update the state
+        self.autofocus_in_progress = False
+
     def slot_image_to_display(self,image):
-        self.image_to_display.emit(image)
+        #self.image_to_display.emit(image)
+        pass
 
     def wait_till_autofocus_has_completed(self):
         while self.autofocus_in_progress == True:
@@ -746,8 +758,6 @@ class MultiPointWorker(QObject):
         self.deltaZ = self.multiPointController.deltaZ
         self.deltaZ_usteps = self.multiPointController.deltaZ_usteps
         self.dt = self.multiPointController.deltat
-        self.do_bfdf = self.multiPointController.do_bfdf
-        self.do_fluorescence = self.multiPointController.do_fluorescence
         self.do_autofocus = self.multiPointController.do_autofocus
         self.crop_width = self.multiPointController.crop_width
         self.crop_height = self.multiPointController.crop_height
@@ -1011,7 +1021,8 @@ class MultiPointController(QObject):
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
-        self.thread.finished.connect(self.thread.deleteLater)
+        # self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self.thread.quit)
         # start the thread
         self.thread.start()
 
@@ -1050,7 +1061,7 @@ class TrackingController(QObject):
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
 
-    def __init__(self,camera,microcontroller,navigationController,configurationManager,liveController,autofocusController):
+    def __init__(self,camera,microcontroller,navigationController,configurationManager,liveController,autofocusController,imageDisplayWindow):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
@@ -1058,12 +1069,14 @@ class TrackingController(QObject):
         self.configurationManager = configurationManager
         self.liveController = liveController
         self.autofocusController = autofocusController
-        self.tracker_xy = tracking.Tracker_XY()
+        self.imageDisplayWindow = imageDisplayWindow
+        self.tracker = tracking.Tracker_Image()
         # self.tracker_z = tracking.Tracker_Z()
         # self.pid_controller_x = tracking.PID_Controller()
         # self.pid_controller_y = tracking.PID_Controller()
         # self.pid_controller_z = tracking.PID_Controller()
-        self.tracking_frame_counter = 0
+
+        self.tracking_time_interval_s = 0
 
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
@@ -1077,6 +1090,8 @@ class TrackingController(QObject):
         self.flag_AF_enabled = False
         self.flag_save_image = False
         self.flag_stop_tracking_requested = False
+
+        self.pixel_size_um = None
 
     def start_tracking(self):
         
@@ -1100,9 +1115,11 @@ class TrackingController(QObject):
         else:
             self.camera_callback_was_enabled_before_tracking = False
 
+        # hide roi selector
+        self.imageDisplayWindow.hide_ROI_selector()
+
         # run tracking
         self.flag_stop_tracking_requested = False
-        self.timestamp_tracking_started = time.time()
         # create a QThread object
         self.thread = QThread()
         # create a worker object
@@ -1117,7 +1134,8 @@ class TrackingController(QObject):
         self.trackingWorker.image_to_display.connect(self.slot_image_to_display)
         self.trackingWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.trackingWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
-        self.thread.finished.connect(self.thread.deleteLater)
+        # self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self.thread.quit)
         # start the thread
         self.thread.start()
 
@@ -1136,6 +1154,9 @@ class TrackingController(QObject):
         # re-enable live if it's previously on
         if self.was_live_before_tracking:
             self.liveController.start_live()
+
+        # show ROI selector
+        self.imageDisplayWindow.show_ROI_selector()
         
         # emit the acquisition finished signal to enable the UI
         self.signal_tracking_stopped.emit()
@@ -1186,6 +1207,19 @@ class TrackingController(QObject):
     def slot_current_configuration(self,configuration):
         self.signal_current_configuration.emit(configuration)
 
+    def update_pixel_size(self, pixel_size_um):
+        self.pixel_size_um = pixel_size_um
+
+    def update_tracker_selection(self,tracker_str):
+        self.tracker.update_tracker_type(tracker_str)
+
+    def set_tracking_time_interval(self,time_interval):
+        self.tracking_time_interval_s = time_interval
+
+    def update_image_resizing_factor(self,image_resizing_factor):
+        self.image_resizing_factor = image_resizing_factor
+        print('update tracking image resizing factor to ' + str(self.image_resizing_factor))
+        self.pixel_size_um_scaled = self.pixel_size_um/self.image_resizing_factor
 
     # PID-based tracking
     '''
@@ -1241,6 +1275,7 @@ class TrackingWorker(QObject):
         self.liveController = self.trackingController.liveController
         self.autofocusController = self.trackingController.autofocusController
         self.configurationManager = self.trackingController.configurationManager
+        self.imageDisplayWindow = self.trackingController.imageDisplayWindow
         self.crop_width = self.trackingController.crop_width
         self.crop_height = self.trackingController.crop_height
         self.display_resolution_scaling = self.trackingController.display_resolution_scaling
@@ -1248,13 +1283,118 @@ class TrackingWorker(QObject):
         self.experiment_ID = self.trackingController.experiment_ID
         self.base_path = self.trackingController.base_path
         self.selected_configurations = self.trackingController.selected_configurations
-        self.timestamp_tracking_started = self.trackingController.timestamp_tracking_started
-        self.time_point = 0
+        self.tracker = trackingController.tracker
+        
+        self.number_of_selected_configurations = len(self.selected_configurations)
+
+        # self.tracking_time_interval_s = self.trackingController.tracking_time_interval_s
+        # self.flag_stage_tracking_enabled = self.trackingController.flag_stage_tracking_enabled
+        # self.flag_AF_enabled = False
+        # self.flag_save_image = False
+        # self.flag_stop_tracking_requested = False
+
+        self.pixel_size_um = None
+
 
     def run(self):
+
+        tracking_frame_counter = 0
+
+        # reset tracker
+        self.tracker.reset()
+
+        # get the manually selected roi
+        init_roi = self.imageDisplayWindow.get_roi_bounding_box()
+        self.tracker.set_roi_bbox(init_roi)
+
+        # tracking loop
         while self.trackingController.flag_stop_tracking_requested == False:
-            print('tracking')
-            time.sleep(0.1)
+
+            # increament counter 
+            tracking_frame_counter = tracking_frame_counter + 1
+            print('tracking_frame_counter: ' + str(tracking_frame_counter) )
+            if tracking_frame_counter == 1:
+                is_first_frame = True
+            else:
+                is_first_frame = False
+
+            # timestamp
+            timestamp_last_frame = time.time()
+
+            # switch to the tracking config
+            config = self.selected_configurations[0]
+            self.signal_current_configuration.emit(config)
+            self.wait_till_operation_is_completed()
+
+            # do autofocus 
+            if self.trackingController.flag_AF_enabled and tracking_frame_counter > 1:
+                # do autofocus
+                print('>>> autofocus')
+                self.autofocusController.autofocus()
+                self.autofocusController.wait_till_autofocus_has_completed()
+                print('>>> autofocus completed')
+
+            # grab an image
+            print('>>> grab an image')
+            config = self.selected_configurations[0]
+            if(self.number_of_selected_configurations > 1):
+                self.signal_current_configuration.emit(config)
+                self.wait_till_operation_is_completed()
+                self.liveController.turn_on_illumination()        # keep illumination on for single configuration acqusition
+                self.wait_till_operation_is_completed()
+            self.camera.send_trigger() 
+            image = self.camera.read_frame()
+            if(self.number_of_selected_configurations > 1):
+                self.liveController.turn_off_illumination()       # keep illumination on for single configuration acqusition
+            # image crop, rotation and flip
+            image = utils.crop_image(image,self.crop_width,self.crop_height)
+            image = np.squeeze(image)
+            image = utils.rotate_and_flip_image(image,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+
+            # image the rest configurations
+            print('>>> image the remaining configuration')
+            for config in self.selected_configurations[1:]:
+                self.signal_current_configuration.emit(config)
+                self.wait_till_operation_is_completed()
+                self.liveController.turn_on_illumination()
+                self.wait_till_operation_is_completed()
+                self.camera.send_trigger() 
+                image_ = self.camera.read_frame()
+                self.liveController.turn_off_illumination()
+                image_ = utils.crop_image(image_,self.crop_width,self.crop_height)
+                image_ = np.squeeze(image_)
+                image_ = utils.rotate_and_flip_image(image_,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                # display image
+                # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                image_to_display_ = utils.crop_image(image_,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
+                # self.image_to_display.emit(image_to_display_)
+                self.image_to_display_multi.emit(image_to_display_,config.illumination_source)
+                # save image
+                if self.camera.is_color:
+                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                cv2.imwrite(saving_path,image)
+
+            # track
+            print('>>> track')
+            self.objectFound, self.centroid, self.rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
+            if self.objectFound == False:
+                break
+
+            # display the new bounding box and the image
+            print('>>> display result')
+            self.imageDisplayWindow.update_bounding_box(self.rect_pts)
+            self.imageDisplayWindow.display_image(image)
+
+            # move
+
+            # wait for movement to complete
+
+            # wait till tracking interval has elapsed
+            while(time.time() - timestamp_last_frame < self.trackingController.tracking_time_interval_s):
+                time.sleep(0.005)
+
+        # tracking terminated
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -1262,10 +1402,9 @@ class TrackingWorker(QObject):
             time.sleep(SLEEP_TIME_S)
 
 
-# based on code from gravity machine
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self, window_title='', invertX=False):
+    def __init__(self, window_title='', draw_crosshairs = False, invertX=False):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
@@ -1286,15 +1425,26 @@ class ImageDisplayWindow(QMainWindow):
         self.graphics_widget.view.addItem(self.graphics_widget.img)
 
         ## Create ROI
-        self.ROI = pg.ROI((0.5,0.5),(500,500))
+        self.roi_pos = (500,500)
+        self.roi_size = (500,500)
+        self.ROI = pg.ROI(self.roi_pos, self.roi_size, scaleSnap=True, translateSnap=True)
         self.ROI.setZValue(10)
         self.ROI.addScaleHandle((0,0), (1,1))
         self.ROI.addScaleHandle((1,1), (0,0))
         self.graphics_widget.view.addItem(self.ROI)
         self.ROI.hide()
-        self.ROI.sigRegionChanged.connect(self.updateROI)
+        self.ROI.sigRegionChanged.connect(self.update_ROI)
         self.roi_pos = self.ROI.pos()
         self.roi_size = self.ROI.size()
+
+        ## Variables for annotating images
+        self.draw_rectangle = False
+        self.ptRect1 = None
+        self.ptRect2 = None
+        self.DrawCirc = False
+        self.centroid = None
+        self.DrawCrossHairs = False
+        self.image_offset = np.array([0, 0])
 
         ## Layout
         layout = QGridLayout()
@@ -1309,10 +1459,18 @@ class ImageDisplayWindow(QMainWindow):
         self.setFixedSize(width,height)
 
     def display_image(self,image):
-        self.graphics_widget.img.setImage(image,autoLevels=False)
-        # print('display image')
-
-    def updateROI(self):
+        if ENABLE_TRACKING:
+            image = np.copy(image)
+            self.image_height = image.shape[0],
+            self.image_width = image.shape[1]
+            if(self.draw_rectangle):
+                cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
+                self.draw_rectangle = False
+            self.graphics_widget.img.setImage(image,autoLevels=False)
+        else:
+            self.graphics_widget.img.setImage(image,autoLevels=False)
+       
+    def update_ROI(self):
         self.roi_pos = self.ROI.pos()
         self.roi_size = self.ROI.size()
 
@@ -1324,6 +1482,19 @@ class ImageDisplayWindow(QMainWindow):
 
     def get_roi(self):
         return self.roi_pos,self.roi_size
+
+    def update_bounding_box(self,pts):
+        self.draw_rectangle=True
+        self.ptRect1=(pts[0][0],pts[0][1])
+        self.ptRect2=(pts[1][0],pts[1][1])
+
+    def get_roi_bounding_box(self):
+        self.update_ROI()
+        width = self.roi_size[0]
+        height = self.roi_size[1]
+        xmin = max(0, self.roi_pos[0])
+        ymin = max(0, self.roi_pos[1])
+        return np.array([xmin, ymin, width, height])
 
 class ImageArrayDisplayWindow(QMainWindow):
 

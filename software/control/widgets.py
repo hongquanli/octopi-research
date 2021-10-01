@@ -952,13 +952,19 @@ class TrackingControllerWidget(QFrame):
         self.grid.addStretch()
         self.setLayout(self.grid)
 
-        # connections
+        # connections - buttons, checkboxes, entries
         self.checkbox_enable_stage_tracking.stateChanged.connect(self.trackingController.toggle_stage_tracking)
         self.checkbox_withAutofocus.stateChanged.connect(self.trackingController.toggel_enable_af)
         self.checkbox_saveImages.stateChanged.connect(self.trackingController.toggel_save_images)
+        self.entry_tracking_interval.valueChanged.connect(self.trackingController.set_tracking_time_interval)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+        # connections - selections and entries
+        self.dropdown_tracker.currentIndexChanged.connect(self.update_tracker)
+        self.dropdown_objective.currentIndexChanged.connect(self.update_pixel_size)
+        # controller to widget
         self.trackingController.signal_tracking_stopped.connect(self.slot_tracking_stopped)
+
 
     def slot_tracking_stopped(self):
         self.btn_startAcquisition.setChecked(False)
@@ -997,6 +1003,15 @@ class TrackingControllerWidget(QFrame):
         self.dropdown_objective
         self.list_configurations.setEnabled(enabled)
 
+    def update_tracker(self, index):
+        self.trackingController.update_tracker_selection(self.dropdown_tracker.currentText())
+
+    def update_pixel_size(self): 
+        objective = self.dropdown_objective.currentText()
+        # self.internal_state.data['Objective'] = self.objective
+        pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR] / ( TUBE_LENS_MM/ (OBJECTIVES[objective]['tube_lens_f_mm']/OBJECTIVES[objective]['magnification']) )
+        self.trackingController.update_pixel_size(pixel_size_um)
+        print('pixel size is ' + str(pixel_size_um) + ' um')
 
     '''
         # connections
