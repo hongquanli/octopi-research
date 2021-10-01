@@ -965,6 +965,10 @@ class TrackingControllerWidget(QFrame):
         # controller to widget
         self.trackingController.signal_tracking_stopped.connect(self.slot_tracking_stopped)
 
+        # run initialization functions
+        self.update_pixel_size()
+        self.trackingController.update_image_resizing_factor(1) # to add: image resizing slider
+
     def slot_joystick_button_pressed(self):
         self.btn_track.toggle()
         if self.btn_track.isChecked():
@@ -1023,6 +1027,7 @@ class TrackingControllerWidget(QFrame):
 
     def update_pixel_size(self): 
         objective = self.dropdown_objective.currentText()
+        self.trackingController.objective = objective
         # self.internal_state.data['Objective'] = self.objective
         pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR] / ( TUBE_LENS_MM/ (OBJECTIVES[objective]['tube_lens_f_mm']/OBJECTIVES[objective]['magnification']) )
         self.trackingController.update_pixel_size(pixel_size_um)

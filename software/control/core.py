@@ -231,6 +231,52 @@ class ImageSaver(QObject):
         self.stop_signal_received = True
         self.thread.join()
 
+
+class ImageSaver_Tracking(QObject):
+    def __init__(self,base_path,image_format='bmp'):
+        QObject.__init__(self)
+        self.base_path = base_path
+        self.image_format = image_format
+        self.max_num_image_per_folder = 1000
+        self.queue = Queue(100) # max 100 items in the queue
+        self.image_lock = Lock()
+        self.stop_signal_received = False
+        self.thread = Thread(target=self.process_queue)
+        self.thread.start()
+
+    def process_queue(self):
+        while True:
+            # stop the thread if stop signal is received
+            if self.stop_signal_received:
+                return
+            # process the queue
+            try:
+                [image,frame_counter,postfix] = self.queue.get(timeout=0.1)
+                self.image_lock.acquire(True)
+                folder_ID = int(frame_counter/self.max_num_image_per_folder)
+                file_ID = int(frame_counter%self.max_num_image_per_folder)
+                # create a new folder
+                if file_ID == 0:
+                    os.mkdir(os.path.join(self.base_path,str(folder_ID)))
+                saving_path = os.path.join(self.base_path,str(folder_ID),str(file_ID) + '_' + str(frame_counter) + '_' + postfix + '.' + self.image_format)
+                cv2.imwrite(saving_path,image)
+                self.queue.task_done()
+                self.image_lock.release()
+            except:
+                pass
+                            
+    def enqueue(self,image,frame_counter,postfix):
+        try:
+            self.queue.put_nowait([image,frame_counter,postfix])
+        except:
+            print('imageSaver queue is full, image discarded')
+
+    def close(self):
+        self.queue.join()
+        self.stop_signal_received = True
+        self.thread.join()
+
+
 '''
 class ImageSaver_MultiPointAcquisition(QObject):
 '''
@@ -1086,12 +1132,13 @@ class TrackingController(QObject):
         self.base_path = None
         self.selected_configurations = []
 
-        self.flag_stage_tracking_enabled = False
+        self.flag_stage_tracking_enabled = True
         self.flag_AF_enabled = False
         self.flag_save_image = False
         self.flag_stop_tracking_requested = False
 
         self.pixel_size_um = None
+        self.objective = None
 
     def start_tracking(self):
         
@@ -1121,6 +1168,14 @@ class TrackingController(QObject):
         # run tracking
         self.flag_stop_tracking_requested = False
         # create a QThread object
+        try:
+            if self.thread.isRunning():
+                print('*** previous tracking thread is still running ***')
+                self.thread.terminate()
+                self.thread.wait()
+                print('*** previous tracking threaded manually stopped ***')
+        except:
+            pass
         self.thread = QThread()
         # create a worker object
         self.trackingWorker = TrackingWorker(self)
@@ -1293,12 +1348,22 @@ class TrackingWorker(QObject):
         # self.flag_save_image = False
         # self.flag_stop_tracking_requested = False
 
-        self.pixel_size_um = None
-
+        self.image_saver = ImageSaver_Tracking(base_path=os.path.join(self.base_path,self.experiment_ID),image_format='bmp')
 
     def run(self):
 
         tracking_frame_counter = 0
+        t0 = time.time()
+
+        # save metadata
+        self.txt_file = open( os.path.join(self.base_path,self.experiment_ID,"metadata.txt"), "w+")
+        self.txt_file.write('t0: ' + datetime.now().strftime('%Y-%m-%d %H-%M-%-S.%f') + '\n')
+        self.txt_file.write('objective: ' + self.trackingController.objective + '\n')
+        self.txt_file.close()
+
+        # create a file for logging 
+        self.csv_file = open( os.path.join(self.base_path,self.experiment_ID,"track.csv"), "w+")
+        self.csv_file.write('dt (s), x_stage (mm), y_stage (mm), z_stage (mm), x_image (mm), y_image(mm), image_filename\n')
 
         # reset tracker
         self.tracker.reset()
@@ -1310,10 +1375,8 @@ class TrackingWorker(QObject):
         # tracking loop
         while self.trackingController.flag_stop_tracking_requested == False:
 
-            # increament counter 
-            tracking_frame_counter = tracking_frame_counter + 1
             print('tracking_frame_counter: ' + str(tracking_frame_counter) )
-            if tracking_frame_counter == 1:
+            if tracking_frame_counter == 0:
                 is_first_frame = True
             else:
                 is_first_frame = False
@@ -1334,14 +1397,19 @@ class TrackingWorker(QObject):
                 self.autofocusController.wait_till_autofocus_has_completed()
                 print('>>> autofocus completed')
 
+            # get current position
+            x_stage = self.navigationController.x_pos_mm
+            y_stage = self.navigationController.y_pos_mm
+            z_stage = self.navigationController.z_pos_mm
+
             # grab an image
-            print('>>> grab an image')
             config = self.selected_configurations[0]
             if(self.number_of_selected_configurations > 1):
                 self.signal_current_configuration.emit(config)
                 self.wait_till_operation_is_completed()
                 self.liveController.turn_on_illumination()        # keep illumination on for single configuration acqusition
                 self.wait_till_operation_is_completed()
+            t = time.time()
             self.camera.send_trigger() 
             image = self.camera.read_frame()
             if(self.number_of_selected_configurations > 1):
@@ -1350,11 +1418,13 @@ class TrackingWorker(QObject):
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             image = np.squeeze(image)
             image = utils.rotate_and_flip_image(image,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            # get image size
+            image_shape = image.shape
+            image_center = np.array([image_shape[1]*0.5,image_shape[0]*0.5])
 
             # image the rest configurations
-            print('>>> image the remaining configuration')
-            for config in self.selected_configurations[1:]:
-                self.signal_current_configuration.emit(config)
+            for config_ in self.selected_configurations[1:]:
+                self.signal_current_configuration.emit(config_)
                 self.wait_till_operation_is_completed()
                 self.liveController.turn_on_illumination()
                 self.wait_till_operation_is_completed()
@@ -1368,33 +1438,56 @@ class TrackingWorker(QObject):
                 # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
                 image_to_display_ = utils.crop_image(image_,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
                 # self.image_to_display.emit(image_to_display_)
-                self.image_to_display_multi.emit(image_to_display_,config.illumination_source)
+                self.image_to_display_multi.emit(image_to_display_,config_.illumination_source)
                 # save image
                 if self.camera.is_color:
                     image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
-                cv2.imwrite(saving_path,image)
+                saving_path = os.path.join(current_path, file_ID + str(config_.name) + '.' + Acquisition.IMAGE_FORMAT)
+                self.image_saver.enqueue(image_,tracking_frame_counter,str(config_.name))
 
             # track
-            print('>>> track')
-            self.objectFound, self.centroid, self.rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
-            if self.objectFound == False:
+            objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
+            if objectFound == False:
+                print('')
                 break
+            in_plane_position_error_pixel = image_center - centroid 
+            in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
+            x_error_mm = in_plane_position_error_mm[0]
+            y_error_mm = in_plane_position_error_mm[1]
 
             # display the new bounding box and the image
-            print('>>> display result')
-            self.imageDisplayWindow.update_bounding_box(self.rect_pts)
+            self.imageDisplayWindow.update_bounding_box(rect_pts)
             self.imageDisplayWindow.display_image(image)
 
             # move
+            if self.trackingController.flag_stage_tracking_enabled:
+                x_correction_usteps = int(x_error_mm/(SCREW_PITCH_X_MM/FULLSTEPS_PER_REV_X/self.navigationController.x_microstepping))
+                y_correction_usteps = int(y_error_mm/(SCREW_PITCH_Y_MM/FULLSTEPS_PER_REV_Y/self.navigationController.y_microstepping))
+                self.microcontroller.move_x_usteps(TRACKING_MOVEMENT_SIGN_X*x_correction_usteps)
+                self.microcontroller.move_y_usteps(TRACKING_MOVEMENT_SIGN_Y*y_correction_usteps) 
+
+            # save image
+            self.image_saver.enqueue(image,tracking_frame_counter,str(config.name))
+
+            # save position data            
+            # self.csv_file.write('dt (s), x_stage (mm), y_stage (mm), z_stage (mm), x_image (mm), y_image(mm), image_filename\n')
+            self.csv_file.write(str(t)+','+str(x_stage)+','+str(y_stage)+','+str(z_stage)+','+str(x_error_mm)+','+str(y_error_mm)+','+str(tracking_frame_counter)+'\n')
+            if tracking_frame_counter%100 == 0:
+                self.csv_file.flush()
 
             # wait for movement to complete
+            self.wait_till_operation_is_completed() # to do - make sure both x movement and y movement are complete
 
             # wait till tracking interval has elapsed
             while(time.time() - timestamp_last_frame < self.trackingController.tracking_time_interval_s):
                 time.sleep(0.005)
 
+            # increament counter 
+            tracking_frame_counter = tracking_frame_counter + 1
+
         # tracking terminated
+        self.csv_file.close()
+        self.image_saver.close()
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
