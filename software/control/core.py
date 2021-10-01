@@ -917,8 +917,6 @@ class MultiPointController(QObject):
         self.deltaZ = Acquisition.DZ/1000
         self.deltaZ_usteps = round(self.deltaZ/mm_per_ustep_Z)
         self.deltat = 0
-        self.do_bfdf = False
-        self.do_fluorescence = False
         self.do_autofocus = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
@@ -1046,17 +1044,151 @@ class MultiPointController(QObject):
         self.signal_current_configuration.emit(configuration)
 
 class TrackingController(QObject):
-    def __init__(self,microcontroller,navigationController):
+
+    signal_tracking_stopped = Signal()
+    image_to_display = Signal(np.ndarray)
+    image_to_display_multi = Signal(np.ndarray,int)
+    signal_current_configuration = Signal(Configuration)
+
+    def __init__(self,camera,microcontroller,navigationController,configurationManager,liveController,autofocusController):
         QObject.__init__(self)
+        self.camera = camera
         self.microcontroller = microcontroller
         self.navigationController = navigationController
+        self.configurationManager = configurationManager
+        self.liveController = liveController
+        self.autofocusController = autofocusController
         self.tracker_xy = tracking.Tracker_XY()
-        self.tracker_z = tracking.Tracker_Z()
-        self.pid_controller_x = tracking.PID_Controller()
-        self.pid_controller_y = tracking.PID_Controller()
-        self.pid_controller_z = tracking.PID_Controller()
+        # self.tracker_z = tracking.Tracker_Z()
+        # self.pid_controller_x = tracking.PID_Controller()
+        # self.pid_controller_y = tracking.PID_Controller()
+        # self.pid_controller_z = tracking.PID_Controller()
         self.tracking_frame_counter = 0
 
+        self.crop_width = Acquisition.CROP_WIDTH
+        self.crop_height = Acquisition.CROP_HEIGHT
+        self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
+        self.counter = 0
+        self.experiment_ID = None
+        self.base_path = None
+        self.selected_configurations = []
+
+        self.flag_stage_tracking_enabled = False
+        self.flag_AF_enabled = False
+        self.flag_save_image = False
+        self.flag_stop_tracking_requested = False
+
+    def start_tracking(self):
+        
+        # save pre-tracking configuration
+        print('start tracking')
+        self.configuration_before_running_tracking = self.liveController.currentConfiguration
+        
+        # stop live
+        if self.liveController.is_live:
+            self.was_live_before_tracking = True
+            self.liveController.stop_live() # @@@ to do: also uncheck the live button
+        else:
+            self.was_live_before_tracking = False
+
+        # disable callback
+        if self.camera.callback_is_enabled:
+            self.camera_callback_was_enabled_before_tracking = True
+            self.camera.stop_streaming()
+            self.camera.disable_callback()
+            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
+        else:
+            self.camera_callback_was_enabled_before_tracking = False
+
+        # run tracking
+        self.flag_stop_tracking_requested = False
+        self.timestamp_tracking_started = time.time()
+        # create a QThread object
+        self.thread = QThread()
+        # create a worker object
+        self.trackingWorker = TrackingWorker(self)
+        # move the worker to the thread
+        self.trackingWorker.moveToThread(self.thread)
+        # connect signals and slots
+        self.thread.started.connect(self.trackingWorker.run)
+        self.trackingWorker.finished.connect(self._on_tracking_stopped)
+        self.trackingWorker.finished.connect(self.trackingWorker.deleteLater)
+        self.trackingWorker.finished.connect(self.thread.quit)
+        self.trackingWorker.image_to_display.connect(self.slot_image_to_display)
+        self.trackingWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
+        self.trackingWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
+        self.thread.finished.connect(self.thread.deleteLater)
+        # start the thread
+        self.thread.start()
+
+    def _on_tracking_stopped(self):
+
+        # restore the previous selected mode
+        self.signal_current_configuration.emit(self.configuration_before_running_tracking)
+
+        # re-enable callback
+        if self.camera_callback_was_enabled_before_tracking:
+            self.camera.stop_streaming()
+            self.camera.enable_callback()
+            self.camera.start_streaming()
+            self.camera_callback_was_enabled_before_tracking = False
+        
+        # re-enable live if it's previously on
+        if self.was_live_before_tracking:
+            self.liveController.start_live()
+        
+        # emit the acquisition finished signal to enable the UI
+        self.signal_tracking_stopped.emit()
+        QApplication.processEvents()
+
+    def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
+        # generate unique experiment ID
+        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.recording_start_time = time.time()
+        # create a new folder
+        try:
+            os.mkdir(os.path.join(self.base_path,self.experiment_ID))
+            self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
+        except:
+            print('error in making a new folder')
+            pass
+
+    def set_selected_configurations(self, selected_configurations_name):
+        self.selected_configurations = []
+        for configuration_name in selected_configurations_name:
+            self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
+
+    def toggle_stage_tracking(self,state):
+        self.flag_stage_tracking_enabled = state > 0
+        print('set stage tracking enabled to ' + str(self.flag_stage_tracking_enabled))
+
+    def toggel_enable_af(self,state):
+        self.flag_AF_enabled = state > 0
+        print('set af enabled to ' + str(self.flag_AF_enabled))
+
+    def toggel_save_images(self,state):
+        self.flag_save_image = state > 0
+        print('set save images to ' + str(self.flag_save_image))
+
+    def set_base_path(self,path):
+        self.base_path = path
+
+    def stop_tracking(self):
+        self.flag_stop_tracking_requested = True
+        print('stop tracking requested')
+
+    def slot_image_to_display(self,image):
+        self.image_to_display.emit(image)
+
+    def slot_image_to_display_multi(self,image,illumination_source):
+        self.image_to_display_multi.emit(image,illumination_source)
+
+    def slot_current_configuration(self,configuration):
+        self.signal_current_configuration.emit(configuration)
+
+
+    # PID-based tracking
+    '''
     def on_new_frame(self,image,frame_ID,timestamp):
         # initialize the tracker when a new track is started
         if self.tracking_frame_counter == 0:
@@ -1090,6 +1222,45 @@ class TrackingController(QObject):
 
     def start_a_new_track(self):
         self.tracking_frame_counter = 0
+    '''
+
+class TrackingWorker(QObject):
+
+    finished = Signal()
+    image_to_display = Signal(np.ndarray)
+    image_to_display_multi = Signal(np.ndarray,int)
+    signal_current_configuration = Signal(Configuration)
+
+    def __init__(self,trackingController):
+        QObject.__init__(self)
+        self.trackingController = trackingController
+
+        self.camera = self.trackingController.camera
+        self.microcontroller = self.trackingController.microcontroller
+        self.navigationController = self.trackingController.navigationController
+        self.liveController = self.trackingController.liveController
+        self.autofocusController = self.trackingController.autofocusController
+        self.configurationManager = self.trackingController.configurationManager
+        self.crop_width = self.trackingController.crop_width
+        self.crop_height = self.trackingController.crop_height
+        self.display_resolution_scaling = self.trackingController.display_resolution_scaling
+        self.counter = self.trackingController.counter
+        self.experiment_ID = self.trackingController.experiment_ID
+        self.base_path = self.trackingController.base_path
+        self.selected_configurations = self.trackingController.selected_configurations
+        self.timestamp_tracking_started = self.trackingController.timestamp_tracking_started
+        self.time_point = 0
+
+    def run(self):
+        while self.trackingController.flag_stop_tracking_requested == False:
+            print('tracking')
+            time.sleep(0.1)
+        self.finished.emit()
+
+    def wait_till_operation_is_completed(self):
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
+
 
 # based on code from gravity machine
 class ImageDisplayWindow(QMainWindow):

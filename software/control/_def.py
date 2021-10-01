@@ -8,11 +8,6 @@ class TriggerMode:
     HARDWARE = 'Hardware Trigger'
     CONTINUOUS = 'Continuous Acqusition'
 
-class AF:
-    STOP_THRESHOLD = 0.85
-    CROP_WIDTH = 800
-    CROP_HEIGHT = 800
-
 class Acquisition:
     CROP_WIDTH = 3000
     CROP_HEIGHT = 3000
@@ -162,6 +157,28 @@ class PLATE_READER:
     OFFSET_ROW_A_MM = 20
 
 DEFAULT_DISPLAY_CROP = 50 # value ranges from 1 to 100 - image display crop size 
+
+CAMERA_PIXEL_SIZE_UM = {'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'PYTHON300':4.8}
+OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
+                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180}, 
+                '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
+                '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
+                '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
+                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200}, 
+                '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
+TUBE_LENS_MM = 50
+CAMERA_SENSOR = 'IMX226'
+DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
+TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
+DEFAULT_TRACKER = 'csrt'
+
+ENABLE_TRACKING = True
+TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS = False # set to true when doing multimodal acquisition
+
+class AF:
+    STOP_THRESHOLD = 0.85
+    CROP_WIDTH = 800
+    CROP_HEIGHT = 800
 
 ##########################################################
 #### start of loading machine specific configurations ####

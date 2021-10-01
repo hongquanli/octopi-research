@@ -13,6 +13,7 @@ import control.widgets as widgets
 import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
+from control._def import *
 
 class OctopiGUI(QMainWindow):
 
@@ -36,7 +37,7 @@ class OctopiGUI(QMainWindow):
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
-		self.trackingController = core.TrackingController(self.microcontroller,self.navigationController)
+		self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
 
@@ -53,12 +54,13 @@ class OctopiGUI(QMainWindow):
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-		self.trackingControlWidget = widgets.TrackingControllerWidget(self.streamHandler,self.trackingController)
+		self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
 		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
+		if ENABLE_TRACKING:
+			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-		self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
 		# layout widgets
@@ -84,7 +86,7 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
 		self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-		self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
+		# self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
 		self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
 		self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
 		self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)

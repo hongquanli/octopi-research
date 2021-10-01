@@ -856,13 +856,195 @@ class MultiPointWidget(QFrame):
             self.btn_startAcquisition.setEnabled(enabled)
 
 class TrackingControllerWidget(QFrame):
-    def __init__(self, multipointController, navigationController, main=None, *args, **kwargs):
+    def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.multipointController = multipointController
-        self.navigationController = navigationController
+        self.trackingController = trackingController
+        self.configurationManager = configurationManager
         self.base_path_is_set = False
-        # self.add_components()
+        self.add_components(show_configurations)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def add_components(self,show_configurations):
+        self.btn_setSavingDir = QPushButton('Browse')
+        self.btn_setSavingDir.setDefault(False)
+        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
+        self.lineEdit_savingDir = QLineEdit()
+        self.lineEdit_savingDir.setReadOnly(True)
+        self.lineEdit_savingDir.setText('Choose a base saving directory')
+        self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
+        self.trackingController.set_base_path(DEFAULT_SAVING_PATH)
+        self.base_path_is_set = True
+
+        self.lineEdit_experimentID = QLineEdit()
+
+        self.dropdown_objective = QComboBox()
+        self.dropdown_objective.addItems(list(OBJECTIVES.keys()))
+        self.dropdown_objective.setCurrentText(DEFAULT_OBJECTIVE)
+
+        self.dropdown_tracker = QComboBox()
+        self.dropdown_tracker.addItems(TRACKERS)
+        self.dropdown_tracker.setCurrentText(DEFAULT_TRACKER)
+
+        self.entry_tracking_interval = QDoubleSpinBox()
+        self.entry_tracking_interval.setMinimum(0) 
+        self.entry_tracking_interval.setMaximum(30) 
+        self.entry_tracking_interval.setSingleStep(0.5)
+        self.entry_tracking_interval.setValue(0)
+
+        self.list_configurations = QListWidget()
+        for microscope_configuration in self.configurationManager.configurations:
+            self.list_configurations.addItems([microscope_configuration.name])
+        self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
+
+        self.checkbox_withAutofocus = QCheckBox('With AF')
+        self.checkbox_saveImages = QCheckBox('Save Images')
+        self.btn_startAcquisition = QPushButton('Start Tracking')
+        self.btn_startAcquisition.setCheckable(True)
+        self.btn_startAcquisition.setChecked(False)
+
+        self.checkbox_enable_stage_tracking = QCheckBox(' Enable Stage Tracking')
+        self.checkbox_enable_stage_tracking.setChecked(True)
+
+        # layout
+        grid_line0 = QGridLayout()
+        tmp = QLabel('Saving Path')
+        tmp.setFixedWidth(90)
+        grid_line0.addWidget(tmp, 0,0)
+        grid_line0.addWidget(self.lineEdit_savingDir, 0,1, 1,2)
+        grid_line0.addWidget(self.btn_setSavingDir, 0,3)
+        tmp = QLabel('Experiment ID')
+        tmp.setFixedWidth(90)
+        grid_line0.addWidget(tmp, 1,0)
+        grid_line0.addWidget(self.lineEdit_experimentID, 1,1, 1,1)
+        tmp = QLabel('Objective')
+        tmp.setFixedWidth(90)
+        grid_line0.addWidget(tmp,1,2)
+        grid_line0.addWidget(self.dropdown_objective, 1,3)
+
+        grid_line3 = QHBoxLayout()
+        tmp = QLabel('Configurations')
+        tmp.setFixedWidth(90)
+        grid_line3.addWidget(tmp)
+        grid_line3.addWidget(self.list_configurations)
+        
+        grid_line1 = QHBoxLayout()
+        tmp = QLabel('Tracker')
+        grid_line1.addWidget(tmp)
+        grid_line1.addWidget(self.dropdown_tracker)
+        tmp = QLabel('Tracking Interval (s)')
+        grid_line1.addWidget(tmp)
+        grid_line1.addWidget(self.entry_tracking_interval)
+        grid_line1.addWidget(self.checkbox_withAutofocus)
+        grid_line1.addWidget(self.checkbox_saveImages)
+
+        grid_line4 = QGridLayout()
+        grid_line4.addWidget(self.btn_startAcquisition,0,0,1,3)
+        grid_line4.addWidget(self.checkbox_enable_stage_tracking,0,4)
+
+        self.grid = QVBoxLayout()
+        self.grid.addLayout(grid_line0)
+        if show_configurations:
+            self.grid.addLayout(grid_line3)
+        else:
+            self.list_configurations.setCurrentRow(0) # select the first configuration
+        self.grid.addLayout(grid_line1)        
+        self.grid.addLayout(grid_line4)
+        self.grid.addStretch()
+        self.setLayout(self.grid)
+
+        # connections
+        self.checkbox_enable_stage_tracking.stateChanged.connect(self.trackingController.toggle_stage_tracking)
+        self.checkbox_withAutofocus.stateChanged.connect(self.trackingController.toggel_enable_af)
+        self.checkbox_saveImages.stateChanged.connect(self.trackingController.toggel_save_images)
+        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
+        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+        self.trackingController.signal_tracking_stopped.connect(self.slot_tracking_stopped)
+
+    def slot_tracking_stopped(self):
+        self.btn_startAcquisition.setChecked(False)
+        self.setEnabled_all(True)
+        print('tracking stopped')
+
+    def set_saving_dir(self):
+        dialog = QFileDialog()
+        save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
+        self.trackingController.set_base_path(save_dir_base)
+        self.lineEdit_savingDir.setText(save_dir_base)
+        self.base_path_is_set = True 
+
+    def toggle_acquisition(self,pressed):
+        if self.base_path_is_set == False:
+            self.btn_startAcquisition.setChecked(False)
+            msg = QMessageBox()
+            msg.setText("Please choose base saving directory first")
+            msg.exec_()
+            return
+        if pressed:
+            # @@@ to do: add a widgetManger to enable and disable widget 
+            # @@@ to do: emit signal to widgetManager to disable other widgets
+            self.setEnabled_all(False)
+            self.trackingController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.trackingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.trackingController.start_tracking()
+        else:
+            self.trackingController.stop_tracking()
+
+    def setEnabled_all(self,enabled):
+        self.btn_setSavingDir.setEnabled(enabled)
+        self.lineEdit_savingDir.setEnabled(enabled)
+        self.lineEdit_experimentID.setEnabled(enabled)
+        self.dropdown_tracker
+        self.dropdown_objective
+        self.list_configurations.setEnabled(enabled)
+
+
+    '''
+        # connections
+        self.checkbox_withAutofocus.stateChanged.connect(self.trackingController.set_af_flag)
+        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
+        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+        self.trackingController.trackingStopped.connect(self.acquisition_is_finished)
+
+    def set_saving_dir(self):
+        dialog = QFileDialog()
+        save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
+        self.plateReadingController.set_base_path(save_dir_base)
+        self.lineEdit_savingDir.setText(save_dir_base)
+        self.base_path_is_set = True
+
+    def toggle_acquisition(self,pressed):
+        if self.base_path_is_set == False:
+            self.btn_startAcquisition.setChecked(False)
+            msg = QMessageBox()
+            msg.setText("Please choose base saving directory first")
+            msg.exec_()
+            return
+        if pressed:
+            # @@@ to do: add a widgetManger to enable and disable widget 
+            # @@@ to do: emit signal to widgetManager to disable other widgets
+            self.setEnabled_all(False)
+            self.trackingController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.trackingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.trackingController.set_selected_columns(list(map(int,[item.text() for item in self.list_columns.selectedItems()])))
+            self.trackingController.run_acquisition()
+        else:
+            self.trackingController.stop_acquisition() # to implement
+            pass
+
+    def acquisition_is_finished(self):
+        self.btn_startAcquisition.setChecked(False)
+        self.setEnabled_all(True)
+
+    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=False):
+        self.btn_setSavingDir.setEnabled(enabled)
+        self.lineEdit_savingDir.setEnabled(enabled)
+        self.lineEdit_experimentID.setEnabled(enabled)
+        self.list_columns.setEnabled(enabled)
+        self.list_configurations.setEnabled(enabled)
+        self.checkbox_withAutofocus.setEnabled(enabled)
+        if exclude_btn_startAcquisition is not True:
+            self.btn_startAcquisition.setEnabled(enabled)
+    '''
 
 class PlateReaderAcquisitionWidget(QFrame):
     def __init__(self, plateReadingController, configurationManager = None, show_configurations = True, main=None, *args, **kwargs):
@@ -1064,5 +1246,3 @@ class PlateReaderNavigationWidget(QFrame):
         column = location_str[1:]
         self.dropdown_row.setCurrentText(row)
         self.dropdown_column.setCurrentText(column)
-
-
