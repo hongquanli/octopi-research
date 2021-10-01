@@ -124,9 +124,7 @@ class Tracker_Image(object):
 	def _initialize_tracker(self, image, centroid, bbox):
 		# check if the image is color or not
 		if(len(image.shape)<3):
-			self.is_color = False
-		# create the tracker
-		self.create_tracker() # for a new track, just calling self.tracker.init(image,bbox) is not sufficient, this line needs to be called
+			self.is_color = False		
 		# Initialize the OpenCV based tracker
 		if(self.tracker_type in self.OPENCV_OBJECT_TRACKERS.keys()):
 			print('Initializing openCV tracker')
@@ -134,6 +132,7 @@ class Tracker_Image(object):
 			print(bbox)
 			if(self.is_color == False):
 				image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+			self.create_tracker() # for a new track, just calling self.tracker.init(image,bbox) is not sufficient, this line needs to be called
 			self.tracker.init(image, bbox)
 		# Initialize Neural Net based Tracker
 		elif(self.tracker_type in self.NEURALNETTRACKERS.keys()):
