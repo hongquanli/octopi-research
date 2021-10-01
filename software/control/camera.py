@@ -414,7 +414,7 @@ class Camera_Simulation(object):
             self.current_frame = np.roll(self.current_frame,10,axis=0)
             pass 
             # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
-        if self.new_image_callback_external is not None:
+        if self.new_image_callback_external is not None and self.callback_is_enabled:
             self.new_image_callback_external(self)
 
     def read_frame(self):
