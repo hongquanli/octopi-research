@@ -898,9 +898,9 @@ class TrackingControllerWidget(QFrame):
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.checkbox_saveImages = QCheckBox('Save Images')
-        self.btn_startAcquisition = QPushButton('Start Tracking')
-        self.btn_startAcquisition.setCheckable(True)
-        self.btn_startAcquisition.setChecked(False)
+        self.btn_track = QPushButton('Start Tracking')
+        self.btn_track.setCheckable(True)
+        self.btn_track.setChecked(False)
 
         self.checkbox_enable_stage_tracking = QCheckBox(' Enable Stage Tracking')
         self.checkbox_enable_stage_tracking.setChecked(True)
@@ -938,7 +938,7 @@ class TrackingControllerWidget(QFrame):
         grid_line1.addWidget(self.checkbox_saveImages)
 
         grid_line4 = QGridLayout()
-        grid_line4.addWidget(self.btn_startAcquisition,0,0,1,3)
+        grid_line4.addWidget(self.btn_track,0,0,1,3)
         grid_line4.addWidget(self.checkbox_enable_stage_tracking,0,4)
 
         self.grid = QVBoxLayout()
@@ -958,16 +958,31 @@ class TrackingControllerWidget(QFrame):
         self.checkbox_saveImages.stateChanged.connect(self.trackingController.toggel_save_images)
         self.entry_tracking_interval.valueChanged.connect(self.trackingController.set_tracking_time_interval)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
-        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+        self.btn_track.clicked.connect(self.toggle_acquisition)
         # connections - selections and entries
         self.dropdown_tracker.currentIndexChanged.connect(self.update_tracker)
         self.dropdown_objective.currentIndexChanged.connect(self.update_pixel_size)
         # controller to widget
         self.trackingController.signal_tracking_stopped.connect(self.slot_tracking_stopped)
 
+    def slot_joystick_button_pressed(self):
+        self.btn_track.toggle()
+        if self.btn_track.isChecked():
+            if self.base_path_is_set == False:
+                self.btn_track.setChecked(False)
+                msg = QMessageBox()
+                msg.setText("Please choose base saving directory first")
+                msg.exec_()
+                return
+            self.setEnabled_all(False)
+            self.trackingController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.trackingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.trackingController.start_tracking()
+        else:
+            self.trackingController.stop_tracking()
 
     def slot_tracking_stopped(self):
-        self.btn_startAcquisition.setChecked(False)
+        self.btn_track.setChecked(False)
         self.setEnabled_all(True)
         print('tracking stopped')
 
@@ -979,13 +994,13 @@ class TrackingControllerWidget(QFrame):
         self.base_path_is_set = True 
 
     def toggle_acquisition(self,pressed):
-        if self.base_path_is_set == False:
-            self.btn_startAcquisition.setChecked(False)
-            msg = QMessageBox()
-            msg.setText("Please choose base saving directory first")
-            msg.exec_()
-            return
         if pressed:
+            if self.base_path_is_set == False:
+                self.btn_track.setChecked(False)
+                msg = QMessageBox()
+                msg.setText("Please choose base saving directory first")
+                msg.exec_()
+                return
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
@@ -1012,6 +1027,7 @@ class TrackingControllerWidget(QFrame):
         pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR] / ( TUBE_LENS_MM/ (OBJECTIVES[objective]['tube_lens_f_mm']/OBJECTIVES[objective]['magnification']) )
         self.trackingController.update_pixel_size(pixel_size_um)
         print('pixel size is ' + str(pixel_size_um) + ' um')
+
 
     '''
         # connections
