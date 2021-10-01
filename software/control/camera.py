@@ -338,7 +338,7 @@ class Camera_Simulation(object):
 
         self.exposure_time = 0
         self.analog_gain = 0
-        self.frame_ID = -1
+        self.frame_ID = 0
         self.frame_ID_software = -1
         self.frame_ID_offset_hardware_trigger = 0
         self.timestamp = 0
