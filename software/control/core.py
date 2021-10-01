@@ -1440,10 +1440,10 @@ class TrackingWorker(QObject):
                 # self.image_to_display.emit(image_to_display_)
                 self.image_to_display_multi.emit(image_to_display_,config_.illumination_source)
                 # save image
-                if self.camera.is_color:
-                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                saving_path = os.path.join(current_path, file_ID + str(config_.name) + '.' + Acquisition.IMAGE_FORMAT)
-                self.image_saver.enqueue(image_,tracking_frame_counter,str(config_.name))
+                if self.trackingController.flag_save_image:
+                    if self.camera.is_color:
+                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                    self.image_saver.enqueue(image_,tracking_frame_counter,str(config_.name))
 
             # track
             objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
@@ -1467,7 +1467,8 @@ class TrackingWorker(QObject):
                 self.microcontroller.move_y_usteps(TRACKING_MOVEMENT_SIGN_Y*y_correction_usteps) 
 
             # save image
-            self.image_saver.enqueue(image,tracking_frame_counter,str(config.name))
+            if self.trackingController.flag_save_image:
+                self.image_saver.enqueue(image,tracking_frame_counter,str(config.name))
 
             # save position data            
             # self.csv_file.write('dt (s), x_stage (mm), y_stage (mm), z_stage (mm), x_image (mm), y_image(mm), image_filename\n')
