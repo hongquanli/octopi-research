@@ -20,16 +20,16 @@ static const int MICROSTEPPING_DEFAULT_Y = 8;
 static const int MICROSTEPPING_DEFAULT_Z = 8;
 static const int MICROSTEPPING_DEFAULT_THETA = 8;
 
-static const float HOMING_VELOCITY_X = 0.5;
-static const float HOMING_VELOCITY_Y = 0.5;
+static const float HOMING_VELOCITY_X = 1;
+static const float HOMING_VELOCITY_Y = 1;
 static const float HOMING_VELOCITY_Z = 0.5;
 
 static const long steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_DEFAULT_X/SCREW_PITCH_X_MM;
 static const long steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_DEFAULT_Y/SCREW_PITCH_Y_MM;
 static const long steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_DEFAULT_Z/SCREW_PITCH_Z_MM;
 
-constexpr float MAX_VELOCITY_X_mm = 20;
-constexpr float MAX_VELOCITY_Y_mm = 20;
+constexpr float MAX_VELOCITY_X_mm = 12;
+constexpr float MAX_VELOCITY_Y_mm = 12;
 constexpr float MAX_VELOCITY_Z_mm = 2;
 constexpr float MAX_ACCELERATION_X_mm = 200;
 constexpr float MAX_ACCELERATION_Y_mm = 200;
