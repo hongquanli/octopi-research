@@ -513,7 +513,6 @@ void loop() {
         case MOVETO_X:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          X_commanded_target_position = absolute_position;
           stepper_X.moveTo(absolute_position);
           X_commanded_movement_in_progress = true;
           runSpeed_flag_X = false;
@@ -523,7 +522,6 @@ void loop() {
         case MOVETO_Y:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          Y_commanded_target_position = absolute_position;
           stepper_Y.moveTo(absolute_position);
           Y_commanded_movement_in_progress = true;
           runSpeed_flag_Y = false;
@@ -534,7 +532,6 @@ void loop() {
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           // mcu_cmd_execution_in_progress = true; // because runToNewPosition is blocking, changing this flag is not needed
-          Z_commanded_target_position = absolute_position;
           stepper_Z.moveTo(absolute_position);
           focusPosition = absolute_position;
           Z_commanded_movement_in_progress = true;
