@@ -1710,6 +1710,7 @@ class PlateReaderNavigationController(QObject):
         self.microcontroller.set_callback(self.update_pos)
 
         self.is_homing = False
+        self.is_scanning = False
 
     def move_x_usteps(self,usteps):
         self.microcontroller.move_x_usteps(usteps)
@@ -1737,14 +1738,14 @@ class PlateReaderNavigationController(QObject):
             self.move_x_to_usteps(x_usteps)
         if row != '':
             mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
-            y_mm = PLATE_READER.OFFSET_COLUMN_1_MM + (ord(row) - ord('A'))*PLATE_READER.COLUMN_SPACING_MM
+            y_mm = PLATE_READER.OFFSET_ROW_A_MM + (ord(row) - ord('A'))*PLATE_READER.ROW_SPACING_MM
             y_usteps = round(y_mm/mm_per_ustep_Y)
             self.move_y_to_usteps(y_usteps)
 
     def moveto_row(self,row):
         # row: int, starting from 0
         mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
-        y_mm = PLATE_READER.OFFSET_COLUMN_1_MM + row*PLATE_READER.COLUMN_SPACING_MM
+        y_mm = PLATE_READER.OFFSET_ROW_A_MM + row*PLATE_READER.ROW_SPACING_MM
         y_usteps = round(y_mm/mm_per_ustep_Y)
         self.move_y_to_usteps(y_usteps)
 
@@ -1787,7 +1788,9 @@ class PlateReaderNavigationController(QObject):
             row = chr(ord('A')+row)
         else:
             row = ' '
-        self.signal_current_well.emit(row+column)
+
+        if self.is_scanning:
+            self.signal_current_well.emit(row+column)
 
     def home(self):
         self.is_homing = True

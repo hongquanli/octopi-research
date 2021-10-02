@@ -70,6 +70,7 @@ class PlateReadingWorker(QObject):
 
     def run(self):
         self.abort_acquisition_requested = False
+        self.plateReaderNavigationController.is_scanning = True
         while self.time_point < self.Nt and self.abort_acquisition_requested == False:
             # continous acquisition
             if self.dt == 0:
@@ -88,6 +89,7 @@ class PlateReadingWorker(QObject):
                 # wait until it's time to do the next acquisition
                 while time.time() < self.timestamp_acquisition_started + self.time_point*self.dt:
                     time.sleep(0.05)
+        self.plateReaderNavigationController.is_scanning = False
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -117,10 +119,12 @@ class PlateReadingWorker(QObject):
             self.plateReaderNavigationController.moveto_column(column-1)
             self.wait_till_operation_is_completed()
             
+            '''
             # row homing
             if column_counter > 1:
                 self.plateReaderNavigationController.home_y()
                 self.wait_till_operation_is_completed()
+            '''
             
             # go through rows
             for row in range(PLATE_READER.NUMBER_OF_ROWS):
