@@ -717,7 +717,7 @@ void loop() {
   if(is_homing_XY && !is_homing_X && !is_homing_Y)
   {
     is_homing_XY = false;
-    mcu_cmd_execution_in_progress = true;
+    mcu_cmd_execution_in_progress = false;
   }
   
   // handle control panel input
