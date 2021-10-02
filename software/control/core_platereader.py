@@ -109,6 +109,9 @@ class PlateReadingWorker(QObject):
         self.plateReaderNavigationController.home()
         self.wait_till_operation_is_completed()
 
+        # row scan direction
+        row_scan_direction = 1 # 1: A -> H, 0: H -> A
+
         # go through columns
         for column in self.selected_columns:
             
@@ -128,6 +131,9 @@ class PlateReadingWorker(QObject):
             
             # go through rows
             for row in range(PLATE_READER.NUMBER_OF_ROWS):
+
+                if row_scan_direction == 0: # reverse scan:
+                    row = PLATE_READER.NUMBER_OF_ROWS - 1 -row
 
                 row_str = chr(ord('A')+row)
                 file_ID = row_str + str(column+1)
@@ -194,6 +200,8 @@ class PlateReadingWorker(QObject):
                 if self.abort_acquisition_requested:
                     return
 
+            # update row scan direction
+            row_scan_direction = 1 - row_scan_direction
 
 class PlateReadingController(QObject):
 
