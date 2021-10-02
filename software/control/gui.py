@@ -20,7 +20,7 @@ class OctopiGUI(QMainWindow):
 	# variables
 	fps_software_trigger = 100
 
-	def __init__(self, is_simulation, *args, **kwargs):
+	def __init__(self, is_simulation = False, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load window

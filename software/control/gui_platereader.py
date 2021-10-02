@@ -21,12 +21,16 @@ class OctopiGUI(QMainWindow):
 	# variables
 	fps_software_trigger = 100
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, is_simulation = False, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load objects
-		self.camera = camera.Camera_Simulation()
-		self.microcontroller = microcontroller.Microcontroller_Simulation()
+		if is_simulation:
+			self.camera = camera.Camera_Simulation()
+			self.microcontroller = microcontroller.Microcontroller_Simulation()
+		else:
+			self.camera = camera.Camera()
+			self.microcontroller = microcontroller.Microcontroller()
 		
 		self.configurationManager = core.ConfigurationManager(filename=str(Path.home()) + "/configurations_platereader.xml")
 		self.streamHandler = core.StreamHandler()
@@ -90,7 +94,7 @@ class OctopiGUI(QMainWindow):
 	def closeEvent(self, event):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
-		self.plateReaderNavigationController.home()
+		# self.plateReaderNavigationController.home()
 		self.liveController.stop_live()
 		self.camera.close()
 		self.imageSaver.close()
