@@ -158,6 +158,19 @@ volatile bool homing_Z_completed = false;
 volatile long home_X_pos = 0;
 volatile long home_Y_pos = 0;
 volatile long home_Z_pos = 0;
+bool is_preparing_for_homing_X = false;
+bool is_preparing_for_homing_Y = false;
+bool is_preparing_for_homing_Z = false;
+bool homing_direction_X;
+bool homing_direction_Y;
+bool homing_direction_Z;
+/* to do: move the movement direction sign from configuration.txt (python) to the firmware (with 
+ * setPinsInverted() so that homing_direction_X, homing_direction_Y, homing_direction_Z will no 
+ * longer be needed. This way the home switches can act as limit switches - right now because 
+ * homing_direction_ needs be set by the computer, before they're set, the home switches cannot be
+ * used as limit switches. Alternatively, add homing_direction_set variables.
+ */
+
 
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
@@ -571,48 +584,116 @@ void loop() {
             switch(buffer_rx[2])
             {
               case AXIS_X:
-                is_homing_X = true;
+                homing_direction_X = buffer_rx[3];
                 homing_X_completed = false;
-                runSpeed_flag_X = true;
-                if(buffer_rx[3]==HOME_NEGATIVE)
-                  stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                if(digitalRead(X_LIM)==HIGH)
+                {
+                  is_homing_X = true;
+                  runSpeed_flag_X = true;
+                  if(homing_direction_X==HOME_NEGATIVE)
+                    stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                  else
+                    stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                }
                 else
-                  stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                {
+                  // get out of the hysteresis zone
+                  is_preparing_for_homing_X = true;
+                  if(homing_direction_X==HOME_NEGATIVE)
+                    stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                  else
+                    stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                }
                 break;
               case AXIS_Y:
-                is_homing_Y = true;
+                homing_direction_Y = buffer_rx[3];
                 homing_Y_completed = false;
-                runSpeed_flag_Y = true;
-                if(buffer_rx[3]==HOME_NEGATIVE)
-                  stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                if(digitalRead(Y_LIM)==HIGH)
+                {
+                  is_homing_Y = true;
+                  runSpeed_flag_Y = true;
+                  if(homing_direction_Y==HOME_NEGATIVE)
+                    stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                  else
+                    stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                }
                 else
-                  stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                {
+                  // get out of the hysteresis zone
+                  is_preparing_for_homing_Y = true;
+                  if(homing_direction_Y==HOME_NEGATIVE)
+                    stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                  else
+                    stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                }
                 break;
               case AXIS_Z:
-                is_homing_Z = true;
+                homing_direction_Z = buffer_rx[3];
                 homing_Z_completed = false;
-                runSpeed_flag_Z = true;
-                if(buffer_rx[3]==HOME_NEGATIVE)
-                  stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm);
+                if(digitalRead(Z_LIM)==HIGH)
+                {
+                  is_homing_Z = true;
+                  runSpeed_flag_Z = true;
+                  if(homing_direction_Z==HOME_NEGATIVE)
+                    stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
+                  else
+                    stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
+                }
                 else
-                  stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm);
+                {
+                  // get out of the hysteresis zone
+                  is_preparing_for_homing_Z = true;
+                  if(homing_direction_Z==HOME_NEGATIVE)
+                    stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
+                  else
+                    stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
+                }
                 break;
               case AXES_XY:
                 is_homing_XY = true;
-                is_homing_X = true;
                 homing_X_completed = false;
-                runSpeed_flag_X = true;
-                if(buffer_rx[3]==HOME_NEGATIVE)
-                  stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
-                else
-                  stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
-                is_homing_Y = true;
                 homing_Y_completed = false;
-                runSpeed_flag_Y = true;
-                if(buffer_rx[4]==HOME_NEGATIVE)
-                  stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                // homing x 
+                homing_direction_X = buffer_rx[3];
+                if(digitalRead(X_LIM)==HIGH)
+                {
+                  is_homing_X = true;
+                  runSpeed_flag_X = true;
+                  if(homing_direction_X==HOME_NEGATIVE)
+                    stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                  else
+                    stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                }
                 else
-                  stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                {
+                  // get out of the hysteresis zone
+                  is_preparing_for_homing_X = true;
+                  if(homing_direction_X==HOME_NEGATIVE)
+                    stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                  else
+                    stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+                }
+                // homing y
+                homing_direction_Y = buffer_rx[4];
+                if(digitalRead(Y_LIM)==HIGH)
+                {
+                  is_homing_Y = true;
+                  runSpeed_flag_Y = true;
+                  if(homing_direction_Y==HOME_NEGATIVE)
+                    stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                  else
+                    stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                }
+                else
+                {
+                  // get out of the hysteresis zone
+                  is_preparing_for_homing_Y = true;
+                  if(homing_direction_Y==HOME_NEGATIVE)
+                    stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                  else
+                    stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+                }
+                break;
             }
             mcu_cmd_execution_in_progress = true;
           }
@@ -653,6 +734,50 @@ void loop() {
     }
   }
 
+  // homing - preparing for homing
+  if(is_preparing_for_homing_X)
+  {
+    if(digitalRead(X_LIM)==HIGH)
+    {
+      is_preparing_for_homing_X = false;
+      is_homing_X = true;
+      homing_X_completed = false;
+      runSpeed_flag_X = true;
+      if(homing_direction_X==HOME_NEGATIVE)
+        stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+      else
+        stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
+    }
+  }
+  if(is_preparing_for_homing_Y)
+  {
+    if(digitalRead(Y_LIM)==HIGH)
+    {
+      is_preparing_for_homing_Y = false;
+      is_homing_Y = true;
+      homing_Y_completed = false;
+      runSpeed_flag_Y = true;
+      if(homing_direction_Y==HOME_NEGATIVE)
+        stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+      else
+        stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+    }
+  }
+  if(is_preparing_for_homing_Z)
+  {
+    if(digitalRead(Z_LIM)==HIGH)
+    {
+      is_preparing_for_homing_Z = false;
+      is_homing_Z = true;
+      homing_Z_completed = false;
+      runSpeed_flag_Z = true;
+      if(homing_direction_Z==HOME_NEGATIVE)
+        stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_X_mm*steps_per_mm_Z);
+      else
+        stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_X_mm*steps_per_mm_Z);
+    }
+  }
+  
   // homing - software limit reached
   if(is_homing_X)
   {
@@ -661,6 +786,7 @@ void loop() {
       stepper_X.setSpeed(0);
       runSpeed_flag_X = false;
       homing_X_completed = true;
+      is_preparing_for_homing_X = false;
     }
   }
   if(is_homing_Y)
@@ -670,6 +796,7 @@ void loop() {
       stepper_Y.setSpeed(0);
       runSpeed_flag_Y = false;
       homing_Y_completed = true;
+      is_preparing_for_homing_Y = false;
     }
   }
   if(is_homing_Z)
@@ -679,6 +806,7 @@ void loop() {
       stepper_Z.setSpeed(0);
       runSpeed_flag_Z = false;
       homing_Z_completed = true;
+      is_preparing_for_homing_Z = false;
     }
   }
   // home found, moving to home - check if movement has completed
