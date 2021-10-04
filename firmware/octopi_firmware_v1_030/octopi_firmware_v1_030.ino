@@ -599,6 +599,7 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_X = true;
+                  runSpeed_flag_X = true;
                   if(homing_direction_X==HOME_NEGATIVE)
                     stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                   else
@@ -621,6 +622,7 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_Y = true;
+                  runSpeed_flag_Y = true;
                   if(homing_direction_Y==HOME_NEGATIVE)
                     stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                   else
@@ -643,6 +645,7 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_Z = true;
+                  runSpeed_flag_Z = true;
                   if(homing_direction_Z==HOME_NEGATIVE)
                     stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
                   else
@@ -668,6 +671,7 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_X = true;
+                  runSpeed_flag_X = true;
                   if(homing_direction_X==HOME_NEGATIVE)
                     stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                   else
@@ -688,6 +692,7 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_Y = true;
+                  runSpeed_flag_Y = true;
                   if(homing_direction_Y==HOME_NEGATIVE)
                     stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                   else
@@ -862,7 +867,7 @@ void loop() {
     // speed_XY_factor = rocker_state ? speed_XY_factor : 0; // for testing the rocker
     
     // read x joystick
-    if(!X_commanded_movement_in_progress && !is_homing_X) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
+    if(!X_commanded_movement_in_progress && !is_homing_X && !is_preparing_for_homing_X) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
       deltaX = analogRead(joystick_X) - joystick_offset_x;
       deltaX_float = deltaX;
@@ -889,7 +894,7 @@ void loop() {
     }
 
     // read y joystick
-    if(!Y_commanded_movement_in_progress && !is_homing_Y)
+    if(!Y_commanded_movement_in_progress && !is_homing_Y && !is_preparing_for_homing_Y)
     {
       deltaY = analogRead(joystick_Y) - joystick_offset_y;
       deltaY_float = -deltaY;
