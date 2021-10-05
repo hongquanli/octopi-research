@@ -131,12 +131,12 @@ AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
 bool runSpeed_flag_X = false;
 bool runSpeed_flag_Y = false;
 bool runSpeed_flag_Z = false;
-long X_commanded_target_position = 0;
-long Y_commanded_target_position = 0;
-long Z_commanded_target_position = 0;
-bool X_commanded_movement_in_progress = false;
-bool Y_commanded_movement_in_progress = false;
-bool Z_commanded_movement_in_progress = false;
+volatile long X_commanded_target_position = 0;
+volatile long Y_commanded_target_position = 0;
+volatile long Z_commanded_target_position = 0;
+volatile bool X_commanded_movement_in_progress = false;
+volatile bool Y_commanded_movement_in_progress = false;
+volatile bool Z_commanded_movement_in_progress = false;
 
 long target_position;
 
@@ -151,13 +151,9 @@ bool is_homing_X = false;
 bool is_homing_Y = false;
 bool is_homing_Z = false;
 bool is_homing_XY = false;
-
-volatile bool homing_X_completed = false;
-volatile bool homing_Y_completed = false;
-volatile bool homing_Z_completed = false;
-volatile long home_X_pos = 0;
-volatile long home_Y_pos = 0;
-volatile long home_Z_pos = 0;
+volatile bool home_X_found = false;
+volatile bool home_Y_found = false;
+volatile bool home_Z_found = false;
 bool is_preparing_for_homing_X = false;
 bool is_preparing_for_homing_Y = false;
 bool is_preparing_for_homing_Z = false;
@@ -585,7 +581,7 @@ void loop() {
             {
               case AXIS_X:
                 homing_direction_X = buffer_rx[3];
-                homing_X_completed = false;
+                home_X_found = false;
                 if(digitalRead(X_LIM)==HIGH)
                 {
                   is_homing_X = true;
@@ -608,7 +604,7 @@ void loop() {
                 break;
               case AXIS_Y:
                 homing_direction_Y = buffer_rx[3];
-                homing_Y_completed = false;
+                home_Y_found = false;
                 if(digitalRead(Y_LIM)==HIGH)
                 {
                   is_homing_Y = true;
@@ -631,7 +627,7 @@ void loop() {
                 break;
               case AXIS_Z:
                 homing_direction_Z = buffer_rx[3];
-                homing_Z_completed = false;
+                home_Z_found = false;
                 if(digitalRead(Z_LIM)==HIGH)
                 {
                   is_homing_Z = true;
@@ -654,8 +650,8 @@ void loop() {
                 break;
               case AXES_XY:
                 is_homing_XY = true;
-                homing_X_completed = false;
-                homing_Y_completed = false;
+                home_X_found = false;
+                home_Y_found = false;
                 // homing x 
                 homing_direction_X = buffer_rx[3];
                 if(digitalRead(X_LIM)==HIGH)
@@ -746,7 +742,6 @@ void loop() {
     {
       is_preparing_for_homing_X = false;
       is_homing_X = true;
-      homing_X_completed = false;
       runSpeed_flag_X = true;
       if(homing_direction_X==HOME_NEGATIVE)
         stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
@@ -760,7 +755,6 @@ void loop() {
     {
       is_preparing_for_homing_Y = false;
       is_homing_Y = true;
-      homing_Y_completed = false;
       runSpeed_flag_Y = true;
       if(homing_direction_Y==HOME_NEGATIVE)
         stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
@@ -774,7 +768,6 @@ void loop() {
     {
       is_preparing_for_homing_Z = false;
       is_homing_Z = true;
-      homing_Z_completed = false;
       runSpeed_flag_Z = true;
       if(homing_direction_Z==HOME_NEGATIVE)
         stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_X_mm*steps_per_mm_Z);
@@ -784,72 +777,69 @@ void loop() {
   }
   
   // homing - software limit reached
-  if(is_homing_X)
+  if(is_homing_X || is_preparing_for_homing_X)
   {
     if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_X || stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_X)
     {
       stepper_X.setSpeed(0);
       runSpeed_flag_X = false;
-      homing_X_completed = true;
       is_preparing_for_homing_X = false;
+      is_homing_X = false;
+      mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
     }
   }
-  if(is_homing_Y)
+  if(is_homing_Y || is_preparing_for_homing_Y)
   {
     if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_Y || stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_Y)
     {
       stepper_Y.setSpeed(0);
       runSpeed_flag_Y = false;
-      homing_Y_completed = true;
       is_preparing_for_homing_Y = false;
+      is_homing_Y = false;
+      mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
     }
   }
-  if(is_homing_Z)
+  if(is_homing_Z || is_preparing_for_homing_Z)
   {
     if(stepper_Z.currentPosition()<=Z_NEG_LIMIT_MM*steps_per_mm_Z || stepper_Z.currentPosition()>=Z_POS_LIMIT_MM*steps_per_mm_Z)
     {
       stepper_Z.setSpeed(0);
       runSpeed_flag_Z = false;
-      homing_Z_completed = true;
       is_preparing_for_homing_Z = false;
+      is_homing_Z = false;
+      mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
     }
   }
-  // home found, moving to home - check if movement has completed
-  if(is_homing_X && !homing_X_completed && !runSpeed_flag_X && stepper_X.distanceToGo() == 0 )
-    homing_X_completed = true;
-  if(is_homing_Y && !homing_Y_completed && !runSpeed_flag_Y && stepper_Y.distanceToGo() == 0 )
-    homing_Y_completed = true;
-  if(is_homing_Z && !homing_Z_completed && !runSpeed_flag_Z && stepper_Z.distanceToGo() == 0 )
-    homing_Z_completed = true;
 
-  // homing complete
-  if(is_homing_X && homing_X_completed)
+  // finish homing
+  if(is_homing_X && home_X_found && stepper_X.distanceToGo() == 0)
   {
     stepper_X.setCurrentPosition(0);
     X_pos = 0;
     is_homing_X = false;
-    homing_X_completed = false;
+    home_X_found = false;
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
   }
-  if(is_homing_Y && homing_Y_completed)
+  if(is_homing_Y && home_Y_found && stepper_Y.distanceToGo() == 0)
   {
     stepper_Y.setCurrentPosition(0);
     Y_pos = 0;
     is_homing_Y = false;
-    homing_Y_completed = false;
+    home_Y_found = false;
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
   }
-  if(is_homing_Z && homing_Z_completed)
+  if(is_homing_Z && home_Z_found && stepper_Z.distanceToGo() == 0)
   {
     stepper_Z.setCurrentPosition(0);
     Z_pos = 0;
     is_homing_Z = false;
-    homing_Z_completed = false;
-    if(is_homing_XY==false)
-      mcu_cmd_execution_in_progress = false;
+    home_Z_found = false;
+    mcu_cmd_execution_in_progress = false;
   }
+
+  // homing complete
   if(is_homing_XY && !is_homing_X && !is_homing_Y)
   {
     is_homing_XY = false;
@@ -971,17 +961,17 @@ void loop() {
     stepper_Z.setCurrentPosition(Z_pos);
 
   // check if commanded position has been reached
-  if(X_commanded_movement_in_progress && stepper_X.currentPosition()==X_commanded_target_position)
+  if(X_commanded_movement_in_progress && stepper_X.currentPosition()==X_commanded_target_position && !is_homing_X) // homing is handled separately
   {
     X_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
-  if(Y_commanded_movement_in_progress && stepper_Y.currentPosition()==Y_commanded_target_position)
+  if(Y_commanded_movement_in_progress && stepper_Y.currentPosition()==Y_commanded_target_position && !is_homing_Y)
   {
     Y_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
-  if(Z_commanded_movement_in_progress && stepper_Z.currentPosition()==Z_commanded_target_position)
+  if(Z_commanded_movement_in_progress && stepper_Z.currentPosition()==Z_commanded_target_position && !is_homing_Z)
   {
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
@@ -1033,11 +1023,12 @@ void timer_interruptHandler(){
  {
   if(is_homing_X)
   {
-    home_X_pos = stepper_X.currentPosition();
-    stepper_X.setSpeed(0);
+    home_X_found = true;
+    long home_X_pos = stepper_X.currentPosition(); // to add: case for using encoders
     runSpeed_flag_X = false;
     stepper_X.moveTo(home_X_pos); // move to the home position
-    // homing_X_completed = true;
+    X_commanded_movement_in_progress = true;
+    X_commanded_target_position = home_X_pos;
   }
  }
 
@@ -1045,11 +1036,12 @@ void timer_interruptHandler(){
  {
   if(is_homing_Y)
   {
-    home_Y_pos = stepper_Y.currentPosition();
-    stepper_Y.setSpeed(0);
+    home_Y_found = true;
+    long home_Y_pos = stepper_Y.currentPosition();
     runSpeed_flag_Y = false;
     stepper_Y.moveTo(home_Y_pos); // move to the home position
-    // homing_Y_completed = true;
+    Y_commanded_movement_in_progress = true;
+    Y_commanded_target_position = home_Y_pos;
   }
  }
 
@@ -1057,11 +1049,12 @@ void timer_interruptHandler(){
  {
   if(is_homing_Z)
   {
-    home_Z_pos = stepper_Z.currentPosition();
-    stepper_Z.setSpeed(0);
+    home_Z_found = true;
+    long home_Z_pos = stepper_Z.currentPosition();
     runSpeed_flag_Z = false;
-    stepper_Z.moveTo(home_Z_pos); // move to the home position
-    //homing_Z_completed = true;
+    stepper_Z.moveTo(home_Z_pos); // move tY_commanded_movement_in_progress = true;
+    Z_commanded_movement_in_progress = true;
+    Z_commanded_target_position = home_Z_pos;
   }
  }
 /***************************************************
