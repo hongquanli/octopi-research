@@ -128,9 +128,9 @@ AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, X_step, X_dir);
 AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
 AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
 
-bool runSpeed_flag_X = false;
-bool runSpeed_flag_Y = false;
-bool runSpeed_flag_Z = false;
+volatile bool runSpeed_flag_X = false;
+volatile bool runSpeed_flag_Y = false;
+volatile bool runSpeed_flag_Z = false;
 volatile long X_commanded_target_position = 0;
 volatile long Y_commanded_target_position = 0;
 volatile long Z_commanded_target_position = 0;
@@ -818,6 +818,7 @@ void loop() {
     X_pos = 0;
     is_homing_X = false;
     home_X_found = false;
+    X_commanded_movement_in_progress = false;
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
   }
@@ -827,6 +828,7 @@ void loop() {
     Y_pos = 0;
     is_homing_Y = false;
     home_Y_found = false;
+    Y_commanded_movement_in_progress = false;
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
   }
@@ -836,6 +838,7 @@ void loop() {
     Z_pos = 0;
     is_homing_Z = false;
     home_Z_found = false;
+    Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false;
   }
 
