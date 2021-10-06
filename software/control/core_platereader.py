@@ -136,7 +136,7 @@ class PlateReadingWorker(QObject):
                     row = PLATE_READER.NUMBER_OF_ROWS - 1 -row
 
                 row_str = chr(ord('A')+row)
-                file_ID = row_str + str(column+1)
+                file_ID = row_str + str(column)
 
                 # move to the selected row
                 self.plateReaderNavigationController.moveto_row(row)
