@@ -817,7 +817,6 @@ void loop() {
     stepper_X.setCurrentPosition(0);
     X_pos = 0;
     is_homing_X = false;
-    home_X_found = false;
     X_commanded_movement_in_progress = false;
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
@@ -827,7 +826,6 @@ void loop() {
     stepper_Y.setCurrentPosition(0);
     Y_pos = 0;
     is_homing_Y = false;
-    home_Y_found = false;
     Y_commanded_movement_in_progress = false;
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
@@ -837,13 +835,12 @@ void loop() {
     stepper_Z.setCurrentPosition(0);
     Z_pos = 0;
     is_homing_Z = false;
-    home_Z_found = false;
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false;
   }
 
   // homing complete
-  if(is_homing_XY && !is_homing_X && !is_homing_Y)
+  if(is_homing_XY && home_X_found && !is_homing_X && home_Y_found && !is_homing_Y)
   {
     is_homing_XY = false;
     mcu_cmd_execution_in_progress = false;
