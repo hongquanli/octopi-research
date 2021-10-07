@@ -47,7 +47,8 @@ class OctopiGUI(QMainWindow):
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
-		self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
+		if ENABLE_TRACKING:
+			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
 
@@ -64,7 +65,8 @@ class OctopiGUI(QMainWindow):
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-		self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
+		if ENABLE_TRACKING:
+			self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
 		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
@@ -95,7 +97,8 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
 		self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
 		self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
-		self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
+		if ENABLE_TRACKING:
+			self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		# self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
