@@ -412,12 +412,12 @@ void setup() {
   stepper_Z.enableOutputs();
 
   // xyz encoder
-  pinMode(X_encoder_A,INPUT);
-  pinMode(X_encoder_B,INPUT);
-  pinMode(Y_encoder_A,INPUT);
-  pinMode(Y_encoder_B,INPUT);
-  pinMode(Z_encoder_A,INPUT);
-  pinMode(Z_encoder_B,INPUT);
+  pinMode(X_encoder_A,INPUT_PULLUP);
+  pinMode(X_encoder_B,INPUT_PULLUP);
+  pinMode(Y_encoder_A,INPUT_PULLUP);
+  pinMode(Y_encoder_B,INPUT_PULLUP);
+  pinMode(Z_encoder_A,INPUT_PULLUP);
+  pinMode(Z_encoder_B,INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(X_encoder_A), ISR_X_encoder_A, CHANGE);
   attachInterrupt(digitalPinToInterrupt(X_encoder_B), ISR_X_encoder_B, CHANGE);
   attachInterrupt(digitalPinToInterrupt(Y_encoder_A), ISR_Y_encoder_A, CHANGE);
