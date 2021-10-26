@@ -9,7 +9,7 @@ def generate_default_configuration(filename):
     mode_1.set('ExposureTime','100')
     mode_1.set('AnalogGain','10')
     mode_1.set('IlluminationSource','0')
-    mode_1.set('IlluminationIntensity','100')
+    mode_1.set('IlluminationIntensity','10')
     mode_1.set('CameraSN','')
 
     mode_2 = ET.SubElement(top,'mode')
@@ -18,7 +18,7 @@ def generate_default_configuration(filename):
     mode_2.set('ExposureTime','100')
     mode_2.set('AnalogGain','10')
     mode_2.set('IlluminationSource','1')
-    mode_2.set('IlluminationIntensity','100')
+    mode_2.set('IlluminationIntensity','20')
     mode_2.set('CameraSN','')
 
     mode_3 = ET.SubElement(top,'mode')
@@ -27,7 +27,7 @@ def generate_default_configuration(filename):
     mode_3.set('ExposureTime','100')
     mode_3.set('AnalogGain','10')
     mode_3.set('IlluminationSource','2')
-    mode_3.set('IlluminationIntensity','100')
+    mode_3.set('IlluminationIntensity','20')
     mode_3.set('CameraSN','')
 
     mode_4 = ET.SubElement(top,'mode')
