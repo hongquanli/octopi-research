@@ -298,7 +298,6 @@ class LiveControlWidget(QFrame):
         # self.liveController.set_microscope_mode(config)
         self.dropdown_modeSelection.setCurrentText(config.name)
 
-
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -593,6 +592,67 @@ class NavigationWidget(QFrame):
 
     def zero_z(self):
         self.navigationController.zero_z()
+
+class DACControWidget(QFrame):
+    def __init__(self, microcontroller ,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.microcontroller = microcontroller
+        self.add_components()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def add_components(self):
+        self.slider_DAC0 = QSlider(Qt.Horizontal)
+        self.slider_DAC0.setTickPosition(QSlider.TicksBelow)
+        self.slider_DAC0.setMinimum(0)
+        self.slider_DAC0.setMaximum(100)
+        self.slider_DAC0.setSingleStep(0.1)
+        self.slider_DAC0.setValue(0)
+
+        self.entry_DAC0 = QDoubleSpinBox()
+        self.entry_DAC0.setMinimum(0) 
+        self.entry_DAC0.setMaximum(100) 
+        self.entry_DAC0.setSingleStep(0.1)
+        self.entry_DAC0.setValue(0)
+
+        self.slider_DAC1 = QSlider(Qt.Horizontal)
+        self.slider_DAC1.setTickPosition(QSlider.TicksBelow)
+        self.slider_DAC1.setMinimum(0)
+        self.slider_DAC1.setMaximum(100)
+        self.slider_DAC1.setValue(0)
+        self.slider_DAC1.setSingleStep(0.1)
+
+        self.entry_DAC1 = QDoubleSpinBox()
+        self.entry_DAC1.setMinimum(0) 
+        self.entry_DAC1.setMaximum(100) 
+        self.entry_DAC1.setSingleStep(0.1)
+        self.entry_DAC1.setValue(0)
+
+        # connections
+        self.entry_DAC0.valueChanged.connect(self.set_DAC0)
+        self.entry_DAC0.valueChanged.connect(self.slider_DAC0.setValue)
+        self.slider_DAC0.valueChanged.connect(self.entry_DAC0.setValue)
+        self.entry_DAC1.valueChanged.connect(self.set_DAC1)
+        self.entry_DAC1.valueChanged.connect(self.slider_DAC1.setValue)
+        self.slider_DAC1.valueChanged.connect(self.entry_DAC1.setValue)
+
+        # layout
+        grid_line1 = QGridLayout()
+        grid_line1.addWidget(QLabel('DAC0'), 0,0)
+        grid_line1.addWidget(self.slider_DAC0, 0,1)
+        grid_line1.addWidget(self.entry_DAC0, 0,2)
+        grid_line1.addWidget(QLabel('DAC1'), 1,0)
+        grid_line1.addWidget(self.slider_DAC1, 1,1)
+        grid_line1.addWidget(self.entry_DAC1, 1,2)
+
+        self.grid = QGridLayout()
+        self.grid.addLayout(grid_line1,1,0)
+        self.setLayout(self.grid)
+
+    def set_DAC0(self,value):
+        self.microcontroller.analog_write_onboard_DAC(0,int(value*65535/100))
+
+    def set_DAC1(self,value):
+        self.microcontroller.analog_write_onboard_DAC(1,int(value*65535/100))
 
 class AutoFocusWidget(QFrame):
     def __init__(self, autofocusController, main=None, *args, **kwargs):
@@ -1211,7 +1271,6 @@ class PlateReaderAcquisitionWidget(QFrame):
     def slot_homing_complete(self):
         self.btn_startAcquisition.setEnabled(True)
     
-
 class PlateReaderNavigationWidget(QFrame):
     def __init__(self, plateReaderNavigationController, *args, **kwargs):
         super().__init__(*args, **kwargs)

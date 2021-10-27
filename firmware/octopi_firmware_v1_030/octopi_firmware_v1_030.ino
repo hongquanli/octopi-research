@@ -41,6 +41,7 @@ static const int TURN_OFF_ILLUMINATION = 11;
 static const int SET_ILLUMINATION = 12;
 static const int SET_ILLUMINATION_LED_MATRIX = 13;
 static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
+static const int ANALOG_WRITE_ONBOARD_DAC = 15;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
 static const int IN_PROGRESS = 1;
@@ -460,6 +461,9 @@ void setup() {
 
   // led matrix
   matrix.begin();
+
+  // DAC
+  analogWriteResolution(12);
   
 }
 
@@ -727,6 +731,14 @@ void loop() {
         {
           joystick_button_pressed = false;
           break;
+        }
+        case ANALOG_WRITE_ONBOARD_DAC:
+        {
+          uint16_t value = ( uint16_t(buffer_rx[3])*256 + uint16_t(buffer_rx[4]) )/16;
+          if(buffer_rx[2] == 0)
+            analogWrite(DAC0,value);
+          else
+            analogWrite(DAC1,value);
         }
         default:
           break;

@@ -383,6 +383,14 @@ class Microcontroller():
         cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
         self.send_command(cmd)
 
+    def analog_write_onboard_DAC(self,dac,value):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
+        cmd[2] = dac
+        cmd[3] = (value >> 8) & 0xff
+        cmd[4] = value & 0xff
+        self.send_command(cmd)
+
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
@@ -606,6 +614,14 @@ class Microcontroller_Simulation():
     def zero_theta(self):
         self.theta_pos = 0
         cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def analog_write_onboard_DAC(self,dac,value):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
+        cmd[2] = dac
+        cmd[3] = (value >> 8) & 0xff
+        cmd[4] = value & 0xff
         self.send_command(cmd)
 
     def read_received_packet(self):

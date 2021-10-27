@@ -37,6 +37,7 @@ class CMD_SET:
     SET_ILLUMINATION = 12
     SET_ILLUMINATION_LED_MATRIX = 13
     ACK_JOYSTICK_BUTTON_PRESSED = 14
+    ANALOG_WRITE_ONBOARD_DAC = 15
     MOVETO_X = 6
     MOVETO_Y = 7
     MOVETO_Z = 8
@@ -192,6 +193,8 @@ class Tracking:
     DEFAULT_TRACKER = "csrt"
     INIT_METHODS = ["roi"]
     DEFAULT_INIT_METHOD = "roi"
+
+SHOW_DAC_CONTROL = False
 
 ##########################################################
 #### start of loading machine specific configurations ####

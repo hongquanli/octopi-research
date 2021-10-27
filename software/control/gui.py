@@ -63,6 +63,7 @@ class OctopiGUI(QMainWindow):
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
 		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
+		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
 		if ENABLE_TRACKING:
@@ -80,8 +81,10 @@ class OctopiGUI(QMainWindow):
 		layout.addWidget(self.cameraSettingWidget,0,0)
 		layout.addWidget(self.liveControlWidget,1,0)
 		layout.addWidget(self.navigationWidget,2,0)
-		layout.addWidget(self.autofocusWidget,3,0)
-		layout.addWidget(self.recordTabWidget,4,0)
+		if SHOW_DAC_CONTROL:
+			layout.addWidget(self.dacControlWidget,3,0)
+		layout.addWidget(self.autofocusWidget,4,0)
+		layout.addWidget(self.recordTabWidget,5,0)
 		
 		# transfer the layout to the central widget
 		self.centralWidget = QWidget()
