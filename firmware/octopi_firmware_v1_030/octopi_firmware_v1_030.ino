@@ -206,8 +206,8 @@ uint8_t led_matrix_g = 0;
 uint8_t led_matrix_b = 0;
 static const int LED_MATRIX_MAX_INTENSITY = 100;
 static const float GREEN_ADJUSTMENT_FACTOR = 2.5;
-static const float RED_ADJUSTMENT_FACTOR = 0.7;
-static const float BLUE_ADJUSTMENT_FACTOR = 1;
+static const float RED_ADJUSTMENT_FACTOR = 1;
+static const float BLUE_ADJUSTMENT_FACTOR = 0.7;
 bool illumination_is_on = false;
 void turn_on_illumination();
 void turn_off_illumination();
@@ -1216,17 +1216,17 @@ void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint8_t 
   switch(pattern)
   {
     case ILLUMINATION_SOURCE_LED_ARRAY_FULL:
-      set_all(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR);
+      set_all(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:
-      set_left(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR);
+      set_left(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:
-      set_right(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR);
+      set_right(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
-      set_left(matrix,0,led_matrix_b*BLUE_ADJUSTMENT_FACTOR,0);
-      set_right(matrix,0,0,led_matrix_r*RED_ADJUSTMENT_FACTOR);
+      set_left(matrix,0,0,led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
+      set_right(matrix,0,led_matrix_r*RED_ADJUSTMENT_FACTOR,0);
   }
   matrix.show();
 }
