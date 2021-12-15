@@ -381,6 +381,24 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
         #     # to do: add timeout
 
+    def set_lim(self,limit_code,usteps):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_LIM
+        cmd[2] = limit_code
+        payload = self._int_to_payload(usteps,4)
+        cmd[3] = payload >> 24
+        cmd[4] = (payload >> 16) & 0xff
+        cmd[5] = (payload >> 8) & 0xff
+        cmd[6] = payload & 0xff
+        self.send_command(cmd)
+
+    def set_limit_switch_polarity(self,axis,polarity):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_LIM_SWITCH_POLARITY
+        cmd[2] = axis
+        cmd[3] = polarity
+        self.send_command(cmd)
+
     def ack_joystick_button_pressed(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
@@ -628,6 +646,17 @@ class Microcontroller_Simulation():
     def zero_theta(self):
         self.theta_pos = 0
         cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def set_lim(self,limit_code,usteps):
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def set_limit_switch_polarity(self,axis,polarity):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_LIM_SWITCH_POLARITY
+        cmd[2] = axis
+        cmd[3] = polarity
         self.send_command(cmd)
 
     def analog_write_onboard_DAC(self,dac,value):
