@@ -399,6 +399,21 @@ class Microcontroller():
         cmd[3] = polarity
         self.send_command(cmd)
 
+    def configure_motor_driver(self,axis,microstepping,current_rms,I_hold):
+        # current_rms in mA
+        # I_hold 0.0-1.0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.CONFIGURE_STEPPER_DRIVER
+        cmd[2] = axis
+        if microstepping == 1:
+            cmd[3] = 0
+        else:
+            cmd[3] = microstepping
+        cmd[4] = current_rms >> 8
+        cmd[5] = current_rms & 0xff
+        cmd[6] = int(I_hold*255)
+        self.send_command(cmd)
+
     def ack_joystick_button_pressed(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
@@ -650,6 +665,21 @@ class Microcontroller_Simulation():
 
     def set_lim(self,limit_code,usteps):
         cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
+    def configure_motor_driver(self,axis,microstepping,current_rms,I_hold):
+        # current_rms in mA
+        # I_hold 0.0-1.0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.CONFIGURE_STEPPER_DRIVER
+        cmd[2] = axis
+        if microstepping == 1:
+            cmd[3] = 0
+        else:
+            cmd[3] = microstepping
+        cmd[4] = current_rms >> 8
+        cmd[5] = current_rms & 0xff
+        cmd[6] = int(I_hold*255)
         self.send_command(cmd)
 
     def set_limit_switch_polarity(self,axis,polarity):
