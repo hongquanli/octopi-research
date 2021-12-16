@@ -36,12 +36,15 @@ static const int HOME_OR_ZERO = 5;
 static const int MOVETO_X = 6;
 static const int MOVETO_Y = 7;
 static const int MOVETO_Z = 8;
+static const int SET_LIM = 9;
 static const int TURN_ON_ILLUMINATION = 10;
 static const int TURN_OFF_ILLUMINATION = 11;
 static const int SET_ILLUMINATION = 12;
 static const int SET_ILLUMINATION_LED_MATRIX = 13;
 static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
 static const int ANALOG_WRITE_ONBOARD_DAC = 15;
+static const int SET_LIM_SWITCH_POLARITY = 20;
+static const int CONFIGURE_STEPPER_DRIVER = 21;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
 static const int IN_PROGRESS = 1;
@@ -60,6 +63,17 @@ static const int AXIS_THETA = 3;
 static const int AXES_XY = 4;
 
 static const int BIT_POS_JOYSTICK_BUTTON = 0;
+
+static const int LIM_CODE_X_POSITIVE = 0;
+static const int LIM_CODE_X_NEGATIVE = 1;
+static const int LIM_CODE_Y_POSITIVE = 2;
+static const int LIM_CODE_Y_NEGATIVE = 3;
+static const int LIM_CODE_Z_POSITIVE = 4;
+static const int LIM_CODE_Z_NEGATIVE = 5;
+
+static const int ACTIVE_LOW = 0;
+static const int ACTIVE_HIGH = 1;
+static const int DISABLED = 2;
 
 /***************************************************************************************************/
 /**************************************** Pin definations ******************************************/
@@ -168,6 +182,12 @@ bool homing_direction_Z;
  * used as limit switches. Alternatively, add homing_direction_set variables.
  */
 
+long X_POS_LIMIT = X_POS_LIMIT_MM/steps_per_mm_X;
+long X_NEG_LIMIT = X_NEG_LIMIT_MM/steps_per_mm_X;
+long Y_POS_LIMIT = Y_POS_LIMIT_MM/steps_per_mm_Y;
+long Y_NEG_LIMIT = Y_NEG_LIMIT_MM/steps_per_mm_Y;
+long Z_POS_LIMIT = Z_POS_LIMIT_MM/steps_per_mm_Z;
+long Z_NEG_LIMIT = Z_NEG_LIMIT_MM/steps_per_mm_Z;
 
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
@@ -431,9 +451,12 @@ void setup() {
   Z_pos = 0;
 
   // limit switch
+  // configured by the computer instead
+  /*
   attachInterrupt(digitalPinToInterrupt(X_LIM), ISR_limit_switch_X, FALLING);
   attachInterrupt(digitalPinToInterrupt(Y_LIM), ISR_limit_switch_Y, FALLING);
   attachInterrupt(digitalPinToInterrupt(Z_LIM), ISR_limit_switch_Z, FALLING);
+  */
 
   // focus
   pinMode(focusWheel_A,INPUT_PULLUP);
@@ -487,7 +510,7 @@ void loop() {
         case MOVE_X:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT_MM*steps_per_mm_X):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT_MM*steps_per_mm_X) );
+          X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT) );
           stepper_X.moveTo(X_commanded_target_position);
           X_commanded_movement_in_progress = true;
           runSpeed_flag_X = false;
@@ -497,7 +520,7 @@ void loop() {
         case MOVE_Y:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT_MM*steps_per_mm_Y):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT_MM*steps_per_mm_Y) );
+          Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT) );
           stepper_Y.moveTo(Y_commanded_target_position);
           Y_commanded_movement_in_progress = true;
           runSpeed_flag_Y = false;
@@ -507,7 +530,7 @@ void loop() {
         case MOVE_Z:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT_MM*steps_per_mm_Z):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT_MM*steps_per_mm_Z) );
+          Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT) );
           /*
           // mcu_cmd_execution_in_progress = true; // because runToNewPosition is blocking, changing this flag is not needed
           stepper_Z.runToNewPosition(Z_commanded_target_position);
@@ -554,6 +577,111 @@ void loop() {
           runSpeed_flag_Z = false;
           mcu_cmd_execution_in_progress = true;
           break;
+        }
+        case SET_LIM:
+        {
+          switch(buffer_rx[2])
+          {
+            case LIM_CODE_X_POSITIVE:
+            {
+              X_POS_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              break;
+            }
+            case LIM_CODE_X_NEGATIVE:
+            {
+              X_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              break;
+            }
+            case LIM_CODE_Y_POSITIVE:
+            {
+              Y_POS_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              break;
+            }
+            case LIM_CODE_Y_NEGATIVE:
+            {
+              Y_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              break;
+            }
+            case LIM_CODE_Z_POSITIVE:
+            {
+              Z_POS_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              break;
+            }
+            case LIM_CODE_Z_NEGATIVE:
+            {
+              Z_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              break;
+            }
+            break;
+          }
+        }
+        case SET_LIM_SWITCH_POLARITY:
+        {
+          switch(buffer_rx[2])
+          {
+            case AXIS_X:
+            {
+              detachInterrupt(digitalPinToInterrupt(X_LIM));
+              if(buffer_rx[3]!=DISABLED)
+                attachInterrupt(digitalPinToInterrupt(X_LIM), ISR_limit_switch_X, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
+              break;
+            }
+            case AXIS_Y:
+            {
+              detachInterrupt(digitalPinToInterrupt(Y_LIM));
+              if(buffer_rx[3]!=DISABLED)
+                attachInterrupt(digitalPinToInterrupt(Y_LIM), ISR_limit_switch_Y, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
+              break;
+            }
+            case AXIS_Z:
+            {
+              detachInterrupt(digitalPinToInterrupt(Z_LIM));
+              if(buffer_rx[3]!=DISABLED)
+                attachInterrupt(digitalPinToInterrupt(Z_LIM), ISR_limit_switch_Z, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
+              break;
+            }
+            break;
+          }
+        }
+        case CONFIGURE_STEPPER_DRIVER:
+        {
+          switch(buffer_rx[2])
+          {
+            case AXIS_X:
+            {
+              int microstepping_setting = buffer_rx[3];
+              X_driver.microsteps(microstepping_setting);
+              if(microstepping_setting==0)
+                steps_per_mm_X = FULLSTEPS_PER_REV_X*1/SCREW_PITCH_X_MM;
+              else
+                steps_per_mm_X = FULLSTEPS_PER_REV_X*microstepping_setting/SCREW_PITCH_X_MM;
+              X_driver.rms_current(uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]),float(buffer_rx[6])/255); //I_run and holdMultiplier
+              break;
+            }
+            case AXIS_Y:
+            {
+              int microstepping_setting = buffer_rx[3];
+              Y_driver.microsteps(microstepping_setting);
+              if(microstepping_setting==0)
+                steps_per_mm_Y = FULLSTEPS_PER_REV_Y*1/SCREW_PITCH_Y_MM;
+              else
+                steps_per_mm_Y = FULLSTEPS_PER_REV_Y*microstepping_setting/SCREW_PITCH_Y_MM;
+              Y_driver.rms_current(uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]),float(buffer_rx[6])/255); //I_run and holdMultiplier
+              break;
+            }
+            case AXIS_Z:
+            {
+              int microstepping_setting = buffer_rx[3];
+              Z_driver.microsteps(microstepping_setting);
+              if(microstepping_setting==0)
+                steps_per_mm_Z = FULLSTEPS_PER_REV_Z*1/SCREW_PITCH_Z_MM;
+              else
+                steps_per_mm_Z = FULLSTEPS_PER_REV_Z*microstepping_setting/SCREW_PITCH_Z_MM;
+              Z_driver.rms_current(uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]),float(buffer_rx[6])/255); //I_run and holdMultiplier
+              break;
+            }
+            break;
+          }
         }
         case HOME_OR_ZERO:
         {
@@ -791,7 +919,7 @@ void loop() {
   // homing - software limit reached
   if(is_homing_X || is_preparing_for_homing_X)
   {
-    if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_X || stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_X)
+    if(stepper_X.currentPosition()<=X_NEG_LIMIT || stepper_X.currentPosition()>=X_POS_LIMIT)
     {
       stepper_X.setSpeed(0);
       runSpeed_flag_X = false;
@@ -802,7 +930,7 @@ void loop() {
   }
   if(is_homing_Y || is_preparing_for_homing_Y)
   {
-    if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_Y || stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_Y)
+    if(stepper_Y.currentPosition()<=Y_NEG_LIMIT || stepper_Y.currentPosition()>=Y_POS_LIMIT)
     {
       stepper_Y.setSpeed(0);
       runSpeed_flag_Y = false;
@@ -813,7 +941,7 @@ void loop() {
   }
   if(is_homing_Z || is_preparing_for_homing_Z)
   {
-    if(stepper_Z.currentPosition()<=Z_NEG_LIMIT_MM*steps_per_mm_Z || stepper_Z.currentPosition()>=Z_POS_LIMIT_MM*steps_per_mm_Z)
+    if(stepper_Z.currentPosition()<=Z_NEG_LIMIT || stepper_Z.currentPosition()>=Z_POS_LIMIT)
     {
       stepper_Z.setSpeed(0);
       runSpeed_flag_Z = false;
@@ -877,12 +1005,12 @@ void loop() {
       {
         stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_X);
         runSpeed_flag_X = true;
-        if(stepper_X.currentPosition()>=X_POS_LIMIT_MM*steps_per_mm_X && deltaX_float>0)
+        if(stepper_X.currentPosition()>=X_POS_LIMIT && deltaX_float>0)
         {
           runSpeed_flag_X = false;
           stepper_X.setSpeed(0);
         }
-        if(stepper_X.currentPosition()<=X_NEG_LIMIT_MM*steps_per_mm_X && deltaX_float<0)
+        if(stepper_X.currentPosition()<=X_NEG_LIMIT && deltaX_float<0)
           {
           runSpeed_flag_X = false;
           stepper_X.setSpeed(0);
@@ -904,12 +1032,12 @@ void loop() {
       {
         stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
         runSpeed_flag_Y = true;
-        if(stepper_Y.currentPosition()>=Y_POS_LIMIT_MM*steps_per_mm_Y && deltaY_float>0)
+        if(stepper_Y.currentPosition()>=Y_POS_LIMIT && deltaY_float>0)
         {
           runSpeed_flag_Y = false;
           stepper_Y.setSpeed(0);
         }
-        if(stepper_Y.currentPosition()<=Y_NEG_LIMIT_MM*steps_per_mm_Y && deltaY_float<0)
+        if(stepper_Y.currentPosition()<=Y_NEG_LIMIT && deltaY_float<0)
         {
           runSpeed_flag_Y = false;
           stepper_Y.setSpeed(0);
