@@ -40,6 +40,8 @@ class OctopiGUI(QMainWindow):
 		else:
 			self.camera = camera.Camera()
 			self.microcontroller = microcontroller.Microcontroller()
+
+		self.microcontroller.configure_actuators()
 			
 		self.configurationManager = core.ConfigurationManager()
 		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)

@@ -435,6 +435,24 @@ class Microcontroller():
         cmd[4] = int(pitch_mm*1000) & 0xff
         self.send_command(cmd)
 
+    def configure_actuators(self):
+        # lead screw pitch
+        self.set_leadscrew_pitch(AXIS.X,SCREW_PITCH_X_MM)
+        self.set_leadscrew_pitch(AXIS.Y,SCREW_PITCH_Y_MM)
+        self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
+        # stepper driver (microstepping,rms current and I_hold)
+        self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.Y,MICROSTEPPING_DEFAULT_Y,Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
+        # max velocity and acceleration
+        self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
+        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Y_mm)
+        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Z_mm)
+        # home switch
+        self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
+
     def ack_joystick_button_pressed(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
@@ -723,13 +741,31 @@ class Microcontroller_Simulation():
         cmd[3] = int(pitch_mm*1000) >> 8
         cmd[4] = int(pitch_mm*1000) & 0xff
         self.send_command(cmd)
-        
+
     def set_limit_switch_polarity(self,axis,polarity):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LIM_SWITCH_POLARITY
         cmd[2] = axis
         cmd[3] = polarity
         self.send_command(cmd)
+
+    def configure_actuators(self):
+        # lead screw pitch
+        self.set_leadscrew_pitch(AXIS.X,SCREW_PITCH_X_MM)
+        self.set_leadscrew_pitch(AXIS.Y,SCREW_PITCH_Y_MM)
+        self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
+        # stepper driver (microstepping,rms current and I_hold)
+        self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.Y,MICROSTEPPING_DEFAULT_Y,Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
+        # max velocity and acceleration
+        self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
+        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Y_mm)
+        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Z_mm)
+        # home switch
+        self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
 
     def analog_write_onboard_DAC(self,dac,value):
         cmd = bytearray(self.tx_buffer_length)
