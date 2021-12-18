@@ -414,6 +414,27 @@ class Microcontroller():
         cmd[6] = int(I_hold*255)
         self.send_command(cmd)
 
+    def set_max_velocity_acceleration(self,axis,velocity,acceleration):
+        # velocity: max 65535/100 mm/s
+        # acceleration: max 65535/10 mm/s^2
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_MAX_VELOCITY_ACCELERATION
+        cmd[2] = axis
+        cmd[3] = int(velocity*100) >> 8
+        cmd[4] = int(velocity*100) & 0xff
+        cmd[5] = int(acceleration*10) >> 8
+        cmd[6] = int(acceleration*10) & 0xff
+        self.send_command(cmd)
+
+    def set_leadscrew_pitch(self,axis,pitch_mm):
+        # pitch: max 65535/1000 = 65.535 (mm)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_LEAD_SCREW_PITCH
+        cmd[2] = axis
+        cmd[3] = int(pitch_mm*1000) >> 8
+        cmd[4] = int(pitch_mm*1000) & 0xff
+        self.send_command(cmd)
+
     def ack_joystick_button_pressed(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
@@ -682,6 +703,27 @@ class Microcontroller_Simulation():
         cmd[6] = int(I_hold*255)
         self.send_command(cmd)
 
+    def set_max_velocity_acceleration(self,axis,velocity,acceleration):
+        # velocity: max 65535/100 mm/s
+        # acceleration: max 65535/10 mm/s^2
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_MAX_VELOCITY_ACCELERATION
+        cmd[2] = axis
+        cmd[3] = int(velocity*100) >> 8
+        cmd[4] = int(velocity*100) & 0xff
+        cmd[5] = int(acceleration*10) >> 8
+        cmd[6] = int(acceleration*10) & 0xff
+        self.send_command(cmd)
+
+    def set_leadscrew_pitch(self,axis,pitch_mm):
+        # pitch: max 65535/1000 = 65.535 (mm)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_LEAD_SCREW_PITCH
+        cmd[2] = axis
+        cmd[3] = int(pitch_mm*1000) >> 8
+        cmd[4] = int(pitch_mm*1000) & 0xff
+        self.send_command(cmd)
+        
     def set_limit_switch_polarity(self,axis,polarity):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LIM_SWITCH_POLARITY

@@ -45,6 +45,8 @@ static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
 static const int ANALOG_WRITE_ONBOARD_DAC = 15;
 static const int SET_LIM_SWITCH_POLARITY = 20;
 static const int CONFIGURE_STEPPER_DRIVER = 21;
+static const int SET_MAX_VELOCITY_ACCELERATION = 22;
+static const int SET_LEAD_SCREW_PITCH = 23;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
 static const int IN_PROGRESS = 1;
@@ -390,7 +392,7 @@ void setup() {
   while(!STEPPER_SERIAL);
   X_driver.begin();
   X_driver.I_scale_analog(false);
-  X_driver.rms_current(500); //I_run and holdMultiplier
+  X_driver.rms_current(X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD); //I_run and holdMultiplier
   X_driver.microsteps(8);
   X_driver.TPOWERDOWN(2);
   X_driver.pwm_autoscale(true);
@@ -400,7 +402,7 @@ void setup() {
   while(!STEPPER_SERIAL);
   Y_driver.begin();
   Y_driver.I_scale_analog(false);  
-  Y_driver.rms_current(500); //I_run and holdMultiplier
+  Y_driver.rms_current(Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD); //I_run and holdMultiplier
   Y_driver.microsteps(8);
   Y_driver.pwm_autoscale(true);
   Y_driver.TPOWERDOWN(2);
@@ -410,7 +412,7 @@ void setup() {
   while(!STEPPER_SERIAL);
   Z_driver.begin();
   Z_driver.I_scale_analog(false);  
-  Z_driver.rms_current(500,0.5); //I_run and holdMultiplier
+  Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
   Z_driver.microsteps(8);
   Z_driver.TPOWERDOWN(2);
   Z_driver.pwm_autoscale(true);
@@ -651,37 +653,93 @@ void loop() {
             {
               int microstepping_setting = buffer_rx[3];
               X_driver.microsteps(microstepping_setting);
-              if(microstepping_setting==0)
-                steps_per_mm_X = FULLSTEPS_PER_REV_X*1/SCREW_PITCH_X_MM;
-              else
-                steps_per_mm_X = FULLSTEPS_PER_REV_X*microstepping_setting/SCREW_PITCH_X_MM;
-              X_driver.rms_current(uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]),float(buffer_rx[6])/255); //I_run and holdMultiplier
+              MICROSTEPPING_X = microstepping_setting==0?1:microstepping_setting;
+              steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
+              X_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
+              X_MOTOR_I_HOLD = float(buffer_rx[6])/255;
+              X_driver.rms_current(X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
             case AXIS_Y:
             {
               int microstepping_setting = buffer_rx[3];
               Y_driver.microsteps(microstepping_setting);
-              if(microstepping_setting==0)
-                steps_per_mm_Y = FULLSTEPS_PER_REV_Y*1/SCREW_PITCH_Y_MM;
-              else
-                steps_per_mm_Y = FULLSTEPS_PER_REV_Y*microstepping_setting/SCREW_PITCH_Y_MM;
-              Y_driver.rms_current(uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]),float(buffer_rx[6])/255); //I_run and holdMultiplier
+              MICROSTEPPING_Y = microstepping_setting==0?1:microstepping_setting;
+              steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
+              Y_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
+              Y_MOTOR_I_HOLD = float(buffer_rx[6])/255;
+              Y_driver.rms_current(Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
             case AXIS_Z:
             {
               int microstepping_setting = buffer_rx[3];
               Z_driver.microsteps(microstepping_setting);
-              if(microstepping_setting==0)
-                steps_per_mm_Z = FULLSTEPS_PER_REV_Z*1/SCREW_PITCH_Z_MM;
-              else
-                steps_per_mm_Z = FULLSTEPS_PER_REV_Z*microstepping_setting/SCREW_PITCH_Z_MM;
-              Z_driver.rms_current(uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]),float(buffer_rx[6])/255); //I_run and holdMultiplier
+              MICROSTEPPING_Z = microstepping_setting==0?1:microstepping_setting;
+              steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
+              Z_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
+              Z_MOTOR_I_HOLD = float(buffer_rx[6])/255;
+              Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
             break;
           }
+        }
+        case SET_MAX_VELOCITY_ACCELERATION:
+        {
+          switch(buffer_rx[2])
+          {
+            case AXIS_X:
+            {
+              MAX_VELOCITY_X_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
+              MAX_ACCELERATION_X_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/100;
+              stepper_X.setMaxSpeed(MAX_VELOCITY_X_mm*steps_per_mm_X);
+              stepper_X.setAcceleration(MAX_ACCELERATION_X_mm*steps_per_mm_X);
+              break;
+            }
+            case AXIS_Y:
+            {
+              MAX_VELOCITY_Y_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
+              MAX_ACCELERATION_Y_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/100;
+              stepper_Y.setMaxSpeed(MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+              stepper_Y.setAcceleration(MAX_ACCELERATION_Y_mm*steps_per_mm_Y);
+              break;
+            }
+            case AXIS_Z:
+            {
+              MAX_VELOCITY_Z_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
+              MAX_ACCELERATION_Z_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/100;
+              stepper_Z.setMaxSpeed(MAX_VELOCITY_Z_mm*steps_per_mm_Z);
+              stepper_Z.setAcceleration(MAX_ACCELERATION_Z_mm*steps_per_mm_Z);
+              break;
+            }
+          }
+          break;
+        }
+        case SET_LEAD_SCREW_PITCH:
+        {
+          switch(buffer_rx[2])
+          {
+            case AXIS_X:
+            {
+              SCREW_PITCH_X_MM = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
+              steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
+              break;
+            }
+            case AXIS_Y:
+            {
+              SCREW_PITCH_Y_MM = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
+              steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
+              break;
+            }
+            case AXIS_Z:
+            {
+              SCREW_PITCH_Z_MM = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
+              steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
+              break;
+            }
+          }
+          break;
         }
         case HOME_OR_ZERO:
         {
