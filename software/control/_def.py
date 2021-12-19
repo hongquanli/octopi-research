@@ -246,8 +246,14 @@ SHOW_DAC_CONTROL = False
 ##########################################################
 config_files = glob.glob('.' + '/' + 'configuration*.txt')
 if config_files:
+    if len(config_files) > 1:
+        print('multiple machine configuration files found, the program will exit')
+        exit()
     print('load machine-specific configuration')
     exec(open(config_files[0]).read())
+else:
+    print('machine-specifc configuration not present, the program will exit')
+    exit()
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
