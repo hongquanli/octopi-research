@@ -184,12 +184,12 @@ bool homing_direction_Z;
  * used as limit switches. Alternatively, add homing_direction_set variables.
  */
 
-long X_POS_LIMIT = X_POS_LIMIT_MM/steps_per_mm_X;
-long X_NEG_LIMIT = X_NEG_LIMIT_MM/steps_per_mm_X;
-long Y_POS_LIMIT = Y_POS_LIMIT_MM/steps_per_mm_Y;
-long Y_NEG_LIMIT = Y_NEG_LIMIT_MM/steps_per_mm_Y;
-long Z_POS_LIMIT = Z_POS_LIMIT_MM/steps_per_mm_Z;
-long Z_NEG_LIMIT = Z_NEG_LIMIT_MM/steps_per_mm_Z;
+long X_POS_LIMIT = X_POS_LIMIT_MM*steps_per_mm_X;
+long X_NEG_LIMIT = X_NEG_LIMIT_MM*steps_per_mm_X;
+long Y_POS_LIMIT = Y_POS_LIMIT_MM*steps_per_mm_Y;
+long Y_NEG_LIMIT = Y_NEG_LIMIT_MM*steps_per_mm_Y;
+long Z_POS_LIMIT = Z_POS_LIMIT_MM*steps_per_mm_Z;
+long Z_NEG_LIMIT = Z_NEG_LIMIT_MM*steps_per_mm_Z;
 
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
