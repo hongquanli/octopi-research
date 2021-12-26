@@ -614,8 +614,8 @@ void loop() {
               Z_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
               break;
             }
-            break;
           }
+          break;
         }
         case SET_LIM_SWITCH_POLARITY:
         {
@@ -642,8 +642,8 @@ void loop() {
                 attachInterrupt(digitalPinToInterrupt(Z_LIM), ISR_limit_switch_Z, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
               break;
             }
-            break;
           }
+          break;
         }
         case CONFIGURE_STEPPER_DRIVER:
         {
@@ -682,8 +682,8 @@ void loop() {
               Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
-            break;
           }
+          break;
         }
         case SET_MAX_VELOCITY_ACCELERATION:
         {
