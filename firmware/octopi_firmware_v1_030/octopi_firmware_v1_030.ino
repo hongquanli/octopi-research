@@ -1111,6 +1111,10 @@ void loop() {
   }
   
   // focus control
+  if(focusPosition > Z_POS_LIMIT)
+    focusPosition = Z_POS_LIMIT;
+  if(focusPosition < Z_NEG_LIMIT)
+    focusPosition = Z_NEG_LIMIT;
   stepper_Z.moveTo(focusPosition);
 
   // send position update to computer
