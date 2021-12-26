@@ -4,7 +4,7 @@
 #include <AccelStepper.h>
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
-#include "def.h"
+#include "def_octopi.h"
 //#include "def_gravitymachine.h"
 //#include "def_squid.h"
 //#include "def_platereader.h"
