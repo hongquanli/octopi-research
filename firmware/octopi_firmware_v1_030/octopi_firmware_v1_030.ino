@@ -625,21 +625,30 @@ void loop() {
             {
               detachInterrupt(digitalPinToInterrupt(X_LIM));
               if(buffer_rx[3]!=DISABLED)
+              {
                 attachInterrupt(digitalPinToInterrupt(X_LIM), ISR_limit_switch_X, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
+                LIM_SWITCH_X_ACTIVE_LOW = (buffer_rx[3]==ACTIVE_LOW);
+              }
               break;
             }
             case AXIS_Y:
             {
               detachInterrupt(digitalPinToInterrupt(Y_LIM));
               if(buffer_rx[3]!=DISABLED)
+              {
                 attachInterrupt(digitalPinToInterrupt(Y_LIM), ISR_limit_switch_Y, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
+                LIM_SWITCH_Y_ACTIVE_LOW = (buffer_rx[3]==ACTIVE_LOW);
+              }
               break;
             }
             case AXIS_Z:
             {
               detachInterrupt(digitalPinToInterrupt(Z_LIM));
               if(buffer_rx[3]!=DISABLED)
+              {
                 attachInterrupt(digitalPinToInterrupt(Z_LIM), ISR_limit_switch_Z, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
+                LIM_SWITCH_Z_ACTIVE_LOW = (buffer_rx[3]==ACTIVE_LOW);
+              }
               break;
             }
           }
@@ -772,7 +781,7 @@ void loop() {
               case AXIS_X:
                 homing_direction_X = buffer_rx[3];
                 home_X_found = false;
-                if(digitalRead(X_LIM)==HIGH)
+                if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_X = true;
                   runSpeed_flag_X = true;
@@ -795,7 +804,7 @@ void loop() {
               case AXIS_Y:
                 homing_direction_Y = buffer_rx[3];
                 home_Y_found = false;
-                if(digitalRead(Y_LIM)==HIGH)
+                if(digitalRead(Y_LIM)==(LIM_SWITCH_Y_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Y = true;
                   runSpeed_flag_Y = true;
@@ -818,7 +827,7 @@ void loop() {
               case AXIS_Z:
                 homing_direction_Z = buffer_rx[3];
                 home_Z_found = false;
-                if(digitalRead(Z_LIM)==HIGH)
+                if(digitalRead(Z_LIM)==(LIM_SWITCH_Z_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Z = true;
                   runSpeed_flag_Z = true;
@@ -844,7 +853,7 @@ void loop() {
                 home_Y_found = false;
                 // homing x 
                 homing_direction_X = buffer_rx[3];
-                if(digitalRead(X_LIM)==HIGH)
+                if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_X = true;
                   runSpeed_flag_X = true;
@@ -865,7 +874,7 @@ void loop() {
                 }
                 // homing y
                 homing_direction_Y = buffer_rx[4];
-                if(digitalRead(Y_LIM)==HIGH)
+                if(digitalRead(Y_LIM)==(LIM_SWITCH_Y_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Y = true;
                   runSpeed_flag_Y = true;
@@ -936,7 +945,7 @@ void loop() {
   // homing - preparing for homing
   if(is_preparing_for_homing_X)
   {
-    if(digitalRead(X_LIM)==HIGH)
+    if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
     {
       is_preparing_for_homing_X = false;
       is_homing_X = true;
@@ -949,7 +958,7 @@ void loop() {
   }
   if(is_preparing_for_homing_Y)
   {
-    if(digitalRead(Y_LIM)==HIGH)
+    if(digitalRead(Y_LIM)==(LIM_SWITCH_Y_ACTIVE_LOW?HIGH:LOW))
     {
       is_preparing_for_homing_Y = false;
       is_homing_Y = true;
@@ -962,7 +971,7 @@ void loop() {
   }
   if(is_preparing_for_homing_Z)
   {
-    if(digitalRead(Z_LIM)==HIGH)
+    if(digitalRead(Z_LIM)==(LIM_SWITCH_Z_ACTIVE_LOW?HIGH:LOW))
     {
       is_preparing_for_homing_Z = false;
       is_homing_Z = true;
