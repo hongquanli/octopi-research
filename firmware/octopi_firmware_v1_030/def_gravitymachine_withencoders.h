@@ -54,3 +54,14 @@ float Z_MOTOR_I_HOLD = 0.25;
 bool X_use_encoder = true;
 bool Y_use_encoder = true;
 bool Z_use_encoder = true;
+
+// signs
+int MOVEMENT_SIGN_X = 1;    // not used for now
+int MOVEMENT_SIGN_Y = 1;    // not used for now
+int MOVEMENT_SIGN_Z = 1;    // not used for now
+int ENCODER_SIGN_X = 1;     // not used for now
+int ENCODER_SIGN_Y = 1;     // not used for now
+int ENCODER_SIGN_Z = 1;     // not used for now
+int JOYSTICK_SIGN_X = 1;
+int JOYSTICK_SIGN_Y = -1;
+int JOYSTICK_SIGN_Z = 1;

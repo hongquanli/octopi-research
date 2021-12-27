@@ -1058,7 +1058,7 @@ void loop() {
     if(!X_commanded_movement_in_progress && !is_homing_X && !is_preparing_for_homing_X) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
       deltaX = analogRead(joystick_X) - joystick_offset_x;
-      deltaX_float = -deltaX;
+      deltaX_float = JOYSTICK_SIGN_X*deltaX;
       if(abs(deltaX_float)>joystickSensitivity)
       {
         stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_X);
@@ -1085,7 +1085,7 @@ void loop() {
     if(!Y_commanded_movement_in_progress && !is_homing_Y && !is_preparing_for_homing_Y)
     {
       deltaY = analogRead(joystick_Y) - joystick_offset_y;
-      deltaY_float = deltaY;
+      deltaY_float = JOYSTICK_SIGN_Y*deltaY;
       if(abs(deltaY)>joystickSensitivity)
       {
         stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
@@ -1267,23 +1267,23 @@ void timer_interruptHandler(){
 void ISR_focusWheel_A(){
   if(digitalRead(focusWheel_B)==1)
   {
-    focusPosition = focusPosition + 1;
+    focusPosition = focusPosition + JOYSTICK_SIGN_Z*1;
     digitalWrite(13,HIGH);
   }
   else
   {
-    focusPosition = focusPosition - 1;
+    focusPosition = focusPosition - JOYSTICK_SIGN_Z*1;
     digitalWrite(13,LOW);
   }
 }
 void ISR_focusWheel_B(){
   if(digitalRead(focusWheel_A)==1)
   {
-    focusPosition = focusPosition - 1;
+    focusPosition = focusPosition - JOYSTICK_SIGN_Z*1;
   }
   else
   {
-    focusPosition = focusPosition + 1;
+    focusPosition = focusPosition + JOYSTICK_SIGN_Z*1;
   }
 }
 
