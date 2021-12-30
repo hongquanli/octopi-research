@@ -857,6 +857,14 @@ class MultiPointWorker(QObject):
             # along x
             for j in range(self.NX):
 
+                if (self.NZ > 1):
+                    # maneuver for achiving uniform step size and repeatability when using open-loop control
+                    self.navigationController.move_z_usteps(80)
+                    self.wait_till_operation_is_completed()
+                    self.navigationController.move_z_usteps(-80)
+                    self.wait_till_operation_is_completed()
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+
                 # z-stack
                 for k in range(self.NZ):
 
@@ -870,6 +878,8 @@ class MultiPointWorker(QObject):
                         self.autofocusController.autofocus()
                         self.autofocusController.wait_till_autofocus_has_completed()
 
+                    '''
+                    # moved to before each z-stack on 12/29/2021
                     if (self.NZ > 1):
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
                         self.navigationController.move_z_usteps(80)
@@ -877,6 +887,7 @@ class MultiPointWorker(QObject):
                         self.navigationController.move_z_usteps(-80)
                         self.wait_till_operation_is_completed()
                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                    '''
 
                     file_ID = str(i) + '_' + str(j) + '_' + str(k)
 
