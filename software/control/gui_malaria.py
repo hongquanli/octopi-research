@@ -63,6 +63,13 @@ class OctopiGUI(QMainWindow):
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
 
+		# homing, set zero and set software limit
+		self.slidePositionController.move_to_slide_scanning_position()
+		self.navigationController.set_x_limit_pos(SOFTWARE_POS_LIMIT.X_POSITIVE)
+		self.navigationController.set_x_limit_pos(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+		self.navigationController.set_y_limit_pos(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+		self.navigationController.set_y_limit_pos(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+
 		# open the camera
 		# camera start streaming
 		self.camera.open()

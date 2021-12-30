@@ -249,6 +249,12 @@ class SLIDE_POSITION:
 
 SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S = 10
 
+class SOFTWARE_POS_LIMIT:
+    X_POSITIVE = 55
+    X_NEGATIVE = -0.5
+    Y_POSITIVE = 55
+    Y_NEGATIVE = -0.5
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
