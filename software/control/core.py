@@ -849,6 +849,8 @@ class MultiPointWorker(QObject):
         current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
         os.mkdir(current_path)
 
+        x_scan_direction = 1
+
         # along y
         for i in range(self.NY):
 
@@ -888,8 +890,8 @@ class MultiPointWorker(QObject):
                         self.wait_till_operation_is_completed()
                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                     '''
-
-                    file_ID = str(i) + '_' + str(j) + '_' + str(k)
+                    
+                    file_ID = str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
 
                     # iterate through selected modes
                     for config in self.selected_configurations:
@@ -931,15 +933,19 @@ class MultiPointWorker(QObject):
                 if self.NX > 1:
                     # move x
                     if j < self.NX - 1:
-                        self.navigationController.move_x_usteps(self.deltaX_usteps)
+                        self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
                         self.wait_till_operation_is_completed()
                         time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
+            '''
+            # instead of move back, reverse scan direction (12/29/2021)
             if self.NX > 1:
                 # move x back
                 self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                 self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+            '''
+            x_scan_direction = -x_scan_direction
 
             if self.NY > 1:
                 # move y
@@ -953,6 +959,12 @@ class MultiPointWorker(QObject):
             self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
             self.wait_till_operation_is_completed()
             time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+
+        # move x back at the end of the scan
+        if x_scan_direction == -1:
+            self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+            self.wait_till_operation_is_completed()
+            time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
 class MultiPointController(QObject):
 
