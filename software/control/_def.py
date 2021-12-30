@@ -13,7 +13,7 @@ class Acquisition:
     CROP_HEIGHT = 3000
     NUMBER_OF_FOVS_PER_AF = 3
     IMAGE_FORMAT = 'tif'
-    IMAGE_DISPLAY_SCALING_FACTOR = 1
+    IMAGE_DISPLAY_SCALING_FACTOR = 0.3
     DX = 0.9
     DY = 0.9
     DZ = 1.5

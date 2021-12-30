@@ -363,7 +363,7 @@ class LiveController(QObject):
         self.counter = 0
         self.timestamp_last = 0
 
-        self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
+        self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
     # illumination control
     def turn_on_illumination(self):
@@ -1046,7 +1046,7 @@ class MultiPointWorker(QObject):
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
                         # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
+                        image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                         # saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
