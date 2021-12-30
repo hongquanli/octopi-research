@@ -982,7 +982,9 @@ void loop() {
         stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_X_mm*steps_per_mm_Z);
     }
   }
-  
+
+  // the following code can cause issues because of the or operation
+  /*
   // homing - software limit reached
   if(is_homing_X || is_preparing_for_homing_X)
   {
@@ -1017,6 +1019,7 @@ void loop() {
       mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
     }
   }
+  */
 
   // finish homing
   if(is_homing_X && home_X_found && stepper_X.distanceToGo() == 0)
