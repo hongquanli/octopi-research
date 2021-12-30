@@ -205,7 +205,7 @@ class PLATE_READER:
     OFFSET_COLUMN_1_MM = 20
     OFFSET_ROW_A_MM = 20
 
-DEFAULT_DISPLAY_CROP = 50 # value ranges from 1 to 100 - image display crop size 
+DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
 OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
