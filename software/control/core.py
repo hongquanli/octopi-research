@@ -905,10 +905,14 @@ class MultiPointWorker(QObject):
             # continous acquisition
             if self.dt == 0:
                 self.run_single_time_point()
+                if self.multiPointController.abort_acqusition_requested:
+                    break
                 self.time_point = self.time_point + 1
             # timed acquisition
             else:
                 self.run_single_time_point()
+                if self.multiPointController.abort_acqusition_requested:
+                    break
                 self.time_point = self.time_point + 1
                 # check if the aquisition has taken longer than dt or integer multiples of dt, if so skip the next time point(s)
                 while time.time() > self.timestamp_acquisition_started + self.time_point*self.dt:
@@ -934,6 +938,8 @@ class MultiPointWorker(QObject):
         os.mkdir(current_path)
 
         x_scan_direction = 1
+        dx_usteps = 0
+        dy_usteps = 0
 
         # along y
         for i in range(self.NY):
@@ -996,6 +1002,14 @@ class MultiPointWorker(QObject):
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
                         QApplication.processEvents()
+
+                    if self.multiPointController.abort_acqusition_requested:
+                        self.liveController.turn_off_illumination()
+                        self.navigationController.move_x_usteps(-dx_usteps)
+                        self.wait_till_operation_is_completed()
+                        self.navigationController.move_y_usteps(-dy_usteps)
+                        self.wait_till_operation_is_completed()
+                        return
                     
                     # QApplication.processEvents()
 
@@ -1020,6 +1034,7 @@ class MultiPointWorker(QObject):
                         self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
                         self.wait_till_operation_is_completed()
                         time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                        dx_usteps = dx_usteps + x_scan_direction*self.deltaX_usteps
 
             '''
             # instead of move back, reverse scan direction (12/29/2021)
@@ -1037,12 +1052,14 @@ class MultiPointWorker(QObject):
                     self.navigationController.move_y_usteps(self.deltaY_usteps)
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                    dy_usteps = dy_usteps + self.deltaY_usteps
 
         if self.NY > 1:
             # move y back
             self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
             self.wait_till_operation_is_completed()
             time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+            dy_usteps = dy_usteps - self.deltaY_usteps*(self.NY-1)
 
         # move x back at the end of the scan
         if x_scan_direction == -1:
@@ -1141,6 +1158,8 @@ class MultiPointController(QObject):
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
 
+        self.abort_acqusition_requested = False
+
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
         if self.liveController.is_live:
@@ -1197,6 +1216,9 @@ class MultiPointController(QObject):
         # emit the acquisition finished signal to enable the UI
         self.acquisitionFinished.emit()
         QApplication.processEvents()
+
+    def request_abort_aquisition(self):
+        self.abort_acqusition_requested = True
 
     def slot_image_to_display(self,image):
         self.image_to_display.emit(image)

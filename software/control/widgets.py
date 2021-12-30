@@ -931,15 +931,14 @@ class MultiPointWidget(QFrame):
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.run_acquisition()
         else:
-            # self.multipointController.stop_acquisition() # to implement
-            # self.setEnabled_all(True)
-            pass
+            self.multipointController.request_abort_aquisition()
+            self.setEnabled_all(True)
 
     def acquisition_is_finished(self):
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
-    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=False):
+    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=True):
         self.btn_setSavingDir.setEnabled(enabled)
         self.lineEdit_savingDir.setEnabled(enabled)
         self.lineEdit_experimentID.setEnabled(enabled)
