@@ -16,6 +16,8 @@ import control.microcontroller as microcontroller
 from control._def import *
 
 import pyqtgraph.dockarea as dock
+import time
+
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
 class OctopiGUI(QMainWindow):
@@ -69,7 +71,11 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.set_x_limit_neg_mm(-100)
 		self.navigationController.set_y_limit_pos_mm(100)
 		self.navigationController.set_y_limit_neg_mm(-100)
+		print('start homing')
 		self.slidePositionController.move_to_slide_scanning_position()
+		while self.slidePositionController.slide_scanning_position_reached == False:
+			time.sleep(0.005)
+		print('homing finished')
 		self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
 		self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
 		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
