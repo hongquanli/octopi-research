@@ -258,6 +258,8 @@ class SOFTWARE_POS_LIMIT:
     Y_POSITIVE = 56
     Y_NEGATIVE = -0.5
 
+MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
