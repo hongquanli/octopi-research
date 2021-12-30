@@ -769,6 +769,10 @@ class MultiPointWidget(QFrame):
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
 
+        self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
+        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.base_path_is_set = True
+
         self.lineEdit_experimentID = QLineEdit()
 
         self.entry_deltaX = QDoubleSpinBox()
