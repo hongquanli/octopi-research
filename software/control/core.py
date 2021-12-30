@@ -1014,7 +1014,7 @@ class MultiPointWorker(QObject):
                     if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                     # temporary: replace the above line with the line below to AF every FOV
                     # if (self.NZ == 1) and (self.do_autofocus):
-                        configuration_name_AF = 'BF LED matrix full'
+                        configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                         config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                         self.signal_current_configuration.emit(config_AF)
                         self.autofocusController.autofocus()
