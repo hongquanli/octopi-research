@@ -88,7 +88,7 @@ LED_MATRIX_R_FACTOR = 1
 LED_MATRIX_G_FACTOR = 1
 LED_MATRIX_B_FACTOR = 1
 
-DEFAULT_SAVING_PATH = str(Path.home()) + "/Downloads"
+DEFAULT_SAVING_PATH = str(Path.home()) + "/Dropbox/Data"
 
 class PLATE_READER:
     NUMBER_OF_ROWS = 8
