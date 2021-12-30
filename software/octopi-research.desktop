@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=main_malaria.py
+Comment=Execute main_malaria.py
+Path=/home/prakashlab/Desktop/octopi-research/software/
+Exec=python3 "/home/prakashlab/Desktop/octopi-research/software/main_malaria.py"
+Terminal=true
+Type=Application
+Categories=Application
