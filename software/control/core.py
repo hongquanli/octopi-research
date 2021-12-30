@@ -590,6 +590,90 @@ class NavigationController(QObject):
     def home(self):
         pass
 
+
+class SlidePositionControlWorker(QObject):
+    
+    finished = Signal()
+
+    def __init__(self,navigationController):
+        QObject.__init__(self)
+        self.navigationController = navigationController
+        self.microcontroller = self.navigationController.microcontroller
+
+    def wait_till_operation_is_completed(self,timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S):
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
+            if time.time() - timestamp_start > SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S:
+                print('Error - slide position switching timeout, the program will exit')
+                self.navigationController.move_x(0)
+                self.navigationController.move_y(0)
+                exit()
+
+    def move_to_slide_loading_position(self):
+        timestamp_start = time.time()
+        self.navigationController.home_x()
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM)
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.navigationController.home_y()
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM)
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.finished.emit()
+
+    def move_to_slide_scanning_position(self):
+        timestamp_start = time.time()
+        self.navigationController.home_x()
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.navigationController.home_y()
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
+        self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.finished.emit()
+
+class SlidePositionController(QObject):
+
+    signal_slide_loading_position_reached = Signal()
+    signal_slide_scanning_position_reached = Signal()
+
+    def __init__(self,navigationController):
+        QObject.__init__(self)
+        self.navigationController = navigationController
+
+    def move_to_slide_loading_position(self):
+        # create a QThread object
+        self.thread = QThread()
+        # create a worker object
+        self.slidePositionControlWorker = SlidePositionControlWorker(self.navigationController)
+        # move the worker to the thread
+        self.slidePositionControlWorker.moveToThread(self.thread)
+        # connect signals and slots
+        self.thread.started.connect(self.slidePositionControlWorker.move_to_slide_loading_position)
+        self.slidePositionControlWorker.finished.connect(self.signal_slide_loading_position_reached.emit)
+        self.slidePositionControlWorker.finished.connect(self.slidePositionControlWorker.deleteLater)
+        self.slidePositionControlWorker.finished.connect(self.thread.quit)
+        self.thread.finished.connect(self.thread.quit)
+        # start the thread
+        self.thread.start()
+
+    def move_to_slide_scanning_position(self):
+        # create a QThread object
+        self.thread = QThread()
+        # create a worker object
+        self.slidePositionControlWorker = SlidePositionControlWorker(self.navigationController)
+        # move the worker to the thread
+        self.slidePositionControlWorker.moveToThread(self.thread)
+        # connect signals and slots
+        self.thread.started.connect(self.slidePositionControlWorker.move_to_slide_scanning_position)
+        self.slidePositionControlWorker.finished.connect(self.signal_slide_scanning_position_reached.emit)
+        self.slidePositionControlWorker.finished.connect(self.slidePositionControlWorker.deleteLater)
+        self.slidePositionControlWorker.finished.connect(self.thread.quit)
+        self.thread.finished.connect(self.thread.quit)
+        # start the thread
+        self.thread.start()
+
 class AutofocusWorker(QObject):
 
     finished = Signal()

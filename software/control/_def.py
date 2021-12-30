@@ -241,6 +241,14 @@ class Tracking:
 
 SHOW_DAC_CONTROL = False
 
+class SLIDE_POSITION:
+    LOADING_X_MM = 30
+    LOADING_Y_MM = 55
+    SCANNING_X_MM = 3
+    SCANNING_Y_MM = 3
+
+SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S = 10
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

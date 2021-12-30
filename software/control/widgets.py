@@ -400,9 +400,12 @@ class RecordingWidget(QFrame):
         self.btn_setSavingDir.setEnabled(True)
 
 class NavigationWidget(QFrame):
-    def __init__(self, navigationController, main=None, *args, **kwargs):
+    def __init__(self, navigationController, slidePositionController=None, main=None, widget_configuration = 'full', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.navigationController = navigationController
+        self.slidePositionController = slidePositionController
+        self.widget_configuration = widget_configuration
+        self.slide_position = None
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -467,6 +470,8 @@ class NavigationWidget(QFrame):
         self.btn_home_Z.setEnabled(HOMING_ENABLED_Z)
         self.btn_zero_Z = QPushButton('Zero Z')
         self.btn_zero_Z.setDefault(False)
+
+        self.btn_load_slide = QPushButton('To Slide Loading Position')
         
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('X (mm)'), 0,0)
@@ -490,12 +495,17 @@ class NavigationWidget(QFrame):
         grid_line2.addWidget(self.btn_moveZ_backward, 0,4)
         
         grid_line3 = QGridLayout()
-        grid_line3.addWidget(self.btn_zero_X, 0,3)
-        grid_line3.addWidget(self.btn_zero_Y, 0,4)
-        grid_line3.addWidget(self.btn_zero_Z, 0,5)
-        grid_line3.addWidget(self.btn_home_X, 0,0)
-        grid_line3.addWidget(self.btn_home_Y, 0,1)
-        grid_line3.addWidget(self.btn_home_Z, 0,2)
+        if self.widget_configuration == 'full':
+            grid_line3.addWidget(self.btn_zero_X, 0,3)
+            grid_line3.addWidget(self.btn_zero_Y, 0,4)
+            grid_line3.addWidget(self.btn_zero_Z, 0,5)
+            grid_line3.addWidget(self.btn_home_X, 0,0)
+            grid_line3.addWidget(self.btn_home_Y, 0,1)
+            grid_line3.addWidget(self.btn_home_Z, 0,2)
+        elif self.widget_configuration == 'malaria':
+            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
+            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -521,6 +531,9 @@ class NavigationWidget(QFrame):
         self.btn_zero_X.clicked.connect(self.zero_x)
         self.btn_zero_Y.clicked.connect(self.zero_y)
         self.btn_zero_Z.clicked.connect(self.zero_z)
+
+        self.btn_load_slide.clicked.connect(self.switch_position)
+        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
         
     def move_x_forward(self):
         self.navigationController.move_x(self.entry_dX.value())
@@ -592,6 +605,34 @@ class NavigationWidget(QFrame):
 
     def zero_z(self):
         self.navigationController.zero_z()
+
+    def slot_slide_loading_position_reached(self):
+        self.slide_position = 'loading'
+        self.btn_load_slide.setStyleSheet("background-color: #C2FFC2");
+        self.btn_load_slide.setText('To Slide Scanning Position')
+        self.btn_moveX_forward.setEnabled(False)
+        self.btn_moveX_backward.setEnabled(False)
+        self.btn_moveY_forward.setEnabled(False)
+        self.btn_moveY_backward.setEnabled(False)
+        self.btn_moveZ_forward.setEnabled(False)
+        self.btn_moveZ_backward.setEnabled(False)
+
+    def slot_slide_scanning_position_reached(self):
+        self.slide_position = 'scanning'
+        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
+        self.btn_load_slide.setText('To Slide Loading Position')
+        self.btn_moveX_forward.setEnabled(True)
+        self.btn_moveX_backward.setEnabled(True)
+        self.btn_moveY_forward.setEnabled(True)
+        self.btn_moveY_backward.setEnabled(True)
+        self.btn_moveZ_forward.setEnabled(True)
+        self.btn_moveZ_backward.setEnabled(True)
+
+    def switch_position(self):
+        if self.slide_position != 'loading':
+            self.slidePositionController.move_to_slide_loading_position()
+        else:
+            self.slidePositionController.move_to_slide_scanning_position()
 
 class DACControWidget(QFrame):
     def __init__(self, microcontroller ,*args, **kwargs):
@@ -914,6 +955,12 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
+
+    def disable_the_start_aquisition_button(self):
+        self.btn_startAcquisition.setEnabled(False)
+
+    def enable_the_start_aquisition_button(self):
+        self.btn_startAcquisition.setEnabled(True)
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):
