@@ -25,7 +25,8 @@ from pathlib import Path
 import control.utils_config as utils_config
 
 import math
-
+import json
+import pandas as pd
 
 class StreamHandler(QObject):
 
@@ -977,9 +978,13 @@ class MultiPointWorker(QObject):
         current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
         os.mkdir(current_path)
 
+        # create a dataframe to save coordinates
+        coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
+
         x_scan_direction = 1
         dx_usteps = 0
         dy_usteps = 0
+        dz_usteps = 0
 
         # along y
         for i in range(self.NY):
@@ -1022,6 +1027,8 @@ class MultiPointWorker(QObject):
                     '''
                     
                     file_ID = str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+                    # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
+                    # metadata = json.dumps(metadata)
 
                     # iterate through selected modes
                     for config in self.selected_configurations:
@@ -1033,25 +1040,36 @@ class MultiPointWorker(QObject):
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
-                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
                         # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
                         image_to_display = utils.crop_image(image,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                        # saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + 'tif')
                         if self.camera.is_color:
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
+                        # tifffile.imsave(saving_path, image, description=metadata)
                         QApplication.processEvents()
 
+                    # add the coordinate of the current location
+                    coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
+                                                            'x (mm)':self.navigationController.x_pos_mm,
+                                                            'y (mm)':self.navigationController.y_pos_mm,
+                                                            'z (um)':self.navigationController.z_pos_mm*1000},
+                                                            ignore_index = True)
+
+                    # check if the acquisition should be aborted
                     if self.multiPointController.abort_acqusition_requested:
                         self.liveController.turn_off_illumination()
                         self.navigationController.move_x_usteps(-dx_usteps)
                         self.wait_till_operation_is_completed()
                         self.navigationController.move_y_usteps(-dy_usteps)
                         self.wait_till_operation_is_completed()
+                        self.navigationController.move_z_usteps(-dz_usteps)
+                        self.wait_till_operation_is_completed()
+                        coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
                         return
-                    
-                    # QApplication.processEvents()
 
                     if self.NZ > 1:
                         # move z
@@ -1059,11 +1077,13 @@ class MultiPointWorker(QObject):
                             self.navigationController.move_z_usteps(self.deltaZ_usteps)
                             self.wait_till_operation_is_completed()
                             time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                            dz_usteps = dz_usteps + self.deltaZ_usteps
                 
                 if self.NZ > 1:
                     # move z back
                     self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
                     self.wait_till_operation_is_completed()
+                    dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
                 # update FOV counter
                 self.FOV_counter = self.FOV_counter + 1
@@ -1106,6 +1126,8 @@ class MultiPointWorker(QObject):
             self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
             self.wait_till_operation_is_completed()
             time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+
+        coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
 
 class MultiPointController(QObject):
 
@@ -1183,11 +1205,13 @@ class MultiPointController(QObject):
         self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d %H-%M-%-S.%f')
         self.recording_start_time = time.time()
         # create a new folder
-        try:
-            os.mkdir(os.path.join(self.base_path,self.experiment_ID))
-            self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
-        except:
-            pass
+        os.mkdir(os.path.join(self.base_path,self.experiment_ID))
+        self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
+        acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus}
+        f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
+        f.write(json.dumps(acquisition_parameters))
+        f.close()
+
 
     def set_selected_configurations(self, selected_configurations_name):
         self.selected_configurations = []
