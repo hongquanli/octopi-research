@@ -596,7 +596,6 @@ class NavigationController(QObject):
             self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
         else:
             self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
-        print(int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
 
     def set_x_limit_neg_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_X > 0:
@@ -633,9 +632,10 @@ class SlidePositionControlWorker(QObject):
     
     finished = Signal()
 
-    def __init__(self,navigationController):
+    def __init__(self,slidePositionController):
         QObject.__init__(self)
-        self.navigationController = navigationController
+        self.slidePositionController = slidePositionController
+        self.navigationController = slidePositionController.navigationController
         self.microcontroller = self.navigationController.microcontroller
 
     def wait_till_operation_is_completed(self,timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S):
@@ -659,6 +659,7 @@ class SlidePositionControlWorker(QObject):
         self.navigationController.zero_y()
         self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM)
         self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.slidePositionController.slide_loading_position_reached = True
         self.finished.emit()
 
     def move_to_slide_scanning_position(self):
@@ -673,6 +674,7 @@ class SlidePositionControlWorker(QObject):
         self.navigationController.zero_y()
         self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
         self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        self.slidePositionController.slide_scanning_position_reached = True
         self.finished.emit()
 
 class SlidePositionController(QObject):
@@ -683,12 +685,14 @@ class SlidePositionController(QObject):
     def __init__(self,navigationController):
         QObject.__init__(self)
         self.navigationController = navigationController
+        self.slide_loading_position_reached = False
+        self.slide_scanning_position_reached = False
 
     def move_to_slide_loading_position(self):
         # create a QThread object
         self.thread = QThread()
         # create a worker object
-        self.slidePositionControlWorker = SlidePositionControlWorker(self.navigationController)
+        self.slidePositionControlWorker = SlidePositionControlWorker(self)
         # move the worker to the thread
         self.slidePositionControlWorker.moveToThread(self.thread)
         # connect signals and slots
@@ -704,7 +708,7 @@ class SlidePositionController(QObject):
         # create a QThread object
         self.thread = QThread()
         # create a worker object
-        self.slidePositionControlWorker = SlidePositionControlWorker(self.navigationController)
+        self.slidePositionControlWorker = SlidePositionControlWorker(self)
         # move the worker to the thread
         self.slidePositionControlWorker.moveToThread(self.thread)
         # connect signals and slots
