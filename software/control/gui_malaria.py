@@ -64,12 +64,16 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 
 		# homing, set zero and set software limit
+		self.navigationController.set_x_limit_pos_mm(100)
+		self.navigationController.set_x_limit_neg_mm(-100)
+		self.navigationController.set_y_limit_pos_mm(100)
+		self.navigationController.set_y_limit_neg_mm(-100)
 		self.slidePositionController.move_to_slide_scanning_position()
-		self.navigationController.set_x_limit_pos(SOFTWARE_POS_LIMIT.X_POSITIVE)
-		self.navigationController.set_x_limit_pos(SOFTWARE_POS_LIMIT.X_NEGATIVE)
-		self.navigationController.set_y_limit_pos(SOFTWARE_POS_LIMIT.Y_POSITIVE)
-		self.navigationController.set_y_limit_pos(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
-
+		self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+		self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+		self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+		
 		# open the camera
 		# camera start streaming
 		self.camera.open()
