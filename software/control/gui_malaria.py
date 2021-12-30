@@ -49,6 +49,11 @@ class OctopiGUI(QMainWindow):
 			self.camera = camera.Camera()
 			self.microcontroller = microcontroller.Microcontroller()
 
+		# camera settings
+		self.camera.set_reverse_x(CAMERA_REVERSE_X)
+		self.camera.set_reverse_y(CAMERA_REVERSE_Y)
+
+		# configure the actuators
 		self.microcontroller.configure_actuators()
 			
 		self.configurationManager = core.ConfigurationManager()
