@@ -109,6 +109,9 @@ class CMD_EXECUTION_STATUS:
 ROTATE_IMAGE_ANGLE = None
 FLIP_IMAGE = None # 'Horizontal', 'Vertical', 'Both'
 
+CAMERA_REVERSE_X = False
+CAMERA_REVERSE_Y = False
+
 # note: XY are the in-plane axes, Z is the focus axis
 
 # change the following so that "backward" is "backward" - towards the single sided hall effect sensor
