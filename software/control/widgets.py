@@ -419,7 +419,7 @@ class NavigationWidget(QFrame):
         self.entry_dX.setSingleStep(0.2)
         self.entry_dX.setValue(0)
         self.entry_dX.setDecimals(3)
-
+        self.entry_dX.setKeyboardTracking(False)
         self.btn_moveX_forward = QPushButton('Forward')
         self.btn_moveX_forward.setDefault(False)
         self.btn_moveX_backward = QPushButton('Backward')
@@ -440,6 +440,7 @@ class NavigationWidget(QFrame):
         self.entry_dY.setSingleStep(0.2)
         self.entry_dY.setValue(0)
         self.entry_dY.setDecimals(3)
+        self.entry_dY.setKeyboardTracking(False)
         self.btn_moveY_forward = QPushButton('Forward')
         self.btn_moveY_forward.setDefault(False)
         self.btn_moveY_backward = QPushButton('Backward')
@@ -460,6 +461,7 @@ class NavigationWidget(QFrame):
         self.entry_dZ.setSingleStep(0.2)
         self.entry_dZ.setValue(0)
         self.entry_dZ.setDecimals(3)
+        self.entry_dZ.setKeyboardTracking(False)
         self.btn_moveZ_forward = QPushButton('Forward')
         self.btn_moveZ_forward.setDefault(False)
         self.btn_moveZ_backward = QPushButton('Backward')
@@ -654,6 +656,7 @@ class DACControWidget(QFrame):
         self.entry_DAC0.setMaximum(100) 
         self.entry_DAC0.setSingleStep(0.1)
         self.entry_DAC0.setValue(0)
+        self.entry_DAC0.setKeyboardTracking(False)
 
         self.slider_DAC1 = QSlider(Qt.Horizontal)
         self.slider_DAC1.setTickPosition(QSlider.TicksBelow)
@@ -667,6 +670,7 @@ class DACControWidget(QFrame):
         self.entry_DAC1.setMaximum(100) 
         self.entry_DAC1.setSingleStep(0.1)
         self.entry_DAC1.setValue(0)
+        self.entry_DAC1.setKeyboardTracking(False)
 
         # connections
         self.entry_DAC0.valueChanged.connect(self.set_DAC0)
@@ -781,12 +785,14 @@ class MultiPointWidget(QFrame):
         self.entry_deltaX.setSingleStep(0.1)
         self.entry_deltaX.setValue(Acquisition.DX)
         self.entry_deltaX.setDecimals(3)
+        self.entry_deltaX.setKeyboardTracking(False)
 
         self.entry_NX = QSpinBox()
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
         self.entry_NX.setValue(1)
+        self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
         self.entry_deltaY.setMinimum(0) 
@@ -794,12 +800,14 @@ class MultiPointWidget(QFrame):
         self.entry_deltaY.setSingleStep(0.1)
         self.entry_deltaY.setValue(Acquisition.DX)
         self.entry_deltaY.setDecimals(3)
+        self.entry_deltaY.setKeyboardTracking(False)
         
         self.entry_NY = QSpinBox()
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
         self.entry_NY.setValue(1)
+        self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
         self.entry_deltaZ.setMinimum(0) 
@@ -807,25 +815,28 @@ class MultiPointWidget(QFrame):
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
+        self.entry_deltaZ.setKeyboardTracking(False)
         
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
         self.entry_NZ.setMaximum(100) 
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
+        self.entry_NZ.setKeyboardTracking(False)
         
-
         self.entry_dt = QDoubleSpinBox()
         self.entry_dt.setMinimum(0) 
         self.entry_dt.setMaximum(12*3600) 
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(0)
+        self.entry_dt.setKeyboardTracking(False)
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1) 
         self.entry_Nt.setMaximum(50000)   # @@@ to be changed
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
+        self.entry_Nt.setKeyboardTracking(False)
 
         self.list_configurations = QListWidget()
         for microscope_configuration in self.configurationManager.configurations:
