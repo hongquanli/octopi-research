@@ -1049,8 +1049,7 @@ class MultiPointWorker(QObject):
                         image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                        # saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
-                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + 'tif')
+                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
                         if self.camera.is_color:
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
