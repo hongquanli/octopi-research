@@ -123,7 +123,7 @@ class OctopiGUI(QMainWindow):
 			main_dockArea.addDock(dock_controlPanel,'right')
 			self.setCentralWidget(main_dockArea)
 			desktopWidget = QDesktopWidget()
-			height_min = 0.96*desktopWidget.height()
+			height_min = 0.9*desktopWidget.height()
 			width_min = 0.96*desktopWidget.width()
 			self.setMinimumSize(width_min,height_min)
 		else:
