@@ -141,6 +141,12 @@ class Camera(object):
             self.camera.BalanceRatioSelector.set(2)
             awb_b = self.camera.BalanceRatio.set(wb_b)
 
+    def set_reverse_x(self,value):
+        self.camera.ReverseX.set(value)
+
+    def set_reverse_y(self,value):
+        self.camera.ReverseY.set(value)
+
     def start_streaming(self):
         self.camera.stream_on()
         self.is_streaming = True
