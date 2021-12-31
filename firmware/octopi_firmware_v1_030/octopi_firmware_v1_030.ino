@@ -238,7 +238,10 @@ static const int ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3;
-static const int ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 5;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4;
+static const int ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6;
 static const int ILLUMINATION_SOURCE_405NM = 11;
 static const int ILLUMINATION_SOURCE_488NM = 12;
 static const int ILLUMINATION_SOURCE_638NM = 13;
@@ -248,6 +251,9 @@ Adafruit_DotStar matrix(DOTSTAR_NUM_LEDS, DOTSTAR_BRG);
 void set_all(Adafruit_DotStar & matrix, int r, int g, int b);
 void set_left(Adafruit_DotStar & matrix, int r, int g, int b);
 void set_right(Adafruit_DotStar & matrix, int r, int g, int b);
+void set_low_na(Adafruit_DotStar & matrix, int r, int g, int b);
+void set_left_dot(Adafruit_DotStar & matrix, int r, int g, int b);
+void set_right_dot(Adafruit_DotStar & matrix, int r, int g, int b);
 void clear_matrix(Adafruit_DotStar & matrix);
 void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint8_t led_matrix_r, uint8_t led_matrix_g, uint8_t led_matrix_b);
 
@@ -267,6 +273,15 @@ void turn_on_illumination()
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
       turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR,led_matrix_r,led_matrix_g,led_matrix_b);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA,led_matrix_r,led_matrix_g,led_matrix_b);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT,led_matrix_r,led_matrix_g,led_matrix_b);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT,led_matrix_r,led_matrix_g,led_matrix_b);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
       digitalWrite(LED,HIGH);
@@ -300,6 +315,15 @@ void turn_off_illumination()
       clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
+      clear_matrix(matrix);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA:
+      clear_matrix(matrix);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT:
+      clear_matrix(matrix);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:
       clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
@@ -1398,6 +1422,42 @@ void set_right(Adafruit_DotStar & matrix, int r, int g, int b)
     matrix.setPixelColor(i,r,g,b);
 }
 
+void set_low_na(Adafruit_DotStar & matrix, int r, int g, int b)
+{
+  // matrix.setPixelColor(44,r,g,b);
+  matrix.setPixelColor(45,r,g,b);
+  matrix.setPixelColor(46,r,g,b);
+  // matrix.setPixelColor(47,r,g,b);
+  matrix.setPixelColor(56,r,g,b);
+  matrix.setPixelColor(57,r,g,b);
+  matrix.setPixelColor(58,r,g,b);
+  matrix.setPixelColor(59,r,g,b);
+  matrix.setPixelColor(68,r,g,b);
+  matrix.setPixelColor(69,r,g,b);
+  matrix.setPixelColor(70,r,g,b);
+  matrix.setPixelColor(71,r,g,b);
+  // matrix.setPixelColor(80,r,g,b);
+  matrix.setPixelColor(81,r,g,b);
+  matrix.setPixelColor(82,r,g,b);
+  // matrix.setPixelColor(83,r,g,b);
+}
+
+void set_left_dot(Adafruit_DotStar & matrix, int r, int g, int b)
+{
+  matrix.setPixelColor(3,r,g,b);
+  matrix.setPixelColor(4,r,g,b);
+  matrix.setPixelColor(11,r,g,b);
+  matrix.setPixelColor(12,r,g,b);
+}
+
+void set_right_dot(Adafruit_DotStar & matrix, int r, int g, int b)
+{
+  matrix.setPixelColor(115,r,g,b);
+  matrix.setPixelColor(116,r,g,b);
+  matrix.setPixelColor(123,r,g,b);
+  matrix.setPixelColor(124,r,g,b);
+}
+
 void clear_matrix(Adafruit_DotStar & matrix)
 {
   for (int i = 0; i < DOTSTAR_NUM_LEDS; i++)
@@ -1429,6 +1489,16 @@ void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint8_t 
     case ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:
       set_left(matrix,0,0,led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
       set_right(matrix,0,led_matrix_r*RED_ADJUSTMENT_FACTOR,0);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA:
+      set_low_na(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT:
+      set_left_dot(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:
+      set_right_dot(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
+      break;
   }
   matrix.show();
 }
