@@ -840,14 +840,21 @@ class AutofocusWorker(QObject):
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
 
+        # move to the starting location
+        self.navigationController.move_z_usteps(-steps_moved*self.deltaZ_usteps)
+        self.wait_till_operation_is_completed()
+
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         self.navigationController.move_z_usteps(-160)
         self.wait_till_operation_is_completed()
         self.navigationController.move_z_usteps(160)
         self.wait_till_operation_is_completed()
 
+        # determine the in-focus position
         idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
-        self.navigationController.move_z_usteps((idx_in_focus-steps_moved)*self.deltaZ_usteps)
+
+        # move to the calculated in-focus position
+        self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
         self.wait_till_operation_is_completed()
         if idx_in_focus == 0:
             print('moved to the bottom end of the AF range')
