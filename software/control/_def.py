@@ -120,7 +120,7 @@ CAMERA_REVERSE_Y = False
 # change the following so that "backward" is "backward" - towards the single sided hall effect sensor
 STAGE_MOVEMENT_SIGN_X = -1
 STAGE_MOVEMENT_SIGN_Y = 1
-STAGE_MOVEMENT_SIGN_Z = 1
+STAGE_MOVEMENT_SIGN_Z = -1
 STAGE_MOVEMENT_SIGN_THETA = 1
 
 STAGE_POS_SIGN_X = STAGE_MOVEMENT_SIGN_X
