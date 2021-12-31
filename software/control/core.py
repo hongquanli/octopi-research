@@ -349,6 +349,7 @@ class LiveController(QObject):
         self.was_live_before_autofocus = False
         self.was_live_before_multipoint = False
         self.control_illumination = control_illumination
+        self.illumination_on = False
 
         self.fps_software_trigger = 1;
         self.timer_software_trigger_interval = (1/self.fps_software_trigger)*1000
@@ -368,9 +369,11 @@ class LiveController(QObject):
     # illumination control
     def turn_on_illumination(self):
         self.microcontroller.turn_on_illumination()
+        self.illumination_on = True
 
     def turn_off_illumination(self):
         self.microcontroller.turn_off_illumination()
+        self.illumination_on = False
 
     def set_illumination(self,illumination_source,intensity):
         if illumination_source < 10: # LED matrix
@@ -399,7 +402,7 @@ class LiveController(QObject):
 
     # software trigger related
     def trigger_acquisition_software(self):
-        if self.control_illumination:
+        if self.control_illumination and self.illumination_on == False:
             self.turn_on_illumination()
         self.trigger_ID = self.trigger_ID + 1
         self.camera.send_trigger()
@@ -478,7 +481,7 @@ class LiveController(QObject):
     # slot
     def on_new_frame(self):
         if self.fps_software_trigger <= 5:
-            if self.control_illumination:
+            if self.control_illumination and self.illumination_on == True:
                 self.turn_off_illumination()
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
