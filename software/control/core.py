@@ -812,9 +812,9 @@ class AutofocusWorker(QObject):
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         # can be moved to the firmware
-        self.navigationController.move_z_usteps(80)
+        self.navigationController.move_z_usteps(-160)
         self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(-80)
+        self.navigationController.move_z_usteps(160)
         self.wait_till_operation_is_completed()
 
         steps_moved = 0
@@ -841,9 +841,9 @@ class AutofocusWorker(QObject):
                 break
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
-        self.navigationController.move_z_usteps(80)
+        self.navigationController.move_z_usteps(-160)
         self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(-80)
+        self.navigationController.move_z_usteps(160)
         self.wait_till_operation_is_completed()
 
         idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
@@ -1051,9 +1051,9 @@ class MultiPointWorker(QObject):
 
                 if (self.NZ > 1):
                     # maneuver for achiving uniform step size and repeatability when using open-loop control
-                    self.navigationController.move_z_usteps(80)
+                    self.navigationController.move_z_usteps(-160)
                     self.wait_till_operation_is_completed()
-                    self.navigationController.move_z_usteps(-80)
+                    self.navigationController.move_z_usteps(160)
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
