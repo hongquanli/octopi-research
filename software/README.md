@@ -7,7 +7,7 @@ sudo apt-get update
 sudo apt-get install python3-pip
 sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
-pip3 install qtpy pyserial
+pip3 install qtpy pyserial pandas
 ```
 If opencv and lxml not preinstalled (e.g. if you're not using a Jetson but a regular computer), run the following
 ```
