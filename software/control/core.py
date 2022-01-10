@@ -506,6 +506,7 @@ class NavigationController(QObject):
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
+        self.enable_joystick_button_action = True
 
         # to be moved to gui for transparency
         self.microcontroller.set_callback(self.update_pos)
@@ -560,7 +561,8 @@ class NavigationController(QObject):
         self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
 
         if microcontroller.signal_joystick_button_pressed_event:
-            self.signal_joystick_button_pressed.emit()
+            if self.enable_joystick_button_action:
+                self.signal_joystick_button_pressed.emit()
             print('joystick button pressed')
             microcontroller.signal_joystick_button_pressed_event = False
 
@@ -1033,6 +1035,10 @@ class MultiPointWorker(QObject):
             time.sleep(SLEEP_TIME_S)
 
     def run_single_time_point(self):
+
+        # disable joystick button action
+        self.navigationController.enable_joystick_button_action = False
+
         self.FOV_counter = 0
         print('multipoint acquisition - time point ' + str(self.time_point+1))
         
@@ -1138,6 +1144,7 @@ class MultiPointWorker(QObject):
                         self.navigationController.move_z_usteps(-dz_usteps)
                         self.wait_till_operation_is_completed()
                         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
+                        self.navigationController.enable_joystick_button_action = True
                         return
 
                     if self.NZ > 1:
@@ -1197,6 +1204,7 @@ class MultiPointWorker(QObject):
             time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
+        self.navigationController.enable_joystick_button_action = True
 
 class MultiPointController(QObject):
 
