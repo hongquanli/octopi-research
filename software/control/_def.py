@@ -262,6 +262,8 @@ class SOFTWARE_POS_LIMIT:
     Y_NEGATIVE = -0.5
 
 MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
+# MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix left half'
+MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
 
 ##########################################################
 #### start of loading machine specific configurations ####

@@ -844,6 +844,7 @@ class MultiPointWidget(QFrame):
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
+        self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
