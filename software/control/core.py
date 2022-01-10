@@ -1106,7 +1106,7 @@ class MultiPointWorker(QObject):
                         image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                        saving_path = os.path.join(current_path, file_ID + str(config.name) + '.' + Acquisition.IMAGE_FORMAT)
+                        saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                         if self.camera.is_color:
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
@@ -1263,7 +1263,7 @@ class MultiPointController(QObject):
 
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
         self.recording_start_time = time.time()
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
