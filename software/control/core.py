@@ -1108,7 +1108,15 @@ class MultiPointWorker(QObject):
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                         if self.camera.is_color:
-                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                            if 'BF LED matrix' in config.name:
+                                if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                    image = image[:,:,1]
+                            else:
+                                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                         cv2.imwrite(saving_path,image)
                         # tifffile.imsave(saving_path, image, description=metadata)
                         QApplication.processEvents()
