@@ -11,7 +11,7 @@ from control._def import *
 
 class Camera(object):
 
-    def __init__(self,sn=None):
+    def __init__(self,sn=None,rotate_image_angle=None,flip_image=None):
 
         # many to be purged
         self.sn = sn
@@ -23,6 +23,9 @@ class Camera(object):
         self.gamma_lut = None
         self.contrast_lut = None
         self.color_correction_param = None
+
+        self.rotate_image_angle = rotate_image_angle
+        self.flip_image = flip_image
 
         self.exposure_time = 0
         self.analog_gain = 0
