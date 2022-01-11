@@ -1,0 +1,141 @@
+ROTATE_IMAGE_ANGLE = None
+FLIP_IMAGE = 'Vertical' # 'Horizontal', 'Vertical', 'Both'
+
+CAMERA_REVERSE_X = False
+CAMERA_REVERSE_Y = False
+
+# change the following so that "backward" is "backward" - towards the single sided hall effect sensor
+STAGE_MOVEMENT_SIGN_X = -1
+STAGE_MOVEMENT_SIGN_Y = 1
+STAGE_MOVEMENT_SIGN_Z = -1
+STAGE_MOVEMENT_SIGN_THETA = 1
+
+STAGE_POS_SIGN_X = STAGE_MOVEMENT_SIGN_X
+STAGE_POS_SIGN_Y = STAGE_MOVEMENT_SIGN_Y
+STAGE_POS_SIGN_Z = STAGE_MOVEMENT_SIGN_Z
+STAGE_POS_SIGN_THETA = STAGE_MOVEMENT_SIGN_THETA
+
+TRACKING_MOVEMENT_SIGN_X = 1
+TRACKING_MOVEMENT_SIGN_Y = 1
+TRACKING_MOVEMENT_SIGN_Z = 1
+TRACKING_MOVEMENT_SIGN_THETA = 1
+
+USE_ENCODER_X = False
+USE_ENCODER_Y = False
+USE_ENCODER_Z = False
+USE_ENCODER_THETA = False
+
+ENCODER_POS_SIGN_X = 1
+ENCODER_POS_SIGN_Y = 1
+ENCODER_POS_SIGN_Z = 1
+ENCODER_POS_SIGN_THETA = 1
+
+ENCODER_STEP_SIZE_X_MM = 100e-6
+ENCODER_STEP_SIZE_Y_MM = 100e-6
+ENCODER_STEP_SIZE_Z_MM = 100e-6
+ENCODER_STEP_SIZE_THETA = 1
+
+FULLSTEPS_PER_REV_X = 200
+FULLSTEPS_PER_REV_Y = 200
+FULLSTEPS_PER_REV_Z = 200
+FULLSTEPS_PER_REV_THETA = 200
+
+# beginning of actuator specific configurations
+
+SCREW_PITCH_X_MM = 2.54
+SCREW_PITCH_Y_MM = 2.54
+SCREW_PITCH_Z_MM = 0.012*25.4
+
+MICROSTEPPING_DEFAULT_X = 8
+MICROSTEPPING_DEFAULT_Y = 8
+MICROSTEPPING_DEFAULT_Z = 8
+MICROSTEPPING_DEFAULT_THETA = 8
+
+X_MOTOR_RMS_CURRENT_mA = 1000
+Y_MOTOR_RMS_CURRENT_mA = 1000
+Z_MOTOR_RMS_CURRENT_mA = 490
+
+X_MOTOR_I_HOLD = 0.25
+Y_MOTOR_I_HOLD = 0.25
+Z_MOTOR_I_HOLD = 0.5
+
+MAX_VELOCITY_X_mm = 25
+MAX_VELOCITY_Y_mm = 25
+MAX_VELOCITY_Z_mm = 2
+
+MAX_ACCELERATION_X_mm = 500
+MAX_ACCELERATION_Y_mm = 500
+MAX_ACCELERATION_Z_mm = 20
+
+# end of actuator specific configurations
+
+SCAN_STABILIZATION_TIME_MS_X = 160
+SCAN_STABILIZATION_TIME_MS_Y = 160
+SCAN_STABILIZATION_TIME_MS_Z = 20
+
+# limit switch
+X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.ACTIVE_HIGH
+Y_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.ACTIVE_HIGH
+Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.DISABLED
+
+HOMING_ENABLED_X = True
+HOMING_ENABLED_Y = True
+HOMING_ENABLED_Z = False
+
+SLEEP_TIME_S = 0.005
+
+LED_MATRIX_R_FACTOR = 1
+LED_MATRIX_G_FACTOR = 1
+LED_MATRIX_B_FACTOR = 1
+
+DEFAULT_SAVING_PATH = str(Path.home()) + "/Dropbox/Data"
+
+# multipoint acquisition settings
+MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
+# MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix left half'
+MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
+# MULTIPOINT_BF_SAVING_OPTION = 'Raw'
+# MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
+MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
+
+class PLATE_READER:
+    NUMBER_OF_ROWS = 8
+    NUMBER_OF_COLUMNS = 12
+    ROW_SPACING_MM = 9
+    COLUMN_SPACING_MM = 9
+    OFFSET_COLUMN_1_MM = 20
+    OFFSET_ROW_A_MM = 20
+
+DEFAULT_DISPLAY_CROP = 60 # value ranges from 1 to 100 - image display crop size 
+
+CAMERA_PIXEL_SIZE_UM = {'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'PYTHON300':4.8}
+OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
+                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180}, 
+                '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
+                '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
+                '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
+                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200}, 
+                '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
+TUBE_LENS_MM = 50
+CAMERA_SENSOR = 'IMX226'
+DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
+TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
+DEFAULT_TRACKER = 'csrt'
+
+ENABLE_TRACKING = False
+TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS = False # set to true when doing multimodal acquisition
+if ENABLE_TRACKING:
+    DEFAULT_DISPLAY_CROP = 100
+
+class AF:
+    STOP_THRESHOLD = 0.85
+    CROP_WIDTH = 800
+    CROP_HEIGHT = 800
+
+class Tracking:
+    SEARCH_AREA_RATIO = 10 #@@@ check
+    CROPPED_IMG_RATIO = 10 #@@@ check
+    BBOX_SCALE_FACTOR = 1.2
+    DEFAULT_TRACKER = "csrt"
+    INIT_METHODS = ["roi"]
+    DEFAULT_INIT_METHOD = "roi"

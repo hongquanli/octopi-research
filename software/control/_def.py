@@ -26,6 +26,13 @@ class MicrocontrollerDef:
     CMD_LENGTH = 8
     N_BYTES_POS = 4
 
+class Microcontroller2Def:
+    MSG_LENGTH = 4
+    CMD_LENGTH = 8
+    N_BYTES_POS = 4
+
+USE_SEPARATE_MCU_FOR_DAC = False
+
 class CMD_SET:
     MOVE_X = 0
     MOVE_Y = 1
