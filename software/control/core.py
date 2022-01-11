@@ -493,6 +493,7 @@ class NavigationController(QObject):
     yPos = Signal(float)
     zPos = Signal(float)
     thetaPos = Signal(float)
+    xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
 
     def __init__(self,microcontroller):
@@ -559,6 +560,7 @@ class NavigationController(QObject):
         self.yPos.emit(self.y_pos_mm)
         self.zPos.emit(self.z_pos_mm*1000)
         self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
+        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
 
         if microcontroller.signal_joystick_button_pressed_event:
             if self.enable_joystick_button_action:
@@ -1859,6 +1861,71 @@ class ImageDisplayWindow(QMainWindow):
         xmin = max(0, self.roi_pos[0])
         ymin = max(0, self.roi_pos[1])
         return np.array([xmin, ymin, width, height])
+
+class NavigationViewer(QFrame):
+
+    def __init__(self, invertX = False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+        # interpret image data as row-major instead of col-major
+        pg.setConfigOptions(imageAxisOrder='row-major')
+        self.graphics_widget = pg.GraphicsLayoutWidget()
+        self.graphics_widget.setBackground("w")
+        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True)
+        ## lock the aspect ratio so pixels are always square
+        self.graphics_widget.view.setAspectLocked(True)
+        ## Create image item
+        self.graphics_widget.img = pg.ImageItem(border='w')
+        self.graphics_widget.view.addItem(self.graphics_widget.img)
+
+        self.grid = QVBoxLayout()
+        self.grid.addWidget(self.graphics_widget)
+        self.setLayout(self.grid)
+
+        self.background_image = cv2.imread('images/slide carrier_828x662.png')
+        self.current_image = np.copy(self.background_image)
+        self.image_height = self.background_image.shape[0]
+        self.image_width = self.background_image.shape[1]
+
+        self.origin_bottom_left_x = 175
+        self.origin_bottom_left_y = 170
+        self.mm_per_pixel = 0.1453
+        self.fov_size_mm = 3000*1.85/(50/9)/1000
+
+        self.box_color = (255, 0, 0)
+        self.box_line_thickness = 2
+
+        self.x_mm = None
+        self.y_mm = None
+
+        self.update_display()
+
+    def update_current_location(self,x_mm,y_mm):
+        if self.x_mm != None and self.y_mm != None:
+            # update only when the displacement has exceeded certain value
+            if abs(x_mm - self.x_mm) > 0.4 or abs(y_mm - self.y_mm) > 0.4:
+                self.draw_current_fov(x_mm,y_mm)
+                self.update_display()
+                self.x_mm = x_mm
+                self.y_mm = y_mm
+        else:
+            self.draw_current_fov(x_mm,y_mm)
+            self.update_display()
+            self.x_mm = x_mm
+            self.y_mm = y_mm
+
+    def draw_current_fov(self,x_mm,y_mm):
+        self.current_image = np.copy(self.background_image)
+        current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+        current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        self.current_image = np.copy(self.background_image)
+        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
+
+    def update_display(self):
+        self.graphics_widget.img.setImage(self.current_image,autoLevels=False)
 
 class ImageArrayDisplayWindow(QMainWindow):
 

@@ -65,6 +65,7 @@ class OctopiGUI(QMainWindow):
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
+		self.navigationViewer = core.NavigationViewer()
 
 		# homing, set zero and set software limit
 		self.navigationController.set_x_limit_pos_mm(100)
@@ -116,6 +117,7 @@ class OctopiGUI(QMainWindow):
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)
+		layout.addWidget(self.navigationViewer)
 		layout.addStretch()
 		
 		# transfer the layout to the central widget
@@ -182,6 +184,7 @@ class OctopiGUI(QMainWindow):
 		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
 		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
 
+		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
 
 	def closeEvent(self, event):
 		event.accept()
