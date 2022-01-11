@@ -45,10 +45,10 @@ class OctopiGUI(QMainWindow):
 
 		# load objects
 		if is_simulation:
-			self.camera = camera.Camera_Simulation()
+			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
-			self.camera = camera.Camera()
+			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller()
 
 		# configure the actuators
