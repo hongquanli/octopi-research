@@ -3,12 +3,17 @@ import serial
 import serial.tools.list_ports
 import time
 import numpy as np
+import threading
 
 from control._def import *
 
+from qtpy.QtCore import *
+from qtpy.QtWidgets import *
+from qtpy.QtGui import *
+
 # temporary
 class Microcontroller2():
-    def __init__(self,serial_number):
+    def __init__(self):
         self.serial = None
         self.platform_name = platform.system()
         self.tx_buffer_length = Microcontroller2Def.CMD_LENGTH
@@ -21,23 +26,26 @@ class Microcontroller2():
         self.last_command = None
         self.timeout_counter = 0
 
-        controller_ports = [ p.device for p in serial.tools.list_ports.comports() if manufacturer == 'Teensyduino']
+        controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
         if not controller_ports:
             raise IOError("No Teensy Found")
         self.serial = serial.Serial(controller_ports[0],2000000)
         print('Teensy connected')
 
+        '''
         self.new_packet_callback_external = None
         self.terminate_reading_received_packet_thread = False
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
+        '''
 
     def close(self):
         self.serial.close()
 
     def analog_write_DAC8050x(self,dac,value):
+        print('write DAC ' + str(dac) + ': ' + str(value))
         cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
+        cmd[1] = CMD_SET2.ANALOG_WRITE_DAC8050X
         cmd[2] = dac
         cmd[3] = (value >> 8) & 0xff
         cmd[4] = value & 0xff
@@ -133,10 +141,12 @@ class Microcontroller2_Simulation():
         self.timer_update_command_execution_status = QTimer()
         self.timer_update_command_execution_status.timeout.connect(self._simulation_update_cmd_execution_status)
 
+        '''
         self.new_packet_callback_external = None
         self.terminate_reading_received_packet_thread = False
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
+        '''
 
     def close(self):
         self.terminate_reading_received_packet_thread = True
@@ -144,7 +154,7 @@ class Microcontroller2_Simulation():
 
     def analog_write_DAC8050x(self,dac,value):
         cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
+        cmd[1] = CMD_SET2.ANALOG_WRITE_DAC8050X
         cmd[2] = dac
         cmd[3] = (value >> 8) & 0xff
         cmd[4] = value & 0xff
