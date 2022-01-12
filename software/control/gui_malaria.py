@@ -175,6 +175,7 @@ class OctopiGUI(QMainWindow):
 		self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
 		self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
@@ -183,8 +184,10 @@ class OctopiGUI(QMainWindow):
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
 		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
 		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+		self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
 
 		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
 	def closeEvent(self, event):
 		event.accept()

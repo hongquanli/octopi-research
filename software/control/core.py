@@ -728,6 +728,7 @@ class SlidePositionController(QObject):
 
     signal_slide_loading_position_reached = Signal()
     signal_slide_scanning_position_reached = Signal()
+    signal_clear_slide = Signal()
 
     def __init__(self,navigationController,liveController):
         QObject.__init__(self)
@@ -771,6 +772,7 @@ class SlidePositionController(QObject):
         self.thread.finished.connect(self.thread.quit)
         # start the thread
         self.thread.start()
+        self.signal_clear_slide.emit()
 
     def slot_stop_live(self):
         self.liveController.stop_live()
@@ -977,6 +979,7 @@ class MultiPointWorker(QObject):
     image_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
+    signal_register_current_fov = Signal(float,float)
 
     def __init__(self,multiPointController):
         QObject.__init__(self)
@@ -1140,6 +1143,9 @@ class MultiPointWorker(QObject):
                                                             'z (um)':self.navigationController.z_pos_mm*1000},
                                                             ignore_index = True)
 
+                    # register the current fov in the navigationViewer 
+                    self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
+
                     # check if the acquisition should be aborted
                     if self.multiPointController.abort_acqusition_requested:
                         self.liveController.turn_off_illumination()
@@ -1218,6 +1224,7 @@ class MultiPointController(QObject):
     image_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
+    signal_register_current_fov = Signal(float,float)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager):
         QObject.__init__(self)
@@ -1340,6 +1347,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
+        self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
         # self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.thread.quit)
         # start the thread
@@ -1375,6 +1383,9 @@ class MultiPointController(QObject):
 
     def slot_current_configuration(self,configuration):
         self.signal_current_configuration.emit(configuration)
+
+    def slot_register_current_fov(self,x_mm,y_mm):
+        self.signal_register_current_fov.emit(x_mm,y_mm)
 
 class TrackingController(QObject):
 
@@ -1889,6 +1900,7 @@ class NavigationViewer(QFrame):
 
         self.background_image = cv2.imread('images/slide carrier_828x662.png')
         self.current_image = np.copy(self.background_image)
+        self.current_image_display = np.copy(self.background_image)
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
 
@@ -1920,16 +1932,28 @@ class NavigationViewer(QFrame):
             self.y_mm = y_mm
 
     def draw_current_fov(self,x_mm,y_mm):
-        self.current_image = np.copy(self.background_image)
+        self.current_image_display = np.copy(self.current_image)
         current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
                                 round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
         current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
                                 round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        self.current_image = np.copy(self.background_image)
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
+        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
 
     def update_display(self):
-        self.graphics_widget.img.setImage(self.current_image,autoLevels=False)
+        self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)
+
+    def clear_slide(self):
+        self.current_image = np.copy(self.background_image)
+        self.current_image_display = np.copy(self.background_image)
+        self.update_display()
+
+    def register_fov(self,x_mm,y_mm):
+        color = (0,0,255)
+        current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+        current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
 class ImageArrayDisplayWindow(QMainWindow):
 
