@@ -99,11 +99,15 @@ class StreamHandler(QObject):
             self.counter = 0
             print('real camera fps is ' + str(self.fps_real))
 
+        # rotate and flip - eventually these should be done in the camera
+        camera.current_frame = utils.rotate_and_flip_image(camera.current_frame,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
+
         # crop image
         image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
         image_cropped = np.squeeze(image_cropped)
-        # rotate and flip
-        image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+        
+        # # rotate and flip - moved up (1/10/2022)
+        # image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 
         # send image to display
         time_now = time.time()
