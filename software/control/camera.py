@@ -60,7 +60,7 @@ class Camera(object):
         self.row_period_us = 10
         self.row_numbers = 3036
         self.exposure_delay_us_8bit = 650
-        self.exposure_delay_us = exposure_delay_us_8bit*self.pixel_size_byte
+        self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
     def open(self,index=0):
@@ -408,6 +408,16 @@ class Camera_Simulation(object):
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 4000
+
+        self.trigger_mode = None
+        self.pixel_size_byte = 1
+
+        # below are values for IMX226 (MER2-1220-32U3M) - to make configurable 
+        self.row_period_us = 10
+        self.row_numbers = 3036
+        self.exposure_delay_us_8bit = 650
+        self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
+        self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
     def open(self,index=0):
         pass

@@ -837,11 +837,18 @@ class AutofocusWorker(QObject):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
             steps_moved = steps_moved + 1
-            self.liveController.turn_on_illumination()
-            self.wait_till_operation_is_completed()
-            self.camera.send_trigger()
+            # trigger acquisition (including turning on the illumination)
+            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                self.liveController.turn_on_illumination()
+                self.wait_till_operation_is_completed()
+                self.camera.send_trigger()
+            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
+                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+            # read camera frame
             image = self.camera.read_frame()
-            self.liveController.turn_off_illumination()
+            # tunr of the illumination if using software trigger
+            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                self.liveController.turn_off_illumination()
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             self.image_to_display.emit(image)
             QApplication.processEvents()
