@@ -97,7 +97,7 @@ class Microcontroller():
         cmd[5] = min(int(b*255),255)
         self.send_command(cmd)
 
-    def send_hardware_trigger(self,control_illumination=False,illumination_on_time_us=0):
+    def send_hardware_trigger(self,control_illumination=False,illumination_on_time_us=0,trigger_output_ch=0):
         illumination_on_time_us = int(illumination_on_time_us)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SEND_HARDWARE_TRIGGER
