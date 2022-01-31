@@ -358,8 +358,8 @@ class LiveController(QObject):
         self.control_illumination = control_illumination
         self.illumination_on = False
 
-        self.fps_software_trigger = 1;
-        self.timer_trigger_interval = (1/self.fps_software_trigger)*1000
+        self.fps_trigger = 1;
+        self.timer_trigger_interval = (1/self.fps_trigger)*1000
 
         self.timer_trigger = QTimer()
         self.timer_trigger.setInterval(self.timer_trigger_interval)
@@ -430,9 +430,9 @@ class LiveController(QObject):
     def _start_triggerred_acquisition(self):
         self.timer_trigger.start()
 
-    def _set_trigger_fps(self,fps_software_trigger):
-        self.fps_software_trigger = fps_software_trigger
-        self.timer_trigger_interval = (1/self.fps_software_trigger)*1000
+    def _set_trigger_fps(self,fps_trigger):
+        self.fps_trigger = fps_trigger
+        self.timer_trigger_interval = (1/self.fps_trigger)*1000
         self.timer_trigger.setInterval(self.timer_trigger_interval)
 
     def _stop_triggerred_acquisition(self):
@@ -457,7 +457,7 @@ class LiveController(QObject):
         self.trigger_mode = mode
 
     def set_trigger_fps(self,fps):
-        if self.trigger_mode == TriggerMode.SOFTWARE:
+        if self.trigger_mode == TriggerMode.SOFTWARE or self.trigger_mode == TriggerMode.HARDWARE:
             self._set_trigger_fps(fps)
     
     # set microscope mode
@@ -492,7 +492,7 @@ class LiveController(QObject):
 
     # slot
     def on_new_frame(self):
-        if self.fps_software_trigger <= 5:
+        if self.fps_trigger <= 5:
             if self.control_illumination and self.illumination_on == True:
                 self.turn_off_illumination()
 
