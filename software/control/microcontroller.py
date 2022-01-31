@@ -97,6 +97,27 @@ class Microcontroller():
         cmd[5] = min(int(b*255),255)
         self.send_command(cmd)
 
+    def send_hardware_trigger(self,control_illumination=False,illumination_on_time_us=0):
+        illumination_on_time_us = int(illumination_on_time_us)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SEND_HARDWARE_TRIGGER
+        cmd[2] = (control_illumination>>7) + trigger_output_ch # MSB: whether illumination is controlled
+        cmd[3] = illumination_on_time_us >> 24
+        cmd[4] = (illumination_on_time_us >> 16) & 0xff
+        cmd[5] = (illumination_on_time_us >> 8) & 0xff
+        cmd[6] = illumination_on_time_us & 0xff
+        self.send_command(cmd)
+
+    def set_strobe_delay_us(self, strobe_delay_us, camera_channel=0):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_STROBE_DELAY
+        cmd[2] = camera_channel
+        cmd[3] = strobe_delay_us >> 24
+        cmd[4] = (strobe_delay_us >> 16) & 0xff
+        cmd[5] = (strobe_delay_us >> 8) & 0xff
+        cmd[6] = strobe_delay_us & 0xff
+        self.send_command(cmd)
+
     '''
     def move_x(self,delta):
         direction = int((np.sign(delta)+1)/2)
@@ -828,6 +849,27 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': set illumination (led matrix)')
+
+    def send_hardware_trigger(self,control_illumination=False,illumination_on_time_us=0,trigger_output_ch = 0):
+        illumination_on_time_us = int(illumination_on_time_us)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SEND_HARDWARE_TRIGGER
+        cmd[2] = (control_illumination>>7) + trigger_output_ch # MSB: whether illumination is controlled
+        cmd[3] = illumination_on_time_us >> 24
+        cmd[4] = (illumination_on_time_us >> 16) & 0xff
+        cmd[5] = (illumination_on_time_us >> 8) & 0xff
+        cmd[6] = illumination_on_time_us & 0xff
+        self.send_command(cmd)
+
+    def set_strobe_delay_us(self, strobe_delay_us, camera_channel=0):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_STROBE_DELAY
+        cmd[2] = camera_channel
+        cmd[3] = strobe_delay_us >> 24
+        cmd[4] = (strobe_delay_us >> 16) & 0xff
+        cmd[5] = (strobe_delay_us >> 8) & 0xff
+        cmd[6] = strobe_delay_us & 0xff
+        self.send_command(cmd)
 
     def get_pos(self):
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos

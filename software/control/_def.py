@@ -53,6 +53,8 @@ class CMD_SET:
     CONFIGURE_STEPPER_DRIVER = 21
     SET_MAX_VELOCITY_ACCELERATION = 22
     SET_LEAD_SCREW_PITCH = 23
+    SEND_HARDWARE_TRIGGER = 30
+    SET_STROBE_DELAY = 31
 
 class CMD_SET2:
     ANALOG_WRITE_DAC8050X = 0
@@ -116,6 +118,7 @@ class CMD_EXECUTION_STATUS:
     CMD_EXECUTION_ERROR = 4
     ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED = 100
 
+
 ###########################################################
 #### machine specific configurations - to be overridden ###
 ###########################################################
@@ -124,6 +127,8 @@ FLIP_IMAGE = None # 'Horizontal', 'Vertical', 'Both'
 
 CAMERA_REVERSE_X = False
 CAMERA_REVERSE_Y = False
+
+DEFAULT_TRIGGER_MODE = TriggerMode.SOFTWARE
 
 # note: XY are the in-plane axes, Z is the focus axis
 

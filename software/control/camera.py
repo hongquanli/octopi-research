@@ -27,7 +27,7 @@ class Camera(object):
         self.rotate_image_angle = rotate_image_angle
         self.flip_image = flip_image
 
-        self.exposure_time = 0
+        self.exposure_time = 0 # unit: ms
         self.analog_gain = 0
         self.frame_ID = -1
         self.frame_ID_software = -1
@@ -52,6 +52,16 @@ class Camera(object):
         self.ROI_offset_y = CAMERA.ROI_OFFSET_X_DEFAULT
         self.ROI_width = CAMERA.ROI_WIDTH_DEFAULT
         self.ROI_height = CAMERA.ROI_HEIGHT_DEFAULT
+
+        self.trigger_mode = None
+        self.pixel_size_byte = 1
+
+        # below are values for IMX226 (MER2-1220-32U3M) - to make configurable 
+        self.row_period_us = 10
+        self.row_numbers = 3036
+        self.exposure_delay_us_8bit = 650
+        self.exposure_delay_us = exposure_delay_us_8bit*self.pixel_size_byte
+        self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
     def open(self,index=0):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
@@ -115,8 +125,24 @@ class Camera(object):
         self.last_numpy_image = None
 
     def set_exposure_time(self,exposure_time):
-        self.exposure_time = exposure_time
-        self.camera.ExposureTime.set(exposure_time * 1000)
+        use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
+        if use_strobe == False:
+            self.exposure_time = exposure_time
+            self.camera.ExposureTime.set(exposure_time * 1000)
+        else:
+            # set the camera exposure time such that the active exposure time (illumination on time) is the desired value
+            self.exposure_time = exposure
+            # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
+            camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
+            self.camera.ExposureTime.set(camera_exposure_time)
+
+    def update_camera_exposure_time(self):
+        use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
+        if use_strobe == False:
+            self.camera.ExposureTime.set(self.exposure_time * 1000)
+        else:
+            camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
+            self.camera.ExposureTime.set(camera_exposure_time)
 
     def set_analog_gain(self,analog_gain):
         self.analog_gain = analog_gain
@@ -168,34 +194,50 @@ class Camera(object):
         if self.camera.PixelFormat.is_implemented() and self.camera.PixelFormat.is_writable():
             if format == 'MONO8':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO8)
+                self.pixel_size_byte = 1
             if format == 'MONO12':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO12)
+                self.pixel_size_byte = 2
             if format == 'MONO14':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO14)
+                self.pixel_size_byte = 2
             if format == 'MONO16':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO16)
+                self.pixel_size_byte = 2
             if format == 'BAYER_RG8':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG8)
+                self.pixel_size_byte = 1
             if format == 'BAYER_RG12':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG12)
+                self.pixel_size_byte = 2
         else:
             print("pixel format is not implemented or not writable")
 
         if was_streaming:
            self.start_streaming()
 
+        # update the exposure delay and strobe delay
+        self.exposure_delay_us = exposure_delay_us_8bit*self.pixel_size_byte
+        self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
+
     def set_continuous_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
+        self.trigger_mode = TriggerMode.CONTINUOU
+        self.update_camera_exposure_time()
 
     def set_software_triggered_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.SOFTWARE)
+        self.trigger_mode = TriggerMode.SOFTWARE
+        self.update_camera_exposure_time()
 
     def set_hardware_triggered_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
         # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
         self.frame_ID_offset_hardware_trigger = self.frame_ID
+        self.trigger_mode = TriggerMode.HARDWARE
+        self.update_camera_exposure_time()
 
     def send_trigger(self):
         if self.is_streaming:
@@ -290,7 +332,6 @@ class Camera(object):
             # restart streaming if it was previously on
             if was_streaming == True:
                 self.start_streaming()
-
 
         if height is not None:
             self.ROI_height = height
@@ -387,6 +428,9 @@ class Camera_Simulation(object):
         pass
 
     def set_exposure_time(self,exposure_time):
+        pass
+
+    def update_camera_exposure_time(self):
         pass
 
     def set_analog_gain(self,analog_gain):

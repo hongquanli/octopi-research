@@ -356,11 +356,11 @@ class LiveController(QObject):
         self.illumination_on = False
 
         self.fps_software_trigger = 1;
-        self.timer_software_trigger_interval = (1/self.fps_software_trigger)*1000
+        self.timer_trigger_interval = (1/self.fps_software_trigger)*1000
 
-        self.timer_software_trigger = QTimer()
-        self.timer_software_trigger.setInterval(self.timer_software_trigger_interval)
-        self.timer_software_trigger.timeout.connect(self.trigger_acquisition_software)
+        self.timer_trigger = QTimer()
+        self.timer_trigger.setInterval(self.timer_trigger_interval)
+        self.timer_trigger.timeout.connect(self.trigger_acquisition)
 
         self.trigger_ID = -1
 
@@ -405,31 +405,35 @@ class LiveController(QObject):
                 self.turn_off_illumination()
 
     # software trigger related
-    def trigger_acquisition_software(self):
-        if self.control_illumination and self.illumination_on == False:
-            self.turn_on_illumination()
-        self.trigger_ID = self.trigger_ID + 1
-        self.camera.send_trigger()
-        # measure real fps
-        timestamp_now = round(time.time())
-        if timestamp_now == self.timestamp_last:
-            self.counter = self.counter+1
-        else:
-            self.timestamp_last = timestamp_now
-            self.fps_real = self.counter
-            self.counter = 0
-            # print('real trigger fps is ' + str(self.fps_real))
+    def trigger_acquisition(self):
+        if self.trigger_mode == TriggerMode.SOFTWARE:
+            if self.control_illumination and self.illumination_on == False:
+                self.turn_on_illumination()
+            self.trigger_ID = self.trigger_ID + 1
+            self.camera.send_trigger()
+            # measure real fps
+            timestamp_now = round(time.time())
+            if timestamp_now == self.timestamp_last:
+                self.counter = self.counter+1
+            else:
+                self.timestamp_last = timestamp_now
+                self.fps_real = self.counter
+                self.counter = 0
+                # print('real trigger fps is ' + str(self.fps_real))
+        elif self.trigger_mode == TriggerMode.HARDWARE:
+            self.trigger_ID = self.trigger_ID + 1
+            self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
 
     def _start_software_triggerred_acquisition(self):
-        self.timer_software_trigger.start()
+        self.timer_trigger.start()
 
     def _set_software_trigger_fps(self,fps_software_trigger):
         self.fps_software_trigger = fps_software_trigger
-        self.timer_software_trigger_interval = (1/self.fps_software_trigger)*1000
-        self.timer_software_trigger.setInterval(self.timer_software_trigger_interval)
+        self.timer_trigger_interval = (1/self.fps_software_trigger)*1000
+        self.timer_trigger.setInterval(self.timer_trigger_interval)
 
     def _stop_software_triggerred_acquisition(self):
-        self.timer_software_trigger.stop()
+        self.timer_trigger.stop()
 
     # trigger mode and settings
     def set_trigger_mode(self,mode):
@@ -442,6 +446,7 @@ class LiveController(QObject):
                 self._stop_software_triggerred_acquisition()
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
+            self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
         if mode == TriggerMode.CONTINUOUS: 
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_software_triggerred_acquisition()
@@ -461,7 +466,7 @@ class LiveController(QObject):
         
         # temporarily stop live while changing mode
         if self.is_live is True:
-            self.timer_software_trigger.stop()
+            self.timer_trigger.stop()
             if self.control_illumination:
                 self.turn_off_illumination()
 
@@ -477,7 +482,7 @@ class LiveController(QObject):
         if self.is_live is True:
             if self.control_illumination:
                 self.turn_on_illumination()
-            self.timer_software_trigger.start()
+            self.timer_trigger.start()
 
     def get_trigger_mode(self):
         return self.trigger_mode
@@ -1109,13 +1114,22 @@ class MultiPointWorker(QObject):
 
                     # iterate through selected modes
                     for config in self.selected_configurations:
+                        # update the current configuration
                         self.signal_current_configuration.emit(config)
                         self.wait_till_operation_is_completed()
-                        self.liveController.turn_on_illumination()
-                        self.wait_till_operation_is_completed()
-                        self.camera.send_trigger() 
+                        # trigger acquisition (including turning on the illumination)
+                        if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                            self.liveController.turn_on_illumination()
+                            self.wait_till_operation_is_completed()
+                            self.camera.send_trigger()
+                        elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
+                            self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                        # read camera frame
                         image = self.camera.read_frame()
-                        self.liveController.turn_off_illumination()
+                        # tunr of the illumination if using software trigger
+                        if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                            self.liveController.turn_off_illumination()
+                        # process the image
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
                         # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
                         image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))

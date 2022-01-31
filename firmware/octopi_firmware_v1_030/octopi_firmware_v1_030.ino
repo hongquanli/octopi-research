@@ -47,6 +47,8 @@ static const int SET_LIM_SWITCH_POLARITY = 20;
 static const int CONFIGURE_STEPPER_DRIVER = 21;
 static const int SET_MAX_VELOCITY_ACCELERATION = 22;
 static const int SET_LEAD_SCREW_PITCH = 23;
+static const int SEND_HARDWARE_TRIGGER = 30;
+static const int SET_STROBE_DELAY = 31;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
 static const int IN_PROGRESS = 1;
@@ -97,6 +99,9 @@ static const int LASER_488nm = 32;
 static const int LASER_638nm = 33;
 static const int LASER_561nm = 34;
 
+// camera trigger 
+static const int camera_trigger_pins[] = {1,2,3,4,5}; // to replace
+
 // encoders and limit switches
 static const int X_encoder_A = 4;
 static const int X_encoder_B = 5;
@@ -128,6 +133,19 @@ bool joystick_not_connected = false;
 
 // rocker switch
 #define rocker 40
+
+/***************************************************************************************************/
+/************************************ camera trigger and strobe ************************************/
+/***************************************************************************************************/
+static const int TRIGGER_PULSE_LENGTH_us = 50;
+bool trigger_output_level[5] = {LOW,LOW,LOW,LOW,LOW};
+bool control_strobe[5] = {false,false,false,false,false};
+bool strobe_output_level[5] = {LOW,LOW,LOW,LOW,LOW};
+bool strobe_on[5] = {false,false,false,false,false};
+int strobe_delay[5] = {0,0,0,0,0};
+long illumination_on_time[5] = {0,0,0,0,0};
+long timestamp_trigger_rising_edge[5] = {0,0,0,0,0};
+// to do: change the number of channels (5) to a named constant
 
 /***************************************************************************************************/
 /******************************************* steppers **********************************************/
@@ -376,6 +394,13 @@ void setup() {
 
 //  pinMode(13, OUTPUT);
 //  digitalWrite(13,LOW);
+
+  // camera trigger pins
+  for(int i=0;i<5;i++)
+  {
+    pinMode(camera_trigger_pins[i], OUTPUT);
+    digitalWrite(camera_trigger_pins[i], LOW);
+  }
   
   // enable pins
   pinMode(LED, OUTPUT);
@@ -958,11 +983,56 @@ void loop() {
             analogWrite(DAC0,value);
           else
             analogWrite(DAC1,value);
+          break;
+        }
+        case SET_STROBE_DELAY:
+        {
+          strobe_delay[buffer_rx[2]] = uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]);
+          break;
+        }
+        case SEND_HARDWARE_TRIGGER:
+        {
+          int camera_channel = buffer_rx[2] & 0x0f;
+          control_strobe[camera_channel] = buffer_rx[2] >> 7;
+          illumination_on_time[camera_channel] = uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]);
+          digitalWrite(camera_trigger_pins[camera_channel],HIGH);
+          timestamp_trigger_rising_edge[camera_channel] = micros();
+          trigger_output_level[camera_channel] = HIGH;
+          break;
         }
         default:
           break;
       }
       //break; // exit the while loop after reading one message
+    }
+  }
+
+  // camera trigger
+  for(int camera_channel=0;camera_channel<5;camera_channel++)
+  {
+    // end the trigger pulse
+    if(trigger_output_level[camera_channel] == HIGH && (micros()-timestamp_trigger_rising_edge[camera_channel])>= TRIGGER_PULSE_LENGTH_us )
+    {
+      digitalWrite(camera_trigger_pins[camera_channel],LOW);
+      trigger_output_level[camera_channel] = LOW;
+    }
+
+    // strobe pulse
+    if(control_strobe[camera_channel])
+    {
+      // start the strobe
+      if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
+      {
+        turn_on_illumination();
+        strobe_output_level[camera_channel]==HIGH;
+      }
+      // end the strobe
+      if(((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]+illumination_on_time[camera_channel]) && strobe_output_level[camera_channel]==HIGH)
+      {
+        turn_off_illumination();
+        strobe_output_level[camera_channel]==LOW;
+        control_strobe[camera_channel] = false;
+      }      
     }
   }
 
