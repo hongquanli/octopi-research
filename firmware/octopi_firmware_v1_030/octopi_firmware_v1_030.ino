@@ -100,7 +100,7 @@ static const int LASER_638nm = 33;
 static const int LASER_561nm = 34;
 
 // camera trigger 
-static const int camera_trigger_pins[] = {1,2,3,4,5}; // to replace
+static const int camera_trigger_pins[] = {35,36,37,38,39}; // to replace
 
 // encoders and limit switches
 static const int X_encoder_A = 4;
