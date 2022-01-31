@@ -1024,13 +1024,13 @@ void loop() {
       if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
       {
         turn_on_illumination();
-        strobe_output_level[camera_channel]==HIGH;
+        strobe_output_level[camera_channel] = HIGH;
       }
       // end the strobe
       if(((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]+illumination_on_time[camera_channel]) && strobe_output_level[camera_channel]==HIGH)
       {
         turn_off_illumination();
-        strobe_output_level[camera_channel]==LOW;
+        strobe_output_level[camera_channel] = LOW;
         control_strobe[camera_channel] = false;
       }      
     }

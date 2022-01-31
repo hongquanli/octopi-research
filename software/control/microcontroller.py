@@ -101,7 +101,7 @@ class Microcontroller():
         illumination_on_time_us = int(illumination_on_time_us)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SEND_HARDWARE_TRIGGER
-        cmd[2] = (control_illumination>>7) + trigger_output_ch # MSB: whether illumination is controlled
+        cmd[2] = (control_illumination<<7) + trigger_output_ch # MSB: whether illumination is controlled
         cmd[3] = illumination_on_time_us >> 24
         cmd[4] = (illumination_on_time_us >> 16) & 0xff
         cmd[5] = (illumination_on_time_us >> 8) & 0xff
@@ -854,7 +854,7 @@ class Microcontroller_Simulation():
         illumination_on_time_us = int(illumination_on_time_us)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SEND_HARDWARE_TRIGGER
-        cmd[2] = (control_illumination>>7) + trigger_output_ch # MSB: whether illumination is controlled
+        cmd[2] = (control_illumination<<7) + trigger_output_ch # MSB: whether illumination is controlled
         cmd[3] = illumination_on_time_us >> 24
         cmd[4] = (illumination_on_time_us >> 16) & 0xff
         cmd[5] = (illumination_on_time_us >> 8) & 0xff
@@ -862,6 +862,7 @@ class Microcontroller_Simulation():
         self.send_command(cmd)
 
     def set_strobe_delay_us(self, strobe_delay_us, camera_channel=0):
+        print('set strobe delay')
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_STROBE_DELAY
         cmd[2] = camera_channel
