@@ -1020,18 +1020,32 @@ void loop() {
     // strobe pulse
     if(control_strobe[camera_channel])
     {
-      // start the strobe
-      if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
+      if(illumination_on_time[camera_channel] <= 30000)
       {
-        turn_on_illumination();
-        strobe_output_level[camera_channel] = HIGH;
+        // if the illumination on time is smaller than 30 ms, use delayMicroseconds to control the pulse length to avoid pulse length jitter (can be up to 20 us if using the code in the else branch)
+        if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
+        {
+          turn_on_illumination();
+          delayMicroseconds(illumination_on_time[camera_channel]);
+          turn_off_illumination();
+          control_strobe[camera_channel] = false;
+        }
       }
-      // end the strobe
-      if(((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]+illumination_on_time[camera_channel]) && strobe_output_level[camera_channel]==HIGH)
+      else
       {
-        turn_off_illumination();
-        strobe_output_level[camera_channel] = LOW;
-        control_strobe[camera_channel] = false;
+        // start the strobe
+        if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
+        {
+          turn_on_illumination();
+          strobe_output_level[camera_channel] = HIGH;
+        }
+        // end the strobe
+        if(((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]+illumination_on_time[camera_channel]) && strobe_output_level[camera_channel]==HIGH)
+        {
+          turn_off_illumination();
+          strobe_output_level[camera_channel] = LOW;
+          control_strobe[camera_channel] = false;
+        }
       }      
     }
   }
