@@ -1152,6 +1152,7 @@ void loop() {
   {
     stepper_Z.setCurrentPosition(0);
     Z_pos = 0;
+    focusPosition = 0;
     is_homing_Z = false;
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false;
@@ -1310,7 +1311,10 @@ void loop() {
   else if(runSpeed_flag_Y)
     stepper_Y.runSpeed();
 
-  stepper_Z.run();
+  if(runSpeed_flag_Z)
+    stepper_Z.runSpeed();
+  else
+    stepper_Z.run();
 }
 
 /***************************************************
