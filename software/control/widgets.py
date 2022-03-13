@@ -713,6 +713,7 @@ class AutoFocusWidget(QFrame):
         self.entry_delta.setSingleStep(0.2)
         self.entry_delta.setDecimals(3)
         self.entry_delta.setValue(1.524)
+        self.entry_delta.setKeyboardTracking(False)
         self.autofocusController.set_deltaZ(1.524)
 
         self.entry_N = QSpinBox()
@@ -720,6 +721,7 @@ class AutoFocusWidget(QFrame):
         self.entry_N.setMaximum(20) 
         self.entry_N.setSingleStep(1)
         self.entry_N.setValue(10)
+        self.entry_N.setKeyboardTracking(False)
         self.autofocusController.set_N(10)
 
         self.btn_autofocus = QPushButton('Autofocus')
