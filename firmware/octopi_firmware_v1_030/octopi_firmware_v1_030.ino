@@ -717,6 +717,8 @@ void loop() {
             case AXIS_X:
             {
               int microstepping_setting = buffer_rx[3];
+              if(microstepping_setting>128)
+                microstepping_setting = 256;
               X_driver.microsteps(microstepping_setting);
               MICROSTEPPING_X = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
@@ -728,6 +730,8 @@ void loop() {
             case AXIS_Y:
             {
               int microstepping_setting = buffer_rx[3];
+              if(microstepping_setting>128)
+                microstepping_setting = 256;
               Y_driver.microsteps(microstepping_setting);
               MICROSTEPPING_Y = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
@@ -739,6 +743,8 @@ void loop() {
             case AXIS_Z:
             {
               int microstepping_setting = buffer_rx[3];
+              if(microstepping_setting>128)
+                microstepping_setting = 256;
               Z_driver.microsteps(microstepping_setting);
               MICROSTEPPING_Z = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
