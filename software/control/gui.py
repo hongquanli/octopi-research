@@ -60,7 +60,7 @@ class OctopiGUI(QMainWindow):
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
-		self.imageSaver = core.ImageSaver()
+		self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
 		self.imageDisplay = core.ImageDisplay()
 
 		# open the camera
