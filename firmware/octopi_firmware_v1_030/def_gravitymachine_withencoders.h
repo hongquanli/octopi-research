@@ -70,3 +70,6 @@ int JOYSTICK_SIGN_Z = 1;
 bool LIM_SWITCH_X_ACTIVE_LOW = false;
 bool LIM_SWITCH_Y_ACTIVE_LOW = false;
 bool LIM_SWITCH_Z_ACTIVE_LOW = false;
+
+// offset velocity enable/disable
+bool enable_offset_velocity = true;

@@ -47,6 +47,7 @@ static const int SET_LIM_SWITCH_POLARITY = 20;
 static const int CONFIGURE_STEPPER_DRIVER = 21;
 static const int SET_MAX_VELOCITY_ACCELERATION = 22;
 static const int SET_LEAD_SCREW_PITCH = 23;
+static const int SET_OFFSET_VELOCITY = 24;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
 
@@ -178,6 +179,9 @@ long target_position;
 volatile int32_t X_pos = 0;
 volatile int32_t Y_pos = 0;
 volatile int32_t Z_pos = 0;
+
+float offset_velocity_x = 0;
+float offset_velocity_y = 0;
 
 bool closed_loop_position_control = false;
 
@@ -500,6 +504,9 @@ void setup() {
   X_pos = 0;
   Y_pos = 0;
   Z_pos = 0;
+
+  offset_velocity_x = 0;
+  offset_velocity_y = 0;
 
   // limit switch
   // configured by the computer instead
@@ -948,6 +955,30 @@ void loop() {
           }
           break;
         }
+        case SET_OFFSET_VELOCITY:
+        {
+          if(enable_offset_velocity)
+          {
+            switch(buffer_rx[2])
+            {
+              case AXIS_X:
+                offset_velocity_x = float( int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5])) )/1000000;
+                if( abs(offset_velocity_x)>0.000005 )
+                  runSpeed_flag_X = true;
+                else
+                  runSpeed_flag_X = false;
+                break;
+              case AXIS_Y:
+                offset_velocity_y = float( int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5])) )/1000000;
+                if( abs(offset_velocity_y)>0.000005 )
+                  runSpeed_flag_Y = true;
+                else
+                  runSpeed_flag_Y = false;
+                break;
+            }
+            break;
+          }
+        }
         case TURN_ON_ILLUMINATION:
         {
           // mcu_cmd_execution_in_progress = true;
@@ -1180,25 +1211,36 @@ void loop() {
     {
       deltaX = analogRead(joystick_X) - joystick_offset_x;
       deltaX_float = JOYSTICK_SIGN_X*deltaX;
+      // joystick at motion position
       if(abs(deltaX_float)>joystickSensitivity)
       {
-        stepper_X.setSpeed(sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_X);
+        stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X + sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_X );
         runSpeed_flag_X = true;
+        // handle limits
         if(stepper_X.currentPosition()>=X_POS_LIMIT && deltaX_float>0)
         {
           runSpeed_flag_X = false;
           stepper_X.setSpeed(0);
         }
         if(stepper_X.currentPosition()<=X_NEG_LIMIT && deltaX_float<0)
-          {
+        {
           runSpeed_flag_X = false;
           stepper_X.setSpeed(0);
         }
       }
+      // joystick at rest position
       else
       {
-        runSpeed_flag_X = false;
-        stepper_X.setSpeed(0);
+        if(enable_offset_velocity)
+        {
+          runSpeed_flag_X = true;
+          stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X );
+        }
+        else
+        {
+          runSpeed_flag_X = false;
+          stepper_X.setSpeed( 0 );
+        }
       }
     }
 
@@ -1207,10 +1249,12 @@ void loop() {
     {
       deltaY = analogRead(joystick_Y) - joystick_offset_y;
       deltaY_float = JOYSTICK_SIGN_Y*deltaY;
+      // joystick at motion position
       if(abs(deltaY)>joystickSensitivity)
       {
-        stepper_Y.setSpeed(sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+        stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y + sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
         runSpeed_flag_Y = true;
+        // handle limits
         if(stepper_Y.currentPosition()>=Y_POS_LIMIT && deltaY_float>0)
         {
           runSpeed_flag_Y = false;
@@ -1222,13 +1266,47 @@ void loop() {
           stepper_Y.setSpeed(0);
         }
       }
+      // joystick at rest position
       else
       {
-        runSpeed_flag_Y = false;
-        stepper_Y.setSpeed(0);
+        if(enable_offset_velocity)
+        {
+          runSpeed_flag_Y = true;
+          stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y );
+        }
+        else
+        {
+          runSpeed_flag_Y = false;
+          stepper_Y.setSpeed( 0 );
+        }
       }
     }
+
+    // set the read joystick flag to false
     flag_read_joystick = false;
+    
+  }
+
+  // handle limits
+  if( stepper_X.currentPosition()>=X_POS_LIMIT && offset_velocity_x>0 )
+  {
+    runSpeed_flag_X = false;
+    stepper_X.setSpeed( 0 );
+  }
+  if( stepper_X.currentPosition()<=X_NEG_LIMIT && offset_velocity_x<0 )
+  {
+    runSpeed_flag_X = false;
+    stepper_X.setSpeed( 0 );
+  }
+  if( stepper_Y.currentPosition()>=Y_POS_LIMIT && offset_velocity_y>0 )
+  {
+    runSpeed_flag_Y = false;
+    stepper_Y.setSpeed( 0 );
+  }
+  if( stepper_Y.currentPosition()<=Y_NEG_LIMIT && offset_velocity_y<0 )
+  {
+    runSpeed_flag_Y = false;
+    stepper_Y.setSpeed( 0 );
   }
   
   // focus control
