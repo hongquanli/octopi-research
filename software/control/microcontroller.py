@@ -453,6 +453,8 @@ class Microcontroller():
         cmd[2] = axis
         if microstepping == 1:
             cmd[3] = 0
+        elif microstepping == 256:
+            cmd[3] = 255 # max of uint8 is 255 - will be changed to 255 after received by the MCU
         else:
             cmd[3] = microstepping
         cmd[4] = current_rms >> 8
