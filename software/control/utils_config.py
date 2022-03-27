@@ -75,6 +75,15 @@ def generate_default_configuration(filename):
     mode_8.set('IlluminationIntensity','100')
     mode_8.set('CameraSN','')
 
+    mode_12 = ET.SubElement(top,'mode')
+    mode_12.set('ID','12')
+    mode_12.set('Name','Fluorescence 730 nm Ex')
+    mode_12.set('ExposureTime','50')
+    mode_12.set('AnalogGain','10')
+    mode_12.set('IlluminationSource','15')
+    mode_12.set('IlluminationIntensity','100')
+    mode_12.set('CameraSN','')
+
     mode_9 = ET.SubElement(top,'mode')
     mode_9.set('ID','9')
     mode_9.set('Name','BF LED matrix low NA')

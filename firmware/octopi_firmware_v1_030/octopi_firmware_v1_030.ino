@@ -94,11 +94,11 @@ static const int Z_dir = 27;
 static const int Z_step = 29;
 
 // illumination
-static const int LED = 30;
 static const int LASER_405nm = 31;
 static const int LASER_488nm = 32;
 static const int LASER_638nm = 33;
 static const int LASER_561nm = 34;
+static const int LASER_730nm = 30;
 
 // camera trigger 
 static const int camera_trigger_pins[] = {35,36,37,38,39}; // to replace
@@ -268,6 +268,7 @@ static const int ILLUMINATION_SOURCE_405NM = 11;
 static const int ILLUMINATION_SOURCE_488NM = 12;
 static const int ILLUMINATION_SOURCE_638NM = 13;
 static const int ILLUMINATION_SOURCE_561NM = 14;
+static const int ILLUMINATION_SOURCE_730NM = 15;
 
 Adafruit_DotStar matrix(DOTSTAR_NUM_LEDS, DOTSTAR_BRG);
 void set_all(Adafruit_DotStar & matrix, int r, int g, int b);
@@ -306,7 +307,6 @@ void turn_on_illumination()
       turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT,led_matrix_r,led_matrix_g,led_matrix_b);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
-      digitalWrite(LED,HIGH);
       break;
     case ILLUMINATION_SOURCE_405NM:
       digitalWrite(LASER_405nm,HIGH);
@@ -319,6 +319,9 @@ void turn_on_illumination()
       break;
     case ILLUMINATION_SOURCE_561NM:
       digitalWrite(LASER_561nm,HIGH);
+      break;
+    case ILLUMINATION_SOURCE_730NM:
+      digitalWrite(LASER_730nm,HIGH);
       break;
   }
 }
@@ -349,7 +352,6 @@ void turn_off_illumination()
       clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
-      digitalWrite(LED,LOW);
       break;
     case ILLUMINATION_SOURCE_405NM:
       digitalWrite(LASER_405nm,LOW);
@@ -362,6 +364,9 @@ void turn_off_illumination()
       break;
     case ILLUMINATION_SOURCE_561NM:
       digitalWrite(LASER_561nm,LOW);
+      break;
+    case ILLUMINATION_SOURCE_730NM:
+      digitalWrite(LASER_730nm,LOW);
       break;
   }
   illumination_is_on = false;
@@ -407,9 +412,6 @@ void setup() {
   }
   
   // enable pins
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, LOW);
-
   pinMode(LASER_405nm, OUTPUT);
   digitalWrite(LASER_405nm, LOW);
 
@@ -422,7 +424,8 @@ void setup() {
   pinMode(LASER_561nm, OUTPUT);
   digitalWrite(LASER_561nm, LOW);
 
-  digitalWrite(LED, LOW);
+  pinMode(LASER_730nm, OUTPUT);
+  digitalWrite(LASER_730nm, LOW);
   
   pinMode(X_dir, OUTPUT);
   pinMode(X_step, OUTPUT);
