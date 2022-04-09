@@ -110,6 +110,7 @@ class StreamHandler(QObject):
         # # rotate and flip - moved up (1/10/2022)
         # image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
         # added on 1/30/2022
+        # @@@ to move to camera 
         image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
 
         # send image to display
@@ -1139,8 +1140,9 @@ class MultiPointWorker(QObject):
                         # tunr of the illumination if using software trigger
                         if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                             self.liveController.turn_off_illumination()
-                        # process the image
+                        # process the image -  @@@ to move to camera
                         image = utils.crop_image(image,self.crop_width,self.crop_height)
+                        image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                         # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
                         image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
@@ -1809,7 +1811,7 @@ class TrackingWorker(QObject):
 
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self, window_title='', draw_crosshairs = False, invertX=False):
+    def __init__(self, window_title='', draw_crosshairs = False):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
@@ -1820,7 +1822,8 @@ class ImageDisplayWindow(QMainWindow):
         pg.setConfigOptions(imageAxisOrder='row-major')
 
         self.graphics_widget = pg.GraphicsLayoutWidget()
-        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX)
+        self.graphics_widget.view = self.graphics_widget.addViewBox()
+        self.graphics_widget.view.invertY()
         
         ## lock the aspect ratio so pixels are always square
         self.graphics_widget.view.setAspectLocked(True)
