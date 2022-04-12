@@ -13,6 +13,7 @@ import control.widgets as widgets
 import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
+import control.microcontroller2 as microcontroller2
 from control._def import *
 
 import pyqtgraph.dockarea as dock
@@ -40,10 +41,12 @@ class OctopiGUI(QMainWindow):
 			for i in range(len(channels)):
 				self.camera[channels[i]] = camera.Camera_Simulation(sn=CAMERA_SN[channels[i]],rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
+			self.microcontroller2 = microcontroller2.Microcontroller2_Simulation()
 		else:
 			for i in range(len(channels)):
 				self.camera[channels[i]] = camera.Camera(sn=CAMERA_SN[channels[i]],rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller()
+			self.microcontroller2 = microcontroller2.Microcontroller2_Simulation()
 
 		# configure the actuators
 		self.microcontroller.configure_actuators()
@@ -65,7 +68,7 @@ class OctopiGUI(QMainWindow):
 			# controllers
 			self.configurationManager[channels[i]] = core.ConfigurationManager(filename=str(Path.home()) + "/configurations_" + channels[i] + ".xml")
 			self.streamHandler[channels[i]] = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
-			self.liveController[channels[i]] = core.LiveController(self.camera[channels[i]],self.microcontroller,self.configurationManager[channels[i]])
+			self.liveController[channels[i]] = core.LiveController(self.camera[channels[i]],self.microcontroller,self.configurationManager[channels[i]],use_internal_timer_for_hardware_trigger=False)
 			self.imageSaver[channels[i]] = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
 			# widgets
 			self.cameraSettingWidget[channels[i]] = widgets.CameraSettingsWidget(self.camera[channels[i]],include_gain_exposure_time=False)
@@ -84,7 +87,7 @@ class OctopiGUI(QMainWindow):
 		self.multiCameraRecordingWidget = widgets.MultiCameraRecordingWidget(self.streamHandler,self.imageSaver,self.channels)
 
 		# trigger control
-		self.triggerControlWidget = widgets.TriggerControlWidget()
+		self.triggerControlWidget = widgets.TriggerControlWidget(self.microcontroller2)
 
 		# open the camera
 		for i in range(len(channels)): 

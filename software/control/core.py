@@ -349,7 +349,7 @@ class Configuration:
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True):
+    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True,use_internal_timer_for_hardware_trigger=True):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
@@ -361,6 +361,7 @@ class LiveController(QObject):
         self.was_live_before_multipoint = False
         self.control_illumination = control_illumination
         self.illumination_on = False
+        self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
 
         self.fps_trigger = 1;
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
@@ -395,7 +396,7 @@ class LiveController(QObject):
     def start_live(self):
         self.is_live = True
         self.camera.start_streaming()
-        if self.trigger_mode == TriggerMode.SOFTWARE or self.trigger_mode == TriggerMode.HARDWARE:
+        if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
             self._start_triggerred_acquisition()
 
     def stop_live(self):
@@ -406,7 +407,7 @@ class LiveController(QObject):
             # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
             if self.trigger_mode == TriggerMode.CONTINUOUS:
             	self.camera.stop_streaming()
-            if self.trigger_mode == TriggerMode.HARDWARE:
+            if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
             if self.control_illumination:
                 self.turn_off_illumination()
@@ -445,23 +446,27 @@ class LiveController(QObject):
     # trigger mode and settings
     def set_trigger_mode(self,mode):
         if mode == TriggerMode.SOFTWARE:
+            if self.is_live and ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
+                self._stop_triggerred_acquisition()
             self.camera.set_software_triggered_acquisition()
             if self.is_live:
                 self._start_triggerred_acquisition()
         if mode == TriggerMode.HARDWARE:
-            if self.trigger_mode == TriggerMode.SOFTWARE:
+            if self.trigger_mode == TriggerMode.SOFTWARE and self.is_live:
                 self._stop_triggerred_acquisition()
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
             self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
+            if self.is_live and self.use_internal_timer_for_hardware_trigger:
+                self._start_triggerred_acquisition()
         if mode == TriggerMode.CONTINUOUS: 
-            if self.trigger_mode == TriggerMode.SOFTWARE:
+            if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
             self.camera.set_continuous_acquisition()
         self.trigger_mode = mode
 
     def set_trigger_fps(self,fps):
-        if self.trigger_mode == TriggerMode.SOFTWARE or self.trigger_mode == TriggerMode.HARDWARE:
+        if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
             self._set_trigger_fps(fps)
     
     # set microscope mode

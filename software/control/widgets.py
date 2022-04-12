@@ -1421,18 +1421,14 @@ class TriggerControlWidget(QFrame):
     signal_trigger_mode = Signal(str)
     signal_trigger_fps = Signal(float)
 
-    def __init__(self, triggerController=None):
+    def __init__(self, microcontroller2):
         super().__init__()
         self.fps_trigger = 10
         self.fps_display = 10
-        # self.triggerController.set_trigger_fps(self.fps_trigger)
-        
+        self.microcontroller2 = microcontroller2
         self.triggerMode = TriggerMode.SOFTWARE
-
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-        self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
     def add_components(self):
         # line 0: trigger mode
@@ -1453,11 +1449,12 @@ class TriggerControlWidget(QFrame):
         self.btn_live.setDefault(False)
 
         # connections
-        # self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
-        # self.slider_resolutionScaling.valueChanged.connect(self.liveController.set_display_resolution_scaling)
         self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
         self.btn_live.clicked.connect(self.toggle_live)
         self.entry_triggerFPS.valueChanged.connect(self.update_trigger_fps)
+
+        # inititialization
+        self.microcontroller2.set_camera_trigger_frequency(self.fps_trigger)
 
         # layout
         grid_line0 = QGridLayout()
@@ -1470,13 +1467,18 @@ class TriggerControlWidget(QFrame):
 
     def toggle_live(self,pressed):
         self.signal_toggle_live.emit(pressed)
+        if pressed:
+            self.microcontroller2.start_camera_trigger()
+        else:
+            self.microcontroller2.stop_camera_trigger()
 
     def update_trigger_mode(self):
         self.signal_trigger_mode.emit(self.dropdown_triggerManu.currentText())
 
     def update_trigger_fps(self,fps):
+        self.fps_trigger = fps
         self.signal_trigger_fps.emit(fps)
-
+        self.microcontroller2.set_camera_trigger_frequency(self.fps_trigger)
 
 class MultiCameraRecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, channels, main=None, *args, **kwargs):

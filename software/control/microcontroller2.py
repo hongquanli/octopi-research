@@ -50,6 +50,26 @@ class Microcontroller2():
         cmd[3] = (value >> 8) & 0xff
         cmd[4] = value & 0xff
         self.send_command(cmd)
+
+    def set_camera_trigger_frequency(self,frequency):
+        trigger_interval_us = int((1/frequency)*1000000);
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET2.SET_CAMERA_TRIGGER_FREQUENCY
+        cmd[2] = (trigger_interval_us >> 24) & 0xff
+        cmd[3] = (trigger_interval_us >> 16) & 0xff
+        cmd[4] = (trigger_interval_us >> 8) & 0xff
+        cmd[5] = trigger_interval_us & 0xff
+        self.send_command(cmd) 
+
+    def start_camera_trigger(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET2.START_CAMERA_TRIGGERING
+        self.send_command(cmd) 
+
+    def stop_camera_trigger(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET2.STOP_CAMERA_TRIGGERING
+        self.send_command(cmd) 
     
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
@@ -159,6 +179,26 @@ class Microcontroller2_Simulation():
         cmd[3] = (value >> 8) & 0xff
         cmd[4] = value & 0xff
         self.send_command(cmd)
+
+    def set_camera_trigger_frequency(self,frequency):
+        trigger_interval_us = int((1/frequency)*1000000);
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET2.SET_CAMERA_TRIGGER_FREQUENCY
+        cmd[2] = (trigger_interval_us >> 24) & 0xff
+        cmd[3] = (trigger_interval_us >> 16) & 0xff
+        cmd[4] = (trigger_interval_us >> 8) & 0xff
+        cmd[5] = trigger_interval_us & 0xff
+        self.send_command(cmd) 
+
+    def start_camera_trigger(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET2.START_CAMERA_TRIGGERING
+        self.send_command(cmd) 
+
+    def stop_camera_trigger(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET2.STOP_CAMERA_TRIGGERING
+        self.send_command(cmd) 
 
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
