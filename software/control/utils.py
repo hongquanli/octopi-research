@@ -35,6 +35,8 @@ def rotate_and_flip_image(image,rotate_image_angle,flip_image):
             image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
         elif(rotate_image_angle == -90):
             image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
+        elif(rotate_image_angle == 180):
+            image = cv2.rotate(image,cv2.ROTATE_180)
 
     if(flip_image is not None):
         '''
