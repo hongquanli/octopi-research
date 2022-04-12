@@ -38,6 +38,8 @@ void setup()
   // trigger
   pinMode(camera_trigger_pin,OUTPUT);
   digitalWrite(camera_trigger_pin,LOW);
+  //  pinMode(LED_BUILTIN,OUTPUT);
+  //  digitalWrite(LED_BUILTIN,HIGH);
 
   // initialize/configure the SPI
   SPI.begin();
@@ -73,7 +75,7 @@ void loop()
         }
         case SET_CAMERA_TRIGGER_FREQUENCY:
         {
-          camera_trigger_interval_us = float( (uint32_t(buffer_rx[2])<<24) + (uint32_t(buffer_rx[3])<<16) + (uint32_t(buffer_rx[4])<<8) + uint32_t(buffer_rx[5]) )/1000000;
+          camera_trigger_interval_us = float( (uint32_t(buffer_rx[2])<<24) + (uint32_t(buffer_rx[3])<<16) + (uint32_t(buffer_rx[4])<<8) + uint32_t(buffer_rx[5]) )/1000;
           mcu_cmd_execution_in_progress = false;
           break;
         }
@@ -119,4 +121,5 @@ void ISR_Timer_Camera_Trigger()
 {
   camera_trigger_output_level = !camera_trigger_output_level;
   digitalWrite(camera_trigger_pin,camera_trigger_output_level);
+  //  digitalWrite(LED_BUILTIN,camera_trigger_output_level);
 }

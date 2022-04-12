@@ -47,6 +47,11 @@ class OctopiGUI(QMainWindow):
 			self.microcontroller = microcontroller.Microcontroller()
 			self.microcontroller2 = microcontroller2.Microcontroller2_Simulation()
 
+		# open the camera
+		for i in range(len(channels)): 
+			self.camera[channels[i]].open()
+			self.camera[channels[i]].set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
+
 		# configure the actuators
 		self.microcontroller.configure_actuators()
 
@@ -87,13 +92,6 @@ class OctopiGUI(QMainWindow):
 
 		# trigger control
 		self.triggerControlWidget = widgets.TriggerControlWidget(self.microcontroller2)
-
-		# open the camera
-		for i in range(len(channels)): 
-			self.camera[channels[i]].open()
-			self.camera[channels[i]].set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
-			self.camera[channels[i]].set_callback(self.streamHandler[channels[i]].on_new_frame)
-			self.camera[channels[i]].enable_callback()		
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
@@ -149,6 +147,8 @@ class OctopiGUI(QMainWindow):
 			self.triggerControlWidget.signal_toggle_live.connect(self.liveControlWidget[channels[i]].toggle_live)
 			self.triggerControlWidget.signal_trigger_mode.connect(self.liveControlWidget[channels[i]].set_trigger_mode)
 			self.triggerControlWidget.signal_trigger_fps.connect(self.liveControlWidget[channels[i]].entry_triggerFPS.setValue)
+			self.camera[channels[i]].set_callback(self.streamHandler[channels[i]].on_new_frame)
+			self.camera[channels[i]].enable_callback()
 		self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
 		self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
 		self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)

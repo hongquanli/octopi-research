@@ -52,7 +52,7 @@ class Microcontroller2():
         self.send_command(cmd)
 
     def set_camera_trigger_frequency(self,frequency):
-        trigger_interval_us = int((1/frequency)*1000000);
+        trigger_interval_us = int((1/frequency)*1000000*1000);
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET2.SET_CAMERA_TRIGGER_FREQUENCY
         cmd[2] = (trigger_interval_us >> 24) & 0xff
