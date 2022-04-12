@@ -222,9 +222,12 @@ class ImageSaver(QObject):
     def set_recording_time_limit(self,time_limit):
         self.recording_time_limit = time_limit
 
-    def start_new_experiment(self,experiment_ID):
-        # generate unique experiment ID
-        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+    def start_new_experiment(self,experiment_ID,add_timestamp=True):
+        if add_timestamp:
+            # generate unique experiment ID
+            self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        else:
+            self.experiment_ID = experiment_ID
         self.recording_start_time = time.time()
         # create a new folder
         try:

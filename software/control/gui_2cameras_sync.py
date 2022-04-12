@@ -76,6 +76,10 @@ class OctopiGUI(QMainWindow):
 		# self.recordTabWidget = QTabWidget()
 		# for i in range(len(channels)): 
 		# 	self.recordTabWidget.addTab(self.recordingControlWidget[channels[i]], "Simple Recording")
+		self.multiCameraRecordingWidget = widgets.MultiCameraRecordingWidget(self.streamHandler,self.imageSaver,self.channels)
+
+		# trigger control
+		self.triggerControlWidget = widgets.TriggerControlWidget()
 
 		# open the camera
 		for i in range(len(channels)): 
@@ -88,6 +92,8 @@ class OctopiGUI(QMainWindow):
 		layout = QVBoxLayout() #layout = QStackedLayout()
 		# layout.addWidget(self.cameraSettingWidget)
 		layout.addWidget(self.cameraTabWidget)
+		layout.addWidget(self.triggerControlWidget)
+		layout.addWidget(self.multiCameraRecordingWidget)
 		# layout.addWidget(self.navigationWidget)
 		# layout.addWidget(self.recordTabWidget)
 		layout.addStretch()
@@ -132,6 +138,10 @@ class OctopiGUI(QMainWindow):
 			self.liveControlWidget[channels[i]].signal_newExposureTime.connect(self.cameraSettingWidget[channels[i]].set_exposure_time)
 			self.liveControlWidget[channels[i]].signal_newAnalogGain.connect(self.cameraSettingWidget[channels[i]].set_analog_gain)
 			self.liveControlWidget[channels[i]].update_camera_settings()
+			self.triggerControlWidget.signal_toggle_live.connect(self.liveControlWidget[channels[i]].btn_live.setChecked)
+			self.triggerControlWidget.signal_toggle_live.connect(self.liveControlWidget[channels[i]].toggle_live)
+			self.triggerControlWidget.signal_trigger_mode.connect(self.liveControlWidget[channels[i]].set_trigger_mode)
+			self.triggerControlWidget.signal_trigger_fps.connect(self.liveControlWidget[channels[i]].entry_triggerFPS.setValue)
 		self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
 		self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
 		self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
