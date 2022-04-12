@@ -241,14 +241,15 @@ class LiveControlWidget(QFrame):
         grid_line3.addWidget(QLabel('Display Resolution'), 0,2)
         grid_line3.addWidget(self.slider_resolutionScaling,0,3)
 
-        self.grid = QGridLayout()
+        self.grid = QVBoxLayout()
         if show_trigger_options:
-            self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
-        self.grid.addLayout(grid_line2,2,0)
-        self.grid.addLayout(grid_line4,3,0)
+            self.grid.addLayout(grid_line0)
+        self.grid.addLayout(grid_line1)
+        self.grid.addLayout(grid_line2)
+        self.grid.addLayout(grid_line4)
         if show_display_options:
-            self.grid.addLayout(grid_line3,4,0)
+            self.grid.addLayout(grid_line3)
+        self.grid.addStretch()
         self.setLayout(self.grid)
 
     def toggle_live(self,pressed):
