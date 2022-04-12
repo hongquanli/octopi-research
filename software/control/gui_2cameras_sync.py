@@ -72,6 +72,11 @@ class OctopiGUI(QMainWindow):
 			self.liveControlWidget[channels[i]] = widgets.LiveControlWidget(self.streamHandler[channels[i]],self.liveController[channels[i]],self.configurationManager[channels[i]])
 			# self.recordingControlWidget[channels[i]] = widgets.RecordingWidget(self.streamHandler[channels[i]],self.imageSaver[channels[i]])
 			self.cameraTabWidget.addTab(self.liveControlWidget[channels[i]], channels[i])
+			# self.liveControlWidget[channels[i]].setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+			# self.liveControlWidget[channels[i]].resize(self.liveControlWidget[channels[i]].minimumSizeHint())
+			# self.liveControlWidget[channels[i]].adjustSize()
+		self.cameraTabWidget.resize(self.cameraTabWidget.minimumSizeHint())
+		self.cameraTabWidget.adjustSize()
 
 		# self.recordTabWidget = QTabWidget()
 		# for i in range(len(channels)): 
