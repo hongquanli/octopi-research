@@ -38,14 +38,14 @@ class OctopiGUI(QMainWindow):
 		self.camera = {}
 		if is_simulation:
 			for i in range(len(channels)):
-				self.camera[channels[i]] = camera.Camera_Simulation(sn=CAMERA_SN[channels[i]],rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera[channels[i]] = camera.Camera_Simulation(sn=CAMERA_SN[channels[i]],is_global_shutter=True,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 			self.microcontroller2 = microcontroller2.Microcontroller2_Simulation()
 		else:
 			for i in range(len(channels)):
-				self.camera[channels[i]] = camera.Camera(sn=CAMERA_SN[channels[i]],rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.microcontroller = microcontroller.Microcontroller()
-			self.microcontroller2 = microcontroller2.Microcontroller2_Simulation()
+				self.camera[channels[i]] = camera.Camera(sn=CAMERA_SN[channels[i]],is_global_shutter=True,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+			self.microcontroller = microcontroller.Microcontroller_Simulation()
+			self.microcontroller2 = microcontroller2.Microcontroller2()
 
 		# open the camera
 		for i in range(len(channels)): 
