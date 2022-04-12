@@ -11,10 +11,11 @@ from control._def import *
 
 class Camera(object):
 
-    def __init__(self,sn=None,rotate_image_angle=None,flip_image=None):
+    def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
 
         # many to be purged
         self.sn = sn
+        self.is_global_shutter = is_global_shutter
         self.device_manager = gx.DeviceManager()
         self.device_info_list = None
         self.device_index = 0
@@ -138,7 +139,7 @@ class Camera(object):
 
     def update_camera_exposure_time(self):
         use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
-        if use_strobe == False:
+        if use_strobe == False or self.is_global_shutter:
             self.camera.ExposureTime.set(self.exposure_time * 1000)
         else:
             camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
@@ -235,7 +236,7 @@ class Camera(object):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
         # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
-        self.frame_ID_offset_hardware_trigger = self.frame_ID
+        self.frame_ID_offset_hardware_trigger = None
         self.trigger_mode = TriggerMode.HARDWARE
         self.update_camera_exposure_time()
 
@@ -275,6 +276,10 @@ class Camera(object):
         self.current_frame = numpy_image
         self.frame_ID_software = self.frame_ID_software + 1
         self.frame_ID = raw_image.get_frame_id()
+        if self.trigger_mode == TriggerMode.HARDWARE:
+            if self.frame_ID_offset_hardware_trigger == None:
+                self.frame_ID_offset_hardware_trigger = self.frame_ID
+            self.frame_ID = self.frame_ID - self.frame_ID_offset_hardware_trigger
         self.timestamp = time.time()
         self.new_image_callback_external(self)
 
@@ -375,9 +380,10 @@ class Camera(object):
 
 class Camera_Simulation(object):
     
-    def __init__(self,sn=None,rotate_image_angle=None,flip_image=None):
+    def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
         # many to be purged
         self.sn = sn
+        self.is_global_shutter = is_global_shutter
         self.device_info_list = None
         self.device_index = 0
         self.camera = None
