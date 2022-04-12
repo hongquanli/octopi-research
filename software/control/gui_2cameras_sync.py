@@ -36,7 +36,6 @@ class OctopiGUI(QMainWindow):
 
 		# load objects
 		self.camera = {}
-		CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'}
 		if is_simulation:
 			for i in range(len(channels)):
 				self.camera[channels[i]] = camera.Camera_Simulation(sn=CAMERA_SN[channels[i]],rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)

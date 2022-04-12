@@ -149,3 +149,5 @@ class Acquisition:
     DX = 0.9
     DY = 0.9
     DZ = 1.5
+
+CAMERA_SN = {'ch 1':'SN1','ch 2':'SN2'}
