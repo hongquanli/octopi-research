@@ -47,7 +47,11 @@ class OctopiGUI(QMainWindow):
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
 			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.microcontroller = microcontroller.Microcontroller()
+			try:
+				self.microcontroller = microcontroller.Microcontroller()
+			except:
+				print('! Microcontroller not detected, using simulated microcontroller !')
+				self.microcontroller = microcontroller.Microcontroller_Simulation()
 
 		# configure the actuators
 		self.microcontroller.configure_actuators()
