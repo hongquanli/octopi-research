@@ -290,6 +290,8 @@ MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
 
+ENABLE_STROBE_OUTPUT = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

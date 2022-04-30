@@ -71,6 +71,8 @@ class OctopiGUI(QMainWindow):
 		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
 		self.camera.set_callback(self.streamHandler.on_new_frame)
 		self.camera.enable_callback()
+		if ENABLE_STROBE_OUTPUT:
+			self.camera.set_line3_to_exposure_active()
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)

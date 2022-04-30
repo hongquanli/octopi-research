@@ -151,3 +151,4 @@ class Acquisition:
     DZ = 1.5
 
 CAMERA_SN = {'ch 1':'SN1','ch 2':'SN2'}
+ENABLE_STROBE_OUTPUT = False
