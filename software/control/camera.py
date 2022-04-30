@@ -86,6 +86,9 @@ class Camera(object):
         self.camera.AcquisitionFrameRate.set(1000)
         self.camera.AcquisitionFrameRateMode.set(gx.GxSwitchEntry.ON)
 
+        # turn off device link throughput limit
+        self.camera.DeviceLinkThroughputLimitMode.set(gx.GxSwitchEntry.OFF)
+
     def set_callback(self,function):
         self.new_image_callback_external = function
 
@@ -223,7 +226,7 @@ class Camera(object):
 
     def set_continuous_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
-        self.trigger_mode = TriggerMode.CONTINUOU
+        self.trigger_mode = TriggerMode.CONTINUOUS
         self.update_camera_exposure_time()
 
     def set_software_triggered_acquisition(self):
@@ -367,14 +370,14 @@ class Camera(object):
             print("CounterReset is not implemented")
 
     def set_line3_to_strobe(self):
-        self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
-        self.camera.LineSelector.set(gx.GxLineSelectorEntry.Line3)
+        # self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
+        self.camera.LineSelector.set(gx.GxLineSelectorEntry.LINE3)
         self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         self.camera.LineSource.set(gx.GxLineSourceEntry.STROBE)
 
     def set_line3_to_exposure_active(self):
-        self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
-        self.camera.LineSelector.set(gx.GxLineSelectorEntry.Line3)
+        # self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
+        self.camera.LineSelector.set(gx.GxLineSelectorEntry.LINE3)
         self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
 
