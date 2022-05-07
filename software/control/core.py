@@ -28,6 +28,8 @@ import math
 import json
 import pandas as pd
 
+import imageio as iio
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -169,7 +171,7 @@ class ImageSaver(QObject):
 
     stop_recording = Signal()
 
-    def __init__(self,image_format='bmp'):
+    def __init__(self,image_format=Acquisition.IMAGE_FORMAT):
         QObject.__init__(self)
         self.base_path = './'
         self.experiment_ID = ''
@@ -198,9 +200,15 @@ class ImageSaver(QObject):
                 # create a new folder
                 if file_ID == 0:
                     os.mkdir(os.path.join(self.base_path,self.experiment_ID,str(folder_ID)))
-                saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '_' + str(frame_ID) + '.' + self.image_format)
-                
-                cv2.imwrite(saving_path,image)
+
+                if image.dtype == np.uint16:
+                    # need to use tiff when saving 16 bit images
+                    saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '_' + str(frame_ID) + '.tiff')
+                    iio.imwrite(saving_path,image)
+                else:
+                    saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '_' + str(frame_ID) + '.' + self.image_format)
+                    cv2.imwrite(saving_path,image)
+
                 self.counter = self.counter + 1
                 self.queue.task_done()
                 self.image_lock.release()
@@ -270,8 +278,12 @@ class ImageSaver_Tracking(QObject):
                 # create a new folder
                 if file_ID == 0:
                     os.mkdir(os.path.join(self.base_path,str(folder_ID)))
-                saving_path = os.path.join(self.base_path,str(folder_ID),str(file_ID) + '_' + str(frame_counter) + '_' + postfix + '.' + self.image_format)
-                cv2.imwrite(saving_path,image)
+                if image.dtype == np.uint16:
+                    saving_path = os.path.join(self.base_path,str(folder_ID),str(file_ID) + '_' + str(frame_counter) + '_' + postfix + '.tiff')
+                    iio.imwrite(saving_path,image)
+                else:
+                    saving_path = os.path.join(self.base_path,str(folder_ID),str(file_ID) + '_' + str(frame_counter) + '_' + postfix + '.' + self.image_format)
+                    cv2.imwrite(saving_path,image)
                 self.queue.task_done()
                 self.image_lock.release()
             except:
@@ -1156,19 +1168,26 @@ class MultiPointWorker(QObject):
                         image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                         self.image_to_display.emit(image_to_display)
                         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                        saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
-                        if self.camera.is_color:
-                            if 'BF LED matrix' in config.name:
-                                if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
-                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
-                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
-                                    image = image[:,:,1]
-                            else:
-                                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                        cv2.imwrite(saving_path,image)
-                        # tifffile.imsave(saving_path, image, description=metadata)
+                        if image.dtype == np.uint16:
+                            saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
+                            if self.camera.is_color:
+                                if 'BF LED matrix' in config.name:
+                                    if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                    elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                        image = image[:,:,1]
+                            iio.imwrite(saving_path,image)
+                        else:
+                            saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
+                            if self.camera.is_color:
+                                if 'BF LED matrix' in config.name:
+                                    if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                    elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                    elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                        image = image[:,:,1]
+                            cv2.imwrite(saving_path,image)
                         QApplication.processEvents()
 
                     # add the coordinate of the current location

@@ -28,7 +28,7 @@ class Camera(object):
         self.rotate_image_angle = rotate_image_angle
         self.flip_image = flip_image
 
-        self.exposure_time = 0 # unit: ms
+        self.exposure_time = 1 # unit: ms
         self.analog_gain = 0
         self.frame_ID = -1
         self.frame_ID_software = -1
@@ -63,6 +63,8 @@ class Camera(object):
         self.exposure_delay_us_8bit = 650
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
+
+        self.pixel_format = None # use the default pixel format
 
     def open(self,index=0):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
@@ -130,7 +132,7 @@ class Camera(object):
 
     def set_exposure_time(self,exposure_time):
         use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
-        if use_strobe == False:
+        if use_strobe == False or self.is_global_shutter:
             self.exposure_time = exposure_time
             self.camera.ExposureTime.set(exposure_time * 1000)
         else:
@@ -188,7 +190,7 @@ class Camera(object):
         self.camera.stream_off()
         self.is_streaming = False
 
-    def set_pixel_format(self,format):
+    def set_pixel_format(self,pixel_format):
         if self.is_streaming == True:
             was_streaming = True
             self.stop_streaming()
@@ -196,24 +198,25 @@ class Camera(object):
             was_streaming = False
 
         if self.camera.PixelFormat.is_implemented() and self.camera.PixelFormat.is_writable():
-            if format == 'MONO8':
+            if pixel_format == 'MONO8':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO8)
                 self.pixel_size_byte = 1
-            if format == 'MONO12':
+            if pixel_format == 'MONO12':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO12)
                 self.pixel_size_byte = 2
-            if format == 'MONO14':
+            if pixel_format == 'MONO14':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO14)
                 self.pixel_size_byte = 2
-            if format == 'MONO16':
+            if pixel_format == 'MONO16':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO16)
                 self.pixel_size_byte = 2
-            if format == 'BAYER_RG8':
+            if pixel_format == 'BAYER_RG8':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG8)
                 self.pixel_size_byte = 1
-            if format == 'BAYER_RG12':
+            if pixel_format == 'BAYER_RG12':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG12)
                 self.pixel_size_byte = 2
+            self.pixel_format = pixel_format
         else:
             print("pixel format is not implemented or not writable")
 
@@ -221,7 +224,7 @@ class Camera(object):
            self.start_streaming()
 
         # update the exposure delay and strobe delay
-        self.exposure_delay_us = exposure_delay_us_8bit*self.pixel_size_byte
+        self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
     def set_continuous_acquisition(self):
@@ -254,8 +257,12 @@ class Camera(object):
         if self.is_color:
             rgb_image = raw_image.convert("RGB")
             numpy_image = rgb_image.get_numpy_array()
+            if self.pixel_format == 'BAYER_RG12':
+                numpy_image = numpy_image << 4
         else:
             numpy_image = raw_image.get_numpy_array()
+            if self.pixel_format == 'MONO12':
+                numpy_image = numpy_image << 4
         # self.current_frame = numpy_image
         return numpy_image
 
@@ -272,8 +279,12 @@ class Camera(object):
         if self.is_color:
             rgb_image = raw_image.convert("RGB")
             numpy_image = rgb_image.get_numpy_array()
+            if self.pixel_format == 'BAYER_RG12':
+                numpy_image = numpy_image << 4
         else:
             numpy_image = raw_image.get_numpy_array()
+            if self.pixel_format == 'MONO12':
+                numpy_image = numpy_image << 4
         if numpy_image is None:
             return
         self.current_frame = numpy_image
@@ -428,6 +439,8 @@ class Camera_Simulation(object):
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
+        self.pixel_format = 'MONO8'
+
     def open(self,index=0):
         pass
 
@@ -467,8 +480,10 @@ class Camera_Simulation(object):
     def stop_streaming(self):
         pass
 
-    def set_pixel_format(self,format):
-        print(format)
+    def set_pixel_format(self,pixel_format):
+        self.pixel_format = pixel_format
+        print(pixel_format)
+        self.frame_ID = 0
 
     def set_continuous_acquisition(self):
         pass
@@ -483,8 +498,16 @@ class Camera_Simulation(object):
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
         if self.frame_ID == 1:
-            self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
-            self.current_frame[901:1100,901:1100] = 200
+            if self.pixel_format == 'MONO8':
+                self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
+                self.current_frame[901:1100,901:1100] = 200
+            elif self.pixel_format == 'MONO12':
+                self.current_frame = np.random.randint(4095,size=(2000,2000),dtype=np.uint16)
+                self.current_frame[901:1100,901:1100] = 200*16
+                self.current_frame = self.current_frame << 4
+            elif self.pixel_format == 'MONO16':
+                self.current_frame = np.random.randint(65535,size=(2000,2000),dtype=np.uint16)
+                self.current_frame[901:1100,901:1100] = 200*256
         else:
             self.current_frame = np.roll(self.current_frame,10,axis=0)
             pass 
