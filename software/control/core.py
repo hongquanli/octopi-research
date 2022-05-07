@@ -523,6 +523,7 @@ class NavigationController(QObject):
         self.x_pos_mm = 0
         self.y_pos_mm = 0
         self.z_pos_mm = 0
+        self.z_pos = 0
         self.theta_pos_rad = 0
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
@@ -559,6 +560,7 @@ class NavigationController(QObject):
     def update_pos(self,microcontroller):
         # get position from the microcontroller
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
+        self.z_pos = z_pos
         # calculate position in mm or rad
         if USE_ENCODER_X:
             self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
@@ -1086,6 +1088,7 @@ class MultiPointWorker(QObject):
         dx_usteps = 0
         dy_usteps = 0
         dz_usteps = 0
+        z_pos = self.navigationController.z_pos
 
         # along y
         for i in range(self.NY):
@@ -1248,6 +1251,10 @@ class MultiPointWorker(QObject):
             self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
             self.wait_till_operation_is_completed()
             time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+
+        # move z back
+        self.navigationController.microcontroller.move_z_to_usteps(z_pos)
+        self.wait_till_operation_is_completed()
 
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
@@ -2100,6 +2107,7 @@ class PlateReaderNavigationController(QObject):
         self.x_pos_mm = 0
         self.y_pos_mm = 0
         self.z_pos_mm = 0
+        self.z_pos = 0
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
@@ -2159,6 +2167,7 @@ class PlateReaderNavigationController(QObject):
     def update_pos(self,microcontroller):
         # get position from the microcontroller
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
+        self.z_pos = z_pos
         # calculate position in mm or rad
         if USE_ENCODER_X:
             self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
