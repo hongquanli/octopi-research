@@ -142,3 +142,4 @@ class Acquisition:
     DZ = 1.5
 
 ENABLE_STROBE_OUTPUT = False
+Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'

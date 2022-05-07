@@ -152,3 +152,4 @@ class Acquisition:
 
 CAMERA_SN = {'ch 1':'SN1','ch 2':'SN2'}
 ENABLE_STROBE_OUTPUT = False
+Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'

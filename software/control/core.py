@@ -1090,6 +1090,10 @@ class MultiPointWorker(QObject):
         dz_usteps = 0
         z_pos = self.navigationController.z_pos
 
+        # z stacking config
+        if Z_STACKING_CONFIG == 'FROM TOP':
+            self.deltaZ_usteps = -abs(self.deltaZ_usteps)
+
         # along y
         for i in range(self.NY):
 
@@ -1098,7 +1102,22 @@ class MultiPointWorker(QObject):
             # along x
             for j in range(self.NX):
 
+                # perform AF only if when not taking z stack or doing z stack from center
+                if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                # temporary: replace the above line with the line below to AF every FOV
+                # if (self.NZ == 1) and (self.do_autofocus):
+                    configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                    config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                    self.signal_current_configuration.emit(config_AF)
+                    self.autofocusController.autofocus()
+                    self.autofocusController.wait_till_autofocus_has_completed()
+                
                 if (self.NZ > 1):
+                    # move to bottom of the z stack
+                    if Z_STACKING_CONFIG == 'FROM CENTER':
+                        self.navigationController.move_z_usteps(-self.deltaZ_usteps*round((self.NZ-1)/2))
+                        self.wait_till_operation_is_completed()
+                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                     # maneuver for achiving uniform step size and repeatability when using open-loop control
                     self.navigationController.move_z_usteps(-160)
                     self.wait_till_operation_is_completed()
@@ -1108,27 +1127,6 @@ class MultiPointWorker(QObject):
 
                 # z-stack
                 for k in range(self.NZ):
-
-                    # perform AF only if when not taking z stack
-                    if (self.NZ == 1) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                    # temporary: replace the above line with the line below to AF every FOV
-                    # if (self.NZ == 1) and (self.do_autofocus):
-                        configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
-                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                        self.signal_current_configuration.emit(config_AF)
-                        self.autofocusController.autofocus()
-                        self.autofocusController.wait_till_autofocus_has_completed()
-
-                    '''
-                    # moved to before each z-stack on 12/29/2021
-                    if (self.NZ > 1):
-                        # maneuver for achiving uniform step size and repeatability when using open-loop control
-                        self.navigationController.move_z_usteps(80)
-                        self.wait_till_operation_is_completed()
-                        self.navigationController.move_z_usteps(-80)
-                        self.wait_till_operation_is_completed()
-                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-                    '''
                     
                     file_ID = str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
                     # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
@@ -1206,9 +1204,14 @@ class MultiPointWorker(QObject):
                 
                 if self.NZ > 1:
                     # move z back
-                    self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
-                    self.wait_till_operation_is_completed()
-                    dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
+                    if Z_STACKING_CONFIG == 'FROM CENTER':
+                        self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
+                        self.wait_till_operation_is_completed()
+                        dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
+                    else:
+                        self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
+                        self.wait_till_operation_is_completed()
+                        dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
                 # update FOV counter
                 self.FOV_counter = self.FOV_counter + 1
