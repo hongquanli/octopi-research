@@ -164,7 +164,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
 
     def move_x_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_X*usteps,4)
+        payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_X
         cmd[2] = payload >> 24
@@ -219,7 +219,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
     
     def move_y_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_Y*usteps,4)
+        payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Y
         cmd[2] = payload >> 24
@@ -274,7 +274,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
 
     def move_z_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_Z*usteps,4)
+        payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Z
         cmd[2] = payload >> 24
@@ -663,7 +663,7 @@ class Microcontroller_Simulation():
         print('   mcu command ' + str(self._cmd_id) + ': move x')
 
     def move_x_to_usteps(self,usteps):
-        self.x_pos = STAGE_MOVEMENT_SIGN_X*usteps
+        self.x_pos = usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': move x to')
@@ -675,7 +675,7 @@ class Microcontroller_Simulation():
         print('   mcu command ' + str(self._cmd_id) + ': move y')
 
     def move_y_to_usteps(self,usteps):
-        self.y_pos = STAGE_MOVEMENT_SIGN_Y*usteps
+        self.y_pos = usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': move y to')
@@ -687,7 +687,7 @@ class Microcontroller_Simulation():
         print('   mcu command ' + str(self._cmd_id) + ': move z')
 
     def move_z_to_usteps(self,usteps):
-        self.z_pos = STAGE_MOVEMENT_SIGN_Z*usteps
+        self.z_pos = usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': move z to')

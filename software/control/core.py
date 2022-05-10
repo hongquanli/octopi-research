@@ -2164,12 +2164,12 @@ class PlateReaderNavigationController(QObject):
         if column != '':
             mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
             x_mm = PLATE_READER.OFFSET_COLUMN_1_MM + (int(column)-1)*PLATE_READER.COLUMN_SPACING_MM
-            x_usteps = round(x_mm/mm_per_ustep_X)
+            x_usteps = STAGE_MOVEMENT_SIGN_X*round(x_mm/mm_per_ustep_X)
             self.move_x_to_usteps(x_usteps)
         if row != '':
             mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
             y_mm = PLATE_READER.OFFSET_ROW_A_MM + (ord(row) - ord('A'))*PLATE_READER.ROW_SPACING_MM
-            y_usteps = round(y_mm/mm_per_ustep_Y)
+            y_usteps = STAGE_MOVEMENT_SIGN_Y*round(y_mm/mm_per_ustep_Y)
             self.move_y_to_usteps(y_usteps)
 
     def moveto_row(self,row):
