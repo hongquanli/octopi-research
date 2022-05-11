@@ -1003,8 +1003,7 @@ class AutoFocusController(QObject):
         self.autofocus_in_progress = False
 
     def slot_image_to_display(self,image):
-        #self.image_to_display.emit(image)
-        pass
+        self.image_to_display.emit(image)
 
     def wait_till_autofocus_has_completed(self):
         while self.autofocus_in_progress == True:
