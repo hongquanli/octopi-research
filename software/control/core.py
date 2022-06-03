@@ -1942,7 +1942,7 @@ class ImageDisplayWindow(QMainWindow):
 
 class NavigationViewer(QFrame):
 
-    def __init__(self, invertX = False, *args, **kwargs):
+    def __init__(self, sample = 'glass slide', invertX = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1961,16 +1961,26 @@ class NavigationViewer(QFrame):
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
 
-        self.background_image = cv2.imread('images/slide carrier_828x662.png')
+        if sample == 'glass slide':
+            self.background_image = cv2.imread('images/slide carrier_828x662.png')
+        else:
+            self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
+        
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
 
-        self.origin_bottom_left_x = 175
-        self.origin_bottom_left_y = 170
-        self.mm_per_pixel = 0.1453
-        self.fov_size_mm = 3000*1.85/(50/9)/1000
+        if sample == 'glass slide':
+            self.origin_bottom_left_x = 175
+            self.origin_bottom_left_y = 170
+            self.mm_per_pixel = 0.1453
+            self.fov_size_mm = 3000*1.85/(50/9)/1000
+        else:
+            self.origin_bottom_left_x = 175
+            self.origin_bottom_left_y = 170
+            self.mm_per_pixel = 0.1453
+            self.fov_size_mm = 3000*1.85/(50/9)/1000
 
         self.box_color = (255, 0, 0)
         self.box_line_thickness = 2
