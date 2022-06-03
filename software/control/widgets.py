@@ -515,6 +515,9 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
+        elif self.widget_configuration == '384 well plate':
+            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
