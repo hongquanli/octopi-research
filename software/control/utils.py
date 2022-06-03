@@ -1,5 +1,6 @@
 import cv2
 from numpy import std, square, mean
+import numpy as np
 
 def crop_image(image,crop_width,crop_height):
     image_height = image.shape[0]
@@ -12,11 +13,14 @@ def crop_image(image,crop_width,crop_height):
     return image_cropped
 
 def calculate_focus_measure(image):
-	if len(image.shape) == 3:
-		image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY) # optional
-	lap = cv2.Laplacian(image,cv2.CV_16S)
-	focus_measure = mean(square(lap))
-	return focus_measure
+    if len(image.shape) == 3:
+        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY) # optional
+    if image.dtype == np.uint16:
+        lap = cv2.Laplacian(image,cv2.CV_32F)
+    else:
+        lap = cv2.Laplacian(image,cv2.CV_16S)
+    focus_measure = mean(square(lap))
+    return focus_measure
 
 def unsigned_to_signed(unsigned_array,N):
     signed = 0
