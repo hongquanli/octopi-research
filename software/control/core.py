@@ -1971,16 +1971,22 @@ class NavigationViewer(QFrame):
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
 
+        self.location_update_threshold_mm = 0.4
+        self.sample = sample
+
         if sample == 'glass slide':
             self.origin_bottom_left_x = 175
             self.origin_bottom_left_y = 170
             self.mm_per_pixel = 0.1453
             self.fov_size_mm = 3000*1.85/(50/9)/1000
         else:
-            self.origin_bottom_left_x = 175
-            self.origin_bottom_left_y = 170
-            self.mm_per_pixel = 0.1453
-            self.fov_size_mm = 3000*1.85/(50/9)/1000
+            self.location_update_threshold_mm = 0.05
+            self.mm_per_pixel = 0.084665
+            self.fov_size_mm = 3000*1.85/(50/10)/1000
+            self.origin_bottom_left_x = (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel - 124
+            self.origin_bottom_left_y = (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel - 141            
+            # B1 upper left corner in piexel: x = 124, y = 141
+            # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 
         self.box_color = (255, 0, 0)
         self.box_line_thickness = 2
@@ -1993,7 +1999,7 @@ class NavigationViewer(QFrame):
     def update_current_location(self,x_mm,y_mm):
         if self.x_mm != None and self.y_mm != None:
             # update only when the displacement has exceeded certain value
-            if abs(x_mm - self.x_mm) > 0.4 or abs(y_mm - self.y_mm) > 0.4:
+            if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
                 self.draw_current_fov(x_mm,y_mm)
                 self.update_display()
                 self.x_mm = x_mm
@@ -2006,10 +2012,16 @@ class NavigationViewer(QFrame):
 
     def draw_current_fov(self,x_mm,y_mm):
         self.current_image_display = np.copy(self.current_image)
-        current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-        current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        if self.sample == 'glass slide':
+            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        else:
+            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
 
     def update_display(self):
