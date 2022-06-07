@@ -297,6 +297,7 @@ Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 0
 Y_MM_384_WELLPLATE_UPPERLEFT = 0
+DEFAULT_Z_POS_MM = 2
 
 ##########################################################
 #### start of loading machine specific configurations ####

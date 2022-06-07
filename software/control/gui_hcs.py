@@ -69,7 +69,6 @@ class OctopiGUI(QMainWindow):
 
 		if HOMING_ENABLED_Z:
 			# retract the objective
-			z0 = self.navigationController.z_pos
 			self.navigationController.home_z()
 			# wait for the operation to finish
 			t0 = time.time()
@@ -78,29 +77,34 @@ class OctopiGUI(QMainWindow):
 				if time.time() - t0 > 5:
 					print('z homing timeout, the program will exit')
 					exit()
-			z_home = self.navigationController.z_pos
-			delta_z = z_home - z0
+			print('objective retracted')
 
 		if HOMING_ENABLED_Z and HOMING_ENABLED_X and HOMING_ENABLED_Y:
 			self.navigationController.set_x_limit_pos_mm(100)
 			self.navigationController.set_x_limit_neg_mm(-100)
 			self.navigationController.set_y_limit_pos_mm(100)
-			self.navigationController.set_y_limit_neg_mm(-100)		
-			'''
-			print('start homing')
-			self.slidePositionController.move_to_slide_scanning_position()
-			while self.slidePositionController.slide_scanning_position_reached == False:
+			self.navigationController.set_y_limit_neg_mm(-100)
+			self.navigationController.home_xy()
+			t0 = time.time()
+			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-			print('homing finished')
-			self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
-			self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
-			self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
-			self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
-			'''
+				if time.time() - t0 > 5:
+					print('xy homing timeout, the program will exit')
+					self.navigationController.move_x(0)
+					self.navigationController.move_y(0)
+					exit()
+			print('xy homing completed')
+			# move to (30 mm, 30 mm)
+			self.navigationController.move_x(30)
+			while self.microcontroller.is_busy():
+				time.sleep(0.005)
+			self.navigationController.move_y(30)
+			while self.microcontroller.is_busy():
+				time.sleep(0.005)
 
 		if HOMING_ENABLED_Z:
 			# move the objective back
-			self.navigationController.move_z_usteps(-delta_z)
+			self.navigationController.move_z(DEFAULT_Z_POS_MM)
 			# wait for the operation to finish
 			t0 = time.time() 
 			while self.microcontroller.is_busy():
