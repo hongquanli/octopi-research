@@ -1983,8 +1983,8 @@ class NavigationViewer(QFrame):
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
             self.fov_size_mm = 3000*1.85/(50/10)/1000
-            self.origin_bottom_left_x = (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel - 124
-            self.origin_bottom_left_y = (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel - 141            
+            self.origin_bottom_left_x = 124 - (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
+            self.origin_bottom_left_y = 141 - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel         
             # B1 upper left corner in piexel: x = 124, y = 141
             # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 
