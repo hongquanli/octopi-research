@@ -1195,6 +1195,8 @@ class MultiPointWorker(QObject):
                                         image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                     elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                         image = image[:,:,1]
+                                else:
+                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                             cv2.imwrite(saving_path,image)
                         QApplication.processEvents()
 
