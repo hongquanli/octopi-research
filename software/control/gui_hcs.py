@@ -221,14 +221,22 @@ class OctopiGUI(QMainWindow):
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
 	def closeEvent(self, event):
-		event.accept()
+		
 		# move the objective to a defined position upon exit
+		self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
 		self.navigationController.move_x_to(30)
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+		self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
 		while self.microcontroller.is_busy():
 			time.sleep(0.005)
 		self.navigationController.move_y_to(30)
 		while self.microcontroller.is_busy():
 			time.sleep(0.005)
+
+		event.accept()
 		self.liveController.stop_live()
 		self.camera.close()
 		self.imageSaver.close()
