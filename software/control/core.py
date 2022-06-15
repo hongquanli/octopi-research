@@ -1996,9 +1996,6 @@ class NavigationViewer(QFrame):
             self.fov_size_mm = 3000*1.85/(50/10)/1000
             self.origin_bottom_left_x = X_ORIGIN_384_WELLPLATE_PIXEL - (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
             self.origin_bottom_left_y = Y_ORIGIN_384_WELLPLATE_PIXEL - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel         
-            # B1 upper left corner in piexel: x = 124, y = 141
-            # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
-            # B2 upper left corner in pixel: x = 177, y = 141
 
         self.box_color = (255, 0, 0)
         self.box_line_thickness = 2
