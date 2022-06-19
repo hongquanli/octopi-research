@@ -1023,6 +1023,7 @@ class MultiPointWorker(QObject):
 
     finished = Signal()
     image_to_display = Signal(np.ndarray)
+    spectrum_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
@@ -1033,6 +1034,7 @@ class MultiPointWorker(QObject):
 
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
+        self.usb_spectrometer = self.multiPointController.usb_spectrometer
         self.navigationController = self.multiPointController.navigationController
         self.liveController = self.multiPointController.liveController
         self.autofocusController = self.multiPointController.autofocusController
@@ -1154,51 +1156,59 @@ class MultiPointWorker(QObject):
 
                     # iterate through selected modes
                     for config in self.selected_configurations:
-                        # update the current configuration
-                        self.signal_current_configuration.emit(config)
-                        self.wait_till_operation_is_completed()
-                        # trigger acquisition (including turning on the illumination)
-                        if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                            self.liveController.turn_on_illumination()
+                        if 'USB Spectrometer' not in config.name:
+                            # update the current configuration
+                            self.signal_current_configuration.emit(config)
                             self.wait_till_operation_is_completed()
-                            self.camera.send_trigger()
-                        elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                            self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-                        # read camera frame
-                        image = self.camera.read_frame()
-                        # tunr of the illumination if using software trigger
-                        if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                            self.liveController.turn_off_illumination()
-                        # process the image -  @@@ to move to camera
-                        image = utils.crop_image(image,self.crop_width,self.crop_height)
-                        image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                        # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                        image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                        self.image_to_display.emit(image_to_display)
-                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                        if image.dtype == np.uint16:
-                            saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
-                            if self.camera.is_color:
-                                if 'BF LED matrix' in config.name:
-                                    if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
-                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                    elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
-                                        image = image[:,:,1]
-                            iio.imwrite(saving_path,image)
-                        else:
-                            saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
-                            if self.camera.is_color:
-                                if 'BF LED matrix' in config.name:
-                                    if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                            # trigger acquisition (including turning on the illumination)
+                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                self.liveController.turn_on_illumination()
+                                self.wait_till_operation_is_completed()
+                                self.camera.send_trigger()
+                            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
+                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                            # read camera frame
+                            image = self.camera.read_frame()
+                            # tunr of the illumination if using software trigger
+                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                self.liveController.turn_off_illumination()
+                            # process the image -  @@@ to move to camera
+                            image = utils.crop_image(image,self.crop_width,self.crop_height)
+                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                            # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                            image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                            self.image_to_display.emit(image_to_display)
+                            self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                            if image.dtype == np.uint16:
+                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
+                                if self.camera.is_color:
+                                    if 'BF LED matrix' in config.name:
+                                        if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                        elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                            image = image[:,:,1]
+                                iio.imwrite(saving_path,image)
+                            else:
+                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
+                                if self.camera.is_color:
+                                    if 'BF LED matrix' in config.name:
+                                        if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                        elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                        elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                            image = image[:,:,1]
+                                    else:
                                         image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                    elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
-                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                    elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
-                                        image = image[:,:,1]
-                                else:
-                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                            cv2.imwrite(saving_path,image)
-                        QApplication.processEvents()
+                                cv2.imwrite(saving_path,image)
+                            QApplication.processEvents()
+                        else:
+                            if self.usb_spectrometer != None:
+                                for l in range(N_SPECTRUM_PER_POINT):
+                                    data = self.usb_spectrometer.read_spectrum()
+                                    self.spectrum_to_display.emit(data)
+                                    saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
+                                    np.savetxt(saving_path,data,delimiter=',')
 
                     # add the coordinate of the current location
                     coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
@@ -1296,10 +1306,11 @@ class MultiPointController(QObject):
     acquisitionFinished = Signal()
     image_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
+    spectrum_to_display = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None):
         QObject.__init__(self)
 
         self.camera = camera
@@ -1330,6 +1341,7 @@ class MultiPointController(QObject):
         self.experiment_ID = None
         self.base_path = None
         self.selected_configurations = []
+        self.usb_spectrometer = usb_spectrometer
 
     def set_NX(self,N):
         self.NX = N
@@ -1404,6 +1416,13 @@ class MultiPointController(QObject):
         else:
             self.camera.callback_was_enabled_before_multipoint = False
 
+        if self.usb_spectrometer != None:
+            if self.usb_spectrometer.streaming_started == True and self.usb_spectrometer.streaming_paused == False:
+                self.usb_spectrometer.pause_streaming()
+                self.usb_spectrometer_was_streaming = True
+            else:
+                self.usb_spectrometer_was_streaming = False
+
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
@@ -1419,6 +1438,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
+        self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
         # self.thread.finished.connect(self.thread.deleteLater)
@@ -1440,6 +1460,10 @@ class MultiPointController(QObject):
         # re-enable live if it's previously on
         if self.liveController.was_live_before_multipoint:
             self.liveController.start_live()
+
+        if self.usb_spectrometer != None:
+            if self.usb_spectrometer_was_streaming:
+                self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
         self.acquisitionFinished.emit()
@@ -1451,6 +1475,9 @@ class MultiPointController(QObject):
     def slot_image_to_display(self,image):
         self.image_to_display.emit(image)
 
+    def slot_spectrum_to_display(self,data):
+        self.spectrum_to_display.emit(data)
+
     def slot_image_to_display_multi(self,image,illumination_source):
         self.image_to_display_multi.emit(image,illumination_source)
 
@@ -1459,6 +1486,7 @@ class MultiPointController(QObject):
 
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
+
 
 class TrackingController(QObject):
 

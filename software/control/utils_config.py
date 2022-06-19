@@ -111,5 +111,14 @@ def generate_default_configuration(filename):
     mode_11.set('IlluminationIntensity','20')
     mode_11.set('CameraSN','')
 
+    mode_12 = ET.SubElement(top,'mode')
+    mode_12.set('ID','20')
+    mode_12.set('Name','USB Spectrometer')
+    mode_12.set('ExposureTime','20')
+    mode_12.set('AnalogGain','0')
+    mode_12.set('IlluminationSource','6')
+    mode_12.set('IlluminationIntensity','0')
+    mode_12.set('CameraSN','')
+
     tree = ET.ElementTree(top)
     tree.write(filename,encoding="utf-8", xml_declaration=True, pretty_print=True)

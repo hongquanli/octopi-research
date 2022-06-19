@@ -304,6 +304,9 @@ Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
 # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 # B2 upper left corner in pixel: x = 177, y = 141
 
+# for USB spectrometer
+N_SPECTRUM_PER_POINT = 5
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
