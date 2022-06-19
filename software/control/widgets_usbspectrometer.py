@@ -35,6 +35,7 @@ class SpectrometerControlWidget(QFrame):
         self.entry_exposureTime.setMaximum(5000) 
         self.entry_exposureTime.setSingleStep(1)
         self.entry_exposureTime.setValue(50)
+        self.entry_exposureTime.setKeyboardTracking(False)
         self.spectrometer.set_integration_time_ms(50)
 
         # connections
