@@ -34,11 +34,12 @@ class SpectrometerControlWidget(QFrame):
         self.entry_exposureTime.setMinimum(0.001) 
         self.entry_exposureTime.setMaximum(5000) 
         self.entry_exposureTime.setSingleStep(1)
-        self.entry_exposureTime.setValue(0)
+        self.entry_exposureTime.setValue(50)
+        self.spectrometer.set_integration_time_ms(50)
 
         # connections
         self.btn_live.clicked.connect(self.toggle_live)
-        # self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
+        self.entry_exposureTime.valueChanged.connect(self.spectrometer.set_integration_time_ms)
 
         # layout
         grid_line2 = QHBoxLayout()

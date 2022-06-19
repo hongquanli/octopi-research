@@ -61,7 +61,7 @@ class OctopiGUI(QMainWindow):
 				self.spectrometer = spectrometer.Spectrometer()
 			except:
 				print('! Spectrometer not detected, using simulated microcontroller !')
-				self.microcontroller = spectrometer.Spectrometer_Simulation()
+				self.spectrometer = spectrometer.Spectrometer_Simulation()
 
 		# configure the actuators
 		self.microcontroller.configure_actuators()

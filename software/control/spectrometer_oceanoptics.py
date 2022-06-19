@@ -5,6 +5,7 @@ import numpy as np
 import threading
 try:
     import seabreeze as sb
+    import seabreeze.spectrometers
 except:
     print('seabreeze import error')
 
@@ -30,8 +31,8 @@ class Spectrometer(object):
 
         self.thread_streaming = threading.Thread(target=self.stream, daemon=True)
 
-    def set_integration_time_us(self,integration_time_us):
-        self.spectrometer.integration_time_micros(int(integration_time_us))
+    def set_integration_time_ms(self,integration_time_ms):
+        self.spectrometer.integration_time_micros(int(1000*integration_time_ms))
 
     def read_spectrum(self,correct_dark_counts=False,correct_nonlinearity=False):
         self.is_reading_spectrum = True
