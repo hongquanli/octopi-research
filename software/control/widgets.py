@@ -325,6 +325,9 @@ class RecordingWidget(QFrame):
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
 
+        self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
+        self.imageSaver.set_base_path(DEFAULT_SAVING_PATH)
+
         self.lineEdit_experimentID = QLineEdit()
 
         self.entry_saveFPS = QDoubleSpinBox()
