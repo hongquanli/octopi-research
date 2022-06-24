@@ -37,6 +37,9 @@ class DisplacementMeasurementController(QObject):
 
         t = time.time()
 
+        if len(image.shape)==3:
+            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+
         h,w = image.shape
         x,y = np.meshgrid(range(w),range(h))
         I = image.astype(float)
