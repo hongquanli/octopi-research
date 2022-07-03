@@ -9,62 +9,74 @@ except:
 
 from control._def import *
 
+import threading
+import control.toupcam as toupcam
+
 class Camera(object):
 
     @staticmethod
     def _event_callback(nEvent, camera):
         if nEvent == toupcam.TOUPCAM_EVENT_IMAGE:
-            camera._on_frame_callback()
+            if camera.is_streaming:
+                camera._on_frame_callback()
+                camera._software_trigger_sent = False
+                # print('  >>> new frame callback')
 
     def _on_frame_callback(self):
+        
+        # check if the last image is still locked
+        if self.image_locked:
+            print('last image is still being processed, a frame is dropped')
+            return
+
+        # get the image from the camera
         try:
-            self.camera.PullImageV2(self.buf, 24, None)
-            self.frame_ID_software += 1
-            self.frame_ID += 1
-            print('pull image ok, total = {}'.format(self.total))
+            self.camera.PullImageV2(self.buf, self.pixel_size_byte*8, None) # the second camera is number of bits per pixel - ignored in RAW mode
+            # print('  >>> pull image ok, current frame # = {}'.format(self.frame_ID))
         except toupcam.HRESULTException as ex:
             print('pull image failed, hr=0x{:x}'.format(ex.hr))
 
-        raw_array = numpy.array(bytearray(self.buf))
-        self.current_frame = raw_array.reshape(self.height,self.width)
+        # increament frame ID
+        self.frame_ID_software += 1
+        self.frame_ID += 1
+        self.timestamp = time.time()
 
-        # if raw_image is None:
-        #     print("Getting image failed.")
-        #     return
-        # if raw_image.get_status() != 0:
-        #     print("Got an incomplete frame")
-        #     return
-        # if self.image_locked:
-        #     print('last image is still being processed, a frame is dropped')
-        #     return
-        # if self.is_color:
-        #     rgb_image = raw_image.convert("RGB")
-        #     numpy_image = rgb_image.get_numpy_array()
-        #     if self.pixel_format == 'BAYER_RG12':
-        #         numpy_image = numpy_image << 4
-        # else:
-        #     numpy_image = raw_image.get_numpy_array()
-        #     if self.pixel_format == 'MONO12':
-        #         numpy_image = numpy_image << 4
-        # if numpy_image is None:
-        #     return
-        # self.current_frame = numpy_image
-        # self.frame_ID_software = self.frame_ID_software + 1
-        # self.frame_ID = raw_image.get_frame_id()
-        # if self.trigger_mode == TriggerMode.HARDWARE:
-        #     if self.frame_ID_offset_hardware_trigger == None:
-        #         self.frame_ID_offset_hardware_trigger = self.frame_ID
-        #     self.frame_ID = self.frame_ID - self.frame_ID_offset_hardware_trigger
-        # self.timestamp = time.time()
+        # right now support the raw format only
+        if self.data_format == 'RGB':
+            if self.pixel_format == 'RGB24':
+                # self.current_frame = QImage(self.buf, self.w, self.h, (self.w * 24 + 31) // 32 * 4, QImage.Format_RGB888)
+                print('convert buffer to image not yet implemented for the RGB format')
+            return()
+        else:
+            if self.pixel_size_byte == 1:
+                raw_image = np.frombuffer(self.buf, dtype='uint8')
+            elif self.pixel_size_byte == 2:
+                raw_image = np.frombuffer(self.buf, dtype='uint16')
+            self.current_frame = raw_image.reshape(self.height,self.width)
 
-        self.new_image_callback_external(self)
+        # for debugging
+        print(self.current_frame.shape)
+        print(self.current_frame.dtype)
 
-    def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+        # frame ID for hardware triggered acquisition
+        if self.trigger_mode == TriggerMode.HARDWARE:
+            if self.frame_ID_offset_hardware_trigger == None:
+                self.frame_ID_offset_hardware_trigger = self.frame_ID
+            self.frame_ID = self.frame_ID - self.frame_ID_offset_hardware_trigger
+
+        self.image_is_ready = True
+
+        if self.callback_is_enabled == True:
+            self.new_image_callback_external(self)
+
+    def _TDIBWIDTHBYTES(w):
+        return (w * 24 + 31) // 32 * 4
+
+    def __init__(self,sn=None,resolution=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
 
         # many to be purged
         self.sn = sn
         self.is_global_shutter = is_global_shutter
-        self.device_manager = gx.DeviceManager()
         self.device_info_list = None
         self.device_index = 0
         self.camera = None
@@ -115,8 +127,24 @@ class Camera(object):
         self.pixel_format = None # use the default pixel format
 
         # toupcam
+        self.data_format = 'RAW'
         self.devices = toupcam.Toupcam.EnumV2()
+        self.image_is_ready = False
+        self._toupcam_pullmode_started = False
+        self._software_trigger_sent = False
+        self._last_software_trigger_timestamp = None
+        if resolution != None:
+            self.resolution = resolution
+
+        # toupcam temperature
+        self.terminate_read_temperature_thread = False
+        self.thread_read_temperature = threading.Thread(target=self.check_temperature, daemon=True)
         
+    def check_temperature(self):
+        while self.terminate_read_temperature_thread == False:
+            time.sleep(1)
+            print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
+
     def open(self,index=0):
         if len(self.devices) > 0:
             print('{}: flag = {:#x}, preview = {}, still = {}'.format(self.devices[0].displayname, self.devices[0].model.flag, self.devices[0].model.preview, self.devices[0].model.still))
@@ -126,23 +154,28 @@ class Camera(object):
 
             # RGB format: The output of every pixel contains 3 componants which stand for R/G/B value respectively. This output is a processed output from the internal color processing engine.
             # RAW format: In this format, the output is the raw data directly output from the sensor. The RAW format is for the users that want to skip the internal color processing and obtain the raw data for user-specific purpose. With the raw format output enabled, the functions that are related to the internal color processing will not work, such as Toupcam_put_Hue or Toupcam_AwbOnce function and so on
-            self.camera.put_Option(self.camera.TOUPCAM_OPTION_RAW,1) # RAW mode
-            self.camera.put_Option(self.camera.TOUPCAM_OPTION_BITDEPTH,1) # max bit depth
+            
+            # set temperature
+            self.set_temperature(10)
+
+            self.set_data_format('RAW')
+            self.set_pixel_format('MONO8') # 'MONO16'
+            self.set_auto_exposure(False)
+            if self.resolution != None:
+                self.set_resolution(self.resolution[0],self.resolution[1]) # buffer created when setting resolution
+            else:
+                # self.set_resolution(0) # buffer created when setting resolution, # use the max resolution # to create the function with one input
+                pass
+            self._update_buffer_settings()
             
             if self.camera:
-                width, height = self.camera.get_Size()
-                self.width = width
-                self.height = height
-                # bufsize = ((width * 24 + 31) // 32 * 4) * height # RGB format
-                bufsize = width * height * 2 # 16 bit
-                print('image size: {} x {}, bufsize = {}'.format(width, height, bufsize))
-                self.buf = bytes(bufsize)
                 if self.buf:
                     try:
                         self.camera.StartPullModeWithCallback(self._event_callback, self)
                     except toupcam.HRESULTException as ex:
                         print('failed to start camera, hr=0x{:x}'.format(ex.hr))
                         exit()
+                self._toupcam_pullmode_started = True
             else:
                 print('failed to open camera')
                 exit()
@@ -153,21 +186,23 @@ class Camera(object):
         if self.is_color:
             pass
 
+        self.thread_read_temperature.start()
+
     def set_callback(self,function):
         self.new_image_callback_external = function
 
     def enable_callback(self):
-        pass
         self.callback_is_enabled = True
 
     def disable_callback(self):
-        pass
         self.callback_is_enabled = False
 
     def open_by_sn(self,sn):
         pass
 
     def close(self):
+        self.terminate_read_temperature_thread = True
+        self.thread_read_temperature.join()
         self.camera.Close()
         self.camera = None
         self.buf = None
@@ -176,7 +211,8 @@ class Camera(object):
         self.last_numpy_image = None
 
     def set_exposure_time(self,exposure_time):
-        pass
+        # exposure time in ms
+        self.camera.put_ExpoTime(int(exposure_time*1000))
         # use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
         # if use_strobe == False or self.is_global_shutter:
         #     self.exposure_time = exposure_time
@@ -187,6 +223,7 @@ class Camera(object):
         #     # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
         #     camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
         #     self.camera.ExposureTime.set(camera_exposure_time)
+        self.exposure_time = exposure_time
 
     def update_camera_exposure_time(self):
         pass
@@ -214,33 +251,85 @@ class Camera(object):
         pass
 
     def start_streaming(self):
-        # self.camera.stream_on()
+        if self.buf and (self._toupcam_pullmode_started == False):
+            try:
+                self.camera.StartPullModeWithCallback(self._event_callback, self)
+                self._toupcam_pullmode_started = True
+            except toupcam.HRESULTException as ex:
+                print('failed to start camera, hr=0x{:x}'.format(ex.hr))
+                exit()
+        print('  start streaming')
         self.is_streaming = True
 
     def stop_streaming(self):
-        # self.camera.stream_off()
+        self.camera.Stop()
         self.is_streaming = False
+        self._toupcam_pullmode_started = False
 
     def set_pixel_format(self,pixel_format):
+
         # if self.is_streaming == True:
         #     was_streaming = True
         #     self.stop_streaming()
         # else:
         #     was_streaming = False
 
-        # if self.camera.PixelFormat.is_implemented() and self.camera.PixelFormat.is_writable():
-        #     if pixel_format == 'MONO8':
-        #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO8)
-        #         self.pixel_size_byte = 1
-        #     if pixel_format == 'MONO12':
-        #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO12)
-        #         self.pixel_size_byte = 2
-        #     if pixel_format == 'MONO14':
-        #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO14)
-        #         self.pixel_size_byte = 2
-        #     if pixel_format == 'MONO16':
-        #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO16)
-        #         self.pixel_size_byte = 2
+        if self._toupcam_pullmode_started:
+            self.camera.Stop()
+
+        if self.data_format == 'RAW':
+            if pixel_format == 'MONO8':
+                self.pixel_size_byte = 1
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,0)
+            elif pixel_format == 'MONO12':
+                self.pixel_size_byte = 2
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+            elif pixel_format == 'MONO14':
+                self.pixel_size_byte = 2
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+            elif pixel_format == 'MONO16':
+                self.pixel_size_byte = 2
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+        else:
+            # RGB data format
+            if pixel_format == 'MONO8':
+                self.pixel_size_byte = 1
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,0)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,3) # for monochrome camera only
+            if pixel_format == 'MONO12':
+                self.pixel_size_byte = 2
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,4) # for monochrome camera only
+            if pixel_format == 'MONO14':
+                self.pixel_size_byte = 2
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,4) # for monochrome camera only
+            if pixel_format == 'MONO16':
+                self.pixel_size_byte = 2
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,4) # for monochrome camera only
+            if pixel_format == 'RGB24':
+                self.pixel_size_byte = 3
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,0)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,0)
+            if pixel_format == 'RGB32':
+                self.pixel_size_byte = 4
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,0)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,2)
+            if pixel_format == 'RGB48':
+                self.pixel_size_byte = 6
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,1)
+
+        if self._toupcam_pullmode_started:
+            self._update_buffer_settings()
+            if self.buf:
+                try:
+                    self.camera.StartPullModeWithCallback(self._event_callback, self)
+                except toupcam.HRESULTException as ex:
+                    print('failed to start camera, hr=0x{:x}'.format(ex.hr))
+                    exit()
+
         #     if pixel_format == 'BAYER_RG8':
         #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG8)
         #         self.pixel_size_byte = 1
@@ -257,51 +346,92 @@ class Camera(object):
         # # update the exposure delay and strobe delay
         # self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         # self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
-        pass
+
+        # It is forbidden to call Toupcam_put_Option with TOUPCAM_OPTION_BITDEPTH in the callback context of 
+        # PTOUPCAM_EVENT_CALLBACK and PTOUPCAM_DATA_CALLBACK_V3, the return value is E_WRONG_THREAD
+
+    def set_auto_exposure(self,enabled):
+        self.camera.put_AutoExpoEnable(enabled)
+
+    def set_data_format(self,data_format):
+        self.data_format = data_format
+        if data_format == 'RGB':
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_RAW,0) # 0 is RGB mode, 1 is RAW mode
+        elif data_format == 'RAW':
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_RAW,1) # 1 is RAW mode, 0 is RGB mode
+
+    def set_resolution(self,width,height):
+        self.camera.put_Size(width,height)
+
+    def _update_buffer_settings(self):
+        # resize the buffer
+        width, height = self.camera.get_Size()
+        self.width = width
+        self.height = height
+        # calculate buffer size
+        if (self.data_format == 'RGB') & (self.pixel_size_byte != 4):
+            bufsize = _TDIBWIDTHBYTES(self.width * self.pixel_size_byte * 8) * height
+        else:
+            bufsize = width * self.pixel_size_byte * height
+        print('image size: {} x {}, bufsize = {}'.format(width, height, bufsize))
+        # create the buffer
+        self.buf = bytes(bufsize)
+
+    def get_temperature(self):
+        return self.camera.get_Temperature()/10
+
+    def set_temperature(self,temperature):
+        self.camera.put_Temperature(int(temperature*10))
 
     def set_continuous_acquisition(self):
-        # self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
-        # self.trigger_mode = TriggerMode.CONTINUOUS
+        self.camera.put_Option(toupcam.TOUPCAM_OPTION_TRIGGER,0)
+        self.trigger_mode = TriggerMode.CONTINUOUS
         # self.update_camera_exposure_time()
-        pass
 
     def set_software_triggered_acquisition(self):
-        # self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
-        # self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.SOFTWARE)
-        # self.trigger_mode = TriggerMode.SOFTWARE
+        self.camera.put_Option(toupcam.TOUPCAM_OPTION_TRIGGER,1)
+        self.trigger_mode = TriggerMode.SOFTWARE
         # self.update_camera_exposure_time()
-        pass
 
     def set_hardware_triggered_acquisition(self):
-        # self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
-        # self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
-        # # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
-        # self.frame_ID_offset_hardware_trigger = None
-        # self.trigger_mode = TriggerMode.HARDWARE
+        self.camera.put_Option(toupcam.TOUPCAM_OPTION_TRIGGER,2)
+        self.frame_ID_offset_hardware_trigger = None
+        self.trigger_mode = TriggerMode.HARDWARE
         # self.update_camera_exposure_time()
-        pass
 
+    def set_gain_mode(self,mode):
+        if mode == 'LCG':
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_CG,0)
+        elif mode == 'HCG':
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_CG,1)
+        elif mode == 'HDR':
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_CG,2)
+            
     def send_trigger(self):
-        # if self.is_streaming:
-        #     self.camera.TriggerSoftware.send_command()
-        # else:
-        # 	print('trigger not sent - camera is not streaming')
-        pass
+        if self._last_software_trigger_timestamp!= None:
+            if (time.time() - self._last_software_trigger_timestamp) > (self.exposure_time*1000*1.02 + 4):
+                print('last software trigger timed out')
+                self._software_trigger_sent = False
+        if self.is_streaming and self._software_trigger_sent == False:
+            self.camera.Trigger(1)
+            self._software_trigger_sent = True
+            self._last_software_trigger_timestamp = time.time()
+            print('  >>> trigger sent')
+        else:
+            if self.is_streaming == False:
+                print('trigger not sent - camera is not streaming')
+            else:
+                print('trigger not sent - waiting for the last trigger to complete')
 
     def read_frame(self):
-        # raw_image = self.camera.data_stream[self.device_index].get_image()
-        # if self.is_color:
-        #     rgb_image = raw_image.convert("RGB")
-        #     numpy_image = rgb_image.get_numpy_array()
-        #     if self.pixel_format == 'BAYER_RG12':
-        #         numpy_image = numpy_image << 4
-        # else:
-        #     numpy_image = raw_image.get_numpy_array()
-        #     if self.pixel_format == 'MONO12':
-        #         numpy_image = numpy_image << 4
-        # # self.current_frame = numpy_image
-        # return numpy_image
-        pass
+        self.image_is_ready = False
+        self.send_trigger()
+        timestamp_t0 = time.time()
+        while (time.time() - timestamp_t0) <= self.exposure_time*1000*1.02 + 4:
+            time.sleep(0.005)
+            if self.image_is_ready:
+                return self.current_frame
+        print('read frame timed out')
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
         # if offset_x is not None:
