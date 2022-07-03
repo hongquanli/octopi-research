@@ -1192,15 +1192,20 @@ class Toupcam:
         else:
             raise HRESULTException(0x80070057)
 
-    def get_Temperature(self, nTemperature):
+    def get_Temperature(self):
         '''get the temperature of the sensor, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)'''
-        x = ctypes.c_short(0)
+        x = ctypes.c_ushort(0) # had to change c_short to c_ushort
         self.__lib.Toupcam_get_Temperature(self.__h, ctypes.byref(x))
-        return x.value
+        temperature_x10 = x.value
+        if x.value >= 32768:
+            temperature_x10 = x.value - 65536
+        return temperature_x10
 
     def put_Temperature(self, nTemperature):
         '''set the target temperature of the sensor or TEC, in 0.1 degrees Celsius (32 means 3.2 degrees Celsius, -35 means -3.5 degree Celsius)'''
-        self.__lib.Toupcam_put_Temperature(self.__h, ctypes.c_short(nTemperature))
+        if nTemperature < 0:
+            nTemperature = 65536 + nTemperature
+        self.__lib.Toupcam_put_Temperature(self.__h, ctypes.c_ushort(nTemperature))
 
     def put_Roi(self, xOffset, yOffset, xWidth, yHeight):
         '''xOffset, yOffset, xWidth, yHeight: must be even numbers'''
@@ -1332,13 +1337,15 @@ class Toupcam:
         if cls.__lib is None:
             try:
                 # dir = os.path.dirname(os.path.realpath(__file__)) 
-                os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'drivers and libraries','x64')) # modified
-                if sys.platform == 'win32':
-                    cls.__lib = ctypes.windll.LoadLibrary(os.path.join(dir, 'toupcam.dll'))
+                dir_ = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'drivers and libraries','toupcam'))
+                # to do: auto detect platform and architecture
+                if sys.platform == 'win':
+                    cls.__lib = ctypes.windll.LoadLibrary(os.path.join(dir_,'win','x64','toupcam.dll'))
                 elif sys.platform.startswith('linux'):
-                    cls.__lib = ctypes.cdll.LoadLibrary(os.path.join(dir, 'libtoupcam.so'))
+                    cls.__lib = ctypes.cdll.LoadLibrary(os.path.join(dir_,'linux','x64','libtoupcam.so'))
                 else:
-                    cls.__lib = ctypes.cdll.LoadLibrary(os.path.join(dir, 'libtoupcam.dylib'))
+                    print("----------" + os.path.join(dir_,'mac','libtoupcam.dylib') + "----------")
+                    cls.__lib = ctypes.cdll.LoadLibrary(os.path.join(dir_,'mac','libtoupcam.dylib'))
             except OSError:
                 pass
 
