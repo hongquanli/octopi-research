@@ -1886,12 +1886,14 @@ class TrackingWorker(QObject):
 
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self, window_title='', draw_crosshairs = False):
+    def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
         self.widget = QWidget()
+        self.show_LUT = show_LUT
+        self.autoLevels = autoLevels
 
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
@@ -1904,8 +1906,18 @@ class ImageDisplayWindow(QMainWindow):
         self.graphics_widget.view.setAspectLocked(True)
         
         ## Create image item
-        self.graphics_widget.img = pg.ImageItem(border='w')
-        self.graphics_widget.view.addItem(self.graphics_widget.img)
+        if self.show_LUT:
+            self.graphics_widget.view = pg.ImageView()
+            self.graphics_widget.img = self.graphics_widget.view.getImageItem()
+            self.graphics_widget.img.setBorder('w')
+            self.graphics_widget.view.ui.roiBtn.hide()
+            self.graphics_widget.view.ui.menuBtn.hide()
+            # self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
+            # self.LUTWidget.autoHistogramRange()
+            # self.graphics_widget.view.autolevels()
+        else:
+            self.graphics_widget.img = pg.ImageItem(border='w')
+            self.graphics_widget.view.addItem(self.graphics_widget.img)
 
         ## Create ROI
         self.roi_pos = (500,500)
@@ -1931,7 +1943,10 @@ class ImageDisplayWindow(QMainWindow):
 
         ## Layout
         layout = QGridLayout()
-        layout.addWidget(self.graphics_widget, 0, 0) 
+        if self.show_LUT:
+            layout.addWidget(self.graphics_widget.view, 0, 0) 
+        else:
+            layout.addWidget(self.graphics_widget, 0, 0) 
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
 
@@ -1949,10 +1964,10 @@ class ImageDisplayWindow(QMainWindow):
             if(self.draw_rectangle):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
                 self.draw_rectangle = False
-            self.graphics_widget.img.setImage(image,autoLevels=False)
+            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
         else:
-            self.graphics_widget.img.setImage(image,autoLevels=False)
-       
+            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
         self.roi_size = self.ROI.size()
