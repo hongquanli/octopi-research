@@ -117,7 +117,8 @@ class CameraSettingsWidget(QFrame):
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
-    def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=True, main=None, *args, **kwargs):
+    signal_autoLevelSetting = Signal(bool)
+    def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=True, show_autolevel = False, autolevel=False, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.liveController = liveController
         self.streamHandler = streamHandler
@@ -131,13 +132,13 @@ class LiveControlWidget(QFrame):
         # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration = self.configurationManager.configurations[0]
 
-        self.add_components(show_trigger_options,show_display_options)
+        self.add_components(show_trigger_options,show_display_options,show_autolevel,autolevel)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
         self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
-    def add_components(self,show_trigger_options,show_display_options):
+    def add_components(self,show_trigger_options,show_display_options,show_autolevel,autolevel):
         # line 0: trigger mode
         self.triggerMode = None
         self.dropdown_triggerManu = QComboBox()
@@ -202,6 +203,11 @@ class LiveControlWidget(QFrame):
         self.slider_resolutionScaling.setValue(DEFAULT_DISPLAY_CROP)
         self.slider_resolutionScaling.setSingleStep(10)
 
+        # autolevel
+        self.btn_autolevel = QPushButton('Autolevel')
+        self.btn_autolevel.setCheckable(True)
+        self.btn_autolevel.setChecked(autolevel)
+        
         # connections
         self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
         self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
@@ -215,6 +221,7 @@ class LiveControlWidget(QFrame):
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
         self.entry_illuminationIntensity.valueChanged.connect(self.slider_illuminationIntensity.setValue)
         self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
+        self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
         # layout
         grid_line0 = QGridLayout()
@@ -244,6 +251,8 @@ class LiveControlWidget(QFrame):
         grid_line3.addWidget(self.entry_displayFPS, 0,1)
         grid_line3.addWidget(QLabel('Display Resolution'), 0,2)
         grid_line3.addWidget(self.slider_resolutionScaling,0,3)
+        if show_autolevel:
+            grid_line3.addWidget(self.btn_autolevel,0,4)
 
         self.grid = QVBoxLayout()
         if show_trigger_options:

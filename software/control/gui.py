@@ -28,10 +28,10 @@ class OctopiGUI(QMainWindow):
 
 		# load window
 		if ENABLE_TRACKING:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
 			self.imageDisplayWindow.show_ROI_selector()
 		else:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
 		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
 		# self.imageDisplayWindow.show()
 		# self.imageArrayDisplayWindow.show()
@@ -80,7 +80,7 @@ class OctopiGUI(QMainWindow):
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
+		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=SHOW_AUTOLEVEL_BTN,autolevel=AUTOLEVEL_DEFAULT_SETTING)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
@@ -164,6 +164,7 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
+		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
 	def closeEvent(self, event):
 		event.accept()

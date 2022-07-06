@@ -1994,6 +1994,10 @@ class ImageDisplayWindow(QMainWindow):
         ymin = max(0, self.roi_pos[1])
         return np.array([xmin, ymin, width, height])
 
+    def set_autolevel(self,enabled):
+        self.autoLevels = enabled
+        print('set autolevel to ' + str(enabled))
+
 class NavigationViewer(QFrame):
 
     def __init__(self, sample = 'glass slide', invertX = False, *args, **kwargs):
