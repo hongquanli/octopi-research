@@ -142,8 +142,9 @@ class Camera(object):
         
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
-            time.sleep(1)
-            print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
+            time.sleep(2)
+            # print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
+            self.temperature_reading_callback(self.get_temperature())
 
     def open(self,index=0):
         if len(self.devices) > 0:
@@ -192,6 +193,9 @@ class Camera(object):
 
     def set_callback(self,function):
         self.new_image_callback_external = function
+
+    def set_temperature_reading_callback(self, func):
+        self.temperature_reading_callback = func
 
     def enable_callback(self):
         self.callback_is_enabled = True
@@ -590,6 +594,9 @@ class Camera_Simulation(object):
     def set_callback(self,function):
         self.new_image_callback_external = function
 
+    def set_temperature_reading_callback(self, func):
+        self.temperature_reading_callback = func
+
     def enable_callback(self):
         self.callback_is_enabled = True
 
@@ -627,6 +634,15 @@ class Camera_Simulation(object):
         self.pixel_format = pixel_format
         print(pixel_format)
         self.frame_ID = 0
+
+    def get_temperature(self):
+        return 0
+
+    def set_temperature(self,temperature):
+        pass
+
+    def set_fan_speed(self,speed):
+        pass
 
     def set_continuous_acquisition(self):
         pass

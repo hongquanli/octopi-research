@@ -16,15 +16,17 @@ from control._def import *
 
 class CameraSettingsWidget(QFrame):
 
-    def __init__(self, camera, include_gain_exposure_time = True, main=None, *args, **kwargs):
+    signal_camera_set_temperature = Signal(float)
+
+    def __init__(self, camera, include_gain_exposure_time = True, include_camera_temperature_setting = False, main=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.camera = camera
-        self.add_components(include_gain_exposure_time)        
+        self.add_components(include_gain_exposure_time,include_camera_temperature_setting)        
         # set frame style
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
-    def add_components(self,include_gain_exposure_time):
+    def add_components(self,include_gain_exposure_time,include_camera_temperature_setting):
 
         # add buttons and input fields
         self.entry_exposureTime = QDoubleSpinBox()
@@ -67,6 +69,13 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_height.setValue(CAMERA.ROI_HEIGHT_DEFAULT)
         self.entry_ROI_height.setFixedWidth(60)
         self.entry_ROI_height.setKeyboardTracking(False)
+        self.entry_temperature = QDoubleSpinBox()
+        self.entry_temperature.setMaximum(25)
+        self.entry_temperature.setMinimum(-50)
+        self.entry_temperature.setDecimals(1)
+        self.label_temperature_measured = QLabel()
+        # self.label_temperature_measured.setNum(0)
+        self.label_temperature_measured.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
         # connection
         self.entry_exposureTime.valueChanged.connect(self.camera.set_exposure_time)
@@ -76,6 +85,7 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_offset_y.valueChanged.connect(self.set_ROI)
         self.entry_ROI_height.valueChanged.connect(self.set_ROI)
         self.entry_ROI_width.valueChanged.connect(self.set_ROI)
+        self.entry_temperature.valueChanged.connect(self.signal_camera_set_temperature.emit)
 
         # layout
         grid_ctrl = QGridLayout()
@@ -86,6 +96,11 @@ class CameraSettingsWidget(QFrame):
             grid_ctrl.addWidget(self.entry_analogGain, 1,1)
         grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
         grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
+        if include_camera_temperature_setting:
+            grid_ctrl.addWidget(QLabel('Set Temperature (C)'),3,0)
+            grid_ctrl.addWidget(self.entry_temperature,3,1)
+            grid_ctrl.addWidget(QLabel('Actual Temperature (C)'),3,2)
+            grid_ctrl.addWidget(self.label_temperature_measured,3,3)
 
         hbox1 = QHBoxLayout()
         hbox1.addWidget(QLabel('ROI'))
@@ -113,6 +128,9 @@ class CameraSettingsWidget(QFrame):
 
     def set_ROI(self):
     	self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
+
+    def update_measured_temperature(self,temperature):
+        self.label_temperature_measured.setNum(temperature)
 
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
@@ -439,7 +457,7 @@ class NavigationWidget(QFrame):
         self.entry_dX.setMaximum(25) 
         self.entry_dX.setSingleStep(0.2)
         self.entry_dX.setValue(0)
-        self.entry_dX.setDecimals(3)
+        self.entry_dX.setDecimals(4)
         self.entry_dX.setKeyboardTracking(False)
         self.btn_moveX_forward = QPushButton('Forward')
         self.btn_moveX_forward.setDefault(False)

@@ -82,7 +82,7 @@ class OctopiGUI(QMainWindow):
 			self.camera.set_line3_to_exposure_active()
 
 		# load widgets
-		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
+		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False,include_camera_temperature_setting=True)
 		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=True,autolevel=True)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
@@ -168,6 +168,8 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
 		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+		self.cameraSettingWidget.signal_camera_set_temperature.connect(self.camera.set_temperature)
+		self.camera.set_temperature_reading_callback(self.cameraSettingWidget.update_measured_temperature)
 
 	def closeEvent(self, event):
 		event.accept()
