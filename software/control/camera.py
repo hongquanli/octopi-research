@@ -96,13 +96,29 @@ class Camera(object):
         self.new_image_callback_external = function
 
     def enable_callback(self):
+        # stop streaming
+        if self.is_streaming:
+            self.was_streaming = True
+            self.stop_streaming()
+        # enable callback
         user_param = None
         self.camera.register_capture_callback(user_param,self._on_frame_callback)
         self.callback_is_enabled = True
+        # resume streaming if it was on
+        if self.was_streaming:
+            self.start_streaming()
 
     def disable_callback(self):
+        # stop streaming
+        if self.is_streaming:
+            self.was_streaming = True
+            self.stop_streaming()
+        # disable call back
         self.camera.unregister_capture_callback()
         self.callback_is_enabled = False
+        # resume streaming if it was on
+        if self.was_streaming:
+            self.start_streaming()
 
     def open_by_sn(self,sn):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()

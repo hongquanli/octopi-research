@@ -961,9 +961,7 @@ class AutoFocusController(QObject):
         # temporarily disable call back -> image does not go through streamHandler
         if self.camera.callback_is_enabled:
             self.callback_was_enabled_before_autofocus = True
-            self.camera.stop_streaming()
             self.camera.disable_callback()
-            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
         else:
             self.callback_was_enabled_before_autofocus = False
 
@@ -997,9 +995,7 @@ class AutoFocusController(QObject):
     def _on_autofocus_completed(self):
         # re-enable callback
         if self.callback_was_enabled_before_autofocus:
-            self.camera.stop_streaming()
             self.camera.enable_callback()
-            self.camera.start_streaming()
         
         # re-enable live if it's previously on
         if self.was_live_before_autofocus:
@@ -1412,9 +1408,7 @@ class MultiPointController(QObject):
         # disable callback
         if self.camera.callback_is_enabled:
             self.camera_callback_was_enabled_before_multipoint = True
-            self.camera.stop_streaming()
             self.camera.disable_callback()
-            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
         else:
             self.camera_callback_was_enabled_before_multipoint = False
 
@@ -1454,9 +1448,7 @@ class MultiPointController(QObject):
 
         # re-enable callback
         if self.camera_callback_was_enabled_before_multipoint:
-            self.camera.stop_streaming()
             self.camera.enable_callback()
-            self.camera.start_streaming()
             self.camera_callback_was_enabled_before_multipoint = False
         
         # re-enable live if it's previously on
@@ -1546,9 +1538,7 @@ class TrackingController(QObject):
         # disable callback
         if self.camera.callback_is_enabled:
             self.camera_callback_was_enabled_before_tracking = True
-            self.camera.stop_streaming()
             self.camera.disable_callback()
-            self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
         else:
             self.camera_callback_was_enabled_before_tracking = False
 
@@ -1591,9 +1581,7 @@ class TrackingController(QObject):
 
         # re-enable callback
         if self.camera_callback_was_enabled_before_tracking:
-            self.camera.stop_streaming()
             self.camera.enable_callback()
-            self.camera.start_streaming()
             self.camera_callback_was_enabled_before_tracking = False
         
         # re-enable live if it's previously on
