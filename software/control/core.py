@@ -372,7 +372,6 @@ class LiveController(QObject):
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
         self.is_live = False
         self.was_live_before_autofocus = False
-        self.was_live_before_multipoint = False
         self.control_illumination = control_illumination
         self.illumination_on = False
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
@@ -1406,19 +1405,19 @@ class MultiPointController(QObject):
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
         if self.liveController.is_live:
-            self.liveController.was_live_before_multipoint = True
+            self.liveController_was_live_before_multipoint = True
             self.liveController.stop_live() # @@@ to do: also uncheck the live button
         else:
-            self.liveController.was_live_before_multipoint = False
+            self.liveController_was_live_before_multipoint = False
 
         # disable callback
         if self.camera.callback_is_enabled:
-            self.camera.callback_was_enabled_before_multipoint = True
+            self.camera_callback_was_enabled_before_multipoint = True
             self.camera.stop_streaming()
             self.camera.disable_callback()
             self.camera.start_streaming() # @@@ to do: absorb stop/start streaming into enable/disable callback - add a flag is_streaming to the camera class
         else:
-            self.camera.callback_was_enabled_before_multipoint = False
+            self.camera_callback_was_enabled_before_multipoint = False
 
         if self.usb_spectrometer != None:
             if self.usb_spectrometer.streaming_started == True and self.usb_spectrometer.streaming_paused == False:
@@ -1455,14 +1454,14 @@ class MultiPointController(QObject):
         self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
         # re-enable callback
-        if self.camera.callback_was_enabled_before_multipoint:
+        if self.camera_callback_was_enabled_before_multipoint:
             self.camera.stop_streaming()
             self.camera.enable_callback()
             self.camera.start_streaming()
-            self.camera.callback_was_enabled_before_multipoint = False
+            self.camera_callback_was_enabled_before_multipoint = False
         
         # re-enable live if it's previously on
-        if self.liveController.was_live_before_multipoint:
+        if self.liveController_was_live_before_multipoint:
             self.liveController.start_live()
 
         if self.usb_spectrometer != None:

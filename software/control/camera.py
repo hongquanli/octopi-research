@@ -39,8 +39,6 @@ class Camera(object):
         self.current_frame = None
 
         self.callback_is_enabled = False
-        self.callback_was_enabled_before_autofocus = False
-        self.callback_was_enabled_before_multipoint = False
         self.is_streaming = False
 
         self.GAIN_MAX = 24
@@ -423,8 +421,6 @@ class Camera_Simulation(object):
         self.current_frame = None
 
         self.callback_is_enabled = False
-        self.callback_was_enabled_before_autofocus = False
-        self.callback_was_enabled_before_multipoint = False
 
         self.GAIN_MAX = 24
         self.GAIN_MIN = 0
