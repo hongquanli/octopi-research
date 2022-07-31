@@ -66,6 +66,9 @@ class Camera(object):
 
         self.pixel_format = None # use the default pixel format
 
+        self.is_live = False # this determines whether a new frame received will be handled in the streamHandler
+        # mainly for discarding the last frame received after stop_live() is called, where illumination is being turned off during exposure
+
     def open(self,index=0):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:

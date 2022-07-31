@@ -87,57 +87,59 @@ class StreamHandler(QObject):
 
     def on_new_frame(self, camera):
 
-        camera.image_locked = True
-        self.handler_busy = True
-        self.signal_new_frame_received.emit() # self.liveController.turn_off_illumination()
+        if camera.is_live:
 
-        # measure real fps
-        timestamp_now = round(time.time())
-        if timestamp_now == self.timestamp_last:
-            self.counter = self.counter+1
-        else:
-            self.timestamp_last = timestamp_now
-            self.fps_real = self.counter
-            self.counter = 0
-            print('real camera fps is ' + str(self.fps_real))
+            camera.image_locked = True
+            self.handler_busy = True
+            self.signal_new_frame_received.emit() # self.liveController.turn_off_illumination()
 
-        # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
-        # # rotate and flip - eventually these should be done in the camera
-        # camera.current_frame = utils.rotate_and_flip_image(camera.current_frame,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
+            # measure real fps
+            timestamp_now = round(time.time())
+            if timestamp_now == self.timestamp_last:
+                self.counter = self.counter+1
+            else:
+                self.timestamp_last = timestamp_now
+                self.fps_real = self.counter
+                self.counter = 0
+                print('real camera fps is ' + str(self.fps_real))
 
-        # crop image
-        image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
-        image_cropped = np.squeeze(image_cropped)
-        
-        # # rotate and flip - moved up (1/10/2022)
-        # image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-        # added on 1/30/2022
-        # @@@ to move to camera 
-        image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
+            # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
+            # # rotate and flip - eventually these should be done in the camera
+            # camera.current_frame = utils.rotate_and_flip_image(camera.current_frame,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
 
-        # send image to display
-        time_now = time.time()
-        if time_now-self.timestamp_last_display >= 1/self.fps_display:
-            # self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-            self.image_to_display.emit(utils.crop_image(image_cropped,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
-            self.timestamp_last_display = time_now
+            # crop image
+            image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
+            image_cropped = np.squeeze(image_cropped)
+            
+            # # rotate and flip - moved up (1/10/2022)
+            # image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            # added on 1/30/2022
+            # @@@ to move to camera 
+            image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
 
-        # send image to write
-        if self.save_image_flag and time_now-self.timestamp_last_save >= 1/self.fps_save:
-            if camera.is_color:
-                image_cropped = cv2.cvtColor(image_cropped,cv2.COLOR_RGB2BGR)
-            self.packet_image_to_write.emit(image_cropped,camera.frame_ID,camera.timestamp)
-            self.timestamp_last_save = time_now
+            # send image to display
+            time_now = time.time()
+            if time_now-self.timestamp_last_display >= 1/self.fps_display:
+                # self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                self.image_to_display.emit(utils.crop_image(image_cropped,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
+                self.timestamp_last_display = time_now
 
-        # send image to track
-        if self.track_flag and time_now-self.timestamp_last_track >= 1/self.fps_track:
-            # track is a blocking operation - it needs to be
-            # @@@ will cropping before emitting the signal lead to speedup?
-            self.packet_image_for_tracking.emit(image_cropped,camera.frame_ID,camera.timestamp)
-            self.timestamp_last_track = time_now
+            # send image to write
+            if self.save_image_flag and time_now-self.timestamp_last_save >= 1/self.fps_save:
+                if camera.is_color:
+                    image_cropped = cv2.cvtColor(image_cropped,cv2.COLOR_RGB2BGR)
+                self.packet_image_to_write.emit(image_cropped,camera.frame_ID,camera.timestamp)
+                self.timestamp_last_save = time_now
 
-        self.handler_busy = False
-        camera.image_locked = False
+            # send image to track
+            if self.track_flag and time_now-self.timestamp_last_track >= 1/self.fps_track:
+                # track is a blocking operation - it needs to be
+                # @@@ will cropping before emitting the signal lead to speedup?
+                self.packet_image_for_tracking.emit(image_cropped,camera.frame_ID,camera.timestamp)
+                self.timestamp_last_track = time_now
+
+            self.handler_busy = False
+            camera.image_locked = False
 
     '''
     def on_new_frame_from_simulation(self,image,frame_ID,timestamp):
@@ -407,6 +409,7 @@ class LiveController(QObject):
 
     def start_live(self):
         self.is_live = True
+        self.camera.is_live = True
         self.camera.start_streaming()
         if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
             self._start_triggerred_acquisition()
@@ -414,6 +417,7 @@ class LiveController(QObject):
     def stop_live(self):
         if self.is_live:
             self.is_live = False
+            self.camera.is_live = False
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_triggerred_acquisition()
             # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
