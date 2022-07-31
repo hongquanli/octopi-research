@@ -182,8 +182,8 @@ class LiveControlWidget(QFrame):
 
         # line 3: exposure time and analog gain associated with the current mode
         self.entry_exposureTime = QDoubleSpinBox()
-        self.entry_exposureTime.setMinimum(0.001) 
-        self.entry_exposureTime.setMaximum(4000) 
+        self.entry_exposureTime.setMinimum(self.liveController.camera.EXPOSURE_TIME_MS_MIN) 
+        self.entry_exposureTime.setMaximum(self.liveController.camera.EXPOSURE_TIME_MS_MAX) 
         self.entry_exposureTime.setSingleStep(1)
         self.entry_exposureTime.setValue(0)
 

@@ -107,7 +107,7 @@ class Camera(object):
         self.GAIN_MIN = 0
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
-        self.EXPOSURE_TIME_MS_MAX = 4000
+        self.EXPOSURE_TIME_MS_MAX = 3600000
 
         self.ROI_offset_x = CAMERA.ROI_OFFSET_X_DEFAULT
         self.ROI_offset_y = CAMERA.ROI_OFFSET_X_DEFAULT
@@ -574,7 +574,7 @@ class Camera_Simulation(object):
         self.GAIN_MIN = 0
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
-        self.EXPOSURE_TIME_MS_MAX = 4000
+        self.EXPOSURE_TIME_MS_MAX = 3600000
 
         self.trigger_mode = None
         self.pixel_size_byte = 1
