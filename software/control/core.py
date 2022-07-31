@@ -371,7 +371,6 @@ class LiveController(QObject):
         self.currentConfiguration = None
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
         self.is_live = False
-        self.was_live_before_autofocus = False
         self.control_illumination = control_illumination
         self.illumination_on = False
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
