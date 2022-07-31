@@ -160,7 +160,7 @@ class Camera(object):
             self.set_temperature(0)
 
             self.set_data_format('RAW')
-            self.set_pixel_format('MONO8') # 'MONO16'
+            self.set_pixel_format('MONO16') # 'MONO8'
             self.set_auto_exposure(False)
             if self.resolution != None:
                 self.set_resolution(self.resolution[0],self.resolution[1]) # buffer created when setting resolution
@@ -278,6 +278,8 @@ class Camera(object):
         #     self.stop_streaming()
         # else:
         #     was_streaming = False
+
+        self.pixel_format = pixel_format
 
         if self._toupcam_pullmode_started:
             self.camera.Stop()
@@ -582,7 +584,7 @@ class Camera_Simulation(object):
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
-        self.pixel_format = 'MONO8'
+        self.pixel_format = 'MONO16'
 
     def open(self,index=0):
         pass
