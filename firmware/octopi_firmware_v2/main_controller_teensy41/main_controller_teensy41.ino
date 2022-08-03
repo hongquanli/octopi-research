@@ -1,9 +1,7 @@
-#include <TMCStepper.h>
-#include <TMCStepper_UTILITY.h>
-#include <DueTimer.h>
+#include <PacketSerial.h>
 #include <AccelStepper.h>
 #include <Adafruit_DotStar.h>
-#include <SPI.h>
+
 #include "def_octopi.h"
 //#include "def_gravitymachine.h"
 //#include "def_squid.h"
@@ -83,15 +81,7 @@ static const int DISABLED = 2;
 /***************************************************************************************************/
 /**************************************** Pin definations ******************************************/
 /***************************************************************************************************/
-// v0.2.1 pin def
-
-// linear actuators
-static const int X_dir  = 28;
-static const int X_step = 26;
-static const int Y_dir = 24;
-static const int Y_step = 22;
-static const int Z_dir = 27;
-static const int Z_step = 29;
+// Teensy4.1 board v1 def
 
 // illumination
 static const int LASER_405nm = 31;
@@ -102,38 +92,6 @@ static const int LASER_730nm = 30;
 
 // camera trigger 
 static const int camera_trigger_pins[] = {35,36,37,38,39}; // to replace
-
-// encoders and limit switches
-static const int X_encoder_A = 4;
-static const int X_encoder_B = 5;
-static const int X_LIM = 2;
-static const int Y_encoder_A = 8;
-static const int Y_encoder_B = 9;
-static const int Y_LIM = 6;
-static const int Z_encoder_A = 12;
-static const int Z_encoder_B = 13;
-static const int Z_LIM = 10;
-
-// focus wheel
-static const int focusWheel_A  = 41;
-static const int focusWheel_B  = 42;
-static const int focusWheel_IDX  = 43;
-volatile long focusPosition = 0;
-
-// joystick button
-static const int joystick_button  = 44;
-
-// analog input
-#define analog_in_0 A6
-#define analog_in_1 A7
-bool joystick_not_connected = false;
-
-// joy stick
-#define joystick_X A4
-#define joystick_Y A5
-
-// rocker switch
-#define rocker 40
 
 /***************************************************************************************************/
 /************************************ camera trigger and strobe ************************************/
@@ -151,18 +109,11 @@ long timestamp_trigger_rising_edge[5] = {0,0,0,0,0};
 /***************************************************************************************************/
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
-#define STEPPER_SERIAL Serial3
-static const uint8_t X_driver_ADDRESS = 0b00;
-static const uint8_t Y_driver_ADDRESS = 0b01;
-static const uint8_t Z_driver_ADDRESS = 0b11;
 static const float R_SENSE = 0.11f;
-TMC2209Stepper X_driver(&STEPPER_SERIAL, R_SENSE, X_driver_ADDRESS);
-TMC2209Stepper Y_driver(&STEPPER_SERIAL, R_SENSE, Y_driver_ADDRESS);
-TMC2209Stepper Z_driver(&STEPPER_SERIAL, R_SENSE, Z_driver_ADDRESS);
 
-AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, X_step, X_dir);
-AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, Y_step, Y_dir);
-AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, Z_step, Z_dir);
+AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, 0, 0);
+AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, 0, 0);
+AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, 0, 0);
 
 volatile bool runSpeed_flag_X = false;
 volatile bool runSpeed_flag_Y = false;
@@ -173,6 +124,8 @@ volatile long Z_commanded_target_position = 0;
 volatile bool X_commanded_movement_in_progress = false;
 volatile bool Y_commanded_movement_in_progress = false;
 volatile bool Z_commanded_movement_in_progress = false;
+
+int32_t focusPosition = 0;
 
 long target_position;
 
@@ -213,32 +166,61 @@ long Y_NEG_LIMIT = Y_NEG_LIMIT_MM*steps_per_mm_Y;
 long Z_POS_LIMIT = Z_POS_LIMIT_MM*steps_per_mm_Z;
 long Z_NEG_LIMIT = Z_NEG_LIMIT_MM*steps_per_mm_Z;
 
+
+/***************************************************************************************************/
+/******************************************** timing ***********************************************/
+/***************************************************************************************************/
+static const int TIMER_PERIOD = 500; // in us
+static const int interval_send_pos_update = 10000; // in us
+volatile int counter_send_pos_update = 0;
+volatile bool flag_send_pos_update = false;
+
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
 /***************************************************************************************************/
-static const int TIMER_PERIOD = 500; // in us
-static const int interval_read_joystick = 10000; // in us
-static const int interval_send_pos_update = 10000; // in us
-volatile int counter_read_joystick = 0;
-volatile int counter_send_pos_update = 0;
-volatile bool flag_read_joystick = false;
-volatile bool flag_send_pos_update = false;
-int joystick_offset_x = 512;
-int joystick_offset_y = 512;
+PacketSerial joystick_packetSerial;
+static const int JOYSTICK_MSG_LENGTH = 10;
+bool flag_read_joystick = false;
 
-// joystick
-int deltaX = 0;
-int deltaY = 0;
-float deltaX_float = 0;
-float deltaY_float = 0;
-float speed_XY_factor = 0;
+// joystick xy
+int16_t joystick_delta_x = 0;
+int16_t joystick_delta_y = 0; 
 
 // joystick button
-volatile bool joystick_button_pressed = false;
-volatile long joystick_button_pressed_timestamp = 0;
+bool joystick_button_pressed = false;
+long joystick_button_pressed_timestamp = 0;
 
-// rocker
-bool rocker_state = false;
+// focus
+int32_t focuswheel_pos = 0;
+
+// btns
+uint8_t btns;
+
+void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
+{
+  
+  if(size != JOYSTICK_MSG_LENGTH)
+  {
+    Serial.println("! wrong number of bytes received !");
+    return;
+  }
+
+  focuswheel_pos = uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]);
+  focusPosition = focuswheel_pos;
+  joystick_delta_x = JOYSTICK_SIGN_X*int16_t( uint16_t(buffer[4])*256 + uint16_t(buffer[5]) );
+  joystick_delta_y = JOYSTICK_SIGN_Y*int16_t( uint16_t(buffer[6])*256 + uint16_t(buffer[7]) );
+  btns = buffer[8];
+
+  if(btns & 0x01)
+  {
+    joystick_button_pressed = true;
+    joystick_button_pressed_timestamp = millis();
+    // to add: ACK for the joystick panel
+  }
+
+  flag_read_joystick = true;
+
+}
 
 /***************************************************************************************************/
 /***************************************** illumination ********************************************/
@@ -397,12 +379,14 @@ void set_illumination_led_matrix(int source, uint8_t r, uint8_t g, uint8_t b)
 void setup() {
 
   // Initialize Native USB port
-  //SerialUSB.begin(2000000);     
+  SerialUSB.begin(2000000);     
   //while(!SerialUSB);            // Wait until connection is established
   buffer_rx_ptr = 0;
 
-//  pinMode(13, OUTPUT);
-//  digitalWrite(13,LOW);
+  // Joystick packet serial
+  Serial5.begin(115200);
+  joystick_packetSerial.setStream(&Serial5);
+  joystick_packetSerial.setPacketHandler(&onJoystickPacketReceived);
 
   // camera trigger pins
   for(int i=0;i<5;i++)
@@ -427,83 +411,6 @@ void setup() {
   pinMode(LASER_730nm, OUTPUT);
   digitalWrite(LASER_730nm, LOW);
   
-  pinMode(X_dir, OUTPUT);
-  pinMode(X_step, OUTPUT);
-
-  pinMode(Y_dir, OUTPUT);
-  pinMode(Y_step, OUTPUT);
-
-  pinMode(Z_dir, OUTPUT);
-  pinMode(Z_step, OUTPUT);
-
-  pinMode(X_LIM, INPUT_PULLUP);
-  pinMode(Y_LIM, INPUT_PULLUP);
-  pinMode(Z_LIM, INPUT_PULLUP);
-
-  pinMode(rocker,INPUT);
-
-  // initialize stepper driver
-  STEPPER_SERIAL.begin(115200);
-  
-  while(!STEPPER_SERIAL);
-  X_driver.begin();
-  X_driver.I_scale_analog(false);
-  X_driver.rms_current(X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD); //I_run and holdMultiplier
-  X_driver.microsteps(8);
-  X_driver.TPOWERDOWN(2);
-  X_driver.pwm_autoscale(true);
-  X_driver.en_spreadCycle(false);
-  X_driver.toff(4);
-  
-  while(!STEPPER_SERIAL);
-  Y_driver.begin();
-  Y_driver.I_scale_analog(false);  
-  Y_driver.rms_current(Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD); //I_run and holdMultiplier
-  Y_driver.microsteps(8);
-  Y_driver.pwm_autoscale(true);
-  Y_driver.TPOWERDOWN(2);
-  Y_driver.en_spreadCycle(false);
-  Y_driver.toff(4);
-
-  while(!STEPPER_SERIAL);
-  Z_driver.begin();
-  Z_driver.I_scale_analog(false);  
-  Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
-  Z_driver.microsteps(8);
-  Z_driver.TPOWERDOWN(2);
-  Z_driver.pwm_autoscale(true);
-  Z_driver.toff(4);
-  
-  stepper_X.setPinsInverted(false, false, true);
-  stepper_Y.setPinsInverted(false, false, true);
-  stepper_Z.setPinsInverted(false, false, true);
-  
-  stepper_X.setMaxSpeed(MAX_VELOCITY_X_mm*steps_per_mm_X);
-  stepper_Y.setMaxSpeed(MAX_VELOCITY_Y_mm*steps_per_mm_Y);
-  stepper_Z.setMaxSpeed(MAX_VELOCITY_Z_mm*steps_per_mm_Z);
-  
-  stepper_X.setAcceleration(MAX_ACCELERATION_X_mm*steps_per_mm_X);
-  stepper_Y.setAcceleration(MAX_ACCELERATION_Y_mm*steps_per_mm_Y);
-  stepper_Z.setAcceleration(MAX_ACCELERATION_Z_mm*steps_per_mm_Z);
-
-  stepper_X.enableOutputs();
-  stepper_Y.enableOutputs();
-  stepper_Z.enableOutputs();
-
-  // xyz encoder
-  pinMode(X_encoder_A,INPUT_PULLUP);
-  pinMode(X_encoder_B,INPUT_PULLUP);
-  pinMode(Y_encoder_A,INPUT_PULLUP);
-  pinMode(Y_encoder_B,INPUT_PULLUP);
-  pinMode(Z_encoder_A,INPUT_PULLUP);
-  pinMode(Z_encoder_B,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(X_encoder_A), ISR_X_encoder_A, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(X_encoder_B), ISR_X_encoder_B, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(Y_encoder_A), ISR_Y_encoder_A, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(Y_encoder_B), ISR_Y_encoder_B, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(Z_encoder_A), ISR_Z_encoder_A, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(Z_encoder_B), ISR_Z_encoder_B, CHANGE);
-
   X_pos = 0;
   Y_pos = 0;
   Z_pos = 0;
@@ -511,37 +418,8 @@ void setup() {
   offset_velocity_x = 0;
   offset_velocity_y = 0;
 
-  // limit switch
-  // configured by the computer instead
-  /*
-  attachInterrupt(digitalPinToInterrupt(X_LIM), ISR_limit_switch_X, FALLING);
-  attachInterrupt(digitalPinToInterrupt(Y_LIM), ISR_limit_switch_Y, FALLING);
-  attachInterrupt(digitalPinToInterrupt(Z_LIM), ISR_limit_switch_Z, FALLING);
-  */
-
-  // focus
-  pinMode(focusWheel_A,INPUT_PULLUP);
-  pinMode(focusWheel_B,INPUT_PULLUP);
-  pinMode(focusWheel_IDX,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(focusWheel_A), ISR_focusWheel_A, RISING);
-  attachInterrupt(digitalPinToInterrupt(focusWheel_B), ISR_focusWheel_B, RISING);
-  
-  // joystick
-  analogReadResolution(10);
-  joystick_offset_x = analogRead(joystick_X);
-  joystick_offset_y = analogRead(joystick_Y);
-  if(joystick_offset_x<400 && joystick_offset_y<400)
-    joystick_not_connected = true;
-
-  // joystick button
-  pinMode(joystick_button,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(joystick_button), ISR_joystick_button_pressed, RISING);
-
-  Timer3.attachInterrupt(timer_interruptHandler);
-  Timer3.start(TIMER_PERIOD); 
-
-  //ADC
-  //ads1115.begin();
+  IntervalTimer systemTimer;
+  systemTimer.begin(timer_interruptHandler, TIMER_PERIOD);
 
   // led matrix
   matrix.begin();
@@ -556,6 +434,9 @@ void setup() {
 /***************************************************************************************************/
 
 void loop() {
+
+  // process incoming packets
+  joystick_packetSerial.update();
 
   // read one meesage from the buffer
   while (SerialUSB.available()) 
@@ -592,14 +473,6 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT) );
-          /*
-          // mcu_cmd_execution_in_progress = true; // because runToNewPosition is blocking, changing this flag is not needed
-          stepper_Z.runToNewPosition(Z_commanded_target_position);
-          focusPosition = Z_commanded_target_position;
-          //stepper_Z.moveTo(Z_commanded_target_position);
-          Z_commanded_movement_in_progress = false;
-          // mcu_cmd_execution_in_progress = false; // because runToNewPosition is blocking, changing this flag is not needed
-          */
           focusPosition = Z_commanded_target_position;
           stepper_Z.moveTo(Z_commanded_target_position);
           Z_commanded_movement_in_progress = true;
@@ -682,30 +555,24 @@ void loop() {
           {
             case AXIS_X:
             {
-              detachInterrupt(digitalPinToInterrupt(X_LIM));
               if(buffer_rx[3]!=DISABLED)
               {
-                attachInterrupt(digitalPinToInterrupt(X_LIM), ISR_limit_switch_X, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
                 LIM_SWITCH_X_ACTIVE_LOW = (buffer_rx[3]==ACTIVE_LOW);
               }
               break;
             }
             case AXIS_Y:
             {
-              detachInterrupt(digitalPinToInterrupt(Y_LIM));
               if(buffer_rx[3]!=DISABLED)
               {
-                attachInterrupt(digitalPinToInterrupt(Y_LIM), ISR_limit_switch_Y, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
                 LIM_SWITCH_Y_ACTIVE_LOW = (buffer_rx[3]==ACTIVE_LOW);
               }
               break;
             }
             case AXIS_Z:
             {
-              detachInterrupt(digitalPinToInterrupt(Z_LIM));
               if(buffer_rx[3]!=DISABLED)
               {
-                attachInterrupt(digitalPinToInterrupt(Z_LIM), ISR_limit_switch_Z, buffer_rx[3]==ACTIVE_LOW?FALLING:RISING);
                 LIM_SWITCH_Z_ACTIVE_LOW = (buffer_rx[3]==ACTIVE_LOW);
               }
               break;
@@ -722,12 +589,12 @@ void loop() {
               int microstepping_setting = buffer_rx[3];
               if(microstepping_setting>128)
                 microstepping_setting = 256;
-              X_driver.microsteps(microstepping_setting);
+              // X_driver.microsteps(microstepping_setting);
               MICROSTEPPING_X = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
               X_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               X_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              X_driver.rms_current(X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD); //I_run and holdMultiplier
+              // X_driver.rms_current(X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
             case AXIS_Y:
@@ -735,12 +602,12 @@ void loop() {
               int microstepping_setting = buffer_rx[3];
               if(microstepping_setting>128)
                 microstepping_setting = 256;
-              Y_driver.microsteps(microstepping_setting);
+              // Y_driver.microsteps(microstepping_setting);
               MICROSTEPPING_Y = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
               Y_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               Y_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              Y_driver.rms_current(Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD); //I_run and holdMultiplier
+              // Y_driver.rms_current(Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
             case AXIS_Z:
@@ -748,12 +615,12 @@ void loop() {
               int microstepping_setting = buffer_rx[3];
               if(microstepping_setting>128)
                 microstepping_setting = 256;
-              Z_driver.microsteps(microstepping_setting);
+              //Z_driver.microsteps(microstepping_setting);
               MICROSTEPPING_Z = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
               Z_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               Z_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
+              //Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
               break;
             }
           }
@@ -846,6 +713,7 @@ void loop() {
               case AXIS_X:
                 homing_direction_X = buffer_rx[3];
                 home_X_found = false;
+                /*
                 if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_X = true;
@@ -865,10 +733,12 @@ void loop() {
                   else
                     stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                 }
+                */
                 break;
               case AXIS_Y:
                 homing_direction_Y = buffer_rx[3];
                 home_Y_found = false;
+                /*
                 if(digitalRead(Y_LIM)==(LIM_SWITCH_Y_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Y = true;
@@ -888,10 +758,12 @@ void loop() {
                   else
                     stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                 }
+                */
                 break;
               case AXIS_Z:
                 homing_direction_Z = buffer_rx[3];
                 home_Z_found = false;
+                /*
                 if(digitalRead(Z_LIM)==(LIM_SWITCH_Z_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Z = true;
@@ -911,11 +783,13 @@ void loop() {
                   else
                     stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
                 }
+                */
                 break;
               case AXES_XY:
                 is_homing_XY = true;
                 home_X_found = false;
                 home_Y_found = false;
+                /*
                 // homing x 
                 homing_direction_X = buffer_rx[3];
                 if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
@@ -959,6 +833,7 @@ void loop() {
                     stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                 }
                 break;
+                */
             }
             mcu_cmd_execution_in_progress = true;
           }
@@ -1019,11 +894,6 @@ void loop() {
         case ANALOG_WRITE_ONBOARD_DAC:
         {
           uint16_t value = ( uint16_t(buffer_rx[3])*256 + uint16_t(buffer_rx[4]) )/16;
-          if(buffer_rx[2] == 0)
-            analogWrite(DAC0,value);
-          else
-            analogWrite(DAC1,value);
-          break;
         }
         case SET_STROBE_DELAY:
         {
@@ -1090,6 +960,7 @@ void loop() {
     }
   }
 
+  /*
   // homing - preparing for homing
   if(is_preparing_for_homing_X)
   {
@@ -1130,43 +1001,6 @@ void loop() {
         stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_X_mm*steps_per_mm_Z);
     }
   }
-
-  // the following code can cause issues because of the or operation
-  /*
-  // homing - software limit reached
-  if(is_homing_X || is_preparing_for_homing_X)
-  {
-    if(stepper_X.currentPosition()<=X_NEG_LIMIT || stepper_X.currentPosition()>=X_POS_LIMIT)
-    {
-      stepper_X.setSpeed(0);
-      runSpeed_flag_X = false;
-      is_preparing_for_homing_X = false;
-      is_homing_X = false;
-      mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
-    }
-  }
-  if(is_homing_Y || is_preparing_for_homing_Y)
-  {
-    if(stepper_Y.currentPosition()<=Y_NEG_LIMIT || stepper_Y.currentPosition()>=Y_POS_LIMIT)
-    {
-      stepper_Y.setSpeed(0);
-      runSpeed_flag_Y = false;
-      is_preparing_for_homing_Y = false;
-      is_homing_Y = false;
-      mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
-    }
-  }
-  if(is_homing_Z || is_preparing_for_homing_Z)
-  {
-    if(stepper_Z.currentPosition()<=Z_NEG_LIMIT || stepper_Z.currentPosition()>=Z_POS_LIMIT)
-    {
-      stepper_Z.setSpeed(0);
-      runSpeed_flag_Z = false;
-      is_preparing_for_homing_Z = false;
-      is_homing_Z = false;
-      mcu_cmd_execution_in_progress = false; // to do: return an error: mcu_cmd_execution_in_progress = 2 [first change the variable type from int to uint8]
-    }
-  }
   */
 
   // finish homing
@@ -1204,45 +1038,22 @@ void loop() {
     is_homing_XY = false;
     mcu_cmd_execution_in_progress = false;
   }
-  
-  // handle control panel input
-  if(flag_read_joystick && joystick_not_connected == false) 
+
+  if(flag_read_joystick)
   {
-    // read rocker state (may be moved)
-    rocker_state = digitalRead(rocker);
-    
-    // read speed_XY_factor (range 0-1)
-    speed_XY_factor = float(analogRead(analog_in_1))/1023;
-    // speed_XY_factor = rocker_state ? speed_XY_factor : 0; // for testing the rocker
-    
     // read x joystick
     if(!X_commanded_movement_in_progress && !is_homing_X && !is_preparing_for_homing_X) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
     {
-      deltaX = analogRead(joystick_X) - joystick_offset_x;
-      deltaX_float = JOYSTICK_SIGN_X*deltaX;
       // joystick at motion position
-      if(abs(deltaX_float)>joystickSensitivity)
+      if(abs(joystick_delta_x)>0)
       {
-        stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X + sgn(deltaX_float)*((abs(deltaX_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_X_mm*steps_per_mm_X );
-        runSpeed_flag_X = true;
-        // handle limits
-        if(stepper_X.currentPosition()>=X_POS_LIMIT && deltaX_float>0)
-        {
-          runSpeed_flag_X = false;
-          stepper_X.setSpeed(0);
-        }
-        if(stepper_X.currentPosition()<=X_NEG_LIMIT && deltaX_float<0)
-        {
-          runSpeed_flag_X = false;
-          stepper_X.setSpeed(0);
-        }
+        stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm*steps_per_mm_X );
       }
       // joystick at rest position
       else
       {
         if(enable_offset_velocity)
         {
-          runSpeed_flag_X = true;
           stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X );
         }
         else
@@ -1252,40 +1063,24 @@ void loop() {
         }
       }
     }
-
+  
     // read y joystick
     if(!Y_commanded_movement_in_progress && !is_homing_Y && !is_preparing_for_homing_Y)
     {
-      deltaY = analogRead(joystick_Y) - joystick_offset_y;
-      deltaY_float = JOYSTICK_SIGN_Y*deltaY;
       // joystick at motion position
-      if(abs(deltaY)>joystickSensitivity)
+      if(abs(joystick_delta_y)>0)
       {
-        stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y + sgn(deltaY_float)*((abs(deltaY_float)-joystickSensitivity)/512.0)*speed_XY_factor*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
-        runSpeed_flag_Y = true;
-        // handle limits
-        if(stepper_Y.currentPosition()>=Y_POS_LIMIT && deltaY_float>0)
-        {
-          runSpeed_flag_Y = false;
-          stepper_Y.setSpeed(0);
-        }
-        if(stepper_Y.currentPosition()<=Y_NEG_LIMIT && deltaY_float<0)
-        {
-          runSpeed_flag_Y = false;
-          stepper_Y.setSpeed(0);
-        }
+        stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y + (joystick_delta_x/32768.0)*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
       }
       // joystick at rest position
       else
       {
         if(enable_offset_velocity)
         {
-          runSpeed_flag_Y = true;
           stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y );
         }
         else
         {
-          runSpeed_flag_Y = false;
           stepper_Y.setSpeed( 0 );
         }
       }
@@ -1293,7 +1088,6 @@ void loop() {
 
     // set the read joystick flag to false
     flag_read_joystick = false;
-    
   }
 
   // handle limits
@@ -1362,14 +1156,6 @@ void loop() {
     
   }
 
-  // encoded movement
-  if(X_use_encoder && closed_loop_position_control)
-    stepper_X.setCurrentPosition(X_pos);
-  if(Y_use_encoder && closed_loop_position_control)
-    stepper_Y.setCurrentPosition(Y_pos);
-  if(Z_use_encoder && closed_loop_position_control)
-    stepper_Z.setCurrentPosition(Z_pos);
-
   // check if commanded position has been reached
   if(X_commanded_movement_in_progress && stepper_X.currentPosition()==X_commanded_target_position && !is_homing_X) // homing is handled separately
   {
@@ -1387,21 +1173,6 @@ void loop() {
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
   }
     
-  // move motors
-  if(X_commanded_movement_in_progress)
-    stepper_X.run();
-  else if(runSpeed_flag_X)
-    stepper_X.runSpeed();
-    
-  if(Y_commanded_movement_in_progress)
-    stepper_Y.run();
-  else if(runSpeed_flag_Y)
-    stepper_Y.runSpeed();
-
-  if(runSpeed_flag_Z)
-    stepper_Z.runSpeed();
-  else
-    stepper_Z.run();
 }
 
 /***************************************************
@@ -1411,153 +1182,14 @@ void loop() {
  ***************************************************/
  
 // timer interrupt
-void timer_interruptHandler(){
-  counter_read_joystick = counter_read_joystick + 1;
-  if(counter_read_joystick==interval_read_joystick/TIMER_PERIOD)
-  {
-    if(ENABLE_JOYSTICK)
-      flag_read_joystick = true;
-    counter_read_joystick = 0;
-  }
+void timer_interruptHandler()
+{
   counter_send_pos_update = counter_send_pos_update + 1;
   if(counter_send_pos_update==interval_send_pos_update/TIMER_PERIOD)
   {
     flag_send_pos_update = true;
     counter_send_pos_update = 0;
   }
-}
-
-/***************************************************
- *  
- *                     limit switch 
- *  
- ***************************************************/
- void ISR_limit_switch_X()
- {
-  if(is_homing_X)
-  {
-    home_X_found = true;
-    long home_X_pos = stepper_X.currentPosition(); // to add: case for using encoders
-    runSpeed_flag_X = false;
-    stepper_X.moveTo(home_X_pos); // move to the home position
-    X_commanded_movement_in_progress = true;
-    X_commanded_target_position = home_X_pos;
-  }
- }
-
- void ISR_limit_switch_Y()
- {
-  if(is_homing_Y)
-  {
-    home_Y_found = true;
-    long home_Y_pos = stepper_Y.currentPosition();
-    runSpeed_flag_Y = false;
-    stepper_Y.moveTo(home_Y_pos); // move to the home position
-    Y_commanded_movement_in_progress = true;
-    Y_commanded_target_position = home_Y_pos;
-  }
- }
-
-  void ISR_limit_switch_Z()
- {
-  if(is_homing_Z)
-  {
-    home_Z_found = true;
-    long home_Z_pos = stepper_Z.currentPosition();
-    runSpeed_flag_Z = false;
-    stepper_Z.moveTo(home_Z_pos); // move tY_commanded_movement_in_progress = true;
-    Z_commanded_movement_in_progress = true;
-    Z_commanded_target_position = home_Z_pos;
-  }
- }
-/***************************************************
- *  
- *                        encoder 
- *  
- ***************************************************/
-void ISR_focusWheel_A(){
-  if(digitalRead(focusWheel_B)==1)
-  {
-    focusPosition = focusPosition + JOYSTICK_SIGN_Z*1;
-    digitalWrite(13,HIGH);
-  }
-  else
-  {
-    focusPosition = focusPosition - JOYSTICK_SIGN_Z*1;
-    digitalWrite(13,LOW);
-  }
-}
-void ISR_focusWheel_B(){
-  if(digitalRead(focusWheel_A)==1)
-  {
-    focusPosition = focusPosition - JOYSTICK_SIGN_Z*1;
-  }
-  else
-  {
-    focusPosition = focusPosition + JOYSTICK_SIGN_Z*1;
-  }
-}
-
-void ISR_X_encoder_A(){
-  if(digitalRead(X_encoder_B)==0 && digitalRead(X_encoder_A)==1)
-    X_pos = X_pos + 1;
-  else if (digitalRead(X_encoder_B)==1 && digitalRead(X_encoder_A)==0)
-    X_pos = X_pos + 1;
-  else
-    X_pos = X_pos - 1;
-}
-void ISR_X_encoder_B(){
-  if(digitalRead(X_encoder_B)==0 && digitalRead(X_encoder_A)==1 )
-    X_pos = X_pos - 1;
-  else if (digitalRead(X_encoder_B)==1 && digitalRead(X_encoder_A)==0)
-    X_pos = X_pos - 1;
-  else
-    X_pos = X_pos + 1;
-}
-
-void ISR_Y_encoder_A(){
-  if(digitalRead(Y_encoder_B)==0 && digitalRead(Y_encoder_A)==1)
-    Y_pos = Y_pos + 1;
-  else if (digitalRead(Y_encoder_B)==1 && digitalRead(Y_encoder_A)==0)
-    Y_pos = Y_pos + 1;
-  else
-    Y_pos = Y_pos - 1;
-}
-void ISR_Y_encoder_B(){
-  if(digitalRead(Y_encoder_B)==0 && digitalRead(Y_encoder_A)==1 )
-    Y_pos = Y_pos - 1;
-  else if (digitalRead(Y_encoder_B)==1 && digitalRead(Y_encoder_A)==0)
-    Y_pos = Y_pos - 1;
-  else
-    Y_pos = Y_pos + 1;
-}
-
-void ISR_Z_encoder_A(){
-  if(digitalRead(Z_encoder_B)==0 && digitalRead(Z_encoder_A)==1 )
-    Z_pos = Z_pos + 1;
-  else if (digitalRead(Z_encoder_B)==1 && digitalRead(Z_encoder_A)==0)
-    Z_pos = Z_pos + 1;
-  else
-    Z_pos = Z_pos - 1;
-}
-void ISR_Z_encoder_B(){
-  if(digitalRead(Z_encoder_B)==0 && digitalRead(Z_encoder_A)==1 )
-    Z_pos = Z_pos - 1;
-  else if (digitalRead(Z_encoder_B)==1 && digitalRead(Z_encoder_A)==0)
-    Z_pos = Z_pos - 1;
-  else
-    Z_pos = Z_pos + 1;
-}
-
-/***************************************************
- *  
- *              joy stick button pressed 
- *  
- ***************************************************/
-void ISR_joystick_button_pressed()
-{
-  joystick_button_pressed = true;
-  joystick_button_pressed_timestamp = millis();
 }
 
 /***************************************************************************************************/
