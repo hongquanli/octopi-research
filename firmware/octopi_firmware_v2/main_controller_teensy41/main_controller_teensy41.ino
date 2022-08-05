@@ -1,12 +1,15 @@
 #include <PacketSerial.h>
 #include <AccelStepper.h>
 #include <Adafruit_DotStar.h>
+#include <SPI.h>
 
 #include "def_octopi.h"
 //#include "def_gravitymachine.h"
 //#include "def_squid.h"
 //#include "def_platereader.h"
 //#include "def_squid_vertical.h"
+
+#define N_MOTOR 3
 
 /***************************************************************************************************/
 /***************************************** Communications ******************************************/
@@ -84,14 +87,27 @@ static const int DISABLED = 2;
 // Teensy4.1 board v1 def
 
 // illumination
-static const int LASER_405nm = 31;
-static const int LASER_488nm = 32;
-static const int LASER_638nm = 33;
-static const int LASER_561nm = 34;
-static const int LASER_730nm = 30;
+static const int LASER_405nm = 5;   // to rename
+static const int LASER_488nm = 4;   // to rename
+static const int LASER_638nm = 22;  // to rename
+static const int LASER_561nm = 3;   // to rename
+static const int LASER_730nm = 23;  // to rename
+// PWM6 2
+// PWM7 1
+// PWM8 0
 
 // camera trigger 
-static const int camera_trigger_pins[] = {35,36,37,38,39}; // to replace
+static const int camera_trigger_pins[] = {29,30,31,32,16,28};
+
+// motors
+const uint8_t pin_TMC4361_CS[4] = {36,41,35,34};
+const uint8_t pin_TMC4361_CLK = 37;
+
+// DAC
+const int DAC8050x_CS_pin = 10;
+
+// LED driver
+const int pin_LT3932_SYNC = 25;
 
 /***************************************************************************************************/
 /************************************ camera trigger and strobe ************************************/
@@ -105,6 +121,36 @@ int strobe_delay[5] = {0,0,0,0,0};
 long illumination_on_time[5] = {0,0,0,0,0};
 long timestamp_trigger_rising_edge[5] = {0,0,0,0,0};
 // to do: change the number of channels (5) to a named constant
+
+/***************************************************************************************************/
+/******************************************* DAC80508 **********************************************/
+/***************************************************************************************************/
+const uint8_t DAC8050x_DAC_ADDR = 0x08;
+const uint8_t DAC8050x_GAIN_ADDR = 0x04;
+const uint8_t DAC8050x_CONFIG_ADDR = 0x03;
+
+void set_DAC8050x_gain()
+{
+  uint16_t value = 0;
+  value = (0x00 << 8) + 0x80; // REFDIV-E = 0 (no div), BUFF0-GAIN = 0 (no gain) for channel 0-6, 2 for channel 7
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE2));
+  digitalWrite(DAC8050x_CS_pin,LOW);
+  SPI.transfer(DAC8050x_GAIN_ADDR);
+  SPI.transfer16(value);
+  digitalWrite(DAC8050x_CS_pin,HIGH);
+  SPI.endTransaction();
+}
+
+void set_DAC8050x_config()
+{
+  uint16_t value = 0;
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE2));
+  digitalWrite(DAC8050x_CS_pin,LOW);
+  SPI.transfer(DAC8050x_CONFIG_ADDR);
+  SPI.transfer16(value);
+  digitalWrite(DAC8050x_CS_pin,HIGH);
+  SPI.endTransaction();
+}
 
 /***************************************************************************************************/
 /******************************************* steppers **********************************************/
@@ -165,7 +211,6 @@ long Y_POS_LIMIT = Y_POS_LIMIT_MM*steps_per_mm_Y;
 long Y_NEG_LIMIT = Y_NEG_LIMIT_MM*steps_per_mm_Y;
 long Z_POS_LIMIT = Z_POS_LIMIT_MM*steps_per_mm_Z;
 long Z_NEG_LIMIT = Z_NEG_LIMIT_MM*steps_per_mm_Z;
-
 
 /***************************************************************************************************/
 /******************************************** timing ***********************************************/
@@ -389,7 +434,7 @@ void setup() {
   joystick_packetSerial.setPacketHandler(&onJoystickPacketReceived);
 
   // camera trigger pins
-  for(int i=0;i<5;i++)
+  for(int i=0;i<6;i++)
   {
     pinMode(camera_trigger_pins[i], OUTPUT);
     digitalWrite(camera_trigger_pins[i], LOW);
@@ -410,22 +455,44 @@ void setup() {
 
   pinMode(LASER_730nm, OUTPUT);
   digitalWrite(LASER_730nm, LOW);
+
+  // steppers pins
+  for(int i = 0;i<4;i++)
+  {
+    pinMode(pin_TMC4361_CS[i],OUTPUT);
+    digitalWrite(pin_TMC4361_CS[i],HIGH);
+  }
+
+  // LED drivers
+  pinMode(pin_LT3932_SYNC,OUTPUT);
+  analogWriteFrequency(pin_LT3932_SYNC,2000000);
+  analogWrite(pin_LT3932_SYNC,128);
   
-  X_pos = 0;
-  Y_pos = 0;
-  Z_pos = 0;
-
-  offset_velocity_x = 0;
-  offset_velocity_y = 0;
-
+  
+  // timer
   IntervalTimer systemTimer;
   systemTimer.begin(timer_interruptHandler, TIMER_PERIOD);
 
   // led matrix
   matrix.begin();
 
-  // DAC
-  analogWriteResolution(12);
+  // DAC pins
+  pinMode(DAC8050x_CS_pin,OUTPUT);
+  digitalWrite(DAC8050x_CS_pin,HIGH);
+
+  // stepper init
+
+  // DAC init
+  set_DAC8050x_config();
+  set_DAC8050x_gain();
+  
+  // variables
+  X_pos = 0;
+  Y_pos = 0;
+  Z_pos = 0;
+
+  offset_velocity_x = 0;
+  offset_velocity_y = 0;
   
 }
 
