@@ -392,6 +392,39 @@ void tmc4361A_tmc2660_init(TMC4361ATypeDef *tmc4361A, uint32_t clk_Hz_TMC4361) {
 
 /*
   -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_tmc2660_update() update the tmc4361A and tmc2660 settings (current scaling and microstepping settings)
+
+  OPERATION:   We write several bytes to the two ICs to configure their behaviors.
+
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+
+  RETURNS: None
+
+  INPUTS / OUTPUTS: The CS pin and SPI MISO and MOSI pins output, input, and output data respectively
+
+  LOCAL VARIABLES: None
+
+  SHARED VARIABLES:
+      TMC4361ATypeDef *tmc4361A: Values are read from the struct
+
+  GLOBAL VARIABLES: None
+
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+void tmc4361A_tmc2660_update(TMC4361ATypeDef *tmc4361A) {
+  // current scaling
+  tmc4361A_cScaleInit(tmc4361A);
+  tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_DRIVE_CURRENT_SCALE_EN_MASK); // keep drive current scale
+  tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_HOLD_CURRENT_SCALE_EN_MASK);  // keep hold current scale
+  // microstepping setting
+  tmc4361A_setMicrosteps(tmc4361A, tmc4361A->microsteps);
+  return;
+}
+
+/*
+  -----------------------------------------------------------------------------
   DESCRIPTION: tmc4361A_tmc2660_config() configures the parameters for tmc4361A and tmc2660
   OPERATION:   set parameters
   ARGUMENTS:
