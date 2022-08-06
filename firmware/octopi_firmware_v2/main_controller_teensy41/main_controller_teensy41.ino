@@ -2,6 +2,8 @@
 #include <AccelStepper.h>
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
+#include "TMC4361A.h"
+#include "TMC4361A_TMC2660_Utils.h"
 
 #include "def_octopi.h"
 //#include "def_gravitymachine.h"
@@ -10,6 +12,8 @@
 //#include "def_squid_vertical.h"
 
 #define N_MOTOR 3
+
+#define DEBUG_MODE false
 
 /***************************************************************************************************/
 /***************************************** Communications ******************************************/
@@ -100,7 +104,7 @@ static const int LASER_730nm = 23;  // to rename
 static const int camera_trigger_pins[] = {29,30,31,32,16,28};
 
 // motors
-const uint8_t pin_TMC4361_CS[4] = {36,41,35,34};
+const uint8_t pin_TMC4361_CS[4] = {41,36,35,34};
 const uint8_t pin_TMC4361_CLK = 37;
 
 // DAC
@@ -108,6 +112,9 @@ const int DAC8050x_CS_pin = 10;
 
 // LED driver
 const int pin_LT3932_SYNC = 25;
+
+// power good
+const int pin_PG = 0;
 
 /***************************************************************************************************/
 /************************************ camera trigger and strobe ************************************/
@@ -155,15 +162,15 @@ void set_DAC8050x_config()
 /***************************************************************************************************/
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
-static const float R_SENSE = 0.11f;
+const uint32_t clk_Hz_TMC4361 = 16000000;
+const uint8_t lft_sw_pol[4] = {1,1,1,1};
+const uint8_t rht_sw_pol[4] = {1,1,1,1};
+const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, LEFT_SW, LEFT_SW};
+const int32_t vslow = 0x04FFFC00;
 
-AccelStepper stepper_X = AccelStepper(AccelStepper::DRIVER, 0, 0);
-AccelStepper stepper_Y = AccelStepper(AccelStepper::DRIVER, 0, 0);
-AccelStepper stepper_Z = AccelStepper(AccelStepper::DRIVER, 0, 0);
+ConfigurationTypeDef tmc4361_configs[N_MOTOR];
+TMC4361ATypeDef tmc4361[N_MOTOR];
 
-volatile bool runSpeed_flag_X = false;
-volatile bool runSpeed_flag_Y = false;
-volatile bool runSpeed_flag_Z = false;
 volatile long X_commanded_target_position = 0;
 volatile long Y_commanded_target_position = 0;
 volatile long Z_commanded_target_position = 0;
@@ -215,10 +222,13 @@ long Z_NEG_LIMIT = Z_NEG_LIMIT_MM*steps_per_mm_Z;
 /***************************************************************************************************/
 /******************************************** timing ***********************************************/
 /***************************************************************************************************/
+// IntervalTimer does not work on teensy with SPI, the below lines are to be removed
 static const int TIMER_PERIOD = 500; // in us
-static const int interval_send_pos_update = 10000; // in us
 volatile int counter_send_pos_update = 0;
 volatile bool flag_send_pos_update = false;
+
+static const int interval_send_pos_update = 10000; // in us
+elapsedMicros us_since_last_pos_update;
 
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
@@ -246,7 +256,8 @@ void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
   
   if(size != JOYSTICK_MSG_LENGTH)
   {
-    Serial.println("! wrong number of bytes received !");
+    if(DEBUG_MODE)
+      Serial.println("! wrong number of bytes received !");
     return;
   }
 
@@ -420,11 +431,12 @@ void set_illumination_led_matrix(int source, uint8_t r, uint8_t g, uint8_t b)
 /***************************************************************************************************/
 /********************************************* setup ***********************************************/
 /***************************************************************************************************/
-
 void setup() {
-
+  
   // Initialize Native USB port
-  SerialUSB.begin(2000000);     
+  SerialUSB.begin(2000000);   
+  delay(500);
+  SerialUSB.setTimeout(200);
   //while(!SerialUSB);            // Wait until connection is established
   buffer_rx_ptr = 0;
 
@@ -432,6 +444,9 @@ void setup() {
   Serial5.begin(115200);
   joystick_packetSerial.setStream(&Serial5);
   joystick_packetSerial.setPacketHandler(&onJoystickPacketReceived);
+
+  // power good pin
+  pinMode(pin_PG,INPUT_PULLUP);
 
   // camera trigger pins
   for(int i=0;i<6;i++)
@@ -468,23 +483,104 @@ void setup() {
   analogWriteFrequency(pin_LT3932_SYNC,2000000);
   analogWrite(pin_LT3932_SYNC,128);
   
-  
-  // timer
+  // timer - does not work with SPI
+  /*
   IntervalTimer systemTimer;
   systemTimer.begin(timer_interruptHandler, TIMER_PERIOD);
-
-  // led matrix
-  matrix.begin();
+  */
 
   // DAC pins
   pinMode(DAC8050x_CS_pin,OUTPUT);
   digitalWrite(DAC8050x_CS_pin,HIGH);
 
-  // stepper init
+  // wait for PG to turn high
+  while(!digitalRead(pin_PG))
+  {
+    delay(50);
+  }
 
+  /*********************************************************************************************************
+   ************************************** TMC4361A + TMC2660 beginning ************************************* 
+   *********************************************************************************************************/
+  // clock
+  pinMode(pin_TMC4361_CLK, OUTPUT);
+  analogWriteFrequency(pin_TMC4361_CLK, clk_Hz_TMC4361);
+  analogWrite(pin_TMC4361_CLK, 128); // 50% duty
+
+  // initialize TMC4361 structs with default values and initialize CS pins
+  for (int i = 0; i < N_MOTOR; i++) 
+  {
+    // initialize the tmc4361 with their channel number and default configuration
+    tmc4361A_init(&tmc4361[i], pin_TMC4361_CS[i], &tmc4361_configs[i], tmc4361A_defaultRegisterResetState);
+    // set the chip select pins
+    pinMode(pin_TMC4361_CS[i], OUTPUT);
+    digitalWrite(pin_TMC4361_CS[i], HIGH);
+  }
+  
+  // motor configurations
+  // 0.22 ohm -> 1 A; 0.15 ohm -> 1.47 A
+  tmc4361A_tmc2660_config(&tmc4361[x], (X_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, X_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_X_MM, FULLSTEPS_PER_REV_X, MICROSTEPPING_X);  // 1A RMS
+  tmc4361A_tmc2660_config(&tmc4361[y], (Y_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, Y_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Y_MM, FULLSTEPS_PER_REV_Y, MICROSTEPPING_Y);  // 1A RMS
+  tmc4361A_tmc2660_config(&tmc4361[z], (Z_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, Z_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Z_MM, FULLSTEPS_PER_REV_Z, MICROSTEPPING_Z);  // 1A RMS
+
+  // SPI
+  SPI.begin();
+  delayMicroseconds(5000);
+  
+  // initilize TMC4361 and TMC2660 - turn on functionality
+  for (int i = 0; i < N_MOTOR; i++) 
+  {
+    // set up ICs with SPI control and other parameters
+    tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361);
+    // enable limit switch reading
+    tmc4361A_enableLimitSwitch(&tmc4361[x], lft_sw_pol[x], LEFT_SW, true);
+    tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, true);
+    tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, false);
+    tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, false);
+    tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
+  }
+
+  // motion profile configuration
+  uint32_t max_velocity_usteps[N_MOTOR];
+  uint32_t max_acceleration_usteps[N_MOTOR];
+  max_acceleration_usteps[x] = tmc4361A_ammToMicrosteps(&tmc4361[x], MAX_ACCELERATION_X_mm);
+  max_acceleration_usteps[y] = tmc4361A_ammToMicrosteps(&tmc4361[y], MAX_ACCELERATION_Y_mm);
+  max_acceleration_usteps[z] = tmc4361A_ammToMicrosteps(&tmc4361[z], MAX_ACCELERATION_Z_mm);
+  max_velocity_usteps[x] = tmc4361A_vmmToMicrosteps(&tmc4361[x], MAX_VELOCITY_X_mm);
+  max_velocity_usteps[y] = tmc4361A_vmmToMicrosteps(&tmc4361[y], MAX_VELOCITY_Y_mm);
+  max_velocity_usteps[z] = tmc4361A_vmmToMicrosteps(&tmc4361[z], MAX_VELOCITY_Z_mm);  
+  for (int i = 0; i < N_MOTOR; i++) 
+  {
+    // initialize ramp with default values
+    tmc4361A_setMaxSpeed(&tmc4361[i], max_velocity_usteps[i]);
+    tmc4361A_setMaxAcceleration(&tmc4361[i], max_acceleration_usteps[i]);
+    tmc4361[i].rampParam[ASTART_IDX] = 0;
+    tmc4361[i].rampParam[DFINAL_IDX] = 0;
+    tmc4361A_sRampInit(&tmc4361[i]);
+  }
+
+  /*
+  // homing - temporary
+  tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
+  tmc4361A_moveToExtreme(&tmc4361[x], vslow, RGHT_DIR);
+  tmc4361A_moveToExtreme(&tmc4361[x], vslow, LEFT_DIR);
+  tmc4361A_setHome(&tmc4361[x]);
+  
+  tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
+  tmc4361A_moveToExtreme(&tmc4361[y], vslow*2, RGHT_DIR);
+  tmc4361A_moveToExtreme(&tmc4361[y], vslow*2, LEFT_DIR);
+  tmc4361A_setHome(&tmc4361[y]);
+  */
+  
+  /*********************************************************************************************************
+   ***************************************** TMC4361A + TMC2660 end **************************************** 
+   *********************************************************************************************************/
   // DAC init
   set_DAC8050x_config();
   set_DAC8050x_gain();
+
+  // led matrix
+  matrix.begin(); // to replace
   
   // variables
   X_pos = 0;
@@ -493,7 +589,7 @@ void setup() {
 
   offset_velocity_x = 0;
   offset_velocity_y = 0;
-  
+
 }
 
 /***************************************************************************************************/
@@ -519,31 +615,31 @@ void loop() {
         case MOVE_X:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          X_commanded_target_position = ( relative_position>0?min(stepper_X.currentPosition()+relative_position,X_POS_LIMIT):max(stepper_X.currentPosition()+relative_position,X_NEG_LIMIT) );
-          stepper_X.moveTo(X_commanded_target_position);
+          long current_position = tmc4361A_currentPosition(&tmc4361[x]);
+          X_commanded_target_position = ( relative_position>0?min(current_position+relative_position,X_POS_LIMIT):max(current_position+relative_position,X_NEG_LIMIT) );
+          tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position);
           X_commanded_movement_in_progress = true;
-          runSpeed_flag_X = false;
           mcu_cmd_execution_in_progress = true;
           break;
         }
         case MOVE_Y:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          Y_commanded_target_position = ( relative_position>0?min(stepper_Y.currentPosition()+relative_position,Y_POS_LIMIT):max(stepper_Y.currentPosition()+relative_position,Y_NEG_LIMIT) );
-          stepper_Y.moveTo(Y_commanded_target_position);
+          long current_position = tmc4361A_currentPosition(&tmc4361[y]);
+          Y_commanded_target_position = ( relative_position>0?min(current_position+relative_position,Y_POS_LIMIT):max(current_position+relative_position,Y_NEG_LIMIT) );
+          tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position);
           Y_commanded_movement_in_progress = true;
-          runSpeed_flag_Y = false;
           mcu_cmd_execution_in_progress = true;
           break;
         }
         case MOVE_Z:
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          Z_commanded_target_position = ( relative_position>0?min(stepper_Z.currentPosition()+relative_position,Z_POS_LIMIT):max(stepper_Z.currentPosition()+relative_position,Z_NEG_LIMIT) );
+          long current_position = tmc4361A_currentPosition(&tmc4361[z]);
+          Z_commanded_target_position = ( relative_position>0?min(current_position+relative_position,Z_POS_LIMIT):max(current_position+relative_position,Z_NEG_LIMIT) );
           focusPosition = Z_commanded_target_position;
-          stepper_Z.moveTo(Z_commanded_target_position);
+          tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position);
           Z_commanded_movement_in_progress = true;
-          runSpeed_flag_Z = false;
           mcu_cmd_execution_in_progress = true;
           break;
         }
@@ -551,9 +647,8 @@ void loop() {
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           X_commanded_target_position = absolute_position;
-          stepper_X.moveTo(absolute_position);
+          tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position);
           X_commanded_movement_in_progress = true;
-          runSpeed_flag_X = false;
           mcu_cmd_execution_in_progress = true;
           break;
         }
@@ -561,21 +656,18 @@ void loop() {
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           Y_commanded_target_position = absolute_position;
-          stepper_Y.moveTo(absolute_position);
+          tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position);
           Y_commanded_movement_in_progress = true;
-          runSpeed_flag_Y = false;
           mcu_cmd_execution_in_progress = true;
           break;
         }
         case MOVETO_Z:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
-          // mcu_cmd_execution_in_progress = true; // because runToNewPosition is blocking, changing this flag is not needed
           Z_commanded_target_position = absolute_position;
-          stepper_Z.moveTo(absolute_position);
+          tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position);
           focusPosition = absolute_position;
           Z_commanded_movement_in_progress = true;
-          runSpeed_flag_Z = false;
           mcu_cmd_execution_in_progress = true;
           break;
         }
@@ -656,12 +748,12 @@ void loop() {
               int microstepping_setting = buffer_rx[3];
               if(microstepping_setting>128)
                 microstepping_setting = 256;
-              // X_driver.microsteps(microstepping_setting);
               MICROSTEPPING_X = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
               X_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               X_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              // X_driver.rms_current(X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD); //I_run and holdMultiplier
+              tmc4361A_tmc2660_config(&tmc4361[x], (X_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, X_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_X_MM, FULLSTEPS_PER_REV_X, MICROSTEPPING_X);
+              tmc4361A_tmc2660_update(&tmc4361[x]);
               break;
             }
             case AXIS_Y:
@@ -669,12 +761,12 @@ void loop() {
               int microstepping_setting = buffer_rx[3];
               if(microstepping_setting>128)
                 microstepping_setting = 256;
-              // Y_driver.microsteps(microstepping_setting);
               MICROSTEPPING_Y = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
               Y_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               Y_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              // Y_driver.rms_current(Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD); //I_run and holdMultiplier
+              tmc4361A_tmc2660_config(&tmc4361[y], (Y_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, Y_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Y_MM, FULLSTEPS_PER_REV_Y, MICROSTEPPING_Y);
+              tmc4361A_tmc2660_update(&tmc4361[y]);
               break;
             }
             case AXIS_Z:
@@ -682,12 +774,12 @@ void loop() {
               int microstepping_setting = buffer_rx[3];
               if(microstepping_setting>128)
                 microstepping_setting = 256;
-              //Z_driver.microsteps(microstepping_setting);
               MICROSTEPPING_Z = microstepping_setting==0?1:microstepping_setting;
               steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
               Z_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               Z_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              //Z_driver.rms_current(Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD); //I_run and holdMultiplier
+              tmc4361A_tmc2660_config(&tmc4361[z], (Z_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, Z_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Z_MM, FULLSTEPS_PER_REV_Z, MICROSTEPPING_Z);
+              tmc4361A_tmc2660_update(&tmc4361[z]);
               break;
             }
           }
@@ -701,24 +793,24 @@ void loop() {
             {
               MAX_VELOCITY_X_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
               MAX_ACCELERATION_X_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/10;
-              stepper_X.setMaxSpeed(MAX_VELOCITY_X_mm*steps_per_mm_X);
-              stepper_X.setAcceleration(MAX_ACCELERATION_X_mm*steps_per_mm_X);
+              tmc4361A_setMaxSpeed(&tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], MAX_VELOCITY_X_mm) );
+              tmc4361A_setMaxAcceleration(&tmc4361[x], tmc4361A_ammToMicrosteps( &tmc4361[x], MAX_ACCELERATION_X_mm) );
               break;
             }
             case AXIS_Y:
             {
               MAX_VELOCITY_Y_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
               MAX_ACCELERATION_Y_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/10;
-              stepper_Y.setMaxSpeed(MAX_VELOCITY_Y_mm*steps_per_mm_Y);
-              stepper_Y.setAcceleration(MAX_ACCELERATION_Y_mm*steps_per_mm_Y);
+              tmc4361A_setMaxSpeed(&tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], MAX_VELOCITY_Y_mm*steps_per_mm_Y) );
+              tmc4361A_setMaxAcceleration(&tmc4361[y], tmc4361A_ammToMicrosteps( &tmc4361[y], MAX_ACCELERATION_Y_mm*steps_per_mm_Y) );
               break;
             }
             case AXIS_Z:
             {
               MAX_VELOCITY_Z_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
               MAX_ACCELERATION_Z_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/10;
-              stepper_Z.setMaxSpeed(MAX_VELOCITY_Z_mm*steps_per_mm_Z);
-              stepper_Z.setAcceleration(MAX_ACCELERATION_Z_mm*steps_per_mm_Z);
+              tmc4361A_setMaxSpeed(&tmc4361[z], tmc4361A_vmmToMicrosteps( &tmc4361[z], MAX_VELOCITY_Z_mm) );
+              tmc4361A_setMaxAcceleration(&tmc4361[z], tmc4361A_ammToMicrosteps( &tmc4361[z], MAX_ACCELERATION_Z_mm) );
               break;
             }
           }
@@ -749,6 +841,7 @@ void loop() {
           }
           break;
         }
+        
         case HOME_OR_ZERO:
         {
           // zeroing
@@ -757,15 +850,15 @@ void loop() {
             switch(buffer_rx[2])
             {
               case AXIS_X:
-                stepper_X.setCurrentPosition(0);
+                tmc4361A_setCurrentPosition(&tmc4361[x], 0);
                 X_pos = 0;
                 break;
               case AXIS_Y:
-                stepper_Y.setCurrentPosition(0);
+                tmc4361A_setCurrentPosition(&tmc4361[y], 0);
                 Y_pos = 0;
                 break;
               case AXIS_Z:
-                stepper_Z.setCurrentPosition(0);
+                tmc4361A_setCurrentPosition(&tmc4361[z], 0);
                 Z_pos = 0;
                 focusPosition = 0;
                 break;
@@ -784,7 +877,6 @@ void loop() {
                 if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_X = true;
-                  runSpeed_flag_X = true;
                   if(homing_direction_X==HOME_NEGATIVE)
                     stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                   else
@@ -794,7 +886,6 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_X = true;
-                  runSpeed_flag_X = true;
                   if(homing_direction_X==HOME_NEGATIVE)
                     stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                   else
@@ -809,7 +900,6 @@ void loop() {
                 if(digitalRead(Y_LIM)==(LIM_SWITCH_Y_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Y = true;
-                  runSpeed_flag_Y = true;
                   if(homing_direction_Y==HOME_NEGATIVE)
                     stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                   else
@@ -819,7 +909,6 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_Y = true;
-                  runSpeed_flag_Y = true;
                   if(homing_direction_Y==HOME_NEGATIVE)
                     stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                   else
@@ -834,7 +923,6 @@ void loop() {
                 if(digitalRead(Z_LIM)==(LIM_SWITCH_Z_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Z = true;
-                  runSpeed_flag_Z = true;
                   if(homing_direction_Z==HOME_NEGATIVE)
                     stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
                   else
@@ -844,7 +932,6 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_Z = true;
-                  runSpeed_flag_Z = true;
                   if(homing_direction_Z==HOME_NEGATIVE)
                     stepper_Z.setSpeed(HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm*steps_per_mm_Z);
                   else
@@ -862,7 +949,6 @@ void loop() {
                 if(digitalRead(X_LIM)==(LIM_SWITCH_X_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_X = true;
-                  runSpeed_flag_X = true;
                   if(homing_direction_X==HOME_NEGATIVE)
                     stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                   else
@@ -872,7 +958,6 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_X = true;
-                  runSpeed_flag_X = true;
                   if(homing_direction_X==HOME_NEGATIVE)
                     stepper_X.setSpeed(HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
                   else
@@ -883,7 +968,6 @@ void loop() {
                 if(digitalRead(Y_LIM)==(LIM_SWITCH_Y_ACTIVE_LOW?HIGH:LOW))
                 {
                   is_homing_Y = true;
-                  runSpeed_flag_Y = true;
                   if(homing_direction_Y==HOME_NEGATIVE)
                     stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                   else
@@ -893,7 +977,6 @@ void loop() {
                 {
                   // get out of the hysteresis zone
                   is_preparing_for_homing_Y = true;
-                  runSpeed_flag_Y = true;
                   if(homing_direction_Y==HOME_NEGATIVE)
                     stepper_Y.setSpeed(HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
                   else
@@ -914,17 +997,9 @@ void loop() {
             {
               case AXIS_X:
                 offset_velocity_x = float( int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5])) )/1000000;
-                if( abs(offset_velocity_x)>0.000005 )
-                  runSpeed_flag_X = true;
-                else
-                  runSpeed_flag_X = false;
                 break;
               case AXIS_Y:
                 offset_velocity_y = float( int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5])) )/1000000;
-                if( abs(offset_velocity_y)>0.000005 )
-                  runSpeed_flag_Y = true;
-                else
-                  runSpeed_flag_Y = false;
                 break;
             }
             break;
@@ -1035,7 +1110,6 @@ void loop() {
     {
       is_preparing_for_homing_X = false;
       is_homing_X = true;
-      runSpeed_flag_X = true;
       if(homing_direction_X==HOME_NEGATIVE)
         stepper_X.setSpeed(-HOMING_VELOCITY_X*MAX_VELOCITY_X_mm*steps_per_mm_X);
       else
@@ -1048,7 +1122,6 @@ void loop() {
     {
       is_preparing_for_homing_Y = false;
       is_homing_Y = true;
-      runSpeed_flag_Y = true;
       if(homing_direction_Y==HOME_NEGATIVE)
         stepper_Y.setSpeed(-HOMING_VELOCITY_Y*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
       else
@@ -1061,7 +1134,6 @@ void loop() {
     {
       is_preparing_for_homing_Z = false;
       is_homing_Z = true;
-      runSpeed_flag_Z = true;
       if(homing_direction_Z==HOME_NEGATIVE)
         stepper_Z.setSpeed(-HOMING_VELOCITY_Z*MAX_VELOCITY_X_mm*steps_per_mm_Z);
       else
@@ -1071,6 +1143,7 @@ void loop() {
   */
 
   // finish homing
+  /*
   if(is_homing_X && home_X_found && stepper_X.distanceToGo() == 0)
   {
     stepper_X.setCurrentPosition(0);
@@ -1098,6 +1171,7 @@ void loop() {
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false;
   }
+  */
 
   // homing complete
   if(is_homing_XY && home_X_found && !is_homing_X && home_Y_found && !is_homing_Y)
@@ -1114,20 +1188,15 @@ void loop() {
       // joystick at motion position
       if(abs(joystick_delta_x)>0)
       {
-        stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm*steps_per_mm_X );
+        tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm ) );
       }
       // joystick at rest position
       else
       {
         if(enable_offset_velocity)
-        {
-          stepper_X.setSpeed( offset_velocity_x*steps_per_mm_X );
-        }
+          tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x ) );
         else
-        {
-          runSpeed_flag_X = false;
-          stepper_X.setSpeed( 0 );
-        }
+          tmc4361A_setSpeed( &tmc4361[x], 0 );
       }
     }
   
@@ -1137,19 +1206,15 @@ void loop() {
       // joystick at motion position
       if(abs(joystick_delta_y)>0)
       {
-        stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y + (joystick_delta_x/32768.0)*MAX_VELOCITY_Y_mm*steps_per_mm_Y);
+        tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y/32768.0)*MAX_VELOCITY_Y_mm ) );
       }
       // joystick at rest position
       else
       {
         if(enable_offset_velocity)
-        {
-          stepper_Y.setSpeed( offset_velocity_y*steps_per_mm_Y );
-        }
+          tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y ) );
         else
-        {
-          stepper_Y.setSpeed( 0 );
-        }
+          tmc4361A_setSpeed( &tmc4361[y], 0 );
       }
     }
 
@@ -1158,25 +1223,21 @@ void loop() {
   }
 
   // handle limits
-  if( stepper_X.currentPosition()>=X_POS_LIMIT && offset_velocity_x>0 )
+  if( tmc4361A_currentPosition(&tmc4361[x])>=X_POS_LIMIT && offset_velocity_x>0 )
   {
-    runSpeed_flag_X = false;
-    stepper_X.setSpeed( 0 );
+    tmc4361A_setSpeed( &tmc4361[x], 0 );
   }
-  if( stepper_X.currentPosition()<=X_NEG_LIMIT && offset_velocity_x<0 )
+  if( tmc4361A_currentPosition(&tmc4361[x])<=X_NEG_LIMIT && offset_velocity_x<0 )
   {
-    runSpeed_flag_X = false;
-    stepper_X.setSpeed( 0 );
+    tmc4361A_setSpeed( &tmc4361[x], 0 );
   }
-  if( stepper_Y.currentPosition()>=Y_POS_LIMIT && offset_velocity_y>0 )
+  if( tmc4361A_currentPosition(&tmc4361[y])>=Y_POS_LIMIT && offset_velocity_y>0 )
   {
-    runSpeed_flag_Y = false;
-    stepper_Y.setSpeed( 0 );
+    tmc4361A_setSpeed( &tmc4361[y], 0 );
   }
-  if( stepper_Y.currentPosition()<=Y_NEG_LIMIT && offset_velocity_y<0 )
+  if( tmc4361A_currentPosition(&tmc4361[y])<=Y_NEG_LIMIT && offset_velocity_y<0 )
   {
-    runSpeed_flag_Y = false;
-    stepper_Y.setSpeed( 0 );
+    tmc4361A_setSpeed( &tmc4361[y], 0 );
   }
   
   // focus control
@@ -1184,28 +1245,29 @@ void loop() {
     focusPosition = Z_POS_LIMIT;
   if(focusPosition < Z_NEG_LIMIT)
     focusPosition = Z_NEG_LIMIT;
-  stepper_Z.moveTo(focusPosition);
+  tmc4361A_moveTo(&tmc4361[z], focusPosition);
 
   // send position update to computer
-  if(flag_send_pos_update)
+  if(us_since_last_pos_update > interval_send_pos_update)
   {
-
+    us_since_last_pos_update = 0;
+    
     buffer_tx[0] = cmd_id;
     buffer_tx[1] = mcu_cmd_execution_in_progress; // cmd_execution_status
     
-    uint32_t X_pos_int32t = uint32_t( X_use_encoder?X_pos:int32_t(stepper_X.currentPosition()) );
+    uint32_t X_pos_int32t = uint32_t( X_use_encoder?X_pos:int32_t(tmc4361A_currentPosition(&tmc4361[x])) );
     buffer_tx[2] = byte(X_pos_int32t>>24);
     buffer_tx[3] = byte((X_pos_int32t>>16)%256);
     buffer_tx[4] = byte((X_pos_int32t>>8)%256);
     buffer_tx[5] = byte((X_pos_int32t)%256);
     
-    uint32_t Y_pos_int32t = uint32_t( Y_use_encoder?Y_pos:int32_t(stepper_Y.currentPosition()) );
+    uint32_t Y_pos_int32t = uint32_t( Y_use_encoder?Y_pos:int32_t(tmc4361A_currentPosition(&tmc4361[y])) );
     buffer_tx[6] = byte(Y_pos_int32t>>24);
     buffer_tx[7] = byte((Y_pos_int32t>>16)%256);
     buffer_tx[8] = byte((Y_pos_int32t>>8)%256);
     buffer_tx[9] = byte((Y_pos_int32t)%256);
 
-    uint32_t Z_pos_int32t = uint32_t( Z_use_encoder?Z_pos:int32_t(stepper_Z.currentPosition()) );
+    uint32_t Z_pos_int32t = uint32_t( Z_use_encoder?Z_pos:int32_t(tmc4361A_currentPosition(&tmc4361[z])) );
     buffer_tx[10] = byte(Z_pos_int32t>>24);
     buffer_tx[11] = byte((Z_pos_int32t>>16)%256);
     buffer_tx[12] = byte((Z_pos_int32t>>8)%256);
@@ -1217,29 +1279,44 @@ void loop() {
 
     buffer_tx[18] &= ~ (1 << BIT_POS_JOYSTICK_BUTTON); // clear the joystick button bit
     buffer_tx[18] = buffer_tx[18] | joystick_button_pressed << BIT_POS_JOYSTICK_BUTTON;
-    
-    SerialUSB.write(buffer_tx,MSG_LENGTH);
+
+    if(!DEBUG_MODE)
+      SerialUSB.write(buffer_tx,MSG_LENGTH);
+    else
+    {
+      SerialUSB.print("focus: ");
+      SerialUSB.print(focuswheel_pos);
+      // Serial.print(buffer[3]);
+      SerialUSB.print(", joystick delta x: ");
+      SerialUSB.print(joystick_delta_x);
+      SerialUSB.print(", joystick delta y: ");
+      SerialUSB.print(joystick_delta_y);
+      SerialUSB.print(", btns: ");
+      SerialUSB.print(btns);
+      SerialUSB.print(", PG:");
+      SerialUSB.println(digitalRead(pin_PG));
+    }
     flag_send_pos_update = false;
     
   }
 
   // check if commanded position has been reached
-  if(X_commanded_movement_in_progress && stepper_X.currentPosition()==X_commanded_target_position && !is_homing_X) // homing is handled separately
+  if(X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x])==X_commanded_target_position && !is_homing_X) // homing is handled separately
   {
     X_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
-  if(Y_commanded_movement_in_progress && stepper_Y.currentPosition()==Y_commanded_target_position && !is_homing_Y)
+  if(Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y])==Y_commanded_target_position && !is_homing_Y)
   {
     Y_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
-  if(Z_commanded_movement_in_progress && stepper_Z.currentPosition()==Z_commanded_target_position && !is_homing_Z)
+  if(Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z])==Z_commanded_target_position && !is_homing_Z)
   {
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
   }
-    
+      
 }
 
 /***************************************************
@@ -1249,15 +1326,20 @@ void loop() {
  ***************************************************/
  
 // timer interrupt
+/*
+// IntervalTimer stops working after SPI.begin()
 void timer_interruptHandler()
 {
+  SerialUSB.println("timer event");
   counter_send_pos_update = counter_send_pos_update + 1;
   if(counter_send_pos_update==interval_send_pos_update/TIMER_PERIOD)
   {
     flag_send_pos_update = true;
     counter_send_pos_update = 0;
+    SerialUSB.println("send pos update");
   }
 }
+*/
 
 /***************************************************************************************************/
 /*********************************************  utils  *********************************************/

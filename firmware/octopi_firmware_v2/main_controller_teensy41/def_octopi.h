@@ -1,9 +1,13 @@
 // LED matrix
 #define DOTSTAR_NUM_LEDS 128
 
-// Joystick
-static const bool ENABLE_JOYSTICK = true;
-constexpr int joystickSensitivity = 75; // for comparison with number in the range of 0-512
+// Axis assignment
+static const uint8_t x = 1;
+static const uint8_t y = 0;
+static const uint8_t z = 2;
+
+static const float R_sense_xy = 0.15;
+static const float R_sense_z = 0.15;
 
 // Motorized stage
 static const int FULLSTEPS_PER_REV_X = 200;
@@ -13,11 +17,11 @@ static const int FULLSTEPS_PER_REV_THETA = 200;
 
 float SCREW_PITCH_X_MM = 2.54;
 float SCREW_PITCH_Y_MM = 2.54;
-float SCREW_PITCH_Z_MM = 0.012*25.4;
+float SCREW_PITCH_Z_MM = 0.3;
 
-int MICROSTEPPING_X = 8;
-int MICROSTEPPING_Y = 8;
-int MICROSTEPPING_Z = 8;
+int MICROSTEPPING_X = 256;
+int MICROSTEPPING_Y = 256;
+int MICROSTEPPING_Z = 256;
 
 static const float HOMING_VELOCITY_X = 0.8;
 static const float HOMING_VELOCITY_Y = 0.8;
@@ -30,9 +34,9 @@ long steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
 float MAX_VELOCITY_X_mm = 20;
 float MAX_VELOCITY_Y_mm = 20;
 float MAX_VELOCITY_Z_mm = 2;
-float MAX_ACCELERATION_X_mm = 200;  // 50 mm/s/s
-float MAX_ACCELERATION_Y_mm = 200;  // 50 mm/s/s
-float MAX_ACCELERATION_Z_mm = 20;   // 20 mm/s/s
+float MAX_ACCELERATION_X_mm = 200;
+float MAX_ACCELERATION_Y_mm = 200;
+float MAX_ACCELERATION_Z_mm = 20;
 
 static const long X_NEG_LIMIT_MM = -130;
 static const long X_POS_LIMIT_MM = 130;
@@ -44,8 +48,8 @@ static const long Z_POS_LIMIT_MM = 20;
 // size 11 lead screw motors
 int X_MOTOR_RMS_CURRENT_mA = 1000;
 int Y_MOTOR_RMS_CURRENT_mA = 1000;
-// haydon kerk size 8 linear actuator
-int Z_MOTOR_RMS_CURRENT_mA = 490;
+// Ding's motion size 8 linear actuator
+int Z_MOTOR_RMS_CURRENT_mA = 500;
 
 float X_MOTOR_I_HOLD = 0.25;
 float Y_MOTOR_I_HOLD = 0.25;
