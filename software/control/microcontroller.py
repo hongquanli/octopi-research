@@ -20,7 +20,7 @@ from qtpy.QtGui import *
 # to do (7/28/2021) - add functions for configuring the stepper motors
 
 class Microcontroller():    
-    def __init__(self,parent=None):
+    def __init__(self,version='Arduino Due',sn=None,parent=None):
         self.serial = None
         self.platform_name = platform.system()
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
@@ -43,22 +43,24 @@ class Microcontroller():
         self.last_command = None
         self.timeout_counter = 0
 
-        # AUTO-DETECT the Arduino! Based on Deepak's code
-        arduino_ports = [
-                p.device
-                for p in serial.tools.list_ports.comports()
-                if 'Arduino Due' == p.description]
-        if not arduino_ports:
-            raise IOError("No Arduino found")
-        if len(arduino_ports) > 1:
-            print('Multiple Arduinos found - using the first')
-        else:
-            print('Using Arduino found at : {}'.format(arduino_ports[0]))
+        print('connecting to controller based on ' + version)
 
-        # establish serial communication
-        self.serial = serial.Serial(arduino_ports[0],2000000)
+        if version =='Arduino Due':
+            controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
+        else:
+            if sn is not None:
+                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if serial_number == p.serial_number]
+            else:
+                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
+        
+        if not controller_ports:
+            raise IOError("no controller found")
+        if len(controller_ports) > 1:
+            print('multiple controller found - using the first')
+        
+        self.serial = serial.Serial(controller_ports[0],2000000)
         time.sleep(0.2)
-        print('Serial Connection Open')
+        print('controller connected')
 
         self.new_packet_callback_external = None
         self.terminate_reading_received_packet_thread = False
@@ -605,6 +607,14 @@ class Microcontroller():
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
+    def wait_till_operation_is_completed(self, TIMEOUT_LIMIT_S=5):
+        timestamp_start = time.time()
+        while self.is_busy():
+            time.sleep(0.02)
+            if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
+                print('Error - microcontroller timeout, the program will exit')
+                exit()
+
     def _int_to_payload(self,signed_int,number_of_bytes):
         if signed_int >= 0:
             payload = signed_int
@@ -800,20 +810,32 @@ class Microcontroller_Simulation():
     def configure_actuators(self):
         # lead screw pitch
         self.set_leadscrew_pitch(AXIS.X,SCREW_PITCH_X_MM)
+        self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Y,SCREW_PITCH_Y_MM)
+        self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
+        self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
         self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Y,MICROSTEPPING_DEFAULT_Y,Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
+        self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Y_mm)
+        self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Z_mm)
+        self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
         self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
         self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
 
     def analog_write_onboard_DAC(self,dac,value):
         cmd = bytearray(self.tx_buffer_length)
