@@ -372,7 +372,9 @@ void tmc4361A_setSPR(TMC4361ATypeDef *tmc4361A, uint16_t spr) {
   -----------------------------------------------------------------------------
 */
 void tmc4361A_tmc2660_init(TMC4361ATypeDef *tmc4361A, uint32_t clk_Hz_TMC4361) {
-  // TMC4361
+  // software reset
+  tmc4361A_writeInt(tmc4361A, TMC4361A_RESET_REG, 0x52535400);
+  // clock
   tmc4361A_writeInt(tmc4361A, TMC4361A_CLK_FREQ, clk_Hz_TMC4361);
   // SPI configuration
   tmc4361A_writeInt(tmc4361A, TMC4361A_SPIOUT_CONF, 0x4440108A);
