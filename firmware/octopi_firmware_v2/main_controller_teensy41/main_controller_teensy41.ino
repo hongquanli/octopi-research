@@ -108,7 +108,7 @@ const uint8_t pin_TMC4361_CS[4] = {41,36,35,34};
 const uint8_t pin_TMC4361_CLK = 37;
 
 // DAC
-const int DAC8050x_CS_pin = 10;
+const int DAC8050x_CS_pin = 33;
 
 // LED driver
 const int pin_LT3932_SYNC = 25;
@@ -526,19 +526,17 @@ void setup() {
   // SPI
   SPI.begin();
   delayMicroseconds(5000);
-  
+
   // initilize TMC4361 and TMC2660 - turn on functionality
-  for (int i = 0; i < N_MOTOR; i++) 
-  {
-    // set up ICs with SPI control and other parameters
-    tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361);
-    // enable limit switch reading
-    tmc4361A_enableLimitSwitch(&tmc4361[x], lft_sw_pol[x], LEFT_SW, true);
-    tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, true);
-    tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, false);
-    tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, false);
-    tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
-  }
+  for (int i = 0; i < N_MOTOR; i++)     
+    tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
+
+  // enable limit switch reading
+  tmc4361A_enableLimitSwitch(&tmc4361[x], lft_sw_pol[x], LEFT_SW, true);
+  tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, true);
+  tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, false);
+  tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, false);
+  tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
 
   // motion profile configuration
   uint32_t max_velocity_usteps[N_MOTOR];
@@ -571,7 +569,7 @@ void setup() {
   tmc4361A_moveToExtreme(&tmc4361[y], vslow*2, LEFT_DIR);
   tmc4361A_setHome(&tmc4361[y]);
   */
-  
+    
   /*********************************************************************************************************
    ***************************************** TMC4361A + TMC2660 end **************************************** 
    *********************************************************************************************************/
@@ -616,10 +614,13 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           long current_position = tmc4361A_currentPosition(&tmc4361[x]);
-          X_commanded_target_position = ( relative_position>0?min(current_position+relative_position,X_POS_LIMIT):max(current_position+relative_position,X_NEG_LIMIT) );
-          tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position);
-          X_commanded_movement_in_progress = true;
-          mcu_cmd_execution_in_progress = true;
+          // X_commanded_target_position = ( relative_position>0?min(current_position+relative_position,X_POS_LIMIT):max(current_position+relative_position,X_NEG_LIMIT) );
+          X_commanded_target_position = current_position+relative_position;
+          if( tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
+          {
+            X_commanded_movement_in_progress = true;
+            mcu_cmd_execution_in_progress = true;
+          }
           break;
         }
         case MOVE_Y:
@@ -627,9 +628,11 @@ void loop() {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           long current_position = tmc4361A_currentPosition(&tmc4361[y]);
           Y_commanded_target_position = ( relative_position>0?min(current_position+relative_position,Y_POS_LIMIT):max(current_position+relative_position,Y_NEG_LIMIT) );
-          tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position);
-          Y_commanded_movement_in_progress = true;
-          mcu_cmd_execution_in_progress = true;
+          if( tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position) == 0)
+          {
+            Y_commanded_movement_in_progress = true;
+            mcu_cmd_execution_in_progress = true;
+          }
           break;
         }
         case MOVE_Z:
@@ -638,37 +641,45 @@ void loop() {
           long current_position = tmc4361A_currentPosition(&tmc4361[z]);
           Z_commanded_target_position = ( relative_position>0?min(current_position+relative_position,Z_POS_LIMIT):max(current_position+relative_position,Z_NEG_LIMIT) );
           focusPosition = Z_commanded_target_position;
-          tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position);
-          Z_commanded_movement_in_progress = true;
-          mcu_cmd_execution_in_progress = true;
+          if( tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position) == 0)
+          {
+            Z_commanded_movement_in_progress = true;
+            mcu_cmd_execution_in_progress = true;
+          }
           break;
         }
         case MOVETO_X:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           X_commanded_target_position = absolute_position;
-          tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position);
-          X_commanded_movement_in_progress = true;
-          mcu_cmd_execution_in_progress = true;
+          if(tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
+          {
+            X_commanded_movement_in_progress = true;
+            mcu_cmd_execution_in_progress = true;
+          }
           break;
         }
         case MOVETO_Y:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           Y_commanded_target_position = absolute_position;
-          tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position);
-          Y_commanded_movement_in_progress = true;
-          mcu_cmd_execution_in_progress = true;
+          if(tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position)==0)
+          {
+            Y_commanded_movement_in_progress = true;
+            mcu_cmd_execution_in_progress = true;
+          }
           break;
         }
         case MOVETO_Z:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           Z_commanded_target_position = absolute_position;
-          tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position);
-          focusPosition = absolute_position;
-          Z_commanded_movement_in_progress = true;
-          mcu_cmd_execution_in_progress = true;
+          if(tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position)==0)
+          {
+            focusPosition = absolute_position;
+            Z_commanded_movement_in_progress = true;
+            mcu_cmd_execution_in_progress = true;
+          }
           break;
         }
         case SET_LIM:
