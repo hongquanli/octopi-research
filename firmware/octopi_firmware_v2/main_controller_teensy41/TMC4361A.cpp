@@ -145,8 +145,8 @@ void tmc4361A_init(TMC4361ATypeDef *tmc4361A, uint8_t channel, ConfigurationType
   tmc4361A->velocity  = 0;
   tmc4361A->oldTick   = 0;
   tmc4361A->oldX      = 0;
-  tmc4361A->xmin      = 0;
-  tmc4361A->xmax      = 0;
+  tmc4361A->xmin      = -2147483648;
+  tmc4361A->xmax      = 2147483647;
   tmc4361A->xhome     = 0;
   tmc4361A->config    = config;
 
