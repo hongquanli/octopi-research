@@ -247,6 +247,7 @@ long joystick_button_pressed_timestamp = 0;
 
 // focus
 int32_t focuswheel_pos = 0;
+bool first_packet_from_joystick_panel = true;
 
 // btns
 uint8_t btns;
@@ -261,8 +262,20 @@ void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
     return;
   }
 
-  focuswheel_pos = uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]);
-  focusPosition = focuswheel_pos;
+  //  focuswheel_pos = uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]);
+  //  focusPosition = focuswheel_pos;
+  
+  if(first_packet_from_joystick_panel)
+  {
+    focuswheel_pos = int32_t(uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]));
+    first_packet_from_joystick_panel = false;
+  }
+  else
+  {
+    focusPosition = focusPosition + ( int32_t(uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]))-focuswheel_pos );
+    focuswheel_pos = int32_t(uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]));
+  }
+  
   joystick_delta_x = JOYSTICK_SIGN_X*int16_t( uint16_t(buffer[4])*256 + uint16_t(buffer[5]) );
   joystick_delta_y = JOYSTICK_SIGN_Y*int16_t( uint16_t(buffer[6])*256 + uint16_t(buffer[7]) );
   btns = buffer[8];
