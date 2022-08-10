@@ -57,6 +57,7 @@ typedef struct
   float   threadPitch;
   uint16_t stepsPerRev;
   uint16_t microsteps;
+  bool velocity_mode;
   
   //TMotorConfig motorConfig;
   //TClosedLoopConfig closedLoopConfig;
