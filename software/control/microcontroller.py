@@ -488,20 +488,32 @@ class Microcontroller():
     def configure_actuators(self):
         # lead screw pitch
         self.set_leadscrew_pitch(AXIS.X,SCREW_PITCH_X_MM)
+        self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Y,SCREW_PITCH_Y_MM)
+        self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
+        self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
         self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Y,MICROSTEPPING_DEFAULT_Y,Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
-        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
-        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
+        self.wait_till_operation_is_completed()
+        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Y_mm)
+        self.wait_till_operation_is_completed()
+        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Z_mm)
+        self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
         self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
         self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
 
     def ack_joystick_button_pressed(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -772,6 +784,8 @@ class Microcontroller_Simulation():
         cmd[2] = axis
         if microstepping == 1:
             cmd[3] = 0
+        elif microstepping == 256:
+            cmd[3] = 255 # max of uint8 is 255 - will be changed to 255 after received by the MCU
         else:
             cmd[3] = microstepping
         cmd[4] = current_rms >> 8
@@ -951,4 +965,12 @@ class Microcontroller_Simulation():
         # self._mcu_cmd_execution_status = CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS
         # self.timer_update_command_execution_status.stop()
         pass # timer cannot be started from another thread
+
+    def wait_till_operation_is_completed(self, TIMEOUT_LIMIT_S=5):
+        timestamp_start = time.time()
+        while self.is_busy():
+            time.sleep(0.02)
+            if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
+                print('Error - microcontroller timeout, the program will exit')
+                exit()
 
