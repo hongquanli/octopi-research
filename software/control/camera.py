@@ -98,26 +98,26 @@ class Camera(object):
     def enable_callback(self):
         # stop streaming
         if self.is_streaming:
-            self.was_streaming = True
+            was_streaming = True
             self.stop_streaming()
         # enable callback
         user_param = None
         self.camera.register_capture_callback(user_param,self._on_frame_callback)
         self.callback_is_enabled = True
         # resume streaming if it was on
-        if self.was_streaming:
+        if was_streaming:
             self.start_streaming()
 
     def disable_callback(self):
         # stop streaming
         if self.is_streaming:
-            self.was_streaming = True
+            was_streaming = True
             self.stop_streaming()
         # disable call back
         self.camera.unregister_capture_callback()
         self.callback_is_enabled = False
         # resume streaming if it was on
-        if self.was_streaming:
+        if was_streaming:
             self.start_streaming()
 
     def open_by_sn(self,sn):
