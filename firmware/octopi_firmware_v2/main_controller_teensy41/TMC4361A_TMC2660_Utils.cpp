@@ -970,7 +970,7 @@ void tmc4361A_setSpeed(TMC4361ATypeDef *tmc4361A, int32_t velocity) {
   DEPENDENCIES: tmc4316A.h
   -----------------------------------------------------------------------------
 */
-int32_t speed(TMC4361ATypeDef *tmc4361A) {
+int32_t tmc4361A_speed(TMC4361ATypeDef *tmc4361A) {
   return tmc4361A_readInt(tmc4361A, TMC4361A_VACTUAL);
 }
 
@@ -1028,8 +1028,10 @@ int32_t tmc4361A_acceleration(TMC4361ATypeDef *tmc4361A) {
   -----------------------------------------------------------------------------
 */
 int8_t tmc4361A_setMaxAcceleration(TMC4361ATypeDef *tmc4361A, uint32_t acceleration) {
+  int8_t err = NO_ERR;
   if (acceleration > ACCELMAX) {
-    return ERR_OUT_OF_RANGE;
+    err = ERR_OUT_OF_RANGE;
+    acceleration = ACCELMAX;
   }
 
   tmc4361A->rampParam[AMAX_IDX] = acceleration;
@@ -1037,7 +1039,7 @@ int8_t tmc4361A_setMaxAcceleration(TMC4361ATypeDef *tmc4361A, uint32_t accelerat
   tmc4361A_adjustBows(tmc4361A);
   tmc4361A_sRampInit(tmc4361A);
 
-  return NO_ERR;
+  return err;
 }
 
 /*

@@ -75,8 +75,8 @@ static const uint8_t TMC2660_TMC4361A_defaultCscaleval[N_CPARAM] = {TMC2660_CSCA
 #define RGHT_SW 0b10
 #define LEFT_DIR -1
 #define RGHT_DIR  1
-#define BOWMAX 0x1FFFFFF   // (1<<24 - 1) 
-#define ACCELMAX ((1 << 22) - 1)
+#define BOWMAX ((1<<24) - 1) 
+#define ACCELMAX ((1 << 24) - 1)
 
 void tmc4361A_readWriteArray(uint8_t channel, uint8_t *data, size_t length);
 void tmc4361A_setBits(TMC4361ATypeDef *tmc4361A, uint8_t address, int32_t dat);
