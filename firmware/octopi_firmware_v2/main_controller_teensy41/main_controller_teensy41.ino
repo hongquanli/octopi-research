@@ -267,12 +267,15 @@ void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
   joystick_delta_y = JOYSTICK_SIGN_Y*int16_t( uint16_t(buffer[6])*256 + uint16_t(buffer[7]) );
   btns = buffer[8];
 
+  // temporary
+  /*
   if(btns & 0x01)
   {
     joystick_button_pressed = true;
     joystick_button_pressed_timestamp = millis();
     // to add: ACK for the joystick panel
   }
+  */
 
   flag_read_joystick = true;
 
@@ -569,6 +572,20 @@ void setup() {
   tmc4361A_moveToExtreme(&tmc4361[y], vslow*2, LEFT_DIR);
   tmc4361A_setHome(&tmc4361[y]);
   */
+
+  if(DEBUG_MODE)
+  {
+    while(true)
+    {
+      SerialUSB.println("move forward");
+      tmc4361A_moveTo(&tmc4361[x], 51200);
+      delay(1000);
+      SerialUSB.println("move backward");
+      tmc4361A_moveTo(&tmc4361[x], 0);
+      delay(1000);
+    }
+  }
+  
     
   /*********************************************************************************************************
    ***************************************** TMC4361A + TMC2660 end **************************************** 
@@ -614,8 +631,7 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           long current_position = tmc4361A_currentPosition(&tmc4361[x]);
-          // X_commanded_target_position = ( relative_position>0?min(current_position+relative_position,X_POS_LIMIT):max(current_position+relative_position,X_NEG_LIMIT) );
-          X_commanded_target_position = current_position+relative_position;
+          X_commanded_target_position = ( relative_position>0?min(current_position+relative_position,X_POS_LIMIT):max(current_position+relative_position,X_NEG_LIMIT) );
           if( tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
           {
             X_commanded_movement_in_progress = true;
@@ -812,8 +828,8 @@ void loop() {
             {
               MAX_VELOCITY_Y_mm = float(uint16_t(buffer_rx[3])*256+uint16_t(buffer_rx[4]))/100;
               MAX_ACCELERATION_Y_mm = float(uint16_t(buffer_rx[5])*256+uint16_t(buffer_rx[6]))/10;
-              tmc4361A_setMaxSpeed(&tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], MAX_VELOCITY_Y_mm*steps_per_mm_Y) );
-              tmc4361A_setMaxAcceleration(&tmc4361[y], tmc4361A_ammToMicrosteps( &tmc4361[y], MAX_ACCELERATION_Y_mm*steps_per_mm_Y) );
+              tmc4361A_setMaxSpeed(&tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], MAX_VELOCITY_Y_mm) );
+              tmc4361A_setMaxAcceleration(&tmc4361[y], tmc4361A_ammToMicrosteps( &tmc4361[y], MAX_ACCELERATION_Y_mm) );
               break;
             }
             case AXIS_Z:
