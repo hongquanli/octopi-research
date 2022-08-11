@@ -28,7 +28,7 @@ int8_t tmc4361A_moveTo(TMC4361ATypeDef *tmc4361A, int32_t x_pos);
 int8_t tmc4361A_move(TMC4361ATypeDef *tmc4361A, int32_t x_pos);
 int32_t tmc4361A_currentPosition(TMC4361ATypeDef *tmc4361A);
 int32_t tmc4361A_targetPosition(TMC4361ATypeDef *tmc4361A);
-void tmc4361A_setCurrentPosition(TMC4361ATypeDef *tmc4361A, int32_t position);
+int8_t tmc4361A_setCurrentPosition(TMC4361ATypeDef *tmc4361A, int32_t position);
 void tmc4361A_stop(TMC4361ATypeDef *tmc4361A);
 bool tmc4361A_isRunning(TMC4361ATypeDef *tmc4361A);
 int32_t tmc4361A_xmmToMicrosteps(TMC4361ATypeDef *tmc4361A, float mm);

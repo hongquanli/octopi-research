@@ -1186,8 +1186,9 @@ int32_t tmc4361A_targetPosition(TMC4361ATypeDef *tmc4361A) {
   ARGUMENTS:
       TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
 
-  RETURNS: None
-
+  RETURNS: 
+      int8_t err: NO_ERR if the new xmin, xmax, and xhome don't hit the min/max int32_t values and ERR_OUT_OF_RANGE if they do
+      
   INPUTS / OUTPUTS: The CS pin and SPI MISO and MOSI pins output, input, and output data respectively
 
   LOCAL VARIABLES:
@@ -1202,17 +1203,73 @@ int32_t tmc4361A_targetPosition(TMC4361ATypeDef *tmc4361A) {
   DEPENDENCIES: tmc4316A.h
   -----------------------------------------------------------------------------
 */
-void tmc4361A_setCurrentPosition(TMC4361ATypeDef *tmc4361A, int32_t position) {
+int8_t tmc4361A_setCurrentPosition(TMC4361ATypeDef *tmc4361A, int32_t position) {
   int32_t current = tmc4361A_currentPosition(tmc4361A);
   int32_t dif = position - current;
-  // change motor parameters on the teensy
-  tmc4361A->xmax += dif;
-  tmc4361A->xmin += dif;
-  tmc4361A->xhome += dif;
+  int8_t err = NO_ERR;
+  // first, ensure no overflows happen
+  int32_t xmax  = tmc4361A->xmax;
+  int32_t xmin  = tmc4361A->xmin;
+  int32_t xhome = tmc4361A->xhome;
+  if(dif > 0){
+    // perform addition overflow check
+    if(xmax > INT32_MAX-dif){
+      err = ERR_OUT_OF_RANGE;
+      xmax = INT32_MAX;
+    }
+    else{
+      xmax += dif;
+    }
+    if(xmin > INT32_MAX-dif){
+      err = ERR_OUT_OF_RANGE;
+      xmin = INT32_MAX;
+    }
+    else{
+      xmin += dif;
+    }
+    if(xhome > INT32_MAX-dif){
+      err = ERR_OUT_OF_RANGE;
+      xhome = INT32_MAX;
+    }
+    else{
+      xhome += dif;
+    }
+  }
+  else{
+    // perform subtraction overflow check
+    if(xmax < INT32_MIN-dif){
+      err = ERR_OUT_OF_RANGE;
+      xmax = INT32_MIN;
+    }
+    else{
+      xmax += dif;
+    }
+    if(xmin < INT32_MIN-dif){
+      err = ERR_OUT_OF_RANGE;
+      xmin = INT32_MIN;
+    }
+    else{
+      xmin += dif;
+    }
+    if(xhome < INT32_MIN-dif){
+      err = ERR_OUT_OF_RANGE;
+      xmin = INT32_MIN;
+    }
+    else{
+      xhome += dif;
+    }
+  }
+  // save the new values
+  tmc4361A->xmax = xmax;
+  tmc4361A->xmin = xmin;
+  tmc4361A->xhome = xhome;
   // change motor parameters on the driver
+  tmc4361A_writeInt(tmc4361A, TMC4361A_VMAX, 0); // max speed
+  tmc4361A_moveTo(tmc4361A, position);
   tmc4361A_writeInt(tmc4361A, TMC4361A_XACTUAL, position);
-
-  return;
+  // set the velocity_mode flag as velocity needs to be reset
+  tmc4361A->velocity_mode = true;
+  return err;
 }
 
 /*
