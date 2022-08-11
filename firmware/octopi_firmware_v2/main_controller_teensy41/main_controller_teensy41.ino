@@ -1,5 +1,4 @@
 #include <PacketSerial.h>
-#include <AccelStepper.h>
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
 #include "TMC4361A.h"
@@ -264,7 +263,7 @@ void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
 
   //  focuswheel_pos = uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]);
   //  focusPosition = focuswheel_pos;
-  
+
   if(first_packet_from_joystick_panel)
   {
     focuswheel_pos = int32_t(uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]));
@@ -275,7 +274,7 @@ void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
     focusPosition = focusPosition + ( int32_t(uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]))-focuswheel_pos );
     focuswheel_pos = int32_t(uint32_t(buffer[0])*16777216 + uint32_t(buffer[1])*65536 + uint32_t(buffer[2])*256 + uint32_t(buffer[3]));
   }
-  
+
   joystick_delta_x = JOYSTICK_SIGN_X*int16_t( uint16_t(buffer[4])*256 + uint16_t(buffer[5]) );
   joystick_delta_y = JOYSTICK_SIGN_Y*int16_t( uint16_t(buffer[6])*256 + uint16_t(buffer[7]) );
   btns = buffer[8];
@@ -572,12 +571,12 @@ void setup() {
     tmc4361[i].rampParam[DFINAL_IDX] = 0;
     tmc4361A_sRampInit(&tmc4361[i]);
   }
-
+  
   /*
   // homing - temporary
   tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
-  tmc4361A_moveToExtreme(&tmc4361[x], vslow, RGHT_DIR);
-  tmc4361A_moveToExtreme(&tmc4361[x], vslow, LEFT_DIR);
+  tmc4361A_moveToExtreme(&tmc4361[x], vslow*2, RGHT_DIR);
+  tmc4361A_moveToExtreme(&tmc4361[x], vslow*2, LEFT_DIR);
   tmc4361A_setHome(&tmc4361[x]);
   
   tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
@@ -585,19 +584,6 @@ void setup() {
   tmc4361A_moveToExtreme(&tmc4361[y], vslow*2, LEFT_DIR);
   tmc4361A_setHome(&tmc4361[y]);
   */
-
-  if(DEBUG_MODE)
-  {
-    while(true)
-    {
-      SerialUSB.println("move forward");
-      tmc4361A_moveTo(&tmc4361[x], 51200);
-      delay(1000);
-      SerialUSB.println("move backward");
-      tmc4361A_moveTo(&tmc4361[x], 0);
-      delay(1000);
-    }
-  }
   
     
   /*********************************************************************************************************
@@ -881,7 +867,6 @@ void loop() {
           }
           break;
         }
-        
         case HOME_OR_ZERO:
         {
           // zeroing
@@ -903,8 +888,8 @@ void loop() {
                 focusPosition = 0;
                 break;
             }
-            // atomic operation, no need to change mcu_cmd_execution_in_progress flag
           }
+          // atomic operation, no need to change mcu_cmd_execution_in_progress flag
           // homing
           else if(buffer_rx[3]==HOME_NEGATIVE || buffer_rx[3]==HOME_POSITIVE)
           {
@@ -1027,7 +1012,6 @@ void loop() {
             }
             mcu_cmd_execution_in_progress = true;
           }
-          break;
         }
         case SET_OFFSET_VELOCITY:
         {
@@ -1044,6 +1028,7 @@ void loop() {
             }
             break;
           }
+          break;
         }
         case TURN_ON_ILLUMINATION:
         {
@@ -1213,12 +1198,14 @@ void loop() {
   }
   */
 
+  /*
   // homing complete
   if(is_homing_XY && home_X_found && !is_homing_X && home_Y_found && !is_homing_Y)
   {
     is_homing_XY = false;
     mcu_cmd_execution_in_progress = false;
   }
+  */
 
   if(flag_read_joystick)
   {
@@ -1262,6 +1249,7 @@ void loop() {
     flag_read_joystick = false;
   }
 
+  /*
   // handle limits
   if( tmc4361A_currentPosition(&tmc4361[x])>=X_POS_LIMIT && offset_velocity_x>0 )
   {
@@ -1279,6 +1267,7 @@ void loop() {
   {
     tmc4361A_setSpeed( &tmc4361[y], 0 );
   }
+  */
   
   // focus control
   if(focusPosition > Z_POS_LIMIT)
