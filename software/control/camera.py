@@ -100,6 +100,8 @@ class Camera(object):
         if self.is_streaming:
             was_streaming = True
             self.stop_streaming()
+        else:
+            was_streaming = False
         # enable callback
         user_param = None
         self.camera.register_capture_callback(user_param,self._on_frame_callback)
@@ -113,6 +115,8 @@ class Camera(object):
         if self.is_streaming:
             was_streaming = True
             self.stop_streaming()
+        else:
+            was_streaming = False
         # disable call back
         self.camera.unregister_capture_callback()
         self.callback_is_enabled = False
