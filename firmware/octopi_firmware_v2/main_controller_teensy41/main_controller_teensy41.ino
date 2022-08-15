@@ -158,6 +158,16 @@ void set_DAC8050x_config()
   SPI.endTransaction();
 }
 
+void set_DAC8050x_output(int channel, uint16_t value)
+{
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE2));
+  digitalWrite(DAC8050x_CS_pin,LOW);
+  SPI.transfer(DAC8050x_DAC_ADDR+channel);
+  SPI.transfer16(value);
+  digitalWrite(DAC8050x_CS_pin,HIGH);
+  SPI.endTransaction();
+}
+
 /***************************************************************************************************/
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
@@ -428,8 +438,25 @@ void turn_off_illumination()
 void set_illumination(int source, uint16_t intensity)
 {
   illumination_source = source;
-  illumination_intensity = intensity;
-  if(illumination_is_on)
+  illumination_intensity = intensity*0.6;
+  switch(source)
+  {
+    case ILLUMINATION_SOURCE_405NM:
+      set_DAC8050x_output(0,illumination_intensity);
+      break;
+    case ILLUMINATION_SOURCE_488NM:
+      set_DAC8050x_output(1,illumination_intensity);
+      break;
+    case ILLUMINATION_SOURCE_638NM:
+      set_DAC8050x_output(3,illumination_intensity);
+      break;
+    case ILLUMINATION_SOURCE_561NM:
+      set_DAC8050x_output(2,illumination_intensity);
+      break;
+    case ILLUMINATION_SOURCE_730NM:
+      set_DAC8050x_output(4,illumination_intensity);
+      break;
+  }  if(illumination_is_on)
     turn_on_illumination(); //update the illumination
 }
 
@@ -1045,7 +1072,7 @@ void loop() {
         }
         case SET_ILLUMINATION:
         {
-          set_illumination(buffer_rx[2],(uint16_t(buffer_rx[2])<<8) + uint16_t(buffer_rx[3])); //important to have "<<8" with in "()"
+          set_illumination(buffer_rx[2],(uint16_t(buffer_rx[3])<<8) + uint16_t(buffer_rx[4])); //important to have "<<8" with in "()"
           break;
         }
         case SET_ILLUMINATION_LED_MATRIX:
