@@ -310,6 +310,9 @@ Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
 # for USB spectrometer
 N_SPECTRUM_PER_POINT = 5
 
+# focus measure operator
+FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field images; GLVA works well for darkfield/fluorescence
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

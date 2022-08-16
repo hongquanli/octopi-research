@@ -890,7 +890,7 @@ class AutofocusWorker(QObject):
             self.image_to_display.emit(image)
             QApplication.processEvents()
             timestamp_0 = time.time()
-            focus_measure = utils.calculate_focus_measure(image)
+            focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
             timestamp_1 = time.time()
             print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
             focus_measure_vs_z[i] = focus_measure

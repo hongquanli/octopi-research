@@ -12,14 +12,19 @@ def crop_image(image,crop_width,crop_height):
     image_cropped = image[roi_top:roi_bottom,roi_left:roi_right]
     return image_cropped
 
-def calculate_focus_measure(image):
+def calculate_focus_measure(image,method='LAPE'):
     if len(image.shape) == 3:
         image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY) # optional
-    if image.dtype == np.uint16:
-        lap = cv2.Laplacian(image,cv2.CV_32F)
+    if method == 'LAPE':
+        if image.dtype == np.uint16:
+            lap = cv2.Laplacian(image,cv2.CV_32F)
+        else:
+            lap = cv2.Laplacian(image,cv2.CV_16S)
+        focus_measure = mean(square(lap))
+    elif method == 'GLVA':
+        focus_measure = np.std(image,axis=None)# GLVA
     else:
-        lap = cv2.Laplacian(image,cv2.CV_16S)
-    focus_measure = mean(square(lap))
+        focus_measure = np.std(image,axis=None)# GLVA
     return focus_measure
 
 def unsigned_to_signed(unsigned_array,N):
