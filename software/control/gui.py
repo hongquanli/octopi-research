@@ -52,7 +52,7 @@ class OctopiGUI(QMainWindow):
 				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 				print('! camera not detected, using simulated camera !')
 			try:
-				self.microcontroller = microcontroller.Microcontroller()
+				self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 			except:
 				print('! Microcontroller not detected, using simulated microcontroller !')
 				self.microcontroller = microcontroller.Microcontroller_Simulation()
