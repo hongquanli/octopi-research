@@ -6,8 +6,8 @@ static const uint8_t x = 1;
 static const uint8_t y = 0;
 static const uint8_t z = 2;
 
-static const float R_sense_xy = 0.15;
-static const float R_sense_z = 0.15;
+static const float R_sense_xy = 0.22;
+static const float R_sense_z = 0.43;
 
 // Motorized stage
 static const int FULLSTEPS_PER_REV_X = 200;
