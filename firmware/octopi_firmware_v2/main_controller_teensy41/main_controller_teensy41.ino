@@ -1250,7 +1250,7 @@ void loop() {
         if(enable_offset_velocity)
           tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x ) );
         else
-          tmc4361A_setSpeed( &tmc4361[x], 0 );
+          tmc4361A_stop(&tmc4361[x]); // tmc4361A_setSpeed( &tmc4361[x], 0 ) causes problems for zeroing
       }
     }
   
@@ -1268,7 +1268,7 @@ void loop() {
         if(enable_offset_velocity)
           tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y ) );
         else
-          tmc4361A_setSpeed( &tmc4361[y], 0 );
+          tmc4361A_stop(&tmc4361[y]); // tmc4361A_setSpeed( &tmc4361[y], 0 ) causes problems for zeroing 
       }
     }
 
@@ -1280,19 +1280,19 @@ void loop() {
   // handle limits
   if( tmc4361A_currentPosition(&tmc4361[x])>=X_POS_LIMIT && offset_velocity_x>0 )
   {
-    tmc4361A_setSpeed( &tmc4361[x], 0 );
+    tmc4361A_stop(&tmc4361[x]);
   }
   if( tmc4361A_currentPosition(&tmc4361[x])<=X_NEG_LIMIT && offset_velocity_x<0 )
   {
-    tmc4361A_setSpeed( &tmc4361[x], 0 );
+    tmc4361A_stop(&tmc4361[x]);
   }
   if( tmc4361A_currentPosition(&tmc4361[y])>=Y_POS_LIMIT && offset_velocity_y>0 )
   {
-    tmc4361A_setSpeed( &tmc4361[y], 0 );
+    tmc4361A_stop(&tmc4361[y]);
   }
   if( tmc4361A_currentPosition(&tmc4361[y])<=Y_NEG_LIMIT && offset_velocity_y<0 )
   {
-    tmc4361A_setSpeed( &tmc4361[y], 0 );
+    tmc4361A_stop(&tmc4361[y]);
   }
   */
   
