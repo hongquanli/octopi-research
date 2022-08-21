@@ -1,5 +1,5 @@
 #include <PacketSerial.h>
-#include <Adafruit_DotStar.h>
+#include <FastLED.h>
 #include <SPI.h>
 #include "TMC4361A.h"
 #include "TMC4361A_TMC2660_Utils.h"
@@ -312,9 +312,9 @@ uint8_t led_matrix_r = 0;
 uint8_t led_matrix_g = 0;
 uint8_t led_matrix_b = 0;
 static const int LED_MATRIX_MAX_INTENSITY = 100;
-static const float GREEN_ADJUSTMENT_FACTOR = 2.5;
+static const float GREEN_ADJUSTMENT_FACTOR = 1;
 static const float RED_ADJUSTMENT_FACTOR = 1;
-static const float BLUE_ADJUSTMENT_FACTOR = 0.7;
+static const float BLUE_ADJUSTMENT_FACTOR = 1;
 bool illumination_is_on = false;
 void turn_on_illumination();
 void turn_off_illumination();
@@ -333,15 +333,19 @@ static const int ILLUMINATION_SOURCE_638NM = 13;
 static const int ILLUMINATION_SOURCE_561NM = 14;
 static const int ILLUMINATION_SOURCE_730NM = 15;
 
-Adafruit_DotStar matrix(DOTSTAR_NUM_LEDS, DOTSTAR_BRG);
-void set_all(Adafruit_DotStar & matrix, int r, int g, int b);
-void set_left(Adafruit_DotStar & matrix, int r, int g, int b);
-void set_right(Adafruit_DotStar & matrix, int r, int g, int b);
-void set_low_na(Adafruit_DotStar & matrix, int r, int g, int b);
-void set_left_dot(Adafruit_DotStar & matrix, int r, int g, int b);
-void set_right_dot(Adafruit_DotStar & matrix, int r, int g, int b);
-void clear_matrix(Adafruit_DotStar & matrix);
-void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint8_t led_matrix_r, uint8_t led_matrix_g, uint8_t led_matrix_b);
+#define NUM_LEDS DOTSTAR_NUM_LEDS
+#define LED_MATRIX_DATA_PIN 26
+#define LED_MATRIX_CLOCK_PIN 27
+CRGB matrix[NUM_LEDS];
+
+void set_all(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_left(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_right(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_low_na(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_left_dot(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_right_dot(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void clear_matrix(CRGB * matrix);
+void turn_on_LED_matrix_pattern(CRGB * matrix, int pattern, uint8_t led_matrix_r, uint8_t led_matrix_g, uint8_t led_matrix_b);
 
 void turn_on_illumination()
 {
@@ -456,7 +460,8 @@ void set_illumination(int source, uint16_t intensity)
     case ILLUMINATION_SOURCE_730NM:
       set_DAC8050x_output(4,illumination_intensity);
       break;
-  }  if(illumination_is_on)
+  }  
+  if(illumination_is_on)
     turn_on_illumination(); //update the illumination
 }
 
@@ -620,8 +625,8 @@ void setup() {
   set_DAC8050x_gain();
 
   // led matrix
-  matrix.begin(); // to replace
-  
+  FastLED.addLeds<APA102, LED_MATRIX_DATA_PIN, LED_MATRIX_CLOCK_PIN, BGR, 1>(matrix, NUM_LEDS);  // 1 MHz clock rate
+
   // variables
   X_pos = 0;
   Y_pos = 0;
@@ -1415,68 +1420,68 @@ static inline int sgn(int val) {
 /***************************************************************************************************/
 /*******************************************  LED Array  *******************************************/
 /***************************************************************************************************/
-void set_all(Adafruit_DotStar & matrix, int r, int g, int b)
+void set_all(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
   for (int i = 0; i < DOTSTAR_NUM_LEDS; i++)
-    matrix.setPixelColor(i,r,g,b);
+    matrix[i].setRGB(r,g,b);
 }
 
-void set_left(Adafruit_DotStar & matrix, int r, int g, int b)
+void set_left(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
   for (int i = 0; i < DOTSTAR_NUM_LEDS/2; i++)
-    matrix.setPixelColor(i,r,g,b);
+    matrix[i].setRGB(r,g,b);
 }
 
-void set_right(Adafruit_DotStar & matrix, int r, int g, int b)
+void set_right(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
   for (int i = DOTSTAR_NUM_LEDS/2; i < DOTSTAR_NUM_LEDS; i++)
-    matrix.setPixelColor(i,r,g,b);
+    matrix[i].setRGB(r,g,b);
 }
 
-void set_low_na(Adafruit_DotStar & matrix, int r, int g, int b)
+void set_low_na(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
-  // matrix.setPixelColor(44,r,g,b);
-  matrix.setPixelColor(45,r,g,b);
-  matrix.setPixelColor(46,r,g,b);
-  // matrix.setPixelColor(47,r,g,b);
-  matrix.setPixelColor(56,r,g,b);
-  matrix.setPixelColor(57,r,g,b);
-  matrix.setPixelColor(58,r,g,b);
-  matrix.setPixelColor(59,r,g,b);
-  matrix.setPixelColor(68,r,g,b);
-  matrix.setPixelColor(69,r,g,b);
-  matrix.setPixelColor(70,r,g,b);
-  matrix.setPixelColor(71,r,g,b);
-  // matrix.setPixelColor(80,r,g,b);
-  matrix.setPixelColor(81,r,g,b);
-  matrix.setPixelColor(82,r,g,b);
-  // matrix.setPixelColor(83,r,g,b);
+  // matrix[44].setRGB(r,g,b);
+  matrix[45].setRGB(r,g,b);
+  matrix[46].setRGB(r,g,b);
+  // matrix[47].setRGB(r,g,b);
+  matrix[56].setRGB(r,g,b);
+  matrix[57].setRGB(r,g,b);
+  matrix[58].setRGB(r,g,b);
+  matrix[59].setRGB(r,g,b);
+  matrix[68].setRGB(r,g,b);
+  matrix[69].setRGB(r,g,b);
+  matrix[70].setRGB(r,g,b);
+  matrix[71].setRGB(r,g,b);
+  // matrix[80].setRGB(r,g,b);
+  matrix[81].setRGB(r,g,b);
+  matrix[82].setRGB(r,g,b);
+  // matrix[83].setRGB(r,g,b);
 }
 
-void set_left_dot(Adafruit_DotStar & matrix, int r, int g, int b)
+void set_left_dot(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
-  matrix.setPixelColor(3,r,g,b);
-  matrix.setPixelColor(4,r,g,b);
-  matrix.setPixelColor(11,r,g,b);
-  matrix.setPixelColor(12,r,g,b);
+  matrix[3].setRGB(r,g,b);
+  matrix[4].setRGB(r,g,b);
+  matrix[11].setRGB(r,g,b);
+  matrix[12].setRGB(r,g,b);
 }
 
-void set_right_dot(Adafruit_DotStar & matrix, int r, int g, int b)
+void set_right_dot(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
-  matrix.setPixelColor(115,r,g,b);
-  matrix.setPixelColor(116,r,g,b);
-  matrix.setPixelColor(123,r,g,b);
-  matrix.setPixelColor(124,r,g,b);
+  matrix[115].setRGB(r,g,b);
+  matrix[116].setRGB(r,g,b);
+  matrix[123].setRGB(r,g,b);
+  matrix[124].setRGB(r,g,b);
 }
 
-void clear_matrix(Adafruit_DotStar & matrix)
+void clear_matrix(CRGB * matrix)
 {
   for (int i = 0; i < DOTSTAR_NUM_LEDS; i++)
-    matrix.setPixelColor(i,0,0,0);
-  matrix.show();
+    matrix[i].setRGB(0,0,0);
+  FastLED.show();
 }
 
-void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint8_t led_matrix_r, uint8_t led_matrix_g, uint8_t led_matrix_b)
+void turn_on_LED_matrix_pattern(CRGB * matrix, int pattern, uint8_t led_matrix_r, uint8_t led_matrix_g, uint8_t led_matrix_b)
 {
 
   led_matrix_r = (float(led_matrix_r)/255)*LED_MATRIX_MAX_INTENSITY;
@@ -1511,5 +1516,5 @@ void turn_on_LED_matrix_pattern(Adafruit_DotStar & matrix, int pattern, uint8_t 
       set_right_dot(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
       break;
   }
-  matrix.show();
+  FastLED.show();
 }
