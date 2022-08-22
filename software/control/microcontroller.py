@@ -503,9 +503,9 @@ class Microcontroller():
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Y_mm)
+        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Z_mm)
+        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
         self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
@@ -839,9 +839,9 @@ class Microcontroller_Simulation():
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Y_mm)
+        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_X_mm,MAX_ACCELERATION_Z_mm)
+        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
         self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
