@@ -42,11 +42,11 @@ static const long Z_NEG_LIMIT_MM = -20;
 static const long Z_POS_LIMIT_MM = 20;
 
 // nanotec size 8 linear actuators (temporary)
-int X_MOTOR_RMS_CURRENT_mA = 600;
+float X_MOTOR_RMS_CURRENT_mA = 600;
 // ACEMO vertical stage
-int Y_MOTOR_RMS_CURRENT_mA = 1000; // actual z axis
+float Y_MOTOR_RMS_CURRENT_mA = 1000; // actual z axis
 // nanotec size 8 linear actuators  (temporary)
-int Z_MOTOR_RMS_CURRENT_mA = 600; // focus axis
+float Z_MOTOR_RMS_CURRENT_mA = 600; // focus axis
 
 float X_MOTOR_I_HOLD = 0.5;
 float Y_MOTOR_I_HOLD = 1;

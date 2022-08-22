@@ -809,7 +809,7 @@ void loop() {
               steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
               X_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               X_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              tmc4361A_tmc2660_config(&tmc4361[x], (X_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, X_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_X_MM, FULLSTEPS_PER_REV_X, MICROSTEPPING_X);
+              tmc4361A_tmc2660_config(&tmc4361[x], (X_MOTOR_RMS_CURRENT_mA/1000.0)*R_sense_xy/0.2298, X_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_X_MM, FULLSTEPS_PER_REV_X, MICROSTEPPING_X);
               tmc4361A_tmc2660_update(&tmc4361[x]);
               break;
             }
@@ -822,7 +822,7 @@ void loop() {
               steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
               Y_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               Y_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              tmc4361A_tmc2660_config(&tmc4361[y], (Y_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, Y_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Y_MM, FULLSTEPS_PER_REV_Y, MICROSTEPPING_Y);
+              tmc4361A_tmc2660_config(&tmc4361[y], (Y_MOTOR_RMS_CURRENT_mA/1000.0)*R_sense_xy/0.2298, Y_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Y_MM, FULLSTEPS_PER_REV_Y, MICROSTEPPING_Y);
               tmc4361A_tmc2660_update(&tmc4361[y]);
               break;
             }
@@ -835,7 +835,7 @@ void loop() {
               steps_per_mm_Z = FULLSTEPS_PER_REV_Z*MICROSTEPPING_Z/SCREW_PITCH_Z_MM;
               Z_MOTOR_RMS_CURRENT_mA = uint16_t(buffer_rx[4])*256+uint16_t(buffer_rx[5]);
               Z_MOTOR_I_HOLD = float(buffer_rx[6])/255;
-              tmc4361A_tmc2660_config(&tmc4361[z], (Z_MOTOR_RMS_CURRENT_mA/1000)*R_sense_xy/0.22, Z_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Z_MM, FULLSTEPS_PER_REV_Z, MICROSTEPPING_Z);
+              tmc4361A_tmc2660_config(&tmc4361[z], (Z_MOTOR_RMS_CURRENT_mA/1000.0)*R_sense_z/0.2298, Z_MOTOR_I_HOLD, 1, 1, 1, SCREW_PITCH_Z_MM, FULLSTEPS_PER_REV_Z, MICROSTEPPING_Z);
               tmc4361A_tmc2660_update(&tmc4361[z]);
               break;
             }

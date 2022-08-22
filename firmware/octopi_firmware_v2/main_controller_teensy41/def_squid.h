@@ -42,10 +42,10 @@ static const long Z_NEG_LIMIT_MM = -20;
 static const long Z_POS_LIMIT_MM = 20;
 
 // nanotec size 8 linear actuators
-int X_MOTOR_RMS_CURRENT_mA = 600;
-int Y_MOTOR_RMS_CURRENT_mA = 600;
+float X_MOTOR_RMS_CURRENT_mA = 600;
+float Y_MOTOR_RMS_CURRENT_mA = 600;
 // haydon kerk size 8 linear actuator
-int Z_MOTOR_RMS_CURRENT_mA = 490;
+float Z_MOTOR_RMS_CURRENT_mA = 490;
 
 float X_MOTOR_I_HOLD = 0.5;
 float Y_MOTOR_I_HOLD = 0.5;

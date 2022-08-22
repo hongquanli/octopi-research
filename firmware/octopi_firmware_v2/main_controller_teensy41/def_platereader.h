@@ -42,10 +42,10 @@ static const long Z_NEG_LIMIT_MM = -20;
 static const long Z_POS_LIMIT_MM = 20;
 
 // size 11 lead screw motors (PBCLinear)
-int X_MOTOR_RMS_CURRENT_mA = 1000;
-int Y_MOTOR_RMS_CURRENT_mA = 1000;
+float X_MOTOR_RMS_CURRENT_mA = 1000;
+float Y_MOTOR_RMS_CURRENT_mA = 1000;
 // haydon kerk size 8 linear actuator
-int Z_MOTOR_RMS_CURRENT_mA = 490;
+float Z_MOTOR_RMS_CURRENT_mA = 490;
 
 float X_MOTOR_I_HOLD = 0.25;
 float Y_MOTOR_I_HOLD = 0.25;

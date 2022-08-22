@@ -41,10 +41,10 @@ static const long Z_NEG_LIMIT_MM = -10; // y axis
 static const long Z_POS_LIMIT_MM = 10;  // y axis
 
 // size 11 linear actuators
-int X_MOTOR_RMS_CURRENT_mA = 600;
-int Z_MOTOR_RMS_CURRENT_mA = 600;
+float X_MOTOR_RMS_CURRENT_mA = 600;
+float Z_MOTOR_RMS_CURRENT_mA = 600;
 // rotation stage
-int Y_MOTOR_RMS_CURRENT_mA = 600;
+float Y_MOTOR_RMS_CURRENT_mA = 600;
 
 float X_MOTOR_I_HOLD = 0.25;
 float Y_MOTOR_I_HOLD = 0.5;
