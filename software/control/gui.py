@@ -48,8 +48,10 @@ class OctopiGUI(QMainWindow):
 		else:
 			try:
 				self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera.open()
 			except:
 				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera.open()
 				print('! camera not detected, using simulated camera !')
 			try:
 				self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
@@ -71,9 +73,7 @@ class OctopiGUI(QMainWindow):
 		self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
 		self.imageDisplay = core.ImageDisplay()
 
-		# open the camera
-		# camera start streaming
-		self.camera.open()
+		# set up the camera		
 		# self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
 		# self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
 		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()

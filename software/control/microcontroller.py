@@ -49,7 +49,7 @@ class Microcontroller():
             controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
         else:
             if sn is not None:
-                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if serial_number == p.serial_number]
+                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
             else:
                 controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
         
@@ -276,7 +276,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
 
     def move_z_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_Z*usteps,4)
+        payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Z
         cmd[2] = payload >> 24
