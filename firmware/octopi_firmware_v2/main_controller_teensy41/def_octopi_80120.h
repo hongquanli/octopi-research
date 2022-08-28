@@ -11,7 +11,7 @@ static const float R_sense_z = 0.43;
 
 // limit switch
 static const bool flip_limit_switch_x = true;
-static const bool flip_limit_switch_y = false;
+static const bool flip_limit_switch_y = true;
 
 // Motorized stage
 static const int FULLSTEPS_PER_REV_X = 200;

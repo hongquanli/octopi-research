@@ -92,8 +92,8 @@ static const int DISABLED = 2;
 // illumination
 static const int LASER_405nm = 5;   // to rename
 static const int LASER_488nm = 4;   // to rename
-static const int LASER_638nm = 22;  // to rename
-static const int LASER_561nm = 3;   // to rename
+static const int LASER_561nm = 22;   // to rename
+static const int LASER_638nm = 3;  // to rename
 static const int LASER_730nm = 23;  // to rename
 // PWM6 2
 // PWM7 1
@@ -578,10 +578,10 @@ void setup() {
     tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
 
   // enable limit switch reading
-  tmc4361A_enableLimitSwitch(&tmc4361[x], lft_sw_pol[x], LEFT_SW, true);
-  tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, true);
-  tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, false);
-  tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, false);
+  tmc4361A_enableLimitSwitch(&tmc4361[x], lft_sw_pol[x], LEFT_SW, flip_limit_switch_x);
+  tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, flip_limit_switch_x);
+  tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, flip_limit_switch_y);
+  tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, flip_limit_switch_y);
   tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
 
   // motion profile configuration
