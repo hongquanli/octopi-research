@@ -459,7 +459,7 @@ class NavigationWidget(QFrame):
         self.entry_dX.setMaximum(25) 
         self.entry_dX.setSingleStep(0.2)
         self.entry_dX.setValue(0)
-        self.entry_dX.setDecimals(4)
+        self.entry_dX.setDecimals(3)
         self.entry_dX.setKeyboardTracking(False)
         self.btn_moveX_forward = QPushButton('Forward')
         self.btn_moveX_forward.setDefault(False)
