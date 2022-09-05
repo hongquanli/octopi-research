@@ -83,7 +83,7 @@ class StreamHandler(QObject):
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
-        print(self.display_resolution_scaling)
+        print(self.display_resolution_scaling,"display resolution scaling")
 
     def on_new_frame(self, camera):
 
@@ -101,7 +101,7 @@ class StreamHandler(QObject):
                 self.timestamp_last = timestamp_now
                 self.fps_real = self.counter
                 self.counter = 0
-                print('real camera fps is ' + str(self.fps_real))
+                # print('real camera fps is ' + str(self.fps_real))
 
             # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
             # # rotate and flip - eventually these should be done in the camera
@@ -894,7 +894,7 @@ class AutofocusWorker(QObject):
             timestamp_1 = time.time()
             print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
             focus_measure_vs_z[i] = focus_measure
-            print(i,focus_measure)
+            print(i,focus_measure,"focus measure")
             focus_measure_max = max(focus_measure, focus_measure_max)
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
