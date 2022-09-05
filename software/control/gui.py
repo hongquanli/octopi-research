@@ -43,10 +43,16 @@ class OctopiGUI(QMainWindow):
 			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
-			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.camera.open()
+			try:
+				self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera.open()
+			except:
+				raise Exception("camera not found.")
 
-			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+			try:
+				self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+			except:
+				raise Exception("controller not found.")
 
 		# configure the actuators
 		self.microcontroller.configure_actuators()
