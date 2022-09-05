@@ -892,9 +892,9 @@ class AutofocusWorker(QObject):
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
             timestamp_1 = time.time()
-            print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
+            #print('calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
             focus_measure_vs_z[i] = focus_measure
-            print(i,focus_measure,"focus measure")
+            #print(i,focus_measure,"focus measure")
             focus_measure_max = max(focus_measure, focus_measure_max)
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
