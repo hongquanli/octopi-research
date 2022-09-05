@@ -303,7 +303,7 @@ Y_MM_384_WELLPLATE_UPPERLEFT = 0
 DEFAULT_Z_POS_MM = 2
 X_ORIGIN_384_WELLPLATE_PIXEL = 177 # upper left of B2
 Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
-# B1 upper left corner in piexel: x = 124, y = 141
+# B1 upper left corner in pixel: x = 124, y = 141
 # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 # B2 upper left corner in pixel: x = 177, y = 141
 
@@ -311,7 +311,7 @@ Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
 N_SPECTRUM_PER_POINT = 5
 
 # focus measure operator
-FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field images; GLVA works well for darkfield/fluorescence
+FOCUS_MEASURE_OPERATOR = 'GLVA' # 'GLVA' # LAPE has worked well for bright field images; GLVA works well for darkfield/fluorescence
 
 # controller version
 CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
@@ -327,7 +327,7 @@ if config_files:
     print('load machine-specific configuration')
     exec(open(config_files[0]).read())
 else:
-    print('machine-specifc configuration not present, the program will exit')
+    print('machine-specifc configuration (./configuration*.txt) not present, the program will exit')
     exit()
 ##########################################################
 ##### end of loading machine specific configurations #####

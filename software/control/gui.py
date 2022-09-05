@@ -56,12 +56,19 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 
 		# set up the camera
-		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
+		self.camera.set_software_triggered_acquisition()
 		self.camera.set_callback(self.streamHandler.on_new_frame)
 		self.camera.enable_callback()
 		if ENABLE_STROBE_OUTPUT:
 			self.camera.set_line3_to_exposure_active()
 
+		# setup all the GUI
+		self.generateGUI()
+
+		# make connections (between code and hardware/software events)
+		self.setupConnections()
+
+	def generateGUI(self):
 		# load window
 		if ENABLE_TRACKING:
 			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
@@ -103,9 +110,6 @@ class OctopiGUI(QMainWindow):
 		height_min = 0.9*desktopWidget.height()
 		width_min = 0.96*desktopWidget.width()
 		self.setMinimumSize(width_min,height_min)
-
-		# make connections
-		self.setupConnections()
 
 	def generateCentralWidgetLayout(self):
 		# layout widgets
