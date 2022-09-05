@@ -119,6 +119,8 @@ class OctopiGUI(QMainWindow):
 		layout.addWidget(self.recordTabWidget)
 		layout.addStretch()
 
+		return layout
+
 	def generateMainDockArea(self):
 		dock_display = dock.Dock('Image Display', autoOrientation = False)
 		dock_display.showTitleBar()
