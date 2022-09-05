@@ -25,19 +25,6 @@ class OctopiGUI(QMainWindow):
 	def __init__(self, is_simulation = False, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		# load window
-		if ENABLE_TRACKING:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
-			self.imageDisplayWindow.show_ROI_selector()
-		else:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
-		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
-
-		# image display windows
-		self.imageDisplayTabs = QTabWidget()
-		self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-
 		# load objects
 		if is_simulation:
 			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
@@ -75,25 +62,54 @@ class OctopiGUI(QMainWindow):
 		if ENABLE_STROBE_OUTPUT:
 			self.camera.set_line3_to_exposure_active()
 
+		# load window
+		if ENABLE_TRACKING:
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
+			self.imageDisplayWindow.show_ROI_selector()
+		else:
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
+		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+
+		# image display windows
+		self.imageDisplayTabs = QTabWidget()
+		self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+
 		# load widgets
-		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=SHOW_AUTOLEVEL_BTN,autolevel=AUTOLEVEL_DEFAULT_SETTING)
-		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
-		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
-		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
+		self.cameraSettingWidget = 	  widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
+		self.liveControlWidget = 	  widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=SHOW_AUTOLEVEL_BTN,autolevel=AUTOLEVEL_DEFAULT_SETTING)
+		self.navigationWidget = 	  widgets.NavigationWidget(self.navigationController)
+		self.dacControlWidget = 	  widgets.DACControWidget(self.microcontroller)
+		self.autofocusWidget = 		  widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
 		if ENABLE_TRACKING:
 			self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
-		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+		self.multiPointWidget =          widgets.MultiPointWidget(self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
 		if ENABLE_TRACKING:
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+		
+		# transfer the layout to the central widget
+		self.centralWidget = QWidget()
+		self.centralWidget.setLayout(self.generateCentralWidgetLayout())
+		self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
+		
+		# setup window layout
+		self.setCentralWidget(self.generateMainDockArea())
+		desktopWidget = QDesktopWidget()
+		height_min = 0.9*desktopWidget.height()
+		width_min = 0.96*desktopWidget.width()
+		self.setMinimumSize(width_min,height_min)
 
+		# make connections
+		self.setupConnections()
+
+	def generateCentralWidgetLayout(self):
 		# layout widgets
-		layout = QVBoxLayout() #layout = QStackedLayout()
+		layout = QVBoxLayout()
 		layout.addWidget(self.cameraSettingWidget)
 		layout.addWidget(self.liveControlWidget)
 		layout.addWidget(self.navigationWidget)
@@ -102,13 +118,8 @@ class OctopiGUI(QMainWindow):
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)
 		layout.addStretch()
-		
-		# transfer the layout to the central widget
-		self.centralWidget = QWidget()
-		self.centralWidget.setLayout(layout)
-		self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
-		
-		# setup window layout
+
+	def generateMainDockArea(self):
 		dock_display = dock.Dock('Image Display', autoOrientation = False)
 		dock_display.showTitleBar()
 		dock_display.addWidget(self.imageDisplayTabs)
@@ -121,13 +132,10 @@ class OctopiGUI(QMainWindow):
 		main_dockArea = dock.DockArea()
 		main_dockArea.addDock(dock_display)
 		main_dockArea.addDock(dock_controlPanel,'right')
-		self.setCentralWidget(main_dockArea)
-		desktopWidget = QDesktopWidget()
-		height_min = 0.9*desktopWidget.height()
-		width_min = 0.96*desktopWidget.width()
-		self.setMinimumSize(width_min,height_min)
 
-		# make connections
+		return main_dockArea
+
+	def setupConnections(self):
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
 		self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
