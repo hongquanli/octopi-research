@@ -64,5 +64,9 @@ python3 main_motion_only.py
 ```
 To start the program when no hardware is connected, use
 ```
+python3 main.py --simulation
+```
+or
+```
 python3 main_simulation.py
 ```
