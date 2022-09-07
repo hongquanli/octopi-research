@@ -173,8 +173,8 @@ void set_DAC8050x_output(int channel, uint16_t value)
 /***************************************************************************************************/
 const uint32_t clk_Hz_TMC4361 = 16000000;
 const uint8_t lft_sw_pol[4] = {1,1,1,1};
-const uint8_t rht_sw_pol[4] = {1,1,1,1};
-const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, LEFT_SW, LEFT_SW};
+const uint8_t rht_sw_pol[4] = {1,1,0,1};
+const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, RGHT_SW, LEFT_SW};
 const int32_t vslow = 0x04FFFC00;
 
 ConfigurationTypeDef tmc4361_configs[N_MOTOR];
@@ -582,6 +582,7 @@ void setup() {
   tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, flip_limit_switch_x);
   tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, flip_limit_switch_y);
   tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, flip_limit_switch_y);
+  tmc4361A_enableLimitSwitch(&tmc4361[z], rht_sw_pol[z], RGHT_SW, false);
   tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
 
   // motion profile configuration
@@ -619,6 +620,7 @@ void setup() {
   // homing switch settings
   tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
   tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
+  tmc4361A_enableHomingLimit(&tmc4361[y], rht_sw_pol[z], TMC4361_homing_sw[z]);
     
   /*********************************************************************************************************
    ***************************************** TMC4361A + TMC2660 end **************************************** 
@@ -950,7 +952,7 @@ void loop() {
                 }
                 else // use the right limit switch for homing
                 {
-                  if( tmc4361A_readLimitSwitches(&tmc4361[x]) == RGHT_DIR )
+                  if( tmc4361A_readLimitSwitches(&tmc4361[x]) == RGHT_SW )
                   {
                     // get out of the hysteresis zone
                     is_preparing_for_homing_X = true;
@@ -1005,7 +1007,7 @@ void loop() {
                 }
                 else // use the right limit switch for homing
                 {
-                  if( tmc4361A_readLimitSwitches(&tmc4361[y]) == RGHT_DIR )
+                  if( tmc4361A_readLimitSwitches(&tmc4361[y]) == RGHT_SW )
                   {
                     // get out of the hysteresis zone
                     is_preparing_for_homing_Y = true;
@@ -1041,7 +1043,7 @@ void loop() {
                 }
                 else // use the right limit switch for homing
                 {
-                  if( tmc4361A_readLimitSwitches(&tmc4361[z]) == RGHT_DIR )
+                  if( tmc4361A_readLimitSwitches(&tmc4361[z]) == RGHT_SW )
                   {
                     // get out of the hysteresis zone
                     is_preparing_for_homing_Z = true;
@@ -1053,6 +1055,7 @@ void loop() {
                     is_homing_Z = true;
                     tmc4361A_readInt(&tmc4361[z], TMC4361A_EVENTS);
                     tmc4361A_setSpeed(&tmc4361[z], tmc4361A_vmmToMicrosteps( &tmc4361[z], RGHT_DIR*HOMING_VELOCITY_Z*MAX_VELOCITY_Z_mm ));
+                    // tmc4361A_moveTo(&tmc4361[y], tmc4361A_currentPosition(&tmc4361[y])+51200); // for debugging
                   }
                 }
                 break;
@@ -1503,7 +1506,8 @@ void loop() {
     focusPosition = Z_POS_LIMIT;
   if(focusPosition < Z_NEG_LIMIT)
     focusPosition = Z_NEG_LIMIT;
-  tmc4361A_moveTo(&tmc4361[z], focusPosition);
+  if(is_homing_Z==false && is_preparing_for_homing_Z==false)
+    tmc4361A_moveTo(&tmc4361[z], focusPosition);
 
   // send position update to computer
   if(us_since_last_pos_update > interval_send_pos_update)
