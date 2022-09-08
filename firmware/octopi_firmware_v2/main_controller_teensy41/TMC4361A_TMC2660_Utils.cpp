@@ -59,6 +59,10 @@
           Arguments: TMC4361ATypeDef *tmc4361A, uint16_t mstep
       tmc4361A_setSPR:                  Set the motor's steps per revolution, typically 200
           Arguments: TMC4361ATypeDef *tmc4361A, uint16_t spr
+      tmc4361A_writeMicrosteps:         Write the number of microsteps per fullstep to the motor driver
+          Arguments: TMC4361ATypeDef *tmc4361A
+      tmc4361A_setSPR:                  Write the number of steps per revolution to the motor driver
+          Arguments: TMC4361ATypeDef *tmc4361A
 
     For internal use:
       tmc4361A_readWriteArray: Used for low-level SPI communication with the TMC4361A
@@ -227,7 +231,8 @@ void tmc4361A_cScaleInit(TMC4361ATypeDef *tmc4361A) {
                     (tmc4361A->cscaleParam[DRV2SCALE_IDX] << TMC4361A_DRV2_SCALE_VAL_SHIFT) +   // Set DRV2 scale  (0 to 255)
                     (tmc4361A->cscaleParam[DRV1SCALE_IDX] << TMC4361A_DRV1_SCALE_VAL_SHIFT) +   // Set DRV1 scale  (0 to 255)
                     (tmc4361A->cscaleParam[BSTSCALE_IDX]  << TMC4361A_BOOST_SCALE_VAL_SHIFT));  // Set boost scale (0 to 255)
-
+  tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_DRIVE_CURRENT_SCALE_EN_MASK); // keep drive current scale
+  tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_HOLD_CURRENT_SCALE_EN_MASK);  // keep hold current scale
   return;
 }
 
@@ -262,38 +267,71 @@ void tmc4361A_setPitch(TMC4361ATypeDef *tmc4361A, float pitchval) {
 
 /*
   -----------------------------------------------------------------------------
-  DESCRIPTION: tmc4361A_setMicrosteps() sets the number of microsteps per fullstep. It must be a power of 2 from 1 to 256.
-
-  OPERATION:   We first check if the mstep argument is a power of 2. We set an error flag if it is not.
-               We then convert the microsteps number to the correct format for the tmc4361A: 256 -> 0, 128 -> 1, ..., 1 -> 8.
-               This conversion is performed by shifting mstep down a bit and incrementing bitsSet until mstep is equal to 0. This is equivalent to evaluating log_2(mstep)+1. Then we calculate 9-bitsSet to convert to the proper format.
-
+  DESCRIPTION: tmc4361A_setMicrosteps() sets microsteps per fullstep for the motor.
+  
+  OPERATION:   We write the value in the argument to the motor driver struct
+  
   ARGUMENTS:
       TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
-      uint16_t mstep:            Number of microsteps in one full step
-
-  RETURNS:
-      int8_t err: Returns NO_ERR if successful or ERR_OUT_OF_RANGE if the microsteps value is invalid
-
-  INPUTS / OUTPUTS: Sends signals ove MOSI/MISO; the motor should not move
-
-  LOCAL VARIABLES:
-      int8_t err:          indicates whether the operation was successful
-      uint8_t bitsSet:     Holds which bits to set on the tmc4361A
-      uint16_t microsteps: Holds a copy of microsteps
-
+      uint16_t mstep:            microsteps per fullstep
+      
+  RETURNS: None
+  
+  INPUTS / OUTPUTS: None
+  
+  LOCAL VARIABLES: None
+  
   SHARED VARIABLES:
       TMC4361ATypeDef *tmc4361A: Values are read from the struct
-
+      
   GLOBAL VARIABLES: None
-
+  
   DEPENDENCIES: tmc4316A.h
   -----------------------------------------------------------------------------
 */
 int8_t tmc4361A_setMicrosteps(TMC4361ATypeDef *tmc4361A, uint16_t mstep) {
+  // Ensure mstep is a power of 2 and within bounds
+  if ((mstep != 0) && !(mstep & (mstep - 1)) && (mstep <= 256)) {
+    tmc4361A->microsteps = mstep;
+    return NO_ERR;
+  }
+  else {
+    return ERR_OUT_OF_RANGE;
+  }
+}
+
+/*
+  -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_writeMicrosteps() writes the number of microsteps per fullstep to the motor controller.
+  
+  OPERATION:   We first check if the mstep argument is a power of 2. We set an error flag if it is not.
+               We then convert the microsteps number to the correct format for the tmc4361A: 256 -> 0, 128 -> 1, ..., 1 -> 8.
+               This conversion is performed by shifting mstep down a bit and incrementing bitsSet until mstep is equal to 0. This is equivalent to evaluating log_2(mstep)+1. Then we calculate 9-bitsSet to convert to the proper format.
+  
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+  
+  RETURNS: none
+  
+  INPUTS / OUTPUTS: Sends signals ove MOSI/MISO; the motor should not move
+  
+  LOCAL VARIABLES:
+      int8_t err:          indicates whether the operation was successful
+      uint8_t bitsSet:     Holds which bits to set on the tmc4361A
+      uint16_t microsteps: Holds a copy of microsteps
+  
+  SHARED VARIABLES:
+      TMC4361ATypeDef *tmc4361A: Values are read from the struct
+  
+  GLOBAL VARIABLES: None
+  
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+void tmc4361A_writeMicrosteps(TMC4361ATypeDef *tmc4361A) {
   int8_t err = NO_ERR; // Initally assume mstep is valid
   uint8_t  bitsSet = 0;
-  uint16_t microsteps = mstep;
+  uint16_t mstep = tmc4361A->microsteps;
   // Check if mstep is a valid microstep value (a power of 2 between 1 and 256 inclusive)
   if ((mstep != 0) && !(mstep & (mstep - 1)) && (mstep <= 256)) {
     // Clear the low 4 bits of STEP_CONF to prepare it for writing to
@@ -313,39 +351,74 @@ int8_t tmc4361A_setMicrosteps(TMC4361ATypeDef *tmc4361A, uint16_t mstep) {
   bitsSet = 9 - bitsSet;
   if (err == NO_ERR) {
     tmc4361A_setBits(tmc4361A, TMC4361A_STEP_CONF, bitsSet);
-    tmc4361A->microsteps = microsteps;
   }
-  return err;
+
+  return;
 }
 
 /*
   -----------------------------------------------------------------------------
   DESCRIPTION: tmc4361A_setSPR() sets steps-per-revolution for the motor.
-
+  
   OPERATION:   We write the value in the argument to the motor driver struct
-
+  
   ARGUMENTS:
       TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
       uint16_t spr:              Steps per revolution
-
+  
   RETURNS: None
-
+  
   INPUTS / OUTPUTS: None
-
+  
   LOCAL VARIABLES: None
-
+  
   SHARED VARIABLES:
       TMC4361ATypeDef *tmc4361A: Values are read from the struct
-
+  
   GLOBAL VARIABLES: None
-
+  
   DEPENDENCIES: tmc4316A.h
   -----------------------------------------------------------------------------
 */
-void tmc4361A_setSPR(TMC4361ATypeDef *tmc4361A, uint16_t spr) {
-  tmc4361A->stepsPerRev = spr;
+int8_t tmc4361A_setSPR(TMC4361ATypeDef *tmc4361A, uint16_t spr) {
+  if (spr > ((1 << 12) - 1)) { // spr is a 12 bit number
+    return ERR_OUT_OF_RANGE;
+  }
+  else {
+    tmc4361A->stepsPerRev = spr;
+    return NO_ERR;
+  }
+}
+
+/*
+  -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_writeSPR() writes steps-per-revolution for the motor to the motor driver.
+  
+  OPERATION:   We read the value in the motor driver struct, format it, and send it to the motor driver
+  
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+  
+  RETURNS: None
+  
+  INPUTS / OUTPUTS: None
+  
+  LOCAL VARIABLES: None
+  
+  SHARED VARIABLES:
+      TMC4361ATypeDef *tmc4361A: Values are read from the struct
+  
+  GLOBAL VARIABLES: None
+  
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+void tmc4361A_writeSPR(TMC4361ATypeDef *tmc4361A) {
+  tmc4361A_rstBits(tmc4361A, TMC4361A_STEP_CONF, TMC4361A_FS_PER_REV_MASK);
+  tmc4361A_setBits(tmc4361A, TMC4361A_STEP_CONF, tmc4361A->stepsPerRev << TMC4361A_FS_PER_REV_SHIFT);
   return;
 }
+
 
 /*
   -----------------------------------------------------------------------------
@@ -388,7 +461,9 @@ void tmc4361A_tmc2660_init(TMC4361ATypeDef *tmc4361A, uint32_t clk_Hz_TMC4361) {
   tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_DRIVE_CURRENT_SCALE_EN_MASK); // keep drive current scale
   tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_HOLD_CURRENT_SCALE_EN_MASK);  // keep hold current scale
   // microstepping setting
-  tmc4361A_setMicrosteps(tmc4361A, tmc4361A->microsteps);
+  tmc4361A_writeMicrosteps(tmc4361A);
+  // steps per revolution
+  tmc4361A_writeSPR(tmc4361A);
   return;
 }
 
@@ -421,7 +496,9 @@ void tmc4361A_tmc2660_update(TMC4361ATypeDef *tmc4361A) {
   tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_DRIVE_CURRENT_SCALE_EN_MASK); // keep drive current scale
   tmc4361A_setBits(tmc4361A, TMC4361A_CURRENT_CONF, TMC4361A_HOLD_CURRENT_SCALE_EN_MASK);  // keep hold current scale
   // microstepping setting
-  tmc4361A_setMicrosteps(tmc4361A, tmc4361A->microsteps);
+  tmc4361A_writeMicrosteps(tmc4361A);
+  // steps per revolution
+  tmc4361A_writeSPR(tmc4361A);
   return;
 }
 
@@ -457,7 +534,7 @@ void tmc4361A_tmc2660_config(TMC4361ATypeDef *tmc4361A, float tmc2660_cscale, fl
   tmc4361A->cscaleParam[4] = uint8_t(tmc4361a_boost_scale_val*255);
   tmc4361A_setPitch(tmc4361A, pitch_mm);
   tmc4361A_setSPR(tmc4361A, steps_per_rev);
-  tmc4361A->microsteps = microsteps;
+  tmc4361A_setMicrosteps(tmc4361A, microsteps);
   return;
 }
 
