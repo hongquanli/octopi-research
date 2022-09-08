@@ -1333,7 +1333,8 @@ void loop() {
       {
         home_X_found = true;
         tmc4361[x].xmin = tmc4361A_readInt(&tmc4361[x], TMC4361A_X_LATCH_RD);
-        tmc4361A_writeInt(&tmc4361[x], TMC4361A_X_TARGET, tmc4361[x].xmin);
+        // tmc4361A_writeInt(&tmc4361[x], TMC4361A_X_TARGET, tmc4361[x].xmin);
+        tmc4361A_moveTo(&tmc4361[x], tmc4361[x].xmin);
         X_commanded_movement_in_progress = true;
         X_commanded_target_position = tmc4361[x].xmin;
       }
@@ -1344,7 +1345,8 @@ void loop() {
       {
         home_X_found = true;
         tmc4361[x].xmax = tmc4361A_readInt(&tmc4361[x], TMC4361A_X_LATCH_RD);
-        tmc4361A_writeInt(&tmc4361[x], TMC4361A_X_TARGET, tmc4361[x].xmax);
+        // tmc4361A_writeInt(&tmc4361[x], TMC4361A_X_TARGET, tmc4361[x].xmax);
+        tmc4361A_moveTo(&tmc4361[x], tmc4361[x].xmax);
         X_commanded_movement_in_progress = true;
         X_commanded_target_position = tmc4361[x].xmax;
       }
@@ -1358,7 +1360,8 @@ void loop() {
       {
         home_Y_found = true;
         tmc4361[y].xmin = tmc4361A_readInt(&tmc4361[y], TMC4361A_X_LATCH_RD);
-        tmc4361A_writeInt(&tmc4361[y], TMC4361A_X_TARGET, tmc4361[y].xmin);
+        // tmc4361A_writeInt(&tmc4361[y], TMC4361A_X_TARGET, tmc4361[y].xmin);
+        tmc4361A_moveTo(&tmc4361[y], tmc4361[y].xmin);
         Y_commanded_movement_in_progress = true;
         Y_commanded_target_position = tmc4361[y].xmin;
       }
@@ -1369,7 +1372,8 @@ void loop() {
       {
         home_Y_found = true;
         tmc4361[y].xmax = tmc4361A_readInt(&tmc4361[y], TMC4361A_X_LATCH_RD);
-        tmc4361A_writeInt(&tmc4361[y], TMC4361A_X_TARGET, tmc4361[y].xmax);
+        // tmc4361A_writeInt(&tmc4361[y], TMC4361A_X_TARGET, tmc4361[y].xmax);
+        tmc4361A_moveTo(&tmc4361[y], tmc4361[y].xmax);
         Y_commanded_movement_in_progress = true;
         Y_commanded_target_position = tmc4361[y].xmax;
       }
@@ -1383,7 +1387,8 @@ void loop() {
       {
         home_Z_found = true;
         tmc4361[z].xmin = tmc4361A_readInt(&tmc4361[z], TMC4361A_X_LATCH_RD);
-        tmc4361A_writeInt(&tmc4361[z], TMC4361A_X_TARGET, tmc4361[z].xmin);
+        // tmc4361A_writeInt(&tmc4361[z], TMC4361A_X_TARGET, tmc4361[z].xmin);
+        tmc4361A_moveTo(&tmc4361[z], tmc4361[z].xmin);
         Z_commanded_movement_in_progress = true;
         Z_commanded_target_position = tmc4361[z].xmin;
       }
@@ -1394,7 +1399,8 @@ void loop() {
       {
         home_Z_found = true;
         tmc4361[z].xmax = tmc4361A_readInt(&tmc4361[z], TMC4361A_X_LATCH_RD);
-        tmc4361A_writeInt(&tmc4361[z], TMC4361A_X_TARGET, tmc4361[z].xmax);
+        //tmc4361A_writeInt(&tmc4361[z], TMC4361A_X_TARGET, tmc4361[z].xmax);
+        tmc4361A_moveTo(&tmc4361[z], tmc4361[z].xmax);
         Z_commanded_movement_in_progress = true;
         Z_commanded_target_position = tmc4361[z].xmax;
       }

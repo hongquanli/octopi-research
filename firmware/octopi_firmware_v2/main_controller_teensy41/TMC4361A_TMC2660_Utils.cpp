@@ -1075,6 +1075,7 @@ int8_t tmc4361A_moveTo(TMC4361ATypeDef *tmc4361A, int32_t x_pos) {
   {
     // ensure we are in positioning mode with S-shaped ramp
     tmc4361A_sRampInit(tmc4361A);
+    tmc4361A->velocity_mode = false;
   }
   if (x_pos < tmc4361A->xmin || x_pos > tmc4361A->xmax) {
     return ERR_OUT_OF_RANGE;
