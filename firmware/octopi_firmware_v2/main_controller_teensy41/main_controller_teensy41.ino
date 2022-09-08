@@ -5,6 +5,7 @@
 #include "TMC4361A_TMC2660_Utils.h"
 
 #include "def_octopi.h"
+//#include "def_octopi_80120.h"
 //#include "def_gravitymachine.h"
 //#include "def_squid.h"
 //#include "def_platereader.h"
@@ -1324,7 +1325,7 @@ void loop() {
   }
 
   // homing complete check
-  if(is_homing_X)
+  if(is_homing_X && !home_X_found)
   {
     if(homing_direction_X==HOME_NEGATIVE) // use the left limit switch for homing
     {
@@ -1349,7 +1350,7 @@ void loop() {
       }
     }
   }
-  if(is_homing_Y)
+  if(is_homing_Y && !home_Y_found)
   {
     if(homing_direction_Y==HOME_NEGATIVE) // use the left limit switch for homing
     {
@@ -1374,7 +1375,7 @@ void loop() {
       }
     }
   }
-  if(is_homing_Z)
+  if(is_homing_Z && !home_Z_found)
   {
     if(homing_direction_Z==HOME_NEGATIVE) // use the left limit switch for homing
     {
