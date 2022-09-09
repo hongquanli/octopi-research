@@ -55,6 +55,7 @@ static const int SET_LEAD_SCREW_PITCH = 23;
 static const int SET_OFFSET_VELOCITY = 24;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
+static const int RESET = 255;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
 static const int IN_PROGRESS = 1;
@@ -584,7 +585,8 @@ void setup() {
   tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, flip_limit_switch_y);
   tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, flip_limit_switch_y);
   tmc4361A_enableLimitSwitch(&tmc4361[z], rht_sw_pol[z], RGHT_SW, false);
-  // tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
+  tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false); // removing this causes z homing to not work properly
+  // tmc4361A_rstBits(&tmc4361[z],TMC4361A_REFERENCE_CONF,TMC4361A_STOP_LEFT_EN_MASK);
 
   // motion profile configuration
   uint32_t max_velocity_usteps[N_MOTOR];
@@ -1203,6 +1205,22 @@ void loop() {
           trigger_output_level[camera_channel] = HIGH;
           break;
         }
+        case RESET:
+        {
+          mcu_cmd_execution_in_progress = false;
+          is_homing_X = false;
+          is_homing_Y = false;
+          is_homing_Z = false;
+          is_homing_XY = false;
+          home_X_found = false;
+          home_Y_found = false;
+          home_Z_found = false;
+          is_preparing_for_homing_X = false;
+          is_preparing_for_homing_Y = false;
+          is_preparing_for_homing_Z = false;
+          cmd_id = 0;
+          break;
+        }
         default:
           break;
       }
@@ -1337,6 +1355,7 @@ void loop() {
         tmc4361A_moveTo(&tmc4361[x], tmc4361[x].xmin);
         X_commanded_movement_in_progress = true;
         X_commanded_target_position = tmc4361[x].xmin;
+        // turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,30,10,10); // debug
       }
     }
     else // use the right limit switch for homing
@@ -1349,6 +1368,7 @@ void loop() {
         tmc4361A_moveTo(&tmc4361[x], tmc4361[x].xmax);
         X_commanded_movement_in_progress = true;
         X_commanded_target_position = tmc4361[x].xmax;
+        // turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,30,10,10); // debug
       }
     }
   }
@@ -1364,6 +1384,7 @@ void loop() {
         tmc4361A_moveTo(&tmc4361[y], tmc4361[y].xmin);
         Y_commanded_movement_in_progress = true;
         Y_commanded_target_position = tmc4361[y].xmin;
+        // turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,30,10,10); // debug
       }
     }
     else // use the right limit switch for homing
@@ -1376,6 +1397,7 @@ void loop() {
         tmc4361A_moveTo(&tmc4361[y], tmc4361[y].xmax);
         Y_commanded_movement_in_progress = true;
         Y_commanded_target_position = tmc4361[y].xmax;
+        // turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,30,10,10); // debug
       }
     }
   }
@@ -1391,6 +1413,7 @@ void loop() {
         tmc4361A_moveTo(&tmc4361[z], tmc4361[z].xmin);
         Z_commanded_movement_in_progress = true;
         Z_commanded_target_position = tmc4361[z].xmin;
+        // turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,30,10,10); // debug
       }
     }
     else // use the right limit switch for homing
@@ -1403,6 +1426,7 @@ void loop() {
         tmc4361A_moveTo(&tmc4361[z], tmc4361[z].xmax);
         Z_commanded_movement_in_progress = true;
         Z_commanded_target_position = tmc4361[z].xmax;
+        // turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_FULL,30,10,10); // debug
       }
     }
   }
@@ -1410,6 +1434,7 @@ void loop() {
   // finish homing
   if(is_homing_X && home_X_found && tmc4361A_currentPosition(&tmc4361[x]) == tmc4361A_targetPosition(&tmc4361[x]) )
   {
+    // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[x],0);
     X_pos = 0;
     is_homing_X = false;
@@ -1420,6 +1445,7 @@ void loop() {
   }
   if(is_homing_Y && home_Y_found && tmc4361A_currentPosition(&tmc4361[y]) == tmc4361A_targetPosition(&tmc4361[y]) )
   {
+    // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[y],0);
     Y_pos = 0;
     is_homing_Y = false;
@@ -1430,6 +1456,7 @@ void loop() {
   }
   if(is_homing_Z && home_Z_found && tmc4361A_currentPosition(&tmc4361[z]) == tmc4361A_targetPosition(&tmc4361[z]) )
   {
+    // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[z],0);
     Z_pos = 0;
     focusPosition = 0;

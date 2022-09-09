@@ -72,6 +72,12 @@ class Microcontroller():
         self.thread_read_received_packet.join()
         self.serial.close()
 
+    def reset(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.RESET
+        self.send_command(cmd)
+
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.TURN_ON_ILLUMINATION
@@ -677,6 +683,12 @@ class Microcontroller_Simulation():
     def close(self):
         self.terminate_reading_received_packet_thread = True
         self.thread_read_received_packet.join()
+
+    def reset(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.RESET
+        self.send_command(cmd)
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + STAGE_MOVEMENT_SIGN_X*usteps

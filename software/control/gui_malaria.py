@@ -60,6 +60,9 @@ class OctopiGUI(QMainWindow):
 			except:
 				print('! Microcontroller not detected, using simulated microcontroller !')
 				self.microcontroller = microcontroller.Microcontroller_Simulation()
+		
+		# reset the MCU
+		self.microcontroller.reset()
 
 		# configure the actuators
 		self.microcontroller.configure_actuators()

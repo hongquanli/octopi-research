@@ -57,6 +57,9 @@ class OctopiGUI(QMainWindow):
 				print('! camera not detected, using simulated camera !')
 			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 
+		# reset the MCU
+		self.microcontroller.reset()
+		
 		# configure the actuators
 		self.microcontroller.configure_actuators()
 			
