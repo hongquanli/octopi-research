@@ -1350,7 +1350,7 @@ void loop() {
   {
     if(homing_direction_X==HOME_NEGATIVE) // use the left limit switch for homing
     {
-      if(tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW)
+      if(tmc4361A_readSwitchEvent(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW)
       {
         home_X_found = true;
         tmc4361[x].xmin = tmc4361A_readInt(&tmc4361[x], TMC4361A_X_LATCH_RD);
@@ -1363,7 +1363,7 @@ void loop() {
     }
     else // use the right limit switch for homing
     {
-      if(tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW)
+      if(tmc4361A_readSwitchEvent(&tmc4361[x])==RGHT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW)
       {
         home_X_found = true;
         tmc4361[x].xmax = tmc4361A_readInt(&tmc4361[x], TMC4361A_X_LATCH_RD);
@@ -1379,7 +1379,7 @@ void loop() {
   {
     if(homing_direction_Y==HOME_NEGATIVE) // use the left limit switch for homing
     {
-      if(tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW)
+      if(tmc4361A_readSwitchEvent(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW)
       {
         home_Y_found = true;
         tmc4361[y].xmin = tmc4361A_readInt(&tmc4361[y], TMC4361A_X_LATCH_RD);
@@ -1392,7 +1392,7 @@ void loop() {
     }
     else // use the right limit switch for homing
     {
-      if(tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW)
+      if(tmc4361A_readSwitchEvent(&tmc4361[y])==RGHT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW)
       {
         home_Y_found = true;
         tmc4361[y].xmax = tmc4361A_readInt(&tmc4361[y], TMC4361A_X_LATCH_RD);
@@ -1408,7 +1408,7 @@ void loop() {
   {
     if(homing_direction_Z==HOME_NEGATIVE) // use the left limit switch for homing
     {
-      if(tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW)
+      if(tmc4361A_readSwitchEvent(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW)
       {
         home_Z_found = true;
         tmc4361[z].xmin = tmc4361A_readInt(&tmc4361[z], TMC4361A_X_LATCH_RD);
@@ -1421,7 +1421,7 @@ void loop() {
     }
     else // use the right limit switch for homing
     {
-      if(tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW)
+      if(tmc4361A_readSwitchEvent(&tmc4361[z])==RGHT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW)
       {
         home_Z_found = true;
         tmc4361[z].xmax = tmc4361A_readInt(&tmc4361[z], TMC4361A_X_LATCH_RD);
