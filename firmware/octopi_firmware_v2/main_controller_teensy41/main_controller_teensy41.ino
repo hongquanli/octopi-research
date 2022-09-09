@@ -1208,6 +1208,9 @@ void loop() {
         case RESET:
         {
           mcu_cmd_execution_in_progress = false;
+          X_commanded_movement_in_progress = false;
+          Y_commanded_movement_in_progress = false;
+          Z_commanded_movement_in_progress = false;
           is_homing_X = false;
           is_homing_Y = false;
           is_homing_Z = false;
@@ -1612,7 +1615,36 @@ void loop() {
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
   }
-      
+
+  // at limit
+  if(X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
+  {
+    // if( tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW )
+    if( tmc4361A_readSwitchEvent(&tmc4361[x]) > 0)
+    {
+      X_commanded_movement_in_progress = false;
+      mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+    }
+  }
+  if(Y_commanded_movement_in_progress && !is_homing_Y) // homing is handled separately
+  {
+    //if( tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW )
+    if( tmc4361A_readSwitchEvent(&tmc4361[y]) > 0)
+    {
+      Y_commanded_movement_in_progress = false;
+      mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+    }
+  }
+  if(Z_commanded_movement_in_progress && !is_homing_Z) // homing is handled separately
+  {
+    // if( tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW )
+    if( tmc4361A_readSwitchEvent(&tmc4361[z]) > 0)
+    {
+      Z_commanded_movement_in_progress = false;
+      mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+    }
+  }
+
 }
 
 /***************************************************
