@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include "TMC4361A.h"
 #include "TMC4361A_TMC2660_Utils.h"
+#include "crc8.h"
 
 #include "def_octopi.h"
 //#include "def_octopi_80120.h"
@@ -31,6 +32,7 @@ volatile int buffer_rx_ptr;
 static const int N_BYTES_POS = 4;
 byte cmd_id = 0;
 bool mcu_cmd_execution_in_progress = false;
+bool checksum_error = false;
 
 // command sets
 static const int MOVE_X = 0;
@@ -663,6 +665,17 @@ void loop() {
     {
       buffer_rx_ptr = 0;
       cmd_id = buffer_rx[0];
+      uint8_t checksum = crc8ccitt(buffer_rx,CMD_LENGTH-1);
+      if(checksum != buffer_rx[CMD_LENGTH-1])
+      {
+        checksum_error = true;
+        return;
+      }
+      else
+      {
+        checksum_error = false;
+      }
+      
       switch(buffer_rx[1])
       {
         case MOVE_X:
@@ -1552,7 +1565,10 @@ void loop() {
     us_since_last_pos_update = 0;
     
     buffer_tx[0] = cmd_id;
-    buffer_tx[1] = mcu_cmd_execution_in_progress; // cmd_execution_status
+    if(checksum_error)
+      buffer_tx[1] = CMD_CHECKSUM_ERROR; // cmd_execution_status
+    else
+      buffer_tx[1] = mcu_cmd_execution_in_progress; // cmd_execution_status
     
     uint32_t X_pos_int32t = uint32_t( X_use_encoder?X_pos:int32_t(tmc4361A_currentPosition(&tmc4361[x])) );
     buffer_tx[2] = byte(X_pos_int32t>>24);
