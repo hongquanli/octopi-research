@@ -42,6 +42,7 @@ class Microcontroller():
 
         self.last_command = None
         self.timeout_counter = 0
+        self.last_command_timestamp = time.time()
 
         print('connecting to controller based on ' + version)
 
@@ -542,6 +543,7 @@ class Microcontroller():
         self.mcu_cmd_execution_in_progress = True
         self.last_command = command
         self.timeout_counter = 0
+        self.last_command_timestamp = time.time()
 
     def resend_last_command(self):
         self.serial.write(self.last_command)
@@ -586,11 +588,11 @@ class Microcontroller():
                 if self.mcu_cmd_execution_in_progress == True:
                     self.mcu_cmd_execution_in_progress = False
                     print('   mcu command ' + str(self._cmd_id) + ' complete')
-                elif self._cmd_id_mcu != self._cmd_id and self.last_command != None:
-                    self.timeout_counter = self.timeout_counter + 1
-                    if self.timeout_counter > 10:
-                        self.resend_last_command()
-                        print('      *** resend the last command')
+            elif self._cmd_id_mcu != self._cmd_id and time.time() - self.last_command_timestamp > 5 and self.last_command != None:
+                self.timeout_counter = self.timeout_counter + 1
+                if self.timeout_counter > 10:
+                    self.resend_last_command()
+                    print('      *** resend the last command')
             # print('command id ' + str(self._cmd_id) + '; mcu command ' + str(self._cmd_id_mcu) + ' status: ' + str(msg[1]) )
 
             self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
