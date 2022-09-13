@@ -190,6 +190,9 @@ volatile long Z_commanded_target_position = 0;
 volatile bool X_commanded_movement_in_progress = false;
 volatile bool Y_commanded_movement_in_progress = false;
 volatile bool Z_commanded_movement_in_progress = false;
+int X_direction;
+int Y_direction;
+int Z_direction;
 
 int32_t focusPosition = 0;
 
@@ -682,6 +685,7 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           long current_position = tmc4361A_currentPosition(&tmc4361[x]);
+          X_direction = sgn(relative_position);
           X_commanded_target_position = ( relative_position>0?min(current_position+relative_position,X_POS_LIMIT):max(current_position+relative_position,X_NEG_LIMIT) );
           if( tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
           {
@@ -694,6 +698,7 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           long current_position = tmc4361A_currentPosition(&tmc4361[y]);
+          Y_direction = sgn(relative_position);
           Y_commanded_target_position = ( relative_position>0?min(current_position+relative_position,Y_POS_LIMIT):max(current_position+relative_position,Y_NEG_LIMIT) );
           if( tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position) == 0)
           {
@@ -706,6 +711,7 @@ void loop() {
         {
           long relative_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
           long current_position = tmc4361A_currentPosition(&tmc4361[z]);
+          Z_direction = sgn(relative_position);
           Z_commanded_target_position = ( relative_position>0?min(current_position+relative_position,Z_POS_LIMIT):max(current_position+relative_position,Z_NEG_LIMIT) );
           focusPosition = Z_commanded_target_position;
           if( tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position) == 0)
@@ -718,6 +724,7 @@ void loop() {
         case MOVETO_X:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
+          X_direction = sgn(absolute_position-tmc4361A_currentPosition(&tmc4361[x]));
           X_commanded_target_position = absolute_position;
           if(tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
           {
@@ -729,6 +736,7 @@ void loop() {
         case MOVETO_Y:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
+          Y_direction = sgn(absolute_position-tmc4361A_currentPosition(&tmc4361[y]));
           Y_commanded_target_position = absolute_position;
           if(tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position)==0)
           {
@@ -740,6 +748,7 @@ void loop() {
         case MOVETO_Z:
         {
           long absolute_position = int32_t(uint32_t(buffer_rx[2])*16777216 + uint32_t(buffer_rx[3])*65536 + uint32_t(buffer_rx[4])*256 + uint32_t(buffer_rx[5]));
+          Z_direction = sgn(absolute_position-tmc4361A_currentPosition(&tmc4361[z]));
           Z_commanded_target_position = absolute_position;
           if(tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position)==0)
           {
@@ -1636,7 +1645,7 @@ void loop() {
   if(X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
   {
     // if( tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW )
-    if( tmc4361A_readSwitchEvent(&tmc4361[x]) > 0)
+    if( ( X_direction == LEFT_DIR && tmc4361A_readSwitchEvent(&tmc4361[x]) == LEFT_SW ) || ( X_direction == RGHT_DIR && tmc4361A_readSwitchEvent(&tmc4361[x]) == RGHT_SW ) )
     {
       X_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
@@ -1645,7 +1654,7 @@ void loop() {
   if(Y_commanded_movement_in_progress && !is_homing_Y) // homing is handled separately
   {
     //if( tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW )
-    if( tmc4361A_readSwitchEvent(&tmc4361[y]) > 0)
+    if( ( Y_direction == LEFT_DIR && tmc4361A_readSwitchEvent(&tmc4361[y]) == LEFT_SW ) || ( Y_direction == RGHT_DIR && tmc4361A_readSwitchEvent(&tmc4361[y]) == RGHT_SW ) )
     {
       Y_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
@@ -1654,7 +1663,7 @@ void loop() {
   if(Z_commanded_movement_in_progress && !is_homing_Z) // homing is handled separately
   {
     // if( tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW )
-    if( tmc4361A_readSwitchEvent(&tmc4361[z]) > 0)
+    if( ( Z_direction == LEFT_DIR && tmc4361A_readSwitchEvent(&tmc4361[z]) == LEFT_SW ) || ( Z_direction == RGHT_DIR && tmc4361A_readSwitchEvent(&tmc4361[z]) == RGHT_SW ) )
     {
       Z_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
