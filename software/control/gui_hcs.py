@@ -89,31 +89,46 @@ class OctopiGUI(QMainWindow):
 			print('objective retracted')
 
 		if HOMING_ENABLED_Z and HOMING_ENABLED_X and HOMING_ENABLED_Y:
-			self.navigationController.set_x_limit_pos_mm(100)
-			self.navigationController.set_x_limit_neg_mm(-100)
-			self.navigationController.set_y_limit_pos_mm(100)
-			self.navigationController.set_y_limit_neg_mm(-100)
-			self.navigationController.home_xy()
+			# self.navigationController.set_x_limit_pos_mm(100)
+			# self.navigationController.set_x_limit_neg_mm(-100)
+			# self.navigationController.set_y_limit_pos_mm(100)
+			# self.navigationController.set_y_limit_neg_mm(-100)
+			# self.navigationController.home_xy() 
+			# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
+			self.navigationController.move_x(12)
+			while self.microcontroller.is_busy(): # to do, add a blocking option move_x()
+				time.sleep(0.005)
+			
+			self.navigationController.home_y()
 			t0 = time.time()
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-				if time.time() - t0 > 5:
-					print('xy homing timeout, the program will exit')
-					self.navigationController.move_x(0)
-					self.navigationController.move_y(0)
+				if time.time() - t0 > 10:
+					print('y homing timeout, the program will exit')
 					exit()
+			
+			self.navigationController.home_x()
+			t0 = time.time()
+			while self.microcontroller.is_busy():
+				time.sleep(0.005)
+				if time.time() - t0 > 10:
+					print('x homing timeout, the program will exit')
+					exit()
+	
 			print('xy homing completed')
-			# move to (30 mm, 30 mm)
-			self.navigationController.move_x(30)
+
+			# move to (20 mm, 20 mm)
+			self.navigationController.move_x(20)
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-			self.navigationController.move_y(30)
+			self.navigationController.move_y(20)
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
+			
 			self.navigationController.set_x_limit_pos_mm(110)
-			self.navigationController.set_x_limit_neg_mm(-1)
+			self.navigationController.set_x_limit_neg_mm(0.2)
 			self.navigationController.set_y_limit_pos_mm(75)
-			self.navigationController.set_y_limit_neg_mm(-1)
+			self.navigationController.set_y_limit_neg_mm(0.2)
 
 		if HOMING_ENABLED_Z:
 			# move the objective back
