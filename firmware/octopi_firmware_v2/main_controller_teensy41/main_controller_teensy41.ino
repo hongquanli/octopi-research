@@ -221,6 +221,9 @@ bool is_preparing_for_homing_Z = false;
 bool homing_direction_X;
 bool homing_direction_Y;
 bool homing_direction_Z;
+elapsedMicros us_since_x_home_found;
+elapsedMicros us_since_y_home_found;
+elapsedMicros us_since_z_home_found;
 /* to do: move the movement direction sign from configuration.txt (python) to the firmware (with 
  * setPinsInverted() so that homing_direction_X, homing_direction_Y, homing_direction_Z will no 
  * longer be needed. This way the home switches can act as limit switches - right now because 
@@ -1375,6 +1378,7 @@ void loop() {
       if(tmc4361A_readSwitchEvent(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW)
       {
         home_X_found = true;
+        us_since_x_home_found = 0;
         tmc4361[x].xmin = tmc4361A_readInt(&tmc4361[x], TMC4361A_X_LATCH_RD);
         // tmc4361A_writeInt(&tmc4361[x], TMC4361A_X_TARGET, tmc4361[x].xmin);
         tmc4361A_moveTo(&tmc4361[x], tmc4361[x].xmin);
@@ -1388,6 +1392,7 @@ void loop() {
       if(tmc4361A_readSwitchEvent(&tmc4361[x])==RGHT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW)
       {
         home_X_found = true;
+        us_since_x_home_found = 0;
         tmc4361[x].xmax = tmc4361A_readInt(&tmc4361[x], TMC4361A_X_LATCH_RD);
         // tmc4361A_writeInt(&tmc4361[x], TMC4361A_X_TARGET, tmc4361[x].xmax);
         tmc4361A_moveTo(&tmc4361[x], tmc4361[x].xmax);
@@ -1404,6 +1409,7 @@ void loop() {
       if(tmc4361A_readSwitchEvent(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW)
       {
         home_Y_found = true;
+        us_since_y_home_found = 0;
         tmc4361[y].xmin = tmc4361A_readInt(&tmc4361[y], TMC4361A_X_LATCH_RD);
         // tmc4361A_writeInt(&tmc4361[y], TMC4361A_X_TARGET, tmc4361[y].xmin);
         tmc4361A_moveTo(&tmc4361[y], tmc4361[y].xmin);
@@ -1417,6 +1423,7 @@ void loop() {
       if(tmc4361A_readSwitchEvent(&tmc4361[y])==RGHT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW)
       {
         home_Y_found = true;
+        us_since_y_home_found = 0;
         tmc4361[y].xmax = tmc4361A_readInt(&tmc4361[y], TMC4361A_X_LATCH_RD);
         // tmc4361A_writeInt(&tmc4361[y], TMC4361A_X_TARGET, tmc4361[y].xmax);
         tmc4361A_moveTo(&tmc4361[y], tmc4361[y].xmax);
@@ -1433,6 +1440,7 @@ void loop() {
       if(tmc4361A_readSwitchEvent(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW)
       {
         home_Z_found = true;
+        us_since_z_home_found = 0;
         tmc4361[z].xmin = tmc4361A_readInt(&tmc4361[z], TMC4361A_X_LATCH_RD);
         // tmc4361A_writeInt(&tmc4361[z], TMC4361A_X_TARGET, tmc4361[z].xmin);
         tmc4361A_moveTo(&tmc4361[z], tmc4361[z].xmin);
@@ -1446,6 +1454,7 @@ void loop() {
       if(tmc4361A_readSwitchEvent(&tmc4361[z])==RGHT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW)
       {
         home_Z_found = true;
+        us_since_z_home_found = 0;
         tmc4361[z].xmax = tmc4361A_readInt(&tmc4361[z], TMC4361A_X_LATCH_RD);
         //tmc4361A_writeInt(&tmc4361[z], TMC4361A_X_TARGET, tmc4361[z].xmax);
         tmc4361A_moveTo(&tmc4361[z], tmc4361[z].xmax);
@@ -1457,7 +1466,7 @@ void loop() {
   }
   
   // finish homing
-  if(is_homing_X && home_X_found && tmc4361A_currentPosition(&tmc4361[x]) == tmc4361A_targetPosition(&tmc4361[x]) )
+  if(is_homing_X && home_X_found && ( tmc4361A_currentPosition(&tmc4361[x]) == tmc4361A_targetPosition(&tmc4361[x]) || us_since_x_home_found > 500*1000 ) )
   {
     // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[x],0);
@@ -1468,7 +1477,7 @@ void loop() {
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
   }
-  if(is_homing_Y && home_Y_found && tmc4361A_currentPosition(&tmc4361[y]) == tmc4361A_targetPosition(&tmc4361[y]) )
+  if(is_homing_Y && home_Y_found && ( tmc4361A_currentPosition(&tmc4361[y]) == tmc4361A_targetPosition(&tmc4361[y]) || us_since_y_home_found > 500*1000 ) )
   {
     // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[y],0);
@@ -1479,7 +1488,7 @@ void loop() {
     if(is_homing_XY==false)
       mcu_cmd_execution_in_progress = false;
   }
-  if(is_homing_Z && home_Z_found && tmc4361A_currentPosition(&tmc4361[z]) == tmc4361A_targetPosition(&tmc4361[z]) )
+  if(is_homing_Z && home_Z_found && ( tmc4361A_currentPosition(&tmc4361[z]) == tmc4361A_targetPosition(&tmc4361[z]) || us_since_z_home_found > 500*1000 ) )
   {
     // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[z],0);
