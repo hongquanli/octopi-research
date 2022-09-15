@@ -675,6 +675,9 @@ void loop() {
       if(checksum != buffer_rx[CMD_LENGTH-1])
       {
         checksum_error = true;
+        // empty the serial buffer because byte-level out-of-sync can also cause this error
+        while (SerialUSB.available()) 
+          SerialUSB.read();
         return;
       }
       else
