@@ -18,8 +18,11 @@ cd arduino-1.8.19
 chmod +x install.sh
 sudo ./install.sh
 echo "comment #include 'def_octopi.h' and uncomment #include 'def_octopi_80120.h' switch to correct board (teensy 4.1) then install the packages PacketSerial and FastLED (both in Tools)"
-cd octopi-research/firmware/octopi_firmware_v2/main_controller_teensy41
+cd ~/Downloads/octopi-research/firmware/octopi_firmware_v2/main_controller_teensy41
 arudino main_controller_teensy41.ino
-cd octopi-research/software
+cd ~/Downloads/octopi-research/software
 cp configurations/configuration_HCS_v2.txt configuration.txt
+cd ~/Downloads/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.1911.9122
+echo "\ny\En\n" | sudo ./Galaxy_camera.run
+cd ~/Downloads/octopi-research/software
 python3 main.py
