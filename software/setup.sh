@@ -19,5 +19,7 @@ chmod +x install.sh
 sudo ./install.sh
 echo "comment #include 'def_octopi.h' and uncomment #include 'def_octopi_80120.h' switch to correct board (teensy 4.1) then install the packages PacketSerial and FastLED (both in Tools)"
 cd octopi-research/firmware/octopi_firmware_v2/main_controller_teensy41
-arudino main_controller_teensy41.ino 
+arudino main_controller_teensy41.ino
 cd octopi-research/software
+cp configurations/configuration_HCS_v2.txt configuration.txt
+python3 main.py
