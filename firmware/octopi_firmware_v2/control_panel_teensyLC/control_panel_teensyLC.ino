@@ -1,6 +1,9 @@
 #include <PacketSerial.h>
+#include <Wire.h>
+#include "TM1650.h"
 
 PacketSerial packetSerial;
+TM1650 d;
 
 // pin defination
 static const int pin_LED[6] = {9,10,11,12,13,14};
@@ -44,6 +47,9 @@ uint8_t packet[JOYSTICK_MSG_LENGTH] = {};
 uint16_t tmp_uint16;
 uint32_t tmp_uint32;
 
+// display
+char display_str[] = "0088";
+
 // testing
 int i_testing = 0;
 
@@ -53,6 +59,13 @@ int focus_encoder_sensitivity_division = 4;
 void setup() 
 {
 
+  // I2C for seven segment display
+  Wire.begin(); 
+  delay(200);
+  d.init();
+  display_str[2] = '0' + 10;
+  display_str[3] = '0' + 10;
+    
   // pin init.
   for(int i=0;i<6;i++)
   {
@@ -91,19 +104,27 @@ void loop()
 {
   
   // update input sensitivity
-  input_sensitivity_xy = analogRead(pin_pot2)/10; // sensitivity 0-102;
-  input_sensitivity_z = analogRead(pin_pot1)/10; // sensitivity 0-102;
-  encoder_step_size = min(pow(2,input_sensitivity_z),1024); // cap the max z_step_size
+  input_sensitivity_xy = (1023-analogRead(pin_pot2))/100; // sensitivity 0-10;
+  if(input_sensitivity_xy>9)
+    input_sensitivity_xy = 9;
+  
+  input_sensitivity_z = (1023-analogRead(pin_pot1))/100; // sensitivity 0-10;
+  if(input_sensitivity_z>8)
+    input_sensitivity_z = 8;
+    
+  encoder_step_size = min(pow(2,input_sensitivity_z),256); // cap the max z_step_size
 
   // display input sensitivity
-  // to be added
+  display_str[0] = '0' + input_sensitivity_xy;
+  display_str[1] = '0' + input_sensitivity_z;
+  d.displayString(display_str);
 
   // read joystick
   joystick_delta_x = analogRead(pin_joystick_x) - joystick_offset_x;
-  joystick_delta_x = sgn(joystick_delta_x)*max(abs(joystick_delta_x)-joystick_deadband,0)*input_sensitivity_xy;
+  joystick_delta_x = sgn(joystick_delta_x)*max(abs(joystick_delta_x)-joystick_deadband,0)*input_sensitivity_xy*10;
   joystick_delta_x = sgn(joystick_delta_x)*min(abs(joystick_delta_x),32767);
   joystick_delta_y = analogRead(pin_joystick_y) - joystick_offset_y;
-  joystick_delta_y = sgn(joystick_delta_y)*max(abs(joystick_delta_y)-joystick_deadband,0)*input_sensitivity_xy;
+  joystick_delta_y = sgn(joystick_delta_y)*max(abs(joystick_delta_y)-joystick_deadband,0)*input_sensitivity_xy*10;
   joystick_delta_y = sgn(joystick_delta_y)*min(abs(joystick_delta_y),32767);
 
   // read key
@@ -111,7 +132,9 @@ void loop()
 
   // send to controller
   encoder_pos = encoder_pos;
-  tmp_uint32 = twos_complement(encoder_pos/4,4); // artificially descrease the resolution to make it less sensitive
+  int32_t encoder_pos_ = encoder_pos/4; // artificially descrease the resolution to make it less sensitive
+  encoder_pos_ = (encoder_pos_/16)*16;  // make the number integer multiple of 16 (16 microstepping)
+  tmp_uint32 = twos_complement(encoder_pos_,4); 
   packet[0] = byte(tmp_uint32>>24);
   packet[1] = byte((tmp_uint32>>16)%256);
   packet[2] = byte((tmp_uint32>>8)%256);
@@ -140,7 +163,7 @@ void loop()
   delayMicroseconds(2000);
 
   // debug
-  Serial.print(encoder_pos);
+  Serial.print(encoder_pos_);
   //Serial.print("\t");
   //Serial.print(tmp_uint32);
   Serial.print("\t dx:");
