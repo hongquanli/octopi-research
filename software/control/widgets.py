@@ -1783,6 +1783,7 @@ class DisplacementMeasurementWidget(QFrame):
 class WellSelectionWidget(QTableWidget):
 
     signal_wellSelected = Signal(int,int,float)
+    signal_wellSelectedPos = Signal(float,float)
 
     def __init__(self, format_, *args):
 
@@ -1870,8 +1871,11 @@ class WellSelectionWidget(QTableWidget):
     def onDoubleClick(self,row,col):
         if self.format >= 96:
             if (row > 0 and row < self.rows-1 ) and ( col > 0 and col < self.columns-1 ):
-                print('(' + str(row) + ',' + str(col) + ') doubleclicked')
-                self.signal_wellSelected.emit(row,col,self.spacing_mm)
+                # print('(' + str(row) + ',' + str(col) + ') doubleclicked')
+                # self.signal_wellSelected.emit(row,col,self.spacing_mm)
+                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (col-NUMBER_OF_SKIP)*WELL_SPACING_MM
+                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (row-NUMBER_OF_SKIP)*WELL_SPACING_MM
+                self.signal_wellSelectedPos.emit(x_mm,y_mm)
         else: 
             print('(' + str(row) + ',' + str(col) + ') doubleclicked')
 

@@ -679,7 +679,10 @@ class NavigationController(QObject):
             self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
         else:
             self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
-        
+    
+    def move_to(self,x_mm,y_mm):
+        self.move_x_to(x_mm)
+        self.move_y_to(y_mm)
 
 class SlidePositionControlWorker(QObject):
     

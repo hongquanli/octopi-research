@@ -254,6 +254,8 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
+		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+
 	def closeEvent(self, event):
 		
 		# move the objective to a defined position upon exit
