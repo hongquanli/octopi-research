@@ -23,6 +23,6 @@ arduino main_controller_teensy41.ino
 cd ~/Downloads/octopi-research/software
 cp configurations/configuration_HCS_v2.txt configuration.txt
 cd ~/Downloads/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.1911.9122
-echo "\ny\nEn\n" | sudo ./Galaxy_camera.run
+echo -e "\ny\nEn\n" | sudo ./Galaxy_camera.run
 cd ~/Downloads/octopi-research/software
 python3 main.py
