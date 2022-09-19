@@ -166,6 +166,8 @@ class OctopiGUI(QMainWindow):
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
+		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
 		#layout.addWidget(self.cameraSettingWidget)
@@ -190,7 +192,11 @@ class OctopiGUI(QMainWindow):
 			dock_display = dock.Dock('Image Display', autoOrientation = False)
 			dock_display.showTitleBar()
 			dock_display.addWidget(self.imageDisplayTabs)
-			dock_display.setStretch(x=100,y=None)
+			dock_display.setStretch(x=100,y=100)
+			dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
+			dock_wellSelection.showTitleBar()
+			dock_wellSelection.addWidget(self.wellSelectionWidget)
+			dock_wellSelection.setFixedHeight(dock_wellSelection.minimumSizeHint().height())
 			dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
 			# dock_controlPanel.showTitleBar()
 			dock_controlPanel.addWidget(self.centralWidget)
@@ -198,6 +204,7 @@ class OctopiGUI(QMainWindow):
 			dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
 			main_dockArea = dock.DockArea()
 			main_dockArea.addDock(dock_display)
+			main_dockArea.addDock(dock_wellSelection,'bottom')
 			main_dockArea.addDock(dock_controlPanel,'right')
 			self.setCentralWidget(main_dockArea)
 			desktopWidget = QDesktopWidget()

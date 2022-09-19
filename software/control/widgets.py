@@ -1779,3 +1779,108 @@ class DisplacementMeasurementWidget(QFrame):
     def display_readings(self,readings):
         self.reading_x.setText("{:.2f}".format(readings[0]))
         self.reading_y.setText("{:.2f}".format(readings[1]))
+
+class WellSelectionWidget(QTableWidget):
+
+    signal_wellSelected = Signal(int,int,float)
+
+    def __init__(self, format_, *args):
+
+        if format_ == 6:
+            self.rows = 2
+            self.columns = 3
+            self.spacing_mm = 39.2
+        elif format_ == 12:
+            self.rows = 3
+            self.columns = 4
+            self.spacing_mm = 26
+        elif format_ == 24:
+            self.rows = 4
+            self.columns = 6
+            self.spacing_mm = 18
+        elif format_ == 96:
+            self.rows = 8
+            self.columns = 12
+            self.spacing_mm = 9
+        elif format_ == 384:
+            self.rows = 16
+            self.columns = 24
+            self.spacing_mm = 4.5
+        elif format_ == 1536:
+            self.rows = 32
+            self.columns = 48
+            self.spacing_mm = 2.25
+
+        self.format = format_
+
+        QTableWidget.__init__(self, self.rows, self.columns, *args)
+        self.setData()
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.cellDoubleClicked.connect(self.onDoubleClick)
+        self.cellClicked.connect(self.onSingleClick)
+
+        # size
+        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.verticalHeader().setDefaultSectionSize(5*self.spacing_mm)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.horizontalHeader().setMinimumSectionSize(5*self.spacing_mm)
+
+        self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.resizeColumnsToContents()
+        self.setFixedSize(self.horizontalHeader().length() + 
+                   self.verticalHeader().width(),
+                   self.verticalHeader().length() + 
+                   self.horizontalHeader().height())
+
+    def setData(self): 
+        '''
+        # cells
+        for i in range(16):
+            for j in range(24):
+                newitem = QTableWidgetItem( chr(ord('A')+i) + str(j) )
+                self.setItem(i, j, newitem)
+        '''
+        # row header
+        row_headers = []
+        for i in range(16):
+            row_headers.append(chr(ord('A')+i))
+        self.setVerticalHeaderLabels(row_headers)
+
+        # make the outer cells not selectable if using 96 and 384 well plates
+        if self.format >= 96:
+            for i in range(self.rows):
+                item = QTableWidgetItem()
+                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                self.setItem(i,0,item)
+                item = QTableWidgetItem()
+                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                self.setItem(i,self.columns-1,item)
+            for j in range(self.columns):
+                item = QTableWidgetItem()
+                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                self.setItem(0,j,item)
+                item = QTableWidgetItem()
+                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                self.setItem(self.rows-1,j,item)
+
+    def onDoubleClick(self,row,col):
+        if self.format >= 96:
+            if (row > 0 and row < self.rows-1 ) and ( col > 0 and col < self.columns-1 ):
+                print('(' + str(row) + ',' + str(col) + ') doubleclicked')
+                self.signal_wellSelected.emit(row,col,self.spacing_mm)
+        else: 
+            print('(' + str(row) + ',' + str(col) + ') doubleclicked')
+
+    def onSingleClick(self,row,col):
+        # self.get_selected_cells()
+        pass
+
+    def get_selected_cells(self):
+        list_of_selected_cells = []
+        for index in self.selectedIndexes():
+             list_of_selected_cells.append((index.row(),index.column()))
+        return(list_of_selected_cells)
