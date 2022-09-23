@@ -82,6 +82,7 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.RESET
         self.send_command(cmd)
+        print('reset the microcontroller') # debug
 
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
