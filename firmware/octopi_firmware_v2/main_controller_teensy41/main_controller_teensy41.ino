@@ -551,6 +551,7 @@ void setup() {
   digitalWrite(DAC8050x_CS_pin,HIGH);
 
   // wait for PG to turn high
+  delay(100);
   while(!digitalRead(pin_PG))
   {
     delay(50);
