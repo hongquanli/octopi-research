@@ -69,12 +69,13 @@ class OctopiGUI(QMainWindow):
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
+		self.scanCoordinates = core.ScanCoordinates()
+		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
-		self.navigationViewer = core.NavigationViewer(sample='384 well plate')
+		self.navigationViewer = core.NavigationViewer(sample='384 well plate')		
 
 		if HOMING_ENABLED_Z:
 			# retract the objective
@@ -124,7 +125,7 @@ class OctopiGUI(QMainWindow):
 			self.navigationController.move_y(20)
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-			
+
 			self.navigationController.set_x_limit_pos_mm(110)
 			self.navigationController.set_x_limit_neg_mm(0.2)
 			self.navigationController.set_y_limit_pos_mm(75)
@@ -167,6 +168,7 @@ class OctopiGUI(QMainWindow):
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
 		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+		self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
