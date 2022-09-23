@@ -1,5 +1,5 @@
 ROTATE_IMAGE_ANGLE = None
-FLIP_IMAGE = 'Horizontal' # 'Horizontal', 'Vertical', 'Both'
+FLIP_IMAGE = 'Vertical' # 'Horizontal', 'Vertical', 'Both'
 
 CAMERA_REVERSE_X = False
 CAMERA_REVERSE_Y = False
@@ -139,6 +139,11 @@ class Tracking:
     DEFAULT_TRACKER = "csrt"
     INIT_METHODS = ["roi"]
     DEFAULT_INIT_METHOD = "roi"
+    
+# for 384 well plate
+X_MM_384_WELLPLATE_UPPERLEFT = 12.41
+Y_MM_384_WELLPLATE_UPPERLEFT = 11.18
+DEFAULT_Z_POS_MM = 5.21825
 
 FOCUS_MEASURE_OPERATOR = 'GLVA'
 CONTROLLER_VERSION = 'Teensy'

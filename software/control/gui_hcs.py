@@ -84,7 +84,7 @@ class OctopiGUI(QMainWindow):
 			t0 = time.time()
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-				if time.time() - t0 > 5:
+				if time.time() - t0 > 10:
 					print('z homing timeout, the program will exit')
 					exit()
 			print('objective retracted')
