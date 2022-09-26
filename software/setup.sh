@@ -1,6 +1,6 @@
 sudo usermod -aG dialout $USER
 sudo apt update
-sudo apt install -y python3-pip python3-pyqtgraph python3-pyqt5 make gcc build-essential libgtk-3-dev tree curl git micro openjdk-11-jdk-headless default-libmysqlclient-dev libnotify-dev libsdl2-dev
+sudo apt install -y python3-pip python3-pyqtgraph python3-pyqt5 virtualenv make gcc build-essential libgtk-3-dev tree curl git micro openjdk-11-jdk-headless default-libmysqlclient-dev libnotify-dev libsdl2-dev
 pip3 install --upgrade setuptools pip
 pip3 install numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc
 
@@ -8,13 +8,11 @@ export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 export PATH=$PATH:/home/ubuntu/.local/bin
 
 cd ~/Downloads
+virtualenv cellprofiler_venv
+source cellprofiler_venv/bin/activate
 
-wget https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04/wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
-pip3 install wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
-
-git clone https://github.com/CellProfiler/CellProfiler.git
-cd CellProfiler
-pip3 install .
+pip install numpy==1.23 cellprofiler==4.2.4
+# then run cellprofiler with python -m cellprofiler
 
 cd ~/Downloads
 git clone https://github.com/hongquanli/octopi-research
