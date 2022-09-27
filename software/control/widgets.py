@@ -552,6 +552,9 @@ class NavigationWidget(QFrame):
         elif self.widget_configuration == '384 well plate':
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
+        elif self.widget_configuration == '96 well plate':
+            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -1852,7 +1855,7 @@ class WellSelectionWidget(QTableWidget):
         self.setVerticalHeaderLabels(row_headers)
 
         # make the outer cells not selectable if using 96 and 384 well plates
-        if self.format >= 96:
+        if self.format == 384:
             for i in range(self.rows):
                 item = QTableWidgetItem()
                 item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
@@ -1867,17 +1870,29 @@ class WellSelectionWidget(QTableWidget):
                 item = QTableWidgetItem()
                 item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
                 self.setItem(self.rows-1,j,item)
+        elif self.format == 96:
+            if NUMBER_OF_SKIP == 1:
+                for i in range(self.rows):
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(i,0,item)
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(i,self.columns-1,item)
+                for j in range(self.columns):
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(0,j,item)
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(self.rows-1,j,item)
 
     def onDoubleClick(self,row,col):
-        if self.format >= 96:
-            if (row > 0 and row < self.rows-1 ) and ( col > 0 and col < self.columns-1 ):
-                # print('(' + str(row) + ',' + str(col) + ') doubleclicked')
-                # self.signal_wellSelected.emit(row,col,self.spacing_mm)
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (col-NUMBER_OF_SKIP)*WELL_SPACING_MM
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (row-NUMBER_OF_SKIP)*WELL_SPACING_MM
-                self.signal_wellSelectedPos.emit(x_mm,y_mm)
-        else: 
-            print('(' + str(row) + ',' + str(col) + ') doubleclicked')
+        if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
+            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            self.signal_wellSelectedPos.emit(x_mm,y_mm)
+        # print('(' + str(row) + ',' + str(col) + ') doubleclicked')
 
     def onSingleClick(self,row,col):
         # self.get_selected_cells()

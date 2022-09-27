@@ -2061,8 +2061,16 @@ class NavigationViewer(QFrame):
 
         if sample == 'glass slide':
             self.background_image = cv2.imread('images/slide carrier_828x662.png')
-        else:
+        elif sample == '384 well plate':
             self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
+        elif sample == '96 well plate':
+            self.background_image = cv2.imread('images/96 well plate_1509x1010.png')
+        elif sample == '24 well plate':
+            self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
+        elif sample == '12 well plate':
+            self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
+        elif sample == '6 well plate':
+            self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
         
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
@@ -2382,8 +2390,8 @@ class ScanCoordinates(object):
             if _increasing==False:
                 columns = np.flip(columns)
             for column in columns:
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (column-NUMBER_OF_SKIP)*WELL_SPACING_MM
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (row-NUMBER_OF_SKIP)*WELL_SPACING_MM
+                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
             _increasing = not _increasing

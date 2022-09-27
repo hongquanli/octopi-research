@@ -143,7 +143,16 @@ class Tracking:
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 12.41
 Y_MM_384_WELLPLATE_UPPERLEFT = 11.18
+
+# for other plate format
+WELLPLATE_OFFSET_X_mm = 0
+WELLPLATE_OFFSET_Y_mm = 0
+
+# default z
 DEFAULT_Z_POS_MM = 5.21825
+
+# well plate format selection
+WELLPLATE_FORMAT = 384
 
 FOCUS_MEASURE_OPERATOR = 'GLVA'
 CONTROLLER_VERSION = 'Teensy'

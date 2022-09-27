@@ -75,7 +75,7 @@ class OctopiGUI(QMainWindow):
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
-		self.navigationViewer = core.NavigationViewer(sample='384 well plate')		
+		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
 
 		if HOMING_ENABLED_Z:
 			# retract the objective

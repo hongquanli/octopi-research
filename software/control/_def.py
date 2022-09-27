@@ -301,10 +301,6 @@ Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
 WELLPLATE_FORMAT = 384
-if WELLPLATE_FORMAT == 384:
-    WELL_SIZE_MM = 3.3
-    WELL_SPACING_MM = 4.5
-    NUMBER_OF_SKIP = 1
 
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 0
@@ -312,9 +308,17 @@ Y_MM_384_WELLPLATE_UPPERLEFT = 0
 DEFAULT_Z_POS_MM = 2
 X_ORIGIN_384_WELLPLATE_PIXEL = 177 # upper left of B2
 Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
+NUMBER_OF_SKIP_384 = 1
+A1_X_MM_384_WELLPLATE = 12.05
+A1_Y_MM_384_WELLPLATE = 9.05
+WELL_SPACING_MM_384_WELLPLATE = 4.5
+WELL_SIZE_MM_384_WELLPLATE = 3.3
 # B1 upper left corner in piexel: x = 124, y = 141
 # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 # B2 upper left corner in pixel: x = 177, y = 141
+
+WELLPLATE_OFFSET_X_mm = 0 # x offset adjustment for using different plates
+WELLPLATE_OFFSET_Y_mm = 0 # y offset adjustment for using different plates
 
 # for USB spectrometer
 N_SPECTRUM_PER_POINT = 5
@@ -341,3 +345,33 @@ else:
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
+if WELLPLATE_FORMAT == 384:
+    WELL_SIZE_MM = 3.3
+    WELL_SPACING_MM = 4.5
+    NUMBER_OF_SKIP = 1
+    A1_X_MM = 12.05
+    A1_Y_MM = 9.05
+elif WELLPLATE_FORMAT == 96:
+    NUMBER_OF_SKIP = 0
+    WELL_SIZE_MM = 6.21
+    WELL_SPACING_MM = 9
+    A1_X_MM = 14.3
+    A1_Y_MM = 11.36
+elif WELLPLATE_FORMAT == 24:
+    NUMBER_OF_SKIP = 0
+    WELL_SIZE_MM = 15.54
+    WELL_SPACING_MM = 19.3
+    A1_X_MM = 17.05
+    A1_Y_MM = 13.67
+elif WELLPLATE_FORMAT == 12:
+    NUMBER_OF_SKIP = 0
+    WELL_SIZE_MM = 22.05
+    WELL_SPACING_MM = 26
+    A1_X_MM = 24.75
+    A1_Y_MM = 16.86
+elif WELLPLATE_FORMAT == 6:
+    NUMBER_OF_SKIP = 0
+    WELL_SIZE_MM = 34.94
+    WELL_SPACING_MM = 39.2
+    A1_X_MM = 24.55
+    A1_Y_MM = 23.01
