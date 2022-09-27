@@ -2385,5 +2385,5 @@ class ScanCoordinates(object):
                 x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (column-NUMBER_OF_SKIP)*WELL_SPACING_MM
                 y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM/2 + (row-NUMBER_OF_SKIP)*WELL_SPACING_MM
                 self.coordinates_mm.append((x_mm,y_mm))
-                self.name.append(chr(ord('A')+row)+str(column))
+                self.name.append(chr(ord('A')+row)+str(column+1))
             _increasing = not _increasing
