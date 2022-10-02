@@ -1554,20 +1554,20 @@ void loop() {
   }
 
   /*
-  // handle limits
-  if( tmc4361A_currentPosition(&tmc4361[x])>=X_POS_LIMIT && offset_velocity_x>0 )
+  // handle limits (moption from joystick control or offset velocity)
+  if( tmc4361A_currentPosition(&tmc4361[x])>=X_POS_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm )>0 && !X_commanded_movement_in_progress )
   {
     tmc4361A_stop(&tmc4361[x]);
   }
-  if( tmc4361A_currentPosition(&tmc4361[x])<=X_NEG_LIMIT && offset_velocity_x<0 )
+  if( tmc4361A_currentPosition(&tmc4361[x])<=X_NEG_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm )<0 && !X_commanded_movement_in_progress )
   {
     tmc4361A_stop(&tmc4361[x]);
   }
-  if( tmc4361A_currentPosition(&tmc4361[y])>=Y_POS_LIMIT && offset_velocity_y>0 )
+  if( tmc4361A_currentPosition(&tmc4361[y])>=Y_POS_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y/32768.0)*MAX_VELOCITY_Y_mm )>0 && !Y_commanded_movement_in_progress )
   {
     tmc4361A_stop(&tmc4361[y]);
   }
-  if( tmc4361A_currentPosition(&tmc4361[y])<=Y_NEG_LIMIT && offset_velocity_y<0 )
+  if( tmc4361A_currentPosition(&tmc4361[y])<=Y_NEG_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y/32768.0)*MAX_VELOCITY_Y_mm )<0 && !Y_commanded_movement_in_progress )
   {
     tmc4361A_stop(&tmc4361[y]);
   }
