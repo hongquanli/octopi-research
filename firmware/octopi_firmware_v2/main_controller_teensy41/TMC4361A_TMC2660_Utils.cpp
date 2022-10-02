@@ -597,6 +597,49 @@ void tmc4361A_enableLimitSwitch(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uin
   return;
 }
 
+// vitual limit switch - to add doc
+void tmc4361A_enableVirtualLimitSwitch(TMC4361ATypeDef *tmc4361A, int dir) {
+  uint32_t en_datagram;
+  // Determine what to do based on which switch to enable
+  switch (dir) {
+    case -1:
+      en_datagram = TMC4361A_VIRTUAL_LEFT_LIMIT_EN_MASK + (1<<TMC4361A_VIRT_STOP_MODE_SHIFT); // hard stop
+      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, en_datagram);
+      break;
+    case 1:
+      en_datagram = TMC4361A_VIRTUAL_RIGHT_LIMIT_EN_MASK + (1<<TMC4361A_VIRT_STOP_MODE_SHIFT); // hard stop
+      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, en_datagram);
+      break;
+  }
+  return;
+}
+void tmc4361A_disableVirtualLimitSwitch(TMC4361ATypeDef *tmc4361A, int dir) {
+  uint32_t en_datagram;
+  // Determine what to do based on which switch to enable
+  switch (dir) {
+    case -1:
+      en_datagram = TMC4361A_VIRTUAL_LEFT_LIMIT_EN_MASK;
+      tmc4361A_rstBits(tmc4361A, TMC4361A_REFERENCE_CONF, en_datagram);
+      break;
+    case 1:
+      en_datagram = TMC4361A_VIRTUAL_RIGHT_LIMIT_EN_MASK;
+      tmc4361A_rstBits(tmc4361A, TMC4361A_REFERENCE_CONF, en_datagram);
+      break;
+  }
+  return;
+}
+int8_t tmc4361A_setVirtualLimit(TMC4361ATypeDef *tmc4361A, int dir, int32_t limit) {
+  switch (dir) {
+    case -1:
+      tmc4361A_writeInt(tmc4361A, TMC4361A_VIRT_STOP_LEFT, limit);
+      break;
+    case 1:
+      tmc4361A_writeInt(tmc4361A, TMC4361A_VIRT_STOP_RIGHT, limit);
+      break;
+  }
+  return NO_ERR;
+}
+
 /*
   -----------------------------------------------------------------------------
   DESCRIPTION: tmc4361A_enableHomingLimit() enables using either the left or right limit switch for homing

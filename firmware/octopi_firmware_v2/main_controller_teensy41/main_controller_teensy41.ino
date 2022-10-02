@@ -772,31 +772,43 @@ void loop() {
             case LIM_CODE_X_POSITIVE:
             {
               X_POS_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              tmc4361A_setVirtualLimit(&tmc4361[x],1,X_POS_LIMIT);
+              tmc4361A_enableVirtualLimitSwitch(&tmc4361[x],1);
               break;
             }
             case LIM_CODE_X_NEGATIVE:
             {
               X_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              tmc4361A_setVirtualLimit(&tmc4361[x],-1,X_NEG_LIMIT);
+              tmc4361A_enableVirtualLimitSwitch(&tmc4361[x],-1);
               break;
             }
             case LIM_CODE_Y_POSITIVE:
             {
               Y_POS_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              tmc4361A_setVirtualLimit(&tmc4361[y],1,Y_POS_LIMIT);
+              tmc4361A_enableVirtualLimitSwitch(&tmc4361[y],1);
               break;
             }
             case LIM_CODE_Y_NEGATIVE:
             {
               Y_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              tmc4361A_setVirtualLimit(&tmc4361[y],-1,Y_NEG_LIMIT);
+              tmc4361A_enableVirtualLimitSwitch(&tmc4361[y],-1);
               break;
             }
             case LIM_CODE_Z_POSITIVE:
             {
               Z_POS_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              tmc4361A_setVirtualLimit(&tmc4361[z],1,Z_POS_LIMIT);
+              tmc4361A_enableVirtualLimitSwitch(&tmc4361[z],1);
               break;
             }
             case LIM_CODE_Z_NEGATIVE:
             {
               Z_NEG_LIMIT = int32_t(uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]));
+              tmc4361A_setVirtualLimit(&tmc4361[z],-1,Z_NEG_LIMIT);
+              tmc4361A_enableVirtualLimitSwitch(&tmc4361[z],-1);
               break;
             }
           }
@@ -964,6 +976,8 @@ void loop() {
             switch(buffer_rx[2])
             {
               case AXIS_X:
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],-1);
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],1);
                 homing_direction_X = buffer_rx[3];
                 home_X_found = false;
                 if(homing_direction_X==HOME_NEGATIVE) // use the left limit switch for homing
@@ -1019,6 +1033,8 @@ void loop() {
                 */
                 break;
               case AXIS_Y:
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],-1);
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],1);
                 homing_direction_Y = buffer_rx[3];
                 home_Y_found = false;
                 if(homing_direction_Y==HOME_NEGATIVE) // use the left limit switch for homing
@@ -1055,6 +1071,8 @@ void loop() {
                 }
                 break;
               case AXIS_Z:
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[z],-1);
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[z],1);
                 homing_direction_Z = buffer_rx[3];
                 home_Z_found = false;
                 if(homing_direction_Z==HOME_NEGATIVE) // use the left limit switch for homing
@@ -1092,6 +1110,10 @@ void loop() {
                 }
                 break;
               case AXES_XY:
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],-1);
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],1);
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],-1);
+                tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],1);
                 is_homing_XY = true;
                 home_X_found = false;
                 home_Y_found = false;
