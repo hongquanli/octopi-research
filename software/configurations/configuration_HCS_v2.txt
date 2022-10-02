@@ -139,6 +139,13 @@ class Tracking:
     DEFAULT_TRACKER = "csrt"
     INIT_METHODS = ["roi"]
     DEFAULT_INIT_METHOD = "roi"
+
+class SOFTWARE_POS_LIMIT:
+    X_POSITIVE = 112.5
+    X_NEGATIVE = 10
+    Y_POSITIVE = 76
+    Y_NEGATIVE = 6
+    Z_POSITIVE = 6
     
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 12.41

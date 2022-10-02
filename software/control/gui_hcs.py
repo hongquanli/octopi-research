@@ -126,10 +126,11 @@ class OctopiGUI(QMainWindow):
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
 
-			self.navigationController.set_x_limit_pos_mm(110)
-			self.navigationController.set_x_limit_neg_mm(0.2)
-			self.navigationController.set_y_limit_pos_mm(75)
-			self.navigationController.set_y_limit_neg_mm(0.2)
+			self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+			self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+			self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+			self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+			self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
 		if HOMING_ENABLED_Z:
 			# move the objective back
