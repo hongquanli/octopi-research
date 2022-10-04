@@ -95,12 +95,12 @@ Categories=Application;
 ' > ~/Desktop/orange.desktop
 echo '#!/bin/bash
 run_cellprofiler
-' > ~/Document/cellprofiler.sh
+' > ~/Documents/cellprofiler.sh
 echo '#!/bin/bash
 run_hcs
 sleep 10
-' > ~/Document/hcs.sh
+' > ~/Documents/hcs.sh
 echo '#!/bin/bash
 run_orange
-' > ~/Document/orange.sh
-chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop ~/Document/cellprofiler.sh ~/Document/orange.sh ~/Document/hcs.sh
+' > ~/Documents/orange.sh
+chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop ~/Documents/cellprofiler.sh ~/Documents/orange.sh ~/Documents/hcs.sh
