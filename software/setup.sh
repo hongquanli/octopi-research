@@ -56,3 +56,27 @@ alias run_hcs="cd ~/Downloads/octopi-research/software ; python3 main_hcs.py"
 alias run_cellprofiler="source ~/Documents/cellprofiler_env/bin/activate ; python3 -m cellprofiler"
 alias run_orange="python3 -m Orange.canvas"
 ' >> ~/.bashrc
+source ~/.bashrc
+
+echo '[Desktop Entry]
+Type=Application
+Terminal=true
+Name=cellprofiler
+Icon=utilities-terminal
+Exec=gnome-terminal -e "run_cellprofiler"
+Categories=Application;' > ~/Desktop/cellprofiler.desktop
+echo '[Desktop Entry]
+Type=Application
+Terminal=true
+Name=hcs
+Icon=utilities-terminal
+Exec=gnome-terminal -e "run_hcs"
+Categories=Application;' > ~/Desktop/hcs.desktop
+echo '[Desktop Entry]
+Type=Application
+Terminal=false
+Name=orange
+Icon=utilities-terminal
+Exec=gnome-terminal -e "run_orange"
+Categories=Application;' > ~/Desktop/orange.desktop
+chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop
