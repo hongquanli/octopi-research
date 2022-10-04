@@ -10,7 +10,6 @@ pip3 install numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-
 echo "installing cellprofiler"
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 export PATH=$PATH:/home/ubuntu/.local/bin
-
 cd ~/Downloads
 virtualenv cellprofiler_venv
 source cellprofiler_venv/bin/activate
@@ -37,7 +36,8 @@ cd arduino-1.8.19
 echo "installing arduino software"
 chmod +x install.sh
 sudo ./install.sh
-echo "in the now open window, manually comment #include 'def_octopi.h' and uncomment #include 'def_octopi_80120.h', then switch to correct board (teensy 4.1) then install the packages PacketSerial and FastLED (both in Tools), then flash firmware"
+
+echo "manual instructions: in the now open window, manually comment #include 'def_octopi.h' and uncomment #include 'def_octopi_80120.h', then switch to correct board (teensy 4.1) then install the packages PacketSerial and FastLED (both in Tools), then flash firmware"
 cd ~/Downloads/octopi-research/firmware/octopi_firmware_v2/main_controller_teensy41
 arduino main_controller_teensy41.ino
 echo "copying basic configuration" # needs manual tweaks to be used with HCS software
@@ -49,4 +49,10 @@ echo -e "\ny\nEn\n" | sudo ./Galaxy_camera.run
 cd ~/Downloads/octopi-research/software
 
 echo "done"
-python3 main.py
+
+echo '
+alias run_microscope="cd ~/Downloads/octopi-research/software ; python3 main.py"
+alias run_hcs="cd ~/Downloads/octopi-research/software ; python3 main_hcs.py"
+alias run_cellprofiler="source ~/Documents/cellprofiler_env/bin/activate ; python3 -m cellprofiler"
+alias run_orange="python3 -m Orange.canvas"
+' >> ~/.bashrc
