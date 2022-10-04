@@ -14,7 +14,7 @@ cd ~
 virtualenv microscope_venv
 source microscope_venv/bin/activate
 pip3 install --upgrade setuptools pip
-pip3 install numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
+pip3 install pyqt5 pyqtgraph scipy numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
 
 virtualenv orange_venv
 source orange_venv/bin/activate
@@ -72,7 +72,7 @@ run_hcs() {
   python3 main_hcs.py
 }
 run_cellprofiler() {
-  source ~/cellprofiler_env/bin/activate
+  source ~/cellprofiler_venv/bin/activate
   python3 -m cellprofiler
 }
 run_orange() {
