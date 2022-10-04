@@ -24,7 +24,9 @@ pip3 install --upgrade setuptools pip
 virtualenv cellprofiler_venv
 source cellprofiler_venv/bin/activate
 pip3 install numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software, installed into cellprofiler virtualenv
-# pip3 install cellprofiler==4.2.4 # install cellprofiler into virtualenv (requires numpy to be installed before start of this command, otherwise installation of python-javabridge will fail)
+wget https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04/wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
+pip3 install wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
+pip3 install cellprofiler==4.2.4 # install cellprofiler into virtualenv (requires numpy to be installed before start of this command, otherwise installation of python-javabridge will fail)
 
 echo "installing microscope software and firmware"
 cd ~/Downloads
@@ -116,8 +118,4 @@ run_orange
 ' > ~/Documents/orange.sh
 chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop ~/Documents/cellprofiler.sh ~/Documents/orange.sh ~/Documents/hcs.sh
 
-echo "installing cellprofiler, which may take a while"
-cd ~
-source cellprofiler_venv/bin/activate
-pip3 install cellprofiler==4.2.4
 
