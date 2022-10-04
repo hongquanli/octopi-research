@@ -4,16 +4,25 @@ sudo apt update
 sudo apt install -y tree curl git micro htop # basic tools that should be installed
 sudo apt install -y python3-pip python3-pyqtgraph python3-pyqt5 # squid software dependencies
 sudo apt install -y virtualenv make gcc build-essential libgtk-3-dev openjdk-11-jdk-headless default-libmysqlclient-dev libnotify-dev libsdl2-dev # dependencies for cellprofiler
-pip3 install --upgrade setuptools pip
-pip3 install numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
 
 echo "installing cellprofiler"
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 export PATH=$PATH:/home/ubuntu/.local/bin
-cd ~/Downloads
+
+cd ~
+
+virtualenv microscope_venv
+source microscope_venv/bin/activate
+pip3 install --upgrade setuptools pip
+pip3 install numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
+
+virtualenv orange_venv
+source orange_venv/bin/activate
+pip3 install --upgrade setuptools pip
+pip3 install orange3
+
 virtualenv cellprofiler_venv
 source cellprofiler_venv/bin/activate
-
 pip3 install numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software, installed into cellprofiler virtualenv
 pip install cellprofiler==4.2.4 # install cellprofiler into virtualenv (requires numpy to be installed before start of this command, otherwise installation of python-javabridge will fail)
 # then run cellprofiler with python -m cellprofiler
@@ -52,18 +61,21 @@ echo "done"
 
 echo '
 run_microscope() {
+  source ~/microscope_venv/bin/activate
   cd ~/Downloads/octopi-research/software
   python3 main.py
 }
 run_hcs() {
+  source ~/microscope_venv/bin/activate
   cd ~/Downloads/octopi-research/software
   python3 main_hcs.py
 }
 run_cellprofiler() {
-  source ~/Documents/cellprofiler_env/bin/activate
+  source ~/cellprofiler_env/bin/activate
   python3 -m cellprofiler
 }
 run_orange() {
+  source ~/orange_venv/bin/activate
   python3 -m Orange.canvas
 }
 ' >> ~/.bashrc
