@@ -84,7 +84,7 @@ Type=Application
 Terminal=false
 Name=cellprofiler
 Icon=utilities-terminal
-Exec=~/Documents/cellprofiler.sh
+Exec=/home/pharmbio/Documents/cellprofiler.sh
 Categories=Application;
 ' > ~/Desktop/cellprofiler.desktop
 echo '[Desktop Entry]
@@ -92,7 +92,7 @@ Type=Application
 Terminal=true
 Name=hcs
 Icon=utilities-terminal
-Exec=~/Documents/hcs.sh
+Exec=/home/pharmbio/Documents/hcs.sh
 Categories=Application;
 ' > ~/Desktop/hcs.desktop
 echo '[Desktop Entry]
@@ -100,7 +100,7 @@ Type=Application
 Terminal=false
 Name=orange
 Icon=utilities-terminal
-Exec=~/Documents/orange.sh
+Exec=/home/pharmbio/Documents/orange.sh
 Categories=Application;
 ' > ~/Desktop/orange.desktop
 echo '#!/bin/bash
