@@ -3,7 +3,7 @@ sudo usermod -aG dialout $USER # allow communication with arduino boards without
 sudo apt update
 sudo apt install -y tree curl git micro htop # basic tools that should be installed
 sudo apt install -y python3-pip python3-pyqtgraph python3-pyqt5 # squid software dependencies
-sudo apt install -y virtualenv make gcc build-essential libgtk-3-dev openjdk-11-jdk-headless default-libmysqlclient-dev libnotify-dev libsdl2-dev # dependencies for cellprofiler
+sudo apt install -y libreoffice virtualenv make gcc build-essential libgtk-3-dev openjdk-11-jdk-headless default-libmysqlclient-dev libnotify-dev libsdl2-dev # dependencies for cellprofiler
 
 echo "installing cellprofiler"
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
