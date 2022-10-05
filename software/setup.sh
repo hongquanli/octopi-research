@@ -104,14 +104,17 @@ Exec=/home/pharmbio/Documents/orange.sh
 Categories=Application;
 ' > ~/Desktop/orange.desktop
 echo '#!/bin/bash
-run_cellprofiler
+source /home/pharmbio/cellprofiler_venv/bin/activate
+python3 -m cellprofiler
 ' > ~/Documents/cellprofiler.sh
 echo '#!/bin/bash
-run_hcs
+cd /home/pharmbio/Downloads/octopi-research/software
+python3 main_hcs.py
 sleep 10
 ' > ~/Documents/hcs.sh
 echo '#!/bin/bash
-run_orange
+source /home/pharmbio/orange_venv/bin/activate
+python3 -m Orange.canvas
 ' > ~/Documents/orange.sh
 chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop ~/Documents/cellprofiler.sh ~/Documents/orange.sh ~/Documents/hcs.sh
 
