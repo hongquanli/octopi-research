@@ -11,15 +11,14 @@ export PATH=$PATH:/home/ubuntu/.local/bin
 
 cd ~
 
-virtualenv microscope_venv
-source microscope_venv/bin/activate
+# the microscopy software does not work inside a virtualenv
 pip3 install --upgrade setuptools pip
 pip3 install pyqt5 pyqtgraph scipy numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
 
 virtualenv orange_venv
 source orange_venv/bin/activate
 pip3 install --upgrade setuptools pip
-# pip3 install orange3
+pip3 install orange3
 
 virtualenv cellprofiler_venv
 source cellprofiler_venv/bin/activate
@@ -62,12 +61,10 @@ echo "done"
 
 echo '
 run_microscope() {
-  source ~/microscope_venv/bin/activate
   cd ~/Downloads/octopi-research/software
   python3 main.py
 }
 run_hcs() {
-  source ~/microscope_venv/bin/activate
   cd ~/Downloads/octopi-research/software
   python3 main_hcs.py
 }
