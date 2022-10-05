@@ -13,7 +13,7 @@ cd ~
 
 # the microscopy software does not work inside a virtualenv
 pip3 install --upgrade setuptools pip
-pip3 install pyqt5 pyqtgraph scipy numpy matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
+pip3 install pyqt5 pyqtgraph scipy numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc # python dependencies for squid software
 
 virtualenv orange_venv
 source orange_venv/bin/activate
