@@ -71,8 +71,8 @@ int MOVEMENT_SIGN_Z = 1;    // not used for now
 int ENCODER_SIGN_X = 1;     // not used for now
 int ENCODER_SIGN_Y = 1;     // not used for now
 int ENCODER_SIGN_Z = 1;     // not used for now
-int JOYSTICK_SIGN_X = -1;
-int JOYSTICK_SIGN_Y = 1;
+int JOYSTICK_SIGN_X = 1;
+int JOYSTICK_SIGN_Y = -1;
 int JOYSTICK_SIGN_Z = 1;
 
 // limit switch polarity
