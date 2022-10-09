@@ -2081,8 +2081,8 @@ class NavigationViewer(QFrame):
         self.sample = sample
 
         if sample == 'glass slide':
-            self.origin_bottom_left_x = 175
-            self.origin_bottom_left_y = 170
+            self.origin_bottom_left_x = 200
+            self.origin_bottom_left_y = 120
             self.mm_per_pixel = 0.1453
             self.fov_size_mm = 3000*1.85/(50/9)/1000
         else:
