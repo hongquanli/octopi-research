@@ -84,6 +84,13 @@ class Microcontroller():
         self.send_command(cmd)
         print('reset the microcontroller') # debug
 
+    def initialize_drivers(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.INITIALIZE
+        self.send_command(cmd)
+        print('initialize the drivers') # debug
+
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.TURN_ON_ILLUMINATION

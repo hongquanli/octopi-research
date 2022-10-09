@@ -57,6 +57,7 @@ static const int SET_LEAD_SCREW_PITCH = 23;
 static const int SET_OFFSET_VELOCITY = 24;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
+static const int INITIALIZE = 254;
 static const int RESET = 255;
 
 static const int COMPLETED_WITHOUT_ERRORS = 0;
@@ -1254,6 +1255,37 @@ void loop() {
           digitalWrite(camera_trigger_pins[camera_channel],HIGH);
           timestamp_trigger_rising_edge[camera_channel] = micros();
           trigger_output_level[camera_channel] = HIGH;
+          break;
+        }
+        case INITIALIZE:
+        {
+          // initilize TMC4361 and TMC2660
+          for (int i = 0; i < N_MOTOR; i++)     
+            tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
+          // enable limit switch reading
+          tmc4361A_enableLimitSwitch(&tmc4361[x], lft_sw_pol[x], LEFT_SW, flip_limit_switch_x);
+          tmc4361A_enableLimitSwitch(&tmc4361[x], rht_sw_pol[x], RGHT_SW, flip_limit_switch_x);
+          tmc4361A_enableLimitSwitch(&tmc4361[y], lft_sw_pol[y], LEFT_SW, flip_limit_switch_y);
+          tmc4361A_enableLimitSwitch(&tmc4361[y], rht_sw_pol[y], RGHT_SW, flip_limit_switch_y);
+          tmc4361A_enableLimitSwitch(&tmc4361[z], rht_sw_pol[z], RGHT_SW, false);
+          tmc4361A_enableLimitSwitch(&tmc4361[z], lft_sw_pol[z], LEFT_SW, false);
+          // motion profile
+          for (int i = 0; i < N_MOTOR; i++) 
+          {
+            // initialize ramp with default values
+            tmc4361A_setMaxSpeed(&tmc4361[i], max_velocity_usteps[i]);
+            tmc4361A_setMaxAcceleration(&tmc4361[i], max_acceleration_usteps[i]);
+            tmc4361[i].rampParam[ASTART_IDX] = 0;
+            tmc4361[i].rampParam[DFINAL_IDX] = 0;
+            tmc4361A_sRampInit(&tmc4361[i]);
+          }
+          // homing switch settings
+          tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
+          tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
+          tmc4361A_enableHomingLimit(&tmc4361[y], rht_sw_pol[z], TMC4361_homing_sw[z]);
+          // DAC init
+          set_DAC8050x_config();
+          set_DAC8050x_gain();
           break;
         }
         case RESET:

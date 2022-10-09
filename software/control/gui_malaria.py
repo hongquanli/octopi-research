@@ -64,6 +64,9 @@ class OctopiGUI(QMainWindow):
 		# reset the MCU
 		self.microcontroller.reset()
 
+		# reinitialize motor drivers and DAC (in particular for V2.1 driver board where PG is not functional)
+		self.microcontroller.initialize_drivers()
+
 		# configure the actuators
 		self.microcontroller.configure_actuators()
 			
