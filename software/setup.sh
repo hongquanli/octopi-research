@@ -87,7 +87,7 @@ run_cellprofiler() {
 }
 run_cellprofileranalyst() {
   source ~/cellprofileranalyst_venv/bin/activate
-  python3 -m cellprofiler
+  python3 -m CellProfiler-Analyst.CellProfiler-Analyst
   deactivate
 }
 run_orange() {
@@ -137,7 +137,7 @@ deactivate
 ' > ~/Documents/cellprofiler.sh
 echo '#!/bin/bash
 source /home/pharmbio/cellprofileranalyst_venv/bin/activate
-python3 -m cellprofiler
+python3 -m CellProfiler-Analyst.CellProfiler-Analyst
 deactivate
 ' > ~/Documents/cellprofileranalyst.sh
 echo '#!/bin/bash
