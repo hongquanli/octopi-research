@@ -19,6 +19,7 @@ virtualenv orange_venv
 source orange_venv/bin/activate
 pip3 install --upgrade setuptools pip
 pip3 install orange3
+deactivate
 
 virtualenv cellprofiler_venv
 source cellprofiler_venv/bin/activate
@@ -26,6 +27,17 @@ pip3 install numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python o
 wget https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04/wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
 pip3 install wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
 pip3 install cellprofiler==4.2.4 # install cellprofiler into virtualenv (requires numpy to be installed before start of this command, otherwise installation of python-javabridge will fail)
+deactivate
+
+virtualenv cellprofileranalyst_venv
+source cellprofileranalyst_venv/bin/activate
+pip3 install numpy==1.23 pandas seaborn scikit-learn verlib python-javabridge python-bioformats
+pip3 install wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
+wget https://github.com/CellProfiler/CellProfiler-Analyst/archive/refs/tags/3.0.4.tar.gz -O cpa304.tar.gz
+tar -xf cpa304.tar.gz
+pip3 install cpa304
+cp cpa304/cpa/icons/* cellprofileranalyst_venv/lib/python3.8/site-packages/cpa/icons/
+deactivate
 
 echo "installing microscope software and firmware"
 cd ~/Downloads
@@ -71,10 +83,17 @@ run_hcs() {
 run_cellprofiler() {
   source ~/cellprofiler_venv/bin/activate
   python3 -m cellprofiler
+  deactivate
+}
+run_cellprofileranalyst() {
+  source ~/cellprofileranalyst_venv/bin/activate
+  python3 -m cellprofiler
+  deactivate
 }
 run_orange() {
   source ~/orange_venv/bin/activate
   python3 -m Orange.canvas
+  deactivate
 }
 ' >> ~/.bashrc
 source ~/.bashrc
@@ -89,8 +108,16 @@ Categories=Application;
 ' > ~/Desktop/cellprofiler.desktop
 echo '[Desktop Entry]
 Type=Application
+Terminal=false
+Name=cellprofiler analyst
+Icon=utilities-terminal
+Exec=/home/pharmbio/Documents/cellprofileranalyst.sh
+Categories=Application;
+' > ~/Desktop/cellprofileranalyst.desktop
+echo '[Desktop Entry]
+Type=Application
 Terminal=true
-Name=hcs
+Name=microscope
 Icon=utilities-terminal
 Exec=/home/pharmbio/Documents/hcs.sh
 Categories=Application;
@@ -106,7 +133,13 @@ Categories=Application;
 echo '#!/bin/bash
 source /home/pharmbio/cellprofiler_venv/bin/activate
 python3 -m cellprofiler
+deactivate
 ' > ~/Documents/cellprofiler.sh
+echo '#!/bin/bash
+source /home/pharmbio/cellprofileranalyst_venv/bin/activate
+python3 -m cellprofiler
+deactivate
+' > ~/Documents/cellprofileranalyst.sh
 echo '#!/bin/bash
 cd /home/pharmbio/Downloads/octopi-research/software
 python3 main_hcs.py
@@ -115,7 +148,8 @@ sleep 10
 echo '#!/bin/bash
 source /home/pharmbio/orange_venv/bin/activate
 python3 -m Orange.canvas
+deactivate
 ' > ~/Documents/orange.sh
-chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop ~/Documents/cellprofiler.sh ~/Documents/orange.sh ~/Documents/hcs.sh
+chmod +x ~/Desktop/orange.desktop ~/Desktop/hcs.desktop ~/Desktop/cellprofiler.desktop ~/Desktop/cellprofileranalyst.desktop ~/Documents/cellprofiler.sh ~/Documents/orange.sh ~/Documents/hcs.sh
 
 
