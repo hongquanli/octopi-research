@@ -35,7 +35,7 @@ pip3 install numpy==1.23 pandas seaborn scikit-learn verlib python-javabridge py
 pip3 install wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
 wget https://github.com/CellProfiler/CellProfiler-Analyst/archive/refs/tags/3.0.4.tar.gz -O cpa304.tar.gz
 tar -xf cpa304.tar.gz
-pip3 install CellProfiler-Analyst-3.0.4
+pip3 install ./CellProfiler-Analyst-3.0.4
 cp CellProfiler-Analyst-3.0.4/cpa/icons/* cellprofileranalyst_venv/lib/python3.8/site-packages/cpa/icons/
 deactivate
 
