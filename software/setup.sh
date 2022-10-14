@@ -35,8 +35,8 @@ pip3 install numpy==1.23 pandas seaborn scikit-learn verlib python-javabridge py
 pip3 install wxPython-4.1.0-cp38-cp38-linux_x86_64.whl
 wget https://github.com/CellProfiler/CellProfiler-Analyst/archive/refs/tags/3.0.4.tar.gz -O cpa304.tar.gz
 tar -xf cpa304.tar.gz
-pip3 install cpa304
-cp cpa304/cpa/icons/* cellprofileranalyst_venv/lib/python3.8/site-packages/cpa/icons/
+pip3 install CellProfiler-Analyst-3.0.4
+cp CellProfiler-Analyst-3.0.4/cpa/icons/* cellprofileranalyst_venv/lib/python3.8/site-packages/cpa/icons/
 deactivate
 
 echo "installing microscope software and firmware"
@@ -87,7 +87,7 @@ run_cellprofiler() {
 }
 run_cellprofileranalyst() {
   source ~/cellprofileranalyst_venv/bin/activate
-  python3 -m CellProfiler-Analyst.CellProfiler-Analyst
+  python3 ~/CellProfiler-Analyst-3.0.4/CellProfiler-Analyst.py
   deactivate
 }
 run_orange() {
@@ -137,7 +137,7 @@ deactivate
 ' > ~/Documents/cellprofiler.sh
 echo '#!/bin/bash
 source /home/pharmbio/cellprofileranalyst_venv/bin/activate
-python3 -m CellProfiler-Analyst.CellProfiler-Analyst
+python3 ~/CellProfiler-Analyst-3.0.4/CellProfiler-Analyst.py
 deactivate
 ' > ~/Documents/cellprofileranalyst.sh
 echo '#!/bin/bash
