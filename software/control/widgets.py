@@ -785,7 +785,8 @@ class AutoFocusWidget(QFrame):
 
         # layout
         grid_line0 = QGridLayout()
-        dz_tooltip="use autofocus by taking z-stack of images (NZ images, with dz um distance between images), then \ncalculating a focus metric and choosing the image plane with the best metric.\n\nthe images are taken in the channel that is currently selected for live view (led+micro will be turned on if they are off)"
+        dz_tooltip="use autofocus by taking z-stack of images (NZ images, with dz um distance between images), then \ncalculating a focus metric and choosing the image plane with the best metric.\n\nthe images are taken in the channel that is currently selected for live view (led+micro will be turned on if they are off)\n\nthis will take a few seconds"
+        self.btn_autofocus.setToolTip(dz_tooltip)
         qtlabel_dz=QLabel('delta Z (um)')
         qtlabel_dz.setToolTip(dz_tooltip)
         grid_line0.addWidget(qtlabel_dz, 0,0)
@@ -795,11 +796,9 @@ class AutoFocusWidget(QFrame):
         grid_line0.addWidget(qtlabel_Nz, 0,2)
         grid_line0.addWidget(self.entry_N, 0,3)
         grid_line0.addWidget(self.btn_autofocus, 0,4)
-        grid_line1=QGridLayout()
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
         self.setLayout(self.grid)
         
         # connections
@@ -915,7 +914,7 @@ class MultiPointWidget(QFrame):
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
-        self.checkbox_withAutofocus.setToolTip("use autofocus for imaging\nfor each well the autofocus will be calculated in the channel selected below")
+        self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
