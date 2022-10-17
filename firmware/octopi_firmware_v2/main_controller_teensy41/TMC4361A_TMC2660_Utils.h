@@ -45,7 +45,12 @@ void tmc4361A_moveToExtreme(TMC4361ATypeDef *tmc4361A, int32_t vel, int8_t dir);
 void tmc4361A_cScaleInit(TMC4361ATypeDef *tmc4361A);
 void tmc4361A_setPitch(TMC4361ATypeDef *tmc4361A, float pitchval);
 int8_t tmc4361A_setMicrosteps(TMC4361ATypeDef *tmc4361A, uint16_t mstep);
-void tmc4361A_setSPR(TMC4361ATypeDef *tmc4361A, uint16_t spr);
+void tmc4361A_writeMicrosteps(TMC4361ATypeDef *tmc4361A);
+int8_t tmc4361A_setSPR(TMC4361ATypeDef *tmc4361A, uint16_t spr);
+void tmc4361A_writeSPR(TMC4361ATypeDef *tmc4361A);
+void tmc4361A_disableVirtualLimitSwitch(TMC4361ATypeDef *tmc4361A, int dir);
+void tmc4361A_enableVirtualLimitSwitch(TMC4361ATypeDef *tmc4361A, int dir);
+int8_t tmc4361A_setVirtualLimit(TMC4361ATypeDef *tmc4361A, int dir, int32_t limit);
 
 
 // The following does not need to be accessed by the end user

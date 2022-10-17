@@ -85,7 +85,7 @@ class PDAFController(QObject):
         '''
         # method 2: use skimage.registration.phase_cross_correlation
         shifts,error,phasediff = skimage.registration.phase_cross_correlation(self.image1,self.image2,upsample_factor=self.registration_upsample_factor,space='real')
-        print(shifts,"shifts") # for debugging
+        print(shifts) # for debugging
         return shifts[0] # can be shifts[1] - depending on camera orientation
 
     def close(self):

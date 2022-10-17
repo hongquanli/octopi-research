@@ -919,7 +919,7 @@ class Buffer:
     def get_data(self):
         buff_p = c_void_p()
         buff_p.value = addressof(self.data_array)
-        print(buff_p.value,"gxiapi get_data")
+        print(buff_p.value)
         string_data = string_at(buff_p, len(self.data_array))
         return string_data
 

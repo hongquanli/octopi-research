@@ -48,24 +48,34 @@ class OctopiGUI(QMainWindow):
 			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
-			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.microcontroller = microcontroller.Microcontroller()
+			try:
+				self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera.open()
+			except:
+				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera.open()
+				print('! camera not detected, using simulated camera !')
+			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 
+		# reset the MCU
+		self.microcontroller.reset()
+		
 		# configure the actuators
 		self.microcontroller.configure_actuators()
 			
-		self.configurationManager = core.ConfigurationManager()
+		self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
 		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
+		self.scanCoordinates = core.ScanCoordinates()
+		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
-		self.navigationViewer = core.NavigationViewer(sample='384 well plate')
+		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
 
 		if HOMING_ENABLED_Z:
 			# retract the objective
@@ -74,37 +84,53 @@ class OctopiGUI(QMainWindow):
 			t0 = time.time()
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-				if time.time() - t0 > 5:
+				if time.time() - t0 > 10:
 					print('z homing timeout, the program will exit')
 					exit()
 			print('objective retracted')
 
 		if HOMING_ENABLED_Z and HOMING_ENABLED_X and HOMING_ENABLED_Y:
-			self.navigationController.set_x_limit_pos_mm(100)
-			self.navigationController.set_x_limit_neg_mm(-100)
-			self.navigationController.set_y_limit_pos_mm(100)
-			self.navigationController.set_y_limit_neg_mm(-100)
-			self.navigationController.home_xy()
+			# self.navigationController.set_x_limit_pos_mm(100)
+			# self.navigationController.set_x_limit_neg_mm(-100)
+			# self.navigationController.set_y_limit_pos_mm(100)
+			# self.navigationController.set_y_limit_neg_mm(-100)
+			# self.navigationController.home_xy() 
+			# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
+			self.navigationController.move_x(12)
+			while self.microcontroller.is_busy(): # to do, add a blocking option move_x()
+				time.sleep(0.005)
+			
+			self.navigationController.home_y()
 			t0 = time.time()
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-				if time.time() - t0 > 5:
-					print('xy homing timeout, the program will exit')
-					self.navigationController.move_x(0)
-					self.navigationController.move_y(0)
+				if time.time() - t0 > 10:
+					print('y homing timeout, the program will exit')
 					exit()
+			
+			self.navigationController.home_x()
+			t0 = time.time()
+			while self.microcontroller.is_busy():
+				time.sleep(0.005)
+				if time.time() - t0 > 10:
+					print('x homing timeout, the program will exit')
+					exit()
+	
 			print('xy homing completed')
-			# move to (30 mm, 30 mm)
-			self.navigationController.move_x(30)
+
+			# move to (20 mm, 20 mm)
+			self.navigationController.move_x(20)
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-			self.navigationController.move_y(30)
+			self.navigationController.move_y(20)
 			while self.microcontroller.is_busy():
 				time.sleep(0.005)
-			self.navigationController.set_x_limit_pos_mm(110)
-			self.navigationController.set_x_limit_neg_mm(-1)
-			self.navigationController.set_y_limit_pos_mm(75)
-			self.navigationController.set_y_limit_neg_mm(-1)
+
+			self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+			self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+			self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+			self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+			self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
 		if HOMING_ENABLED_Z:
 			# move the objective back
@@ -119,7 +145,6 @@ class OctopiGUI(QMainWindow):
 		
 		# open the camera
 		# camera start streaming
-		self.camera.open()
 		# self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
 		# self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
 		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
@@ -142,6 +167,9 @@ class OctopiGUI(QMainWindow):
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+
+		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+		self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
@@ -167,7 +195,11 @@ class OctopiGUI(QMainWindow):
 			dock_display = dock.Dock('Image Display', autoOrientation = False)
 			dock_display.showTitleBar()
 			dock_display.addWidget(self.imageDisplayTabs)
-			dock_display.setStretch(x=100,y=None)
+			dock_display.setStretch(x=100,y=100)
+			dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
+			dock_wellSelection.showTitleBar()
+			dock_wellSelection.addWidget(self.wellSelectionWidget)
+			dock_wellSelection.setFixedHeight(dock_wellSelection.minimumSizeHint().height())
 			dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
 			# dock_controlPanel.showTitleBar()
 			dock_controlPanel.addWidget(self.centralWidget)
@@ -175,6 +207,7 @@ class OctopiGUI(QMainWindow):
 			dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
 			main_dockArea = dock.DockArea()
 			main_dockArea.addDock(dock_display)
+			main_dockArea.addDock(dock_wellSelection,'bottom')
 			main_dockArea.addDock(dock_controlPanel,'right')
 			self.setCentralWidget(main_dockArea)
 			desktopWidget = QDesktopWidget()
@@ -223,6 +256,8 @@ class OctopiGUI(QMainWindow):
 
 		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+
+		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
 
 	def closeEvent(self, event):
 		

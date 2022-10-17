@@ -4,6 +4,7 @@ import serial.tools.list_ports
 import time
 import numpy as np
 import threading
+from crc import CrcCalculator, Crc8
 
 from control._def import *
 
@@ -42,6 +43,10 @@ class Microcontroller():
 
         self.last_command = None
         self.timeout_counter = 0
+        self.last_command_timestamp = time.time()
+
+        self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
+        self.retry = 0
 
         print('connecting to controller based on ' + version)
 
@@ -71,6 +76,20 @@ class Microcontroller():
         self.terminate_reading_received_packet_thread = True
         self.thread_read_received_packet.join()
         self.serial.close()
+
+    def reset(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.RESET
+        self.send_command(cmd)
+        print('reset the microcontroller') # debug
+
+    def initialize_drivers(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.INITIALIZE
+        self.send_command(cmd)
+        print('initialize the drivers') # debug
 
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -531,16 +550,19 @@ class Microcontroller():
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
-        # command[self.tx_buffer_length-1] = self._calculate_CRC(command)
+        command[-1] = self.crc_calculator.calculate_checksum(command[:-1])
         self.serial.write(command)
         self.mcu_cmd_execution_in_progress = True
         self.last_command = command
         self.timeout_counter = 0
+        self.last_command_timestamp = time.time()
+        self.retry = 0
 
     def resend_last_command(self):
         self.serial.write(self.last_command)
         self.mcu_cmd_execution_in_progress = True
         self.timeout_counter = 0
+        self.retry = self.retry + 1
 
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
@@ -579,12 +601,20 @@ class Microcontroller():
             if (self._cmd_id_mcu == self._cmd_id) and (self._cmd_execution_status == CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS):
                 if self.mcu_cmd_execution_in_progress == True:
                     self.mcu_cmd_execution_in_progress = False
-                    # print('   mcu command ' + str(self._cmd_id) + ' complete')
-                elif self._cmd_id_mcu != self._cmd_id and self.last_command != None:
-                    self.timeout_counter = self.timeout_counter + 1
-                    if self.timeout_counter > 10:
-                        self.resend_last_command()
-                        print('      *** resend the last command')
+                    print('   mcu command ' + str(self._cmd_id) + ' complete')
+            elif self._cmd_id_mcu != self._cmd_id and time.time() - self.last_command_timestamp > 5 and self.last_command != None:
+                self.timeout_counter = self.timeout_counter + 1
+                if self.timeout_counter > 10:
+                    self.resend_last_command()
+                    print('      *** resend the last command')
+            elif self._cmd_execution_status == CMD_EXECUTION_STATUS.CMD_CHECKSUM_ERROR:
+                print('! cmd checksum error, resending command')
+                if self.retry > 10:
+                    print('!! resending command failed for more than 10 times, the program will exit')
+                    exit()
+                else:
+                    self.resend_last_command()
+            # print('command id ' + str(self._cmd_id) + '; mcu command ' + str(self._cmd_id_mcu) + ' status: ' + str(msg[1]) )
 
             self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
@@ -673,9 +703,17 @@ class Microcontroller_Simulation():
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
 
+        self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
+
     def close(self):
         self.terminate_reading_received_packet_thread = True
         self.thread_read_received_packet.join()
+
+    def reset(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.RESET
+        self.send_command(cmd)
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + STAGE_MOVEMENT_SIGN_X*usteps
@@ -949,7 +987,7 @@ class Microcontroller_Simulation():
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
-        # command[self.tx_buffer_length-1] = self._calculate_CRC(command)
+        command[-1] = self.crc_calculator.calculate_checksum(command[:-1])
         self.mcu_cmd_execution_in_progress = True
         # for simulation
         self._mcu_cmd_execution_status = CMD_EXECUTION_STATUS.IN_PROGRESS

@@ -7,7 +7,9 @@ sudo apt-get update
 sudo apt-get install python3-pip
 sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
-pip3 install qtpy pyserial pandas imageio
+sudo apt-get install git
+git clone https://github.com/hongquanli/octopi-research.git
+pip3 install qtpy pyserial pandas imageio crc
 ```
 If opencv and lxml not preinstalled (e.g. if you're not using a Jetson but a regular computer), run the following
 ```
@@ -63,10 +65,6 @@ python3 main_camera_only.py
 python3 main_motion_only.py
 ```
 To start the program when no hardware is connected, use
-```
-python3 main.py --simulation
-```
-or
 ```
 python3 main_simulation.py
 ```

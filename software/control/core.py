@@ -83,7 +83,7 @@ class StreamHandler(QObject):
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
-        print(self.display_resolution_scaling,"display resolution scaling")
+        print(self.display_resolution_scaling)
 
     def on_new_frame(self, camera):
 
@@ -101,7 +101,7 @@ class StreamHandler(QObject):
                 self.timestamp_last = timestamp_now
                 self.fps_real = self.counter
                 self.counter = 0
-                # print('real camera fps is ' + str(self.fps_real))
+                print('real camera fps is ' + str(self.fps_real))
 
             # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
             # # rotate and flip - eventually these should be done in the camera
@@ -679,7 +679,10 @@ class NavigationController(QObject):
             self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
         else:
             self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
-        
+    
+    def move_to(self,x_mm,y_mm):
+        self.move_x_to(x_mm)
+        self.move_y_to(y_mm)
 
 class SlidePositionControlWorker(QObject):
     
@@ -708,27 +711,35 @@ class SlidePositionControlWorker(QObject):
         was_live = self.liveController.is_live
         if was_live:
             self.signal_stop_live.emit()
-        if self.home_x_and_y_separately:
-            timestamp_start = time.time()
-            self.navigationController.home_x()
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.zero_x()
-            self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.home_y()
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.zero_y()
-            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        if self.slidePositionController.homing_done == False or SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:
+            if self.home_x_and_y_separately:
+                timestamp_start = time.time()
+                self.navigationController.home_x()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_x()
+                self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.home_y()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_y()
+                self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            else:
+                timestamp_start = time.time()
+                self.navigationController.home_xy()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_x()
+                self.navigationController.zero_y()
+                self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            self.slidePositionController.homing_done = True
         else:
             timestamp_start = time.time()
-            self.navigationController.home_xy()
+            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM-self.navigationController.y_pos_mm)
             self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.zero_x()
-            self.navigationController.zero_y()
-            self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM)
+            self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM-self.navigationController.x_pos_mm)
             self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
         if was_live:
             self.signal_resume_live.emit()
@@ -739,27 +750,35 @@ class SlidePositionControlWorker(QObject):
         was_live = self.liveController.is_live
         if was_live:
             self.signal_stop_live.emit()
-        if self.home_x_and_y_separately:
-            timestamp_start = time.time()
-            self.navigationController.home_y()
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.zero_y()
-            self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.home_x()
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.zero_x()
-            self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+        if self.slidePositionController.homing_done == False or SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:
+            if self.home_x_and_y_separately:
+                timestamp_start = time.time()
+                self.navigationController.home_y()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_y()
+                self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.home_x()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_x()
+                self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            else:
+                timestamp_start = time.time()
+                self.navigationController.home_xy()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_x()
+                self.navigationController.zero_y()
+                self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            self.slidePositionController.homing_done = True
         else:
             timestamp_start = time.time()
-            self.navigationController.home_xy()
+            self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM-self.navigationController.y_pos_mm)
             self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.zero_x()
-            self.navigationController.zero_y()
-            self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)            
-            self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
+            self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM-self.navigationController.x_pos_mm)
             self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
         if was_live:
             self.signal_resume_live.emit()
@@ -778,6 +797,7 @@ class SlidePositionController(QObject):
         self.liveController = liveController
         self.slide_loading_position_reached = False
         self.slide_scanning_position_reached = False
+        self.homing_done = False
 
     def move_to_slide_loading_position(self):
         # create a QThread object
@@ -859,14 +879,15 @@ class AutofocusWorker(QObject):
         focus_measure_max = 0
 
         z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
-        self.navigationController.move_z_usteps(-z_af_offset_usteps)
-        self.wait_till_operation_is_completed()
+        # self.navigationController.move_z_usteps(-z_af_offset_usteps) # combine with the back and forth maneuver below
+        # self.wait_till_operation_is_completed()
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         # can be moved to the firmware
-        self.navigationController.move_z_usteps(-160)
+        _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-z_af_offset_usteps)
         self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(160)
+        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
         self.wait_till_operation_is_completed()
 
         steps_moved = 0
@@ -892,29 +913,28 @@ class AutofocusWorker(QObject):
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
             timestamp_1 = time.time()
-            #print('calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
+            print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
             focus_measure_vs_z[i] = focus_measure
-            #print(i,focus_measure,"focus measure")
+            print(i,focus_measure)
             focus_measure_max = max(focus_measure, focus_measure_max)
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
 
         # move to the starting location
-        self.navigationController.move_z_usteps(-steps_moved*self.deltaZ_usteps)
-        self.wait_till_operation_is_completed()
+        # self.navigationController.move_z_usteps(-steps_moved*self.deltaZ_usteps) # combine with the back and forth maneuver below
+        # self.wait_till_operation_is_completed()
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
-        self.navigationController.move_z_usteps(-160)
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(160)
-        self.wait_till_operation_is_completed()
-
+        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-steps_moved*self.deltaZ_usteps)
         # determine the in-focus position
         idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+        self.wait_till_operation_is_completed()
+        self.navigationController.move_z_usteps(_usteps_to_clear_backlash+(idx_in_focus+1)*self.deltaZ_usteps)
+        self.wait_till_operation_is_completed()
 
         # move to the calculated in-focus position
-        self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
-        self.wait_till_operation_is_completed()
+        # self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
+        # self.wait_till_operation_is_completed() # combine with the movement above
         if idx_in_focus == 0:
             print('moved to the bottom end of the AF range')
         if idx_in_focus == self.N-1:
@@ -1104,197 +1124,226 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
-        x_scan_direction = 1
-        dx_usteps = 0
-        dy_usteps = 0
-        dz_usteps = 0
-        z_pos = self.navigationController.z_pos
+        if self.multiPointController.scanCoordinates!=None:
+            # use scan coordinates for the scan
+            self.multiPointController.scanCoordinates.get_selected_wells()
+            self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
+            self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
+            self.use_scan_coordinates = True
+        else:
+            # use the current position for the scan
+            self.scan_coordinates_mm = [(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)]
+            self.scan_coordinates_name = ['']
+            self.use_scan_coordinates = False
 
-        # z stacking config
-        if Z_STACKING_CONFIG == 'FROM TOP':
-            self.deltaZ_usteps = -abs(self.deltaZ_usteps)
-
-        # along y
-        for i in range(self.NY):
-
-            self.FOV_counter = 0 # so that AF at the beginning of each new row
-
-            # along x
-            for j in range(self.NX):
-
-                # perform AF only if when not taking z stack or doing z stack from center
-                if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                # temporary: replace the above line with the line below to AF every FOV
-                # if (self.NZ == 1) and (self.do_autofocus):
-                    configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
-                    config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                    self.signal_current_configuration.emit(config_AF)
-                    self.autofocusController.autofocus()
-                    self.autofocusController.wait_till_autofocus_has_completed()
-                
-                if (self.NZ > 1):
-                    # move to bottom of the z stack
-                    if Z_STACKING_CONFIG == 'FROM CENTER':
-                        self.navigationController.move_z_usteps(-self.deltaZ_usteps*round((self.NZ-1)/2))
-                        self.wait_till_operation_is_completed()
-                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-                    # maneuver for achiving uniform step size and repeatability when using open-loop control
-                    self.navigationController.move_z_usteps(-160)
-                    self.wait_till_operation_is_completed()
-                    self.navigationController.move_z_usteps(160)
-                    self.wait_till_operation_is_completed()
-                    time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-
-                # z-stack
-                for k in range(self.NZ):
-                    
-                    file_ID = str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
-                    # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
-                    # metadata = json.dumps(metadata)
-
-                    # iterate through selected modes
-                    for config in self.selected_configurations:
-                        if 'USB Spectrometer' not in config.name:
-                            # update the current configuration
-                            self.signal_current_configuration.emit(config)
-                            self.wait_till_operation_is_completed()
-                            # trigger acquisition (including turning on the illumination)
-                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                                self.liveController.turn_on_illumination()
-                                self.wait_till_operation_is_completed()
-                                self.camera.send_trigger()
-                            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-                            # read camera frame
-                            image = self.camera.read_frame()
-                            # tunr of the illumination if using software trigger
-                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                                self.liveController.turn_off_illumination()
-                            # process the image -  @@@ to move to camera
-                            image = utils.crop_image(image,self.crop_width,self.crop_height)
-                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                            # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                            image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                            self.image_to_display.emit(image_to_display)
-                            self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                            if image.dtype == np.uint16:
-                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
-                                if self.camera.is_color:
-                                    if 'BF LED matrix' in config.name:
-                                        if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                        elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
-                                            image = image[:,:,1]
-                                iio.imwrite(saving_path,image)
-                            else:
-                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
-                                if self.camera.is_color:
-                                    if 'BF LED matrix' in config.name:
-                                        if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                        elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                        elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
-                                            image = image[:,:,1]
-                                    else:
-                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                cv2.imwrite(saving_path,image)
-                            QApplication.processEvents()
-                        else:
-                            if self.usb_spectrometer != None:
-                                for l in range(N_SPECTRUM_PER_POINT):
-                                    data = self.usb_spectrometer.read_spectrum()
-                                    self.spectrum_to_display.emit(data)
-                                    saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
-                                    np.savetxt(saving_path,data,delimiter=',')
-
-                    # add the coordinate of the current location
-                    coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
-                                                            'x (mm)':self.navigationController.x_pos_mm,
-                                                            'y (mm)':self.navigationController.y_pos_mm,
-                                                            'z (um)':self.navigationController.z_pos_mm*1000},
-                                                            ignore_index = True)
-
-                    # register the current fov in the navigationViewer 
-                    self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
-
-                    # check if the acquisition should be aborted
-                    if self.multiPointController.abort_acqusition_requested:
-                        self.liveController.turn_off_illumination()
-                        self.navigationController.move_x_usteps(-dx_usteps)
-                        self.wait_till_operation_is_completed()
-                        self.navigationController.move_y_usteps(-dy_usteps)
-                        self.wait_till_operation_is_completed()
-                        self.navigationController.move_z_usteps(-dz_usteps)
-                        self.wait_till_operation_is_completed()
-                        coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
-                        self.navigationController.enable_joystick_button_action = True
-                        return
-
-                    if self.NZ > 1:
-                        # move z
-                        if k < self.NZ - 1:
-                            self.navigationController.move_z_usteps(self.deltaZ_usteps)
-                            self.wait_till_operation_is_completed()
-                            time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-                            dz_usteps = dz_usteps + self.deltaZ_usteps
-                
-                if self.NZ > 1:
-                    # move z back
-                    if Z_STACKING_CONFIG == 'FROM CENTER':
-                        self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
-                        self.wait_till_operation_is_completed()
-                        dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
-                    else:
-                        self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
-                        self.wait_till_operation_is_completed()
-                        dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
-
-                # update FOV counter
-                self.FOV_counter = self.FOV_counter + 1
-
-                if self.NX > 1:
-                    # move x
-                    if j < self.NX - 1:
-                        self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
-                        self.wait_till_operation_is_completed()
-                        time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-                        dx_usteps = dx_usteps + x_scan_direction*self.deltaX_usteps
-
-            '''
-            # instead of move back, reverse scan direction (12/29/2021)
-            if self.NX > 1:
-                # move x back
-                self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+        n_regions = len(self.scan_coordinates_name)
+        for coordinate_id in range(n_regions):
+            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
+            coordiante_name = self.scan_coordinates_name[coordinate_id]
+            if self.use_scan_coordinates:
+                # move to the specified coordinate
+                self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
                 self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-            '''
-            x_scan_direction = -x_scan_direction
+                self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+                self.wait_till_operation_is_completed()
+                time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                # add '_' to the coordinate name
+                coordiante_name = coordiante_name + '_'
 
-            if self.NY > 1:
-                # move y
-                if i < self.NY - 1:
-                    self.navigationController.move_y_usteps(self.deltaY_usteps)
+            x_scan_direction = 1
+            dx_usteps = 0
+            dy_usteps = 0
+            dz_usteps = 0
+            z_pos = self.navigationController.z_pos
+
+            # z stacking config
+            if Z_STACKING_CONFIG == 'FROM TOP':
+                self.deltaZ_usteps = -abs(self.deltaZ_usteps)
+
+            # along y
+            for i in range(self.NY):
+
+                self.FOV_counter = 0 # so that AF at the beginning of each new row
+
+                # along x
+                for j in range(self.NX):
+
+                    # perform AF only if when not taking z stack or doing z stack from center
+                    if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                    # temporary: replace the above line with the line below to AF every FOV
+                    # if (self.NZ == 1) and (self.do_autofocus):
+                        configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                        self.signal_current_configuration.emit(config_AF)
+                        self.autofocusController.autofocus()
+                        self.autofocusController.wait_till_autofocus_has_completed()
+                    
+                    if (self.NZ > 1):
+                        # move to bottom of the z stack
+                        if Z_STACKING_CONFIG == 'FROM CENTER':
+                            self.navigationController.move_z_usteps(-self.deltaZ_usteps*round((self.NZ-1)/2))
+                            self.wait_till_operation_is_completed()
+                            time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                        # maneuver for achiving uniform step size and repeatability when using open-loop control
+                        self.navigationController.move_z_usteps(-160)
+                        self.wait_till_operation_is_completed()
+                        self.navigationController.move_z_usteps(160)
+                        self.wait_till_operation_is_completed()
+                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+
+                    # z-stack
+                    for k in range(self.NZ):
+                        
+                        file_ID = coordiante_name + str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+                        # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
+                        # metadata = json.dumps(metadata)
+
+                        # iterate through selected modes
+                        for config in self.selected_configurations:
+                            if 'USB Spectrometer' not in config.name:
+                                # update the current configuration
+                                self.signal_current_configuration.emit(config)
+                                self.wait_till_operation_is_completed()
+                                # trigger acquisition (including turning on the illumination)
+                                if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                    self.liveController.turn_on_illumination()
+                                    self.wait_till_operation_is_completed()
+                                    self.camera.send_trigger()
+                                elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
+                                    self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                                # read camera frame
+                                image = self.camera.read_frame()
+                                # tunr of the illumination if using software trigger
+                                if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                    self.liveController.turn_off_illumination()
+                                # process the image -  @@@ to move to camera
+                                image = utils.crop_image(image,self.crop_width,self.crop_height)
+                                image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                                image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                                self.image_to_display.emit(image_to_display)
+                                self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                                if image.dtype == np.uint16:
+                                    saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
+                                    if self.camera.is_color:
+                                        if 'BF LED matrix' in config.name:
+                                            if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                            elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                                image = image[:,:,1]
+                                    iio.imwrite(saving_path,image)
+                                else:
+                                    saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
+                                    if self.camera.is_color:
+                                        if 'BF LED matrix' in config.name:
+                                            if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                            elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                            elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                                image = image[:,:,1]
+                                        else:
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                    cv2.imwrite(saving_path,image)
+                                QApplication.processEvents()
+                            else:
+                                if self.usb_spectrometer != None:
+                                    for l in range(N_SPECTRUM_PER_POINT):
+                                        data = self.usb_spectrometer.read_spectrum()
+                                        self.spectrum_to_display.emit(data)
+                                        saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
+                                        np.savetxt(saving_path,data,delimiter=',')
+
+                        # add the coordinate of the current location
+                        coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
+                                                                'x (mm)':self.navigationController.x_pos_mm,
+                                                                'y (mm)':self.navigationController.y_pos_mm,
+                                                                'z (um)':self.navigationController.z_pos_mm*1000},
+                                                                ignore_index = True)
+
+                        # register the current fov in the navigationViewer 
+                        self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
+
+                        # check if the acquisition should be aborted
+                        if self.multiPointController.abort_acqusition_requested:
+                            self.liveController.turn_off_illumination()
+                            self.navigationController.move_x_usteps(-dx_usteps)
+                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_y_usteps(-dy_usteps)
+                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_z_usteps(-dz_usteps)
+                            self.wait_till_operation_is_completed()
+                            coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
+                            self.navigationController.enable_joystick_button_action = True
+                            return
+
+                        if self.NZ > 1:
+                            # move z
+                            if k < self.NZ - 1:
+                                self.navigationController.move_z_usteps(self.deltaZ_usteps)
+                                self.wait_till_operation_is_completed()
+                                time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                                dz_usteps = dz_usteps + self.deltaZ_usteps
+                    
+                    if self.NZ > 1:
+                        # move z back
+                        if Z_STACKING_CONFIG == 'FROM CENTER':
+                            self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
+                            self.wait_till_operation_is_completed()
+                            dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
+                        else:
+                            self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
+                            self.wait_till_operation_is_completed()
+                            dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
+
+                    # update FOV counter
+                    self.FOV_counter = self.FOV_counter + 1
+
+                    if self.NX > 1:
+                        # move x
+                        if j < self.NX - 1:
+                            self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
+                            self.wait_till_operation_is_completed()
+                            time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                            dx_usteps = dx_usteps + x_scan_direction*self.deltaX_usteps
+
+                '''
+                # instead of move back, reverse scan direction (12/29/2021)
+                if self.NX > 1:
+                    # move x back
+                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+                    self.wait_till_operation_is_completed()
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                '''
+                x_scan_direction = -x_scan_direction
+
+                if self.NY > 1:
+                    # move y
+                    if i < self.NY - 1:
+                        self.navigationController.move_y_usteps(self.deltaY_usteps)
+                        self.wait_till_operation_is_completed()
+                        time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                        dy_usteps = dy_usteps + self.deltaY_usteps
+
+            if n_regions == 1:
+                # only move to the start position if there's only one region in the scan
+                if self.NY > 1:
+                    # move y back
+                    self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                    dy_usteps = dy_usteps + self.deltaY_usteps
+                    dy_usteps = dy_usteps - self.deltaY_usteps*(self.NY-1)
 
-        if self.NY > 1:
-            # move y back
-            self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
-            self.wait_till_operation_is_completed()
-            time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-            dy_usteps = dy_usteps - self.deltaY_usteps*(self.NY-1)
+                # move x back at the end of the scan
+                if x_scan_direction == -1:
+                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+                    self.wait_till_operation_is_completed()
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
-        # move x back at the end of the scan
-        if x_scan_direction == -1:
-            self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-            self.wait_till_operation_is_completed()
-            time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-        # move z back
-        self.navigationController.microcontroller.move_z_to_usteps(z_pos)
-        self.wait_till_operation_is_completed()
+                # move z back
+                self.navigationController.microcontroller.move_z_to_usteps(z_pos)
+                self.wait_till_operation_is_completed()
 
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
@@ -1308,7 +1357,7 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None):
         QObject.__init__(self)
 
         self.camera = camera
@@ -1340,6 +1389,7 @@ class MultiPointController(QObject):
         self.base_path = None
         self.selected_configurations = []
         self.usb_spectrometer = usb_spectrometer
+        self.scanCoordinates = scanCoordinates
 
     def set_NX(self,N):
         self.NX = N
@@ -2011,8 +2061,16 @@ class NavigationViewer(QFrame):
 
         if sample == 'glass slide':
             self.background_image = cv2.imread('images/slide carrier_828x662.png')
-        else:
+        elif sample == '384 well plate':
             self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
+        elif sample == '96 well plate':
+            self.background_image = cv2.imread('images/96 well plate_1509x1010.png')
+        elif sample == '24 well plate':
+            self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
+        elif sample == '12 well plate':
+            self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
+        elif sample == '6 well plate':
+            self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
         
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
@@ -2023,8 +2081,8 @@ class NavigationViewer(QFrame):
         self.sample = sample
 
         if sample == 'glass slide':
-            self.origin_bottom_left_x = 175
-            self.origin_bottom_left_y = 170
+            self.origin_bottom_left_x = 200
+            self.origin_bottom_left_y = 120
             self.mm_per_pixel = 0.1453
             self.fov_size_mm = 3000*1.85/(50/9)/1000
         else:
@@ -2305,3 +2363,35 @@ class PlateReaderNavigationController(QObject):
 
     def home_y(self):
         self.microcontroller.home_y()
+
+class ScanCoordinates(object):
+    def __init__(self):
+        self.coordinates_mm = []
+        self.name = []
+        self.well_selector = None
+
+    def add_well_selector(self,well_selector):
+        self.well_selector = well_selector
+
+    def get_selected_wells(self):
+        # get selected wells from the widget
+        selected_wells = self.well_selector.get_selected_cells()
+        selected_wells = np.array(selected_wells)
+        # clear the previous selection
+        self.coordinates_mm = []
+        self.name = []
+        # populate the coordinates
+        rows = np.unique(selected_wells[:,0])
+        _increasing = True
+        for row in rows:
+            items = selected_wells[selected_wells[:,0]==row]
+            columns = items[:,1]
+            columns = np.sort(columns)
+            if _increasing==False:
+                columns = np.flip(columns)
+            for column in columns:
+                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+                self.coordinates_mm.append((x_mm,y_mm))
+                self.name.append(chr(ord('A')+row)+str(column+1))
+            _increasing = not _increasing

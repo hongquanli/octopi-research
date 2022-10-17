@@ -79,7 +79,7 @@ class StreamHandler(QObject):
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
-        print(self.display_resolution_scaling,"display resoltuion scaling")
+        print(self.display_resolution_scaling)
 
     def on_new_frame(self, camera):
 
@@ -95,7 +95,7 @@ class StreamHandler(QObject):
             self.timestamp_last = timestamp_now
             self.fps_real = self.counter
             self.counter = 0
-            # print('real camera fps is ' + str(self.fps_real))
+            print('real camera fps is ' + str(self.fps_real))
 
         # crop image
         image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
