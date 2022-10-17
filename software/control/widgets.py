@@ -790,9 +790,12 @@ class AutoFocusWidget(QFrame):
         grid_line0.addWidget(QLabel('N Z planes'), 0,2)
         grid_line0.addWidget(self.entry_N, 0,3)
         grid_line0.addWidget(self.btn_autofocus, 0,4)
+        grid_line1=QGridLayout()
+        grid_line1.addWidget(QLabel(MULTIPOINT_AUTOFOCUS_CHANNEL),0,0)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
+        self.grid.addLayout(grid_line1,1,0)
         self.setLayout(self.grid)
         
         # connections
@@ -809,6 +812,14 @@ class AutoFocusWidget(QFrame):
 
     def autofocus_is_finished(self):
         self.btn_autofocus.setChecked(False)
+
+autofocus_channel_names=[
+    "Fluorescence 405 nm Ex",
+    "Fluorescence 488 nm Ex",
+    "Fluorescence 561 nm Ex",
+    "Fluorescence 638 nm Ex",
+    "Fluorescence 730 nm Ex",
+]
 
 class MultiPointWidget(QFrame):
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
@@ -935,10 +946,19 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(QLabel('Nt'), 1,6)
         grid_line2.addWidget(self.entry_Nt, 1,7)
 
+        af_channel_dropdown=QComboBox()
+        af_channel_dropdown.addItems(autofocus_channel_names)
+        af_channel_dropdown.setCurrentIndex(autofocus_channel_names.index(self.multipointController.autofocus_channel_name))
+        af_channel_dropdown.currentIndexChanged(self.set_autofocusChannel)
+
+        grid_multipoint_acquisition_config=QGridLayout()
+        grid_multipoint_acquisition_config.addWidget(self.checkbox_withAutofocus,0,0)
+        grid_multipoint_acquisition_config.addWidget(af_channel_dropdown,1,0)
+        grid_multipoint_acquisition_config.addWidget(self.btn_startAcquisition,2,0)
+
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
-        grid_line3.addWidget(self.checkbox_withAutofocus)
-        grid_line3.addWidget(self.btn_startAcquisition)
+        grid_line3.addLayout(grid_multipoint_acquisition_config)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -963,6 +983,9 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+
+    def set_autofocusChannel(self,new_channel_index):
+        self.multipointController.autofocus_channel_name=autofocus_channel_names[new_channel_index]
 
     def set_deltaX(self,value):
         mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController

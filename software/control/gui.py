@@ -32,9 +32,7 @@ class OctopiGUI(QMainWindow):
 			self.imageDisplayWindow.show_ROI_selector()
 		else:
 			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
-		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
-		# self.imageDisplayWindow.show()
-		# self.imageArrayDisplayWindow.show()
+		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
 
 		# image display windows
 		self.imageDisplayTabs = QTabWidget()

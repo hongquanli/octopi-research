@@ -420,7 +420,7 @@ class LiveController(QObject):
                 self._stop_triggerred_acquisition()
             # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
             if self.trigger_mode == TriggerMode.CONTINUOUS:
-            	self.camera.stop_streaming()
+                self.camera.stop_streaming()
             if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
             if self.control_illumination:
@@ -910,12 +910,8 @@ class AutofocusWorker(QObject):
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             self.image_to_display.emit(image)
             QApplication.processEvents()
-            timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
-            timestamp_1 = time.time()
-            print('             calculating focus measure took ' + str(timestamp_1-timestamp_0) + ' second')
             focus_measure_vs_z[i] = focus_measure
-            print(i,focus_measure)
             focus_measure_max = max(focus_measure, focus_measure_max)
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
@@ -1173,7 +1169,7 @@ class MultiPointWorker(QObject):
                     if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                     # temporary: replace the above line with the line below to AF every FOV
                     # if (self.NZ == 1) and (self.do_autofocus):
-                        configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                        configuration_name_AF = self.multiPointController.autofocus_channel_name
                         config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                         self.signal_current_configuration.emit(config_AF)
                         self.autofocusController.autofocus()
@@ -1390,6 +1386,7 @@ class MultiPointController(QObject):
         self.selected_configurations = []
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
+        self.autofocus_channel_name=MULTIPOINT_AUTOFOCUS_CHANNEL
 
     def set_NX(self,N):
         self.NX = N
