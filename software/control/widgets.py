@@ -785,13 +785,17 @@ class AutoFocusWidget(QFrame):
 
         # layout
         grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('delta Z (um)'), 0,0)
+        dz_tooltip="use autofocus by taking z-stack of images (NZ images, with dz um distance between images), then \ncalculating a focus metric and choosing the image plane with the best metric.\n\nthe images are taken in the channel that is currently selected for live view (led+micro will be turned on if they are off)"
+        qtlabel_dz=QLabel('delta Z (um)')
+        qtlabel_dz.setToolTip(dz_tooltip)
+        grid_line0.addWidget(qtlabel_dz, 0,0)
         grid_line0.addWidget(self.entry_delta, 0,1)
-        grid_line0.addWidget(QLabel('N Z planes'), 0,2)
+        qtlabel_Nz=QLabel('N Z planes')
+        qtlabel_Nz.setToolTip(dz_tooltip)
+        grid_line0.addWidget(qtlabel_Nz, 0,2)
         grid_line0.addWidget(self.entry_N, 0,3)
         grid_line0.addWidget(self.btn_autofocus, 0,4)
         grid_line1=QGridLayout()
-        grid_line1.addWidget(QLabel(MULTIPOINT_AUTOFOCUS_CHANNEL),0,0)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
