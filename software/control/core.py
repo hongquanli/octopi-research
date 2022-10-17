@@ -1252,11 +1252,13 @@ class MultiPointWorker(QObject):
                                         np.savetxt(saving_path,data,delimiter=',')
 
                         # add the coordinate of the current location
-                        coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
-                                                                'x (mm)':self.navigationController.x_pos_mm,
-                                                                'y (mm)':self.navigationController.y_pos_mm,
-                                                                'z (um)':self.navigationController.z_pos_mm*1000},
-                                                                ignore_index = True)
+                        coordinates_pd = pd.concat([
+                            coordinates_pd,
+                            pd.DataFrame([{'i':i,'j':j,'k':k,
+                                            'x (mm)':self.navigationController.x_pos_mm,
+                                            'y (mm)':self.navigationController.y_pos_mm,
+                                            'z (um)':self.navigationController.z_pos_mm*1000}])
+                        ])
 
                         # register the current fov in the navigationViewer 
                         self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
