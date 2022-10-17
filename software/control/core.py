@@ -1440,12 +1440,11 @@ class MultiPointController(QObject):
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    def run_acquisition(self): # @@@ to do: change name to run_experiment
-        print('start multipoint')
-        print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
-
+    def run_experiment(self):
+        print(f"start multipoint {self.Nt=} {self.NX=} {self.NY=} {self.NZ=}")
+ 
         self.abort_acqusition_requested = False
-
+ 
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
         if self.liveController.is_live:
@@ -1453,6 +1452,11 @@ class MultiPointController(QObject):
             self.liveController.stop_live() # @@@ to do: also uncheck the live button
         else:
             self.liveController_was_live_before_multipoint = False
+ 
+        # LiveController.start_live enables this, but LiveController.stop_live does not disable, and a comment there explains that this (turning streaming off) causes issues
+        # with af in multipoint (the issue is a crash because the camera does not send a picture).
+        # if the live button was not pressed before multipoint acquisition is started, camera is not yet streaming, therefore crash -> start streaming when multipoint starts
+        self.camera.start_streaming()
 
         # disable callback
         if self.camera.callback_is_enabled:
