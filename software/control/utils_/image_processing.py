@@ -220,8 +220,8 @@ def get_image_top_center_width(image):
 
 def YTracking_Objective_Function(image, color):
     #variance method
-    if(image.size is not 0):
-        if(color):
+    if image.size != 0:
+        if color:
             image = bgr2gray(image)
         mean,std=cv2.meanStdDev(image)
         return std[0][0]**2
