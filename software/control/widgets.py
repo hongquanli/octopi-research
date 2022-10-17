@@ -136,8 +136,8 @@ class CameraSettingsWidget(QFrame):
 
 
 # 'Live' button text
-LIVE_BUTTON_IDLE_TEXT="start led+micro"
-LIVE_BUTTON_RUNNING_TEXT="stop led+micro"
+LIVE_BUTTON_IDLE_TEXT="Start Live"
+LIVE_BUTTON_RUNNING_TEXT="Stop Live"
 
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
@@ -915,6 +915,7 @@ class MultiPointWidget(QFrame):
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
+        self.checkbox_withAutofocus.setToolTip("use autofocus for imaging\nfor each well the autofocus will be calculated in the channel selected below")
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
@@ -973,6 +974,7 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(self.entry_Nt, 3,3)
 
         af_channel_dropdown=QComboBox()
+        af_channel_dropdown.setToolTip("set channel that will be used for autofocus measurements")
         af_channel_dropdown.addItems(autofocus_channel_names)
         af_channel_dropdown.setCurrentIndex(autofocus_channel_names.index(self.multipointController.autofocus_channel_name))
         af_channel_dropdown.currentIndexChanged.connect(self.set_autofocusChannel)
