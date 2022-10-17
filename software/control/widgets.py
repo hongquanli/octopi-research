@@ -134,6 +134,11 @@ class CameraSettingsWidget(QFrame):
     def update_measured_temperature(self,temperature):
         self.label_temperature_measured.setNum(temperature)
 
+
+# 'Live' button text
+LIVE_BUTTON_IDLE_TEXT="start led+micro"
+LIVE_BUTTON_RUNNING_TEXT="stop led+micro"
+
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
@@ -177,7 +182,7 @@ class LiveControlWidget(QFrame):
             self.dropdown_modeSelection.addItems([microscope_configuration.name])
         self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
 
-        self.btn_live = QPushButton("Live")
+        self.btn_live = QPushButton(LIVE_BUTTON_IDLE_TEXT)
         self.btn_live.setCheckable(True)
         self.btn_live.setChecked(False)
         self.btn_live.setDefault(False)
@@ -287,8 +292,10 @@ class LiveControlWidget(QFrame):
 
     def toggle_live(self,pressed):
         if pressed:
+            self.btn_live.setText(LIVE_BUTTON_RUNNING_TEXT)
             self.liveController.start_live()
         else:
+            self.btn_live.setText(LIVE_BUTTON_IDLE_TEXT)
             self.liveController.stop_live()
 
     def update_camera_settings(self):
