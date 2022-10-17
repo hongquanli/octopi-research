@@ -949,7 +949,7 @@ class MultiPointWidget(QFrame):
         af_channel_dropdown=QComboBox()
         af_channel_dropdown.addItems(autofocus_channel_names)
         af_channel_dropdown.setCurrentIndex(autofocus_channel_names.index(self.multipointController.autofocus_channel_name))
-        af_channel_dropdown.currentIndexChanged(self.set_autofocusChannel)
+        af_channel_dropdown.currentIndexChanged.connect(self.set_autofocusChannel)
 
         grid_multipoint_acquisition_config=QGridLayout()
         grid_multipoint_acquisition_config.addWidget(self.checkbox_withAutofocus,0,0)
