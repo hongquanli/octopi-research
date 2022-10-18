@@ -191,7 +191,7 @@ class OctopiGUI(QMainWindow):
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)
-		layout.addWidget(navigationviewer_widget)
+		layout.addLayout(navigationviewer_widget)
 		layout.addStretch()
 		
 		# transfer the layout to the central widget
