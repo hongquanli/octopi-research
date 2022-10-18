@@ -9,6 +9,17 @@ except:
 
 from control._def import *
 
+def get_sn_by_model(model_name):
+    try:
+        device_num, device_info_list = device_manager.update_device_list()
+    except:
+        device_num = 0
+    if device_num > 0:
+        for i in range(device_num):
+            if device_info_list[i]['model_name'] == model_name:
+                return device_info_list[i]['sn']
+    return None # return None if no device with the specified model_name is connected
+
 class Camera(object):
 
     def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
