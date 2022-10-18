@@ -11,6 +11,11 @@ from qtpy.QtGui import *
 import control.utils as utils
 from control._def import *
 import control.tracking as tracking
+try:
+    from control.multipoint_custom_script_entry import *
+    print('custom multipoint script found')
+except:
+    pass
 
 from queue import Queue
 from threading import Thread, Lock
@@ -1080,6 +1085,8 @@ class MultiPointWorker(QObject):
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
 
+        self.microscope = self.multiPointController.parent
+
     def run(self):
         while self.time_point < self.Nt:
             # continous acquisition
@@ -1255,6 +1262,10 @@ class MultiPointWorker(QObject):
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                         np.savetxt(saving_path,data,delimiter=',')
 
+                        # custom script
+                        if "multipoint_custom_script_entry" in globals():
+                            multipoint_custom_script_entry(self,i,j,k,current_path,file_ID)
+
                         # add the coordinate of the current location
                         coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
                                                                 'x (mm)':self.navigationController.x_pos_mm,
@@ -1357,7 +1368,7 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
 
         self.camera = camera
