@@ -129,7 +129,7 @@ class CameraSettingsWidget(QFrame):
         self.entry_analogGain.setValue(analog_gain)
 
     def set_ROI(self):
-    	self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
+        self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
     def update_measured_temperature(self,temperature):
         self.label_temperature_measured.setNum(temperature)
@@ -1052,7 +1052,7 @@ class MultiPointWidget(QFrame):
             self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.run_acquisition()
+            self.multipointController.run_experiment()
         else:
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
@@ -1291,9 +1291,9 @@ class TrackingControllerWidget(QFrame):
             self.trackingController.start_new_experiment(self.lineEdit_experimentID.text())
             self.trackingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.trackingController.set_selected_columns(list(map(int,[item.text() for item in self.list_columns.selectedItems()])))
-            self.trackingController.run_acquisition()
+            self.trackingController.run_experiment()
         else:
-            self.trackingController.stop_acquisition() # to implement
+            self.trackingController.stop_experiment() # to implement
             pass
 
     def acquisition_is_finished(self):
@@ -1418,9 +1418,9 @@ class PlateReaderAcquisitionWidget(QFrame):
             self.plateReadingController.start_new_experiment(self.lineEdit_experimentID.text())
             self.plateReadingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.plateReadingController.set_selected_columns(list(map(int,[item.text() for item in self.list_columns.selectedItems()])))
-            self.plateReadingController.run_acquisition()
+            self.plateReadingController.run_experiment()
         else:
-            self.plateReadingController.stop_acquisition() # to implement
+            self.plateReadingController.stop_experiment() # to implement
             pass
 
     def acquisition_is_finished(self):

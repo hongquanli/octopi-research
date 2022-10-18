@@ -260,7 +260,7 @@ class PlateReadingController(QObject):
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -287,7 +287,7 @@ class PlateReadingController(QObject):
         selected_columns.sort()
         self.selected_columns = selected_columns
 
-    def run_acquisition(self): # @@@ to do: change name to run_experiment
+    def run_experiment(self):
         print('start plate reading')
         # save the current microscope configuration
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
@@ -326,7 +326,7 @@ class PlateReadingController(QObject):
         # start the thread
         self.thread.start()
 
-    def stop_acquisition(self):
+    def stop_experiment(self):
         self.plateReadingWorker.abort_acquisition_requested = True
 
     def _on_acquisition_completed(self):

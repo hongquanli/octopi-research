@@ -77,7 +77,7 @@ class StreamHandler(QObject):
     def set_save_fps(self,fps):
         self.fps_save = fps
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -962,7 +962,7 @@ class AutoFocusController(QObject):
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -1415,7 +1415,7 @@ class MultiPointController(QObject):
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -2101,6 +2101,8 @@ class NavigationViewer(QFrame):
         self.x_mm = None
         self.y_mm = None
 
+        self.last_fov_drawn=None
+
         self.update_display()
 
     def update_current_location(self,x_mm,y_mm):
@@ -2130,6 +2132,14 @@ class NavigationViewer(QFrame):
             current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
                                     round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
+
+        self.last_fov_drawn=(x_mm,y_mm)
+
+    def clear_imaged_positions(self):
+        self.current_image = np.copy(self.background_image)
+        if not self.last_fov_drawn is None:
+            self.draw_current_fov(self.last_fov_drawn[0],self.last_fov_drawn[1])
+        self.update_display()
 
     def update_display(self):
         self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)

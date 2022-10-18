@@ -142,7 +142,7 @@ class TwoCamerasPDAFCalibrationController(QObject):
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
     def set_base_path(self,path):
@@ -164,7 +164,7 @@ class TwoCamerasPDAFCalibrationController(QObject):
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    def run_acquisition(self): # @@@ to do: change name to run_experiment
+    def run_experiment(self):
         print('start multipoint')
         
         # stop live

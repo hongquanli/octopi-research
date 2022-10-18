@@ -171,6 +171,17 @@ class OctopiGUI(QMainWindow):
 		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
 		self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
+		clear_history_button=QPushButton("clear history")
+		clear_history_button.clicked.connect(self.navigationViewer.clear_imaged_positions)
+
+		wellplate_overview_header=QHBoxLayout()
+		wellplate_overview_header.addWidget(QLabel("wellplate overview"))
+		wellplate_overview_header.addWidget(clear_history_button)
+
+		navigationviewer_widget=QVBoxLayout()
+		navigationviewer_widget.addLayout(wellplate_overview_header)
+		navigationviewer_widget.addWidget(self.navigationViewer)
+
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
 		#layout.addWidget(self.cameraSettingWidget)
@@ -180,7 +191,7 @@ class OctopiGUI(QMainWindow):
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)
-		layout.addWidget(self.navigationViewer)
+		layout.addWidget(navigationviewer_widget)
 		layout.addStretch()
 		
 		# transfer the layout to the central widget
