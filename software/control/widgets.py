@@ -256,7 +256,7 @@ class LiveControlWidget(QFrame):
         grid_line0.addWidget(self.entry_triggerFPS, 0,3)
 
         grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Microscope Configuration'), 0,0)
+        grid_line1.addWidget(QLabel('Imaging Mode'), 0,0)
         grid_line1.addWidget(self.dropdown_modeSelection, 0,1)
         grid_line1.addWidget(self.btn_live, 0,2)
 
