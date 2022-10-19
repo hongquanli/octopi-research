@@ -33,6 +33,24 @@ class Microcontroller2Def:
 
 USE_SEPARATE_MCU_FOR_DAC = False
 
+class MCU_PINS:
+    PWM1 = 5
+    PWM2 = 4
+    PWM3 = 22
+    PWM4 = 3
+    PWM5 = 23
+    PWM6 = 2
+    PWM7 = 1
+    PWM9 = 6
+    PWM10 = 7
+    PWM11 = 8
+    PWM12 = 9
+    PWM13 = 10
+    PWM14 = 15
+    PWM15 = 24
+    PWM16 = 25
+    AF_LASER = 15
+
 class CMD_SET:
     MOVE_X = 0
     MOVE_Y = 1
@@ -56,6 +74,7 @@ class CMD_SET:
     SET_OFFSET_VELOCITY = 24
     SEND_HARDWARE_TRIGGER = 30
     SET_STROBE_DELAY = 31
+    SET_PIN_LEVEL = 41
     INITIALIZE = 254
     RESET = 255
 

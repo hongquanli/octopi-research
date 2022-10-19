@@ -57,6 +57,7 @@ static const int SET_LEAD_SCREW_PITCH = 23;
 static const int SET_OFFSET_VELOCITY = 24;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
+static const int SET_PIN_LEVEL = 41;
 static const int INITIALIZE = 254;
 static const int RESET = 255;
 
@@ -104,8 +105,15 @@ static const int LASER_730nm = 23;  // to rename
 // PWM7 1
 // PWM8 0
 
+// output pins
+//static const int digitial_output_pins = {2,1,6,7,8,9,10,15,24,25} // PWM 6-7, 9-16
+//static const int num_digital_pins = 10;
+// pin 7,8 (PWM 10, 11) may be used for UART, pin 24,25 (PWM 15, 16) may be used for UART
+static const int num_digital_pins = 6;
+static const int digitial_output_pins[num_digital_pins] = {2,1,6,9,10,15}; // PWM 6-7, 9, 12-14
+
 // camera trigger 
-static const int camera_trigger_pins[] = {29,30,31,32,16,28};
+static const int camera_trigger_pins[] = {29,30,31,32,16,28}; // trigger 1-6
 
 // motors
 const uint8_t pin_TMC4361_CS[4] = {41,36,35,34};
@@ -528,6 +536,12 @@ void setup() {
 
   pinMode(LASER_730nm, OUTPUT);
   digitalWrite(LASER_730nm, LOW);
+
+  for(int i=0;i<num_digital_pins;i++)
+  {
+    pinMode(digitial_output_pins[i],OUTPUT);
+    digitalWrite(digitial_output_pins[i], LOW);
+  }
 
   // steppers pins
   for(int i = 0;i<4;i++)
@@ -1255,6 +1269,13 @@ void loop() {
           digitalWrite(camera_trigger_pins[camera_channel],HIGH);
           timestamp_trigger_rising_edge[camera_channel] = micros();
           trigger_output_level[camera_channel] = HIGH;
+          break;
+        }
+        case SET_PIN_LEVEL:
+        {
+          int pin = buffer_rx[2];
+          bool level = buffer_rx[3];
+          digitalWrite(pin,level);
           break;
         }
         case INITIALIZE:

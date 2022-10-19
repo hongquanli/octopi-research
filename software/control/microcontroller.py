@@ -547,6 +547,16 @@ class Microcontroller():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
+    def set_pin_level(self,pin,level):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
+        cmd[2] = pin
+        cmd[3] = level
+        self.send_command(cmd)
+
+    def turn_on_AF_laser(self):
+        self.set_pin_level()
+
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
