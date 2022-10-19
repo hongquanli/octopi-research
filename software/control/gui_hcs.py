@@ -15,6 +15,9 @@ import control.core as core
 import control.microcontroller as microcontroller
 from control._def import *
 
+if SUPPORT_LASER_AUTOFOCUS:
+	import control.core_displacement_measurement as core_displacement_measurement
+
 import pyqtgraph.dockarea as dock
 import time
 
@@ -45,15 +48,33 @@ class OctopiGUI(QMainWindow):
 
 		# load objects
 		if is_simulation:
-			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+			if SUPPORT_LASER_AUTOFOCUS:
+				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+				self.camera_focus = camera.Camera_Simulation()
+			else:
+				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
 			try:
-				self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-				self.camera.open()
+				if SUPPORT_LASER_AUTOFOCUS:
+					sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
+					sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMEARA_MODEL)
+					self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+					self.camera.open()
+					self.camera_focus = camera.Camera(sn=sn_camera_focus)
+					self.camera_focus.open()
+				else:
+					self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+					self.camera.open()
 			except:
-				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-				self.camera.open()
+				if SUPPORT_LASER_AUTOFOCUS:
+					self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+					self.camera.open()
+					self.camera_focus = camera.Camera_Simulation()
+					self.camera_focus.open()
+				else:
+					self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+					self.camera.open()
 				print('! camera not detected, using simulated camera !')
 			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 
@@ -75,7 +96,7 @@ class OctopiGUI(QMainWindow):
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
-		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
+		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
 
 		if HOMING_ENABLED_Z:
 			# retract the objective
@@ -167,7 +188,6 @@ class OctopiGUI(QMainWindow):
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
-
 		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
 		self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
@@ -182,7 +202,7 @@ class OctopiGUI(QMainWindow):
 		layout.addWidget(self.recordTabWidget)
 		layout.addWidget(self.navigationViewer)
 		layout.addStretch()
-		
+
 		# transfer the layout to the central widget
 		self.centralWidget = QWidget()
 		self.centralWidget.setLayout(layout)
@@ -248,16 +268,86 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
 
+		# load vs scan position switching
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
 		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
 		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
 		self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
 
+		# display the FOV in the viewer
 		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
+		# (double) click to move to a well
 		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+
+		# laser autofocus
+		if SUPPORT_LASER_AUTOFOCUS:
+
+			# controllers
+			self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
+			self.streamHandler_focus_camera = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
+			self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera)
+			self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
+			self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
+
+			# camera
+			self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
+			self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
+			self.camera_focus.enable_callback()
+
+			# widgets
+			self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=False)
+			self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
+			self.waveformDisplay = widgets.WaveformDisplay(N=1000)
+			self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
+
+			dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
+			dock_laserfocus_image_display.showTitleBar()
+			dock_laserfocus_image_display.addWidget(self.imageDisplayWindow_focus)
+			dock_laserfocus_image_display.setStretch(x=100,y=100)
+
+			dock_laserfocus_liveController = dock.Dock('Focus Camera Controller', autoOrientation = False)
+			dock_laserfocus_liveController.showTitleBar()
+			dock_laserfocus_liveController.addWidget(self.liveControlWidget_focus_camera)
+			dock_laserfocus_liveController.setStretch(x=100,y=100)
+			dock_laserfocus_liveController.setFixedHeight(self.liveControlWidget_focus_camera.minimumSizeHint().height())
+
+			dock_waveform = dock.Dock('Displacement Measurement', autoOrientation = False)
+			dock_waveform.showTitleBar()
+			dock_waveform.addWidget(self.waveformDisplay)
+			dock_waveform.setStretch(x=100,y=40)
+
+			dock_displayMeasurement =  dock.Dock('Displacement Measurement Control', autoOrientation = False)
+			dock_displayMeasurement.showTitleBar()
+			dock_displayMeasurement.addWidget(self.displacementMeasurementWidget)
+			dock_displayMeasurement.setStretch(x=100,y=40)
+
+			laserfocus_dockArea = dock.DockArea()
+			laserfocus_dockArea.addDock(dock_laserfocus_image_display)
+			laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
+			laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
+			laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
+
+			# self.imageDisplayWindow_focus.widget
+			self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-based Focus")
+
+			# connections
+			self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
+			self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+			self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
+			self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+			self.liveControlWidget.update_camera_settings()
+
+			self.streamHandler_focus_camera.image_to_display.connect(self.displacementMeasurementController.update_measurement)
+			self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
+			self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
+		
+
+		self.camera.set_callback(self.streamHandler.on_new_frame)
+
 
 	def closeEvent(self, event):
 		
@@ -284,4 +374,8 @@ class OctopiGUI(QMainWindow):
 			self.imageDisplayWindow.close()
 			self.imageArrayDisplayWindow.close()
 			self.tabbedImageDisplayWindow.close()
+		if SUPPORT_LASER_AUTOFOCUS:
+			self.camera_focus.close()
+			self.liveController_focus_camera.close()
+			self.imageDisplay_focus_camera.close()
 		self.microcontroller.close()

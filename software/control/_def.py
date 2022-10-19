@@ -350,6 +350,11 @@ FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field
 # controller version
 CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 
+# laser autofocus
+SUPPORT_LASER_AUTOFOCUS = False
+MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
+FOCUS_CAMEARA_MODEL = 'MER2-630-60U3M'
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
