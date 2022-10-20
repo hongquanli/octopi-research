@@ -1,3 +1,4 @@
+from dataclasses import dataclass 
 import os
 import glob
 import numpy as np
@@ -225,15 +226,7 @@ LED_MATRIX_B_FACTOR = 1
 
 DEFAULT_SAVING_PATH = str(Path.home()) + "/Downloads"
 
-class PLATE_READER:
-    NUMBER_OF_ROWS = 8
-    NUMBER_OF_COLUMNS = 12
-    ROW_SPACING_MM = 9
-    COLUMN_SPACING_MM = 9
-    OFFSET_COLUMN_1_MM = 20
-    OFFSET_ROW_A_MM = 20
-
-DEFAULT_DISPLAY_CROP = 50 # value ranges from 1 to 100 - image display crop size 
+DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
 OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
@@ -301,7 +294,7 @@ ENABLE_STROBE_OUTPUT = False
 
 Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 
-# plate format
+# default plate format
 WELLPLATE_FORMAT = 384
 
 # for 384 well plate
@@ -310,12 +303,7 @@ Y_MM_384_WELLPLATE_UPPERLEFT = 0
 DEFAULT_Z_POS_MM = 2
 X_ORIGIN_384_WELLPLATE_PIXEL = 177 # upper left of B2
 Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
-NUMBER_OF_SKIP_384 = 1
-A1_X_MM_384_WELLPLATE = 12.05
-A1_Y_MM_384_WELLPLATE = 9.05
-WELL_SPACING_MM_384_WELLPLATE = 4.5
-WELL_SIZE_MM_384_WELLPLATE = 3.3
-# B1 upper left corner in piexel: x = 124, y = 141
+# B1 upper left corner in pixel: x = 124, y = 141
 # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 # B2 upper left corner in pixel: x = 177, y = 141
 
@@ -347,33 +335,71 @@ else:
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
-if WELLPLATE_FORMAT == 384:
-    WELL_SIZE_MM = 3.3
-    WELL_SPACING_MM = 4.5
-    NUMBER_OF_SKIP = 1
-    A1_X_MM = 12.05
-    A1_Y_MM = 9.05
-elif WELLPLATE_FORMAT == 96:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 6.21
-    WELL_SPACING_MM = 9
-    A1_X_MM = 14.3
-    A1_Y_MM = 11.36
-elif WELLPLATE_FORMAT == 24:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 15.54
-    WELL_SPACING_MM = 19.3
-    A1_X_MM = 17.05
-    A1_Y_MM = 13.67
-elif WELLPLATE_FORMAT == 12:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 22.05
-    WELL_SPACING_MM = 26
-    A1_X_MM = 24.75
-    A1_Y_MM = 16.86
-elif WELLPLATE_FORMAT == 6:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 34.94
-    WELL_SPACING_MM = 39.2
-    A1_X_MM = 24.55
-    A1_Y_MM = 23.01
+@dataclass(frozen=True)
+class WellplateFormatPhysical:
+    well_size_mm:float
+    well_spacing_mm:float
+    A1_x_mm:float
+    A1_y_mm:float
+    """ layers of disabled outer wells """
+    number_of_skip:int
+    rows:int
+    columns:int
+ 
+WELLPLATE_FORMATS={
+    6:WellplateFormatPhysical(
+        well_size_mm = 34.94,
+        well_spacing_mm = 39.2,
+        A1_x_mm = 24.55,
+        A1_y_mm = 23.01,
+        number_of_skip = 0,
+        rows = 2,
+        columns = 3,
+    ),
+    12:WellplateFormatPhysical(
+        well_size_mm = 22.05,
+        well_spacing_mm = 26,
+        A1_x_mm = 24.75,
+        A1_y_mm = 16.86,
+        number_of_skip = 0,
+        rows = 3,
+        columns = 4,
+    ),
+    24:WellplateFormatPhysical(
+        well_size_mm = 15.54,
+        well_spacing_mm = 19.3,
+        A1_x_mm = 17.05,
+        A1_y_mm = 13.67,
+        number_of_skip = 0,
+        rows = 4,
+        columns = 6,
+    ),
+    96:WellplateFormatPhysical(
+        well_size_mm = 6.21,
+        well_spacing_mm = 9,
+        A1_x_mm = 14.3,
+        A1_y_mm = 11.36,
+        number_of_skip = 0,
+        rows = 8,
+        columns = 12,
+    ),
+    384:WellplateFormatPhysical(
+        well_size_mm = 3.3,
+        well_spacing_mm = 4.5,
+        A1_x_mm = 12.05,
+        A1_y_mm = 9.05,
+        number_of_skip = 1,
+        rows = 16,
+        columns = 24,
+    ),
+    #1536:WellplateFormatPhysical(
+    #    well_size_mm = ???
+    #    well_spacing_mm = 2.25
+    #    A1_x_mm = ???
+    #    A1_y_mm = ???
+    #    number_of_skip = ???
+    #    rows = 32,
+    #    columns = 48,
+    #),
+}
+ 

@@ -2061,29 +2061,41 @@ class NavigationViewer(QFrame):
         self.grid = QVBoxLayout()
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
-
-        if sample == 'glass slide':
-            self.background_image = cv2.imread('images/slide carrier_828x662.png')
-        elif sample == '384 well plate':
-            self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
-        elif sample == '96 well plate':
-            self.background_image = cv2.imread('images/96 well plate_1509x1010.png')
-        elif sample == '24 well plate':
-            self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
-        elif sample == '12 well plate':
-            self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
-        elif sample == '6 well plate':
-            self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
-        
+ 
+        self.last_fov_drawn=None
+        self.set_wellplate_type(sample)
+ 
+        self.location_update_threshold_mm = 0.4    
+ 
+        self.box_color = (255, 0, 0)
+        self.box_line_thickness = 2
+ 
+        self.x_mm = None
+        self.y_mm = None
+ 
+        self.update_display()
+ 
+    def set_wellplate_type(self,wellplate_type:str):
+        wellplate_type_image={
+            'glass slide'    : 'images/slide carrier_828x662.png',
+            '384 well plate' : 'images/384 well plate_1509x1010.png',
+            '96 well plate'  : 'images/96 well plate_1509x1010.png',
+            '24 well plate'  : 'images/24 well plate_1509x1010.png',
+            '12 well plate'  : 'images/12 well plate_1509x1010.png',
+            '6 well plate'   : 'images/6 well plate_1509x1010.png'
+        }
+        assert wellplate_type in wellplate_type_image, f"{wellplate_type} is not a valid plate type"
+ 
+        self.background_image=cv2.imread(wellplate_type_image[wellplate_type])
+ 
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
-
-        self.location_update_threshold_mm = 0.4
-        self.sample = sample
-
-        if sample == 'glass slide':
+ 
+        self.sample = wellplate_type
+ 
+        if wellplate_type == 'glass slide':
             self.origin_bottom_left_x = 200
             self.origin_bottom_left_y = 120
             self.mm_per_pixel = 0.1453
@@ -2093,18 +2105,10 @@ class NavigationViewer(QFrame):
             self.mm_per_pixel = 0.084665
             self.fov_size_mm = 3000*1.85/(50/10)/1000
             self.origin_bottom_left_x = X_ORIGIN_384_WELLPLATE_PIXEL - (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
-            self.origin_bottom_left_y = Y_ORIGIN_384_WELLPLATE_PIXEL - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel         
-
-        self.box_color = (255, 0, 0)
-        self.box_line_thickness = 2
-
-        self.x_mm = None
-        self.y_mm = None
-
-        self.last_fov_drawn=None
-
-        self.update_display()
-
+            self.origin_bottom_left_y = Y_ORIGIN_384_WELLPLATE_PIXEL - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
+ 
+        self.clear_imaged_positions()
+ 
     def update_current_location(self,x_mm,y_mm):
         if self.x_mm != None and self.y_mm != None:
             # update only when the displacement has exceeded certain value
@@ -2262,121 +2266,6 @@ class ConfigurationManager(QObject):
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
 
-class PlateReaderNavigationController(QObject):
-
-    signal_homing_complete = Signal()
-    signal_current_well = Signal(str)
-
-    def __init__(self,microcontroller):
-        QObject.__init__(self)
-        self.microcontroller = microcontroller
-        self.x_pos_mm = 0
-        self.y_pos_mm = 0
-        self.z_pos_mm = 0
-        self.z_pos = 0
-        self.x_microstepping = MICROSTEPPING_DEFAULT_X
-        self.y_microstepping = MICROSTEPPING_DEFAULT_Y
-        self.z_microstepping = MICROSTEPPING_DEFAULT_Z
-        self.column = ''
-        self.row = ''
-
-        # to be moved to gui for transparency
-        self.microcontroller.set_callback(self.update_pos)
-
-        self.is_homing = False
-        self.is_scanning = False
-
-    def move_x_usteps(self,usteps):
-        self.microcontroller.move_x_usteps(usteps)
-
-    def move_y_usteps(self,usteps):
-        self.microcontroller.move_y_usteps(usteps)
-
-    def move_z_usteps(self,usteps):
-        self.microcontroller.move_z_usteps(usteps)
-
-    def move_x_to_usteps(self,usteps):
-        self.microcontroller.move_x_to_usteps(usteps)
-
-    def move_y_to_usteps(self,usteps):
-        self.microcontroller.move_y_to_usteps(usteps)
-
-    def move_z_to_usteps(self,usteps):
-        self.microcontroller.move_z_to_usteps(usteps)
-
-    def moveto(self,column,row):
-        if column != '':
-            mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
-            x_mm = PLATE_READER.OFFSET_COLUMN_1_MM + (int(column)-1)*PLATE_READER.COLUMN_SPACING_MM
-            x_usteps = STAGE_MOVEMENT_SIGN_X*round(x_mm/mm_per_ustep_X)
-            self.move_x_to_usteps(x_usteps)
-        if row != '':
-            mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
-            y_mm = PLATE_READER.OFFSET_ROW_A_MM + (ord(row) - ord('A'))*PLATE_READER.ROW_SPACING_MM
-            y_usteps = STAGE_MOVEMENT_SIGN_Y*round(y_mm/mm_per_ustep_Y)
-            self.move_y_to_usteps(y_usteps)
-
-    def moveto_row(self,row):
-        # row: int, starting from 0
-        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
-        y_mm = PLATE_READER.OFFSET_ROW_A_MM + row*PLATE_READER.ROW_SPACING_MM
-        y_usteps = round(y_mm/mm_per_ustep_Y)
-        self.move_y_to_usteps(y_usteps)
-
-    def moveto_column(self,column):
-        # column: int, starting from 0
-        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
-        x_mm = PLATE_READER.OFFSET_COLUMN_1_MM + column*PLATE_READER.COLUMN_SPACING_MM
-        x_usteps = round(x_mm/mm_per_ustep_X)
-        self.move_x_to_usteps(x_usteps)
-
-    def update_pos(self,microcontroller):
-        # get position from the microcontroller
-        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
-        self.z_pos = z_pos
-        # calculate position in mm or rad
-        if USE_ENCODER_X:
-            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
-        else:
-            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
-        if USE_ENCODER_Y:
-            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
-        else:
-            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
-        if USE_ENCODER_Z:
-            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
-        else:
-            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
-        # check homing status
-        if self.is_homing and self.microcontroller.mcu_cmd_execution_in_progress == False:
-            self.signal_homing_complete.emit()
-        # for debugging
-        # print('X: ' + str(self.x_pos_mm) + ' Y: ' + str(self.y_pos_mm))
-        # check and emit current position
-        column = round((self.x_pos_mm - PLATE_READER.OFFSET_COLUMN_1_MM)/PLATE_READER.COLUMN_SPACING_MM)
-        if column >= 0 and column <= PLATE_READER.NUMBER_OF_COLUMNS:
-            column = str(column+1)
-        else:
-            column = ' '
-        row = round((self.y_pos_mm - PLATE_READER.OFFSET_ROW_A_MM)/PLATE_READER.ROW_SPACING_MM)
-        if row >= 0 and row <= PLATE_READER.NUMBER_OF_ROWS:
-            row = chr(ord('A')+row)
-        else:
-            row = ' '
-
-        if self.is_scanning:
-            self.signal_current_well.emit(row+column)
-
-    def home(self):
-        self.is_homing = True
-        self.microcontroller.home_xy()
-
-    def home_x(self):
-        self.microcontroller.home_x()
-
-    def home_y(self):
-        self.microcontroller.home_y()
-
 class ScanCoordinates(object):
     def __init__(self):
         self.coordinates_mm = []
@@ -2403,8 +2292,9 @@ class ScanCoordinates(object):
             if _increasing==False:
                 columns = np.flip(columns)
             for column in columns:
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+                wellplateformat_384=WELLPLATE_FORMATS[384]
+                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
             _increasing = not _increasing

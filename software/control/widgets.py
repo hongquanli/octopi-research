@@ -14,6 +14,8 @@ from datetime import datetime
 
 from control._def import *
 
+from typing import Optional, Union
+
 class CameraSettingsWidget(QFrame):
 
     signal_camera_set_temperature = Signal(float)
@@ -1311,207 +1313,6 @@ class TrackingControllerWidget(QFrame):
             self.btn_startAcquisition.setEnabled(enabled)
     '''
 
-class PlateReaderAcquisitionWidget(QFrame):
-    def __init__(self, plateReadingController, configurationManager = None, show_configurations = True, main=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.plateReadingController = plateReadingController
-        self.configurationManager = configurationManager
-        self.base_path_is_set = False
-        self.add_components(show_configurations)
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-    def add_components(self,show_configurations):
-        self.btn_setSavingDir = QPushButton('Browse')
-        self.btn_setSavingDir.setDefault(False)
-        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        self.lineEdit_savingDir = QLineEdit()
-        self.lineEdit_savingDir.setReadOnly(True)
-        self.lineEdit_savingDir.setText('Choose a base saving directory')
-        self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
-        self.plateReadingController.set_base_path(DEFAULT_SAVING_PATH)
-        self.base_path_is_set = True
-
-        self.lineEdit_experimentID = QLineEdit()
-
-        self.list_columns = QListWidget()
-        for i in range(PLATE_READER.NUMBER_OF_COLUMNS):
-            self.list_columns.addItems([str(i+1)])
-        self.list_columns.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
-
-        self.list_configurations = QListWidget()
-        for microscope_configuration in self.configurationManager.configurations:
-            self.list_configurations.addItems([microscope_configuration.name])
-        self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
-
-        self.checkbox_withAutofocus = QCheckBox('With AF')
-        self.btn_startAcquisition = QPushButton('Start Acquisition')
-        self.btn_startAcquisition.setCheckable(True)
-        self.btn_startAcquisition.setChecked(False)
-
-        self.btn_startAcquisition.setEnabled(False)
-
-        # layout
-        grid_line0 = QGridLayout()
-        tmp = QLabel('Saving Path')
-        tmp.setFixedWidth(90)
-        grid_line0.addWidget(tmp)
-        grid_line0.addWidget(self.lineEdit_savingDir, 0,1)
-        grid_line0.addWidget(self.btn_setSavingDir, 0,2)
-
-        grid_line1 = QGridLayout()
-        tmp = QLabel('Sample ID')
-        tmp.setFixedWidth(90)
-        grid_line1.addWidget(tmp)
-        grid_line1.addWidget(self.lineEdit_experimentID,0,1)
-
-        grid_line2 = QGridLayout()
-        tmp = QLabel('Columns')
-        tmp.setFixedWidth(90)
-        grid_line2.addWidget(tmp)
-        grid_line2.addWidget(self.list_columns, 0,1)
-
-        grid_line3 = QHBoxLayout()
-        tmp = QLabel('Configurations')
-        tmp.setFixedWidth(90)
-        grid_line3.addWidget(tmp)
-        grid_line3.addWidget(self.list_configurations)
-        # grid_line3.addWidget(self.checkbox_withAutofocus)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
-        self.grid.addLayout(grid_line2,2,0)
-        if show_configurations:
-            self.grid.addLayout(grid_line3,3,0)
-        else:
-            self.list_configurations.setCurrentRow(0) # select the first configuration
-        self.grid.addWidget(self.btn_startAcquisition,4,0)
-        self.setLayout(self.grid)
-
-        # add and display a timer - to be implemented
-        # self.timer = QTimer()
-
-        # connections
-        self.checkbox_withAutofocus.stateChanged.connect(self.plateReadingController.set_af_flag)
-        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
-        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
-        self.plateReadingController.acquisitionFinished.connect(self.acquisition_is_finished)
-
-    def set_saving_dir(self):
-        dialog = QFileDialog()
-        save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
-        self.plateReadingController.set_base_path(save_dir_base)
-        self.lineEdit_savingDir.setText(save_dir_base)
-        self.base_path_is_set = True
-
-    def toggle_acquisition(self,pressed):
-        if self.base_path_is_set == False:
-            self.btn_startAcquisition.setChecked(False)
-            msg = QMessageBox()
-            msg.setText("Please choose base saving directory first")
-            msg.exec_()
-            return
-        if pressed:
-            # @@@ to do: add a widgetManger to enable and disable widget 
-            # @@@ to do: emit signal to widgetManager to disable other widgets
-            self.setEnabled_all(False)
-            self.plateReadingController.start_new_experiment(self.lineEdit_experimentID.text())
-            self.plateReadingController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.plateReadingController.set_selected_columns(list(map(int,[item.text() for item in self.list_columns.selectedItems()])))
-            self.plateReadingController.run_experiment()
-        else:
-            self.plateReadingController.stop_experiment() # to implement
-            pass
-
-    def acquisition_is_finished(self):
-        self.btn_startAcquisition.setChecked(False)
-        self.setEnabled_all(True)
-
-    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=False):
-        self.btn_setSavingDir.setEnabled(enabled)
-        self.lineEdit_savingDir.setEnabled(enabled)
-        self.lineEdit_experimentID.setEnabled(enabled)
-        self.list_columns.setEnabled(enabled)
-        self.list_configurations.setEnabled(enabled)
-        self.checkbox_withAutofocus.setEnabled(enabled)
-        if exclude_btn_startAcquisition is not True:
-            self.btn_startAcquisition.setEnabled(enabled)
-
-    def slot_homing_complete(self):
-        self.btn_startAcquisition.setEnabled(True)
-    
-class PlateReaderNavigationWidget(QFrame):
-    def __init__(self, plateReaderNavigationController, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.add_components()
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        self.plateReaderNavigationController = plateReaderNavigationController
-
-    def add_components(self):
-        self.dropdown_column = QComboBox()
-        self.dropdown_column.addItems([''])
-        self.dropdown_column.addItems([str(i+1) for i in range(PLATE_READER.NUMBER_OF_COLUMNS)])
-        self.dropdown_row = QComboBox()
-        self.dropdown_row.addItems([''])
-        self.dropdown_row.addItems([chr(i) for i in range(ord('A'),ord('A')+PLATE_READER.NUMBER_OF_ROWS)])
-        self.btn_moveto = QPushButton("Move To")
-        self.btn_home = QPushButton('Home')
-        self.label_current_location = QLabel()
-        self.label_current_location.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        self.label_current_location.setFixedWidth(50)
-
-        self.dropdown_column.setEnabled(False)
-        self.dropdown_row.setEnabled(False)
-        self.btn_moveto.setEnabled(False)
-        
-        # layout
-        grid_line0 = QHBoxLayout()
-        # tmp = QLabel('Saving Path')
-        # tmp.setFixedWidth(90)
-        grid_line0.addWidget(self.btn_home)
-        grid_line0.addWidget(QLabel('Column'))
-        grid_line0.addWidget(self.dropdown_column)
-        grid_line0.addWidget(QLabel('Row'))
-        grid_line0.addWidget(self.dropdown_row)
-        grid_line0.addWidget(self.btn_moveto)
-        grid_line0.addStretch()
-        grid_line0.addWidget(self.label_current_location)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.setLayout(self.grid)
-
-        self.btn_home.clicked.connect(self.home)
-        self.btn_moveto.clicked.connect(self.move)
-
-    def home(self):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
-        msg.setText("Confirm your action")
-        msg.setInformativeText("Click OK to run homing")
-        msg.setWindowTitle("Confirmation")
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        msg.setDefaultButton(QMessageBox.Cancel)
-        retval = msg.exec_()
-        if QMessageBox.Ok == retval:
-            self.plateReaderNavigationController.home()
-
-    def move(self):
-        self.plateReaderNavigationController.moveto(self.dropdown_column.currentText(),self.dropdown_row.currentText())
-
-    def slot_homing_complete(self):
-        self.dropdown_column.setEnabled(True)
-        self.dropdown_row.setEnabled(True)
-        self.btn_moveto.setEnabled(True)
-
-    def update_current_location(self,location_str):
-        self.label_current_location.setText(location_str)
-        row = location_str[0]
-        column = location_str[1:]
-        self.dropdown_row.setCurrentText(row)
-        self.dropdown_column.setCurrentText(column)
-
-
 class TriggerControlWidget(QFrame):
     # for synchronized trigger 
     signal_toggle_live = Signal(bool)
@@ -1841,63 +1642,118 @@ class DisplacementMeasurementWidget(QFrame):
         self.reading_y.setText("{:.2f}".format(readings[1]))
 
 class WellSelectionWidget(QTableWidget):
-
+ 
+    # this data was here before, but seems duplicated with control/_def.py
+    #well_selector_plate_data_table={
+    #    6:WellSelectorPlateData(
+    #        rows = 2,
+    #        columns = 3,
+    #        spacing_mm = 39.2,
+    #    ),
+    #    12:WellSelectorPlateData(
+    #        rows = 3,
+    #        columns = 4,
+    #        spacing_mm = 26,
+    #    ),
+    #    24:WellSelectorPlateData(
+    #        rows = 4,
+    #        columns = 6,
+    #        spacing_mm = 18,
+    #    ),
+    #    96:WellSelectorPlateData(
+    #        rows = 8,
+    #        columns = 12,
+    #        spacing_mm = 9,
+    #    ),
+    #    384:WellSelectorPlateData(
+    #        rows = 16,
+    #        columns = 24,
+    #        spacing_mm = 4.5,
+    #    ),
+    #    1536:WellSelectorPlateData(
+    #        rows = 32,
+    #        columns = 48,
+    #        spacing_mm = 2.25,
+    #    ),
+    #}
+ 
     signal_wellSelected = Signal(int,int,float)
     signal_wellSelectedPos = Signal(float,float)
-
-    def __init__(self, format_, *args):
-
-        if format_ == 6:
-            self.rows = 2
-            self.columns = 3
-            self.spacing_mm = 39.2
-        elif format_ == 12:
-            self.rows = 3
-            self.columns = 4
-            self.spacing_mm = 26
-        elif format_ == 24:
-            self.rows = 4
-            self.columns = 6
-            self.spacing_mm = 18
-        elif format_ == 96:
-            self.rows = 8
-            self.columns = 12
-            self.spacing_mm = 9
-        elif format_ == 384:
-            self.rows = 16
-            self.columns = 24
-            self.spacing_mm = 4.5
-        elif format_ == 1536:
-            self.rows = 32
-            self.columns = 48
-            self.spacing_mm = 2.25
-
-        self.format = format_
-
-        QTableWidget.__init__(self, self.rows, self.columns, *args)
-        self.setData()
+ 
+    def __init__(self, format):
+        self.was_initialized=False
+        self.set_wellplate_type(format)
+        self.was_initialized=True
+ 
+    def set_wellplate_type(self,wellplate_type:Union[str,int]):
+        if type(wellplate_type)==str:
+            wellplate_type_int=int(wellplate_type.split(" ")[0])
+        else:
+            wellplate_type_int=wellplate_type
+ 
+        wellplate_type_format=WELLPLATE_FORMATS[wellplate_type_int]
+        self.rows = wellplate_type_format.rows
+        self.columns = wellplate_type_format.columns
+        self.spacing_mm = wellplate_type_format.well_spacing_mm
+ 
+        if self.was_initialized:
+            old_layout=WELLPLATE_FORMATS[self.format]
+            self.set_selectable_widgets(layout=old_layout,is_selectable=True,exhaustive=True)
+ 
+            self.format=wellplate_type_int
+ 
+            self.setRowCount(self.rows)
+            self.setColumnCount(self.columns)
+ 
+            self.setData()
+        else:
+            self.format=wellplate_type_int
+ 
+            QTableWidget.__init__(self, self.rows, self.columns)
+ 
+            self.setData()
+ 
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.cellDoubleClicked.connect(self.onDoubleClick)
-        self.cellClicked.connect(self.onSingleClick)
-
+        if not self.was_initialized:
+            self.setEditTriggers(QTableWidget.NoEditTriggers)
+            self.cellDoubleClicked.connect(self.onDoubleClick)
+ 
         # size
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.verticalHeader().setDefaultSectionSize(5*self.spacing_mm)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.horizontalHeader().setMinimumSectionSize(5*self.spacing_mm)
-
+ 
         self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.resizeColumnsToContents()
-        self.setFixedSize(self.horizontalHeader().length() + 
-                   self.verticalHeader().width(),
-                   self.verticalHeader().length() + 
-                   self.horizontalHeader().height())
-
-    def setData(self): 
+        self.setFixedSize(
+            self.horizontalHeader().length() + self.verticalHeader().width(),
+            self.verticalHeader().length() + self.horizontalHeader().height()
+        )
+ 
+    def set_selectable_widgets(self,layout:WellplateFormatPhysical,is_selectable:bool,exhaustive:bool=False):
+        # item.flags is a bitvector, so changing the IsSelectable flag is bit manipulating magic
+ 
+        if not is_selectable:
+            assert not exhaustive, "cannot exhaustively disable only outer ring"
+ 
+        for i in range(layout.rows):
+            for j in (range(layout.columns) if exhaustive else [0,layout.columns-1]):
+                item = QTableWidgetItem()
+                item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable))
+                self.setItem(i,j,item)
+ 
+        if not exhaustive:
+            for j in range(layout.columns):
+                for i in [0,layout.rows-1]:
+                    item = QTableWidgetItem()
+                    item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable))
+                    self.setItem(i,j,item)
+ 
+    def setData(self):
         '''
         # cells
         for i in range(16):
@@ -1907,54 +1763,29 @@ class WellSelectionWidget(QTableWidget):
         '''
         # row header
         row_headers = []
-        for i in range(16):
+        for i in range(self.rows):
             row_headers.append(chr(ord('A')+i))
         self.setVerticalHeaderLabels(row_headers)
-
+ 
         # make the outer cells not selectable if using 96 and 384 well plates
-        if self.format == 384:
-            for i in range(self.rows):
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(i,0,item)
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(i,self.columns-1,item)
-            for j in range(self.columns):
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(0,j,item)
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(self.rows-1,j,item)
-        elif self.format == 96:
-            if NUMBER_OF_SKIP == 1:
-                for i in range(self.rows):
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(i,0,item)
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(i,self.columns-1,item)
-                for j in range(self.columns):
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(0,j,item)
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(self.rows-1,j,item)
-
+        wellplate_format=WELLPLATE_FORMATS[self.format]
+        well_selector_plate_data=WellSelectionWidget.well_selector_plate_data_table[self.format]
+ 
+        # self.set_selectable_widgets(layout=well_selector_plate_data,is_selectable=True,exhaustive=True)
+        if wellplate_format.number_of_skip==1:
+            self.set_selectable_widgets(layout=well_selector_plate_data,is_selectable=False)
+        elif wellplate_format.number_of_skip>1:
+            assert False, "more than one layer of disabled outer wells is currently unimplemented"
+ 
     def onDoubleClick(self,row,col):
-        if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
-            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+        wellplate_format=WELLPLATE_FORMATS[self.format]
+ 
+        if (row >= 0 + wellplate_format.number_of_skip and row <= self.rows-1-wellplate_format.number_of_skip ) and ( col >= 0 + wellplate_format.number_of_skip and col <= self.columns-1-wellplate_format.number_of_skip ):
+            wellplateformat_384=WELLPLATE_FORMATS[384]
+            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + col*wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm + WELLPLATE_OFFSET_X_mm
+            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + row*wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
-        # print('(' + str(row) + ',' + str(col) + ') doubleclicked')
-
-    def onSingleClick(self,row,col):
-        # self.get_selected_cells()
-        pass
-
+ 
     def get_selected_cells(self):
         list_of_selected_cells = []
         for index in self.selectedIndexes():

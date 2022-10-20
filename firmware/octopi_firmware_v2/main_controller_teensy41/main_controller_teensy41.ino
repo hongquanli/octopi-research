@@ -5,11 +5,10 @@
 #include "TMC4361A_TMC2660_Utils.h"
 #include "crc8.h"
 
-#include "def_octopi.h"
-//#include "def_octopi_80120.h"
+//#include "def_octopi.h"
+#include "def_octopi_80120.h"
 //#include "def_gravitymachine.h"
 //#include "def_squid.h"
-//#include "def_platereader.h"
 //#include "def_squid_vertical.h"
 
 #define N_MOTOR 3

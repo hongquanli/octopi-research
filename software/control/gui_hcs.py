@@ -174,9 +174,17 @@ class OctopiGUI(QMainWindow):
 		clear_history_button=QPushButton("clear history")
 		clear_history_button.clicked.connect(self.navigationViewer.clear_imaged_positions)
 
+		wellplate_selector=QComboBox()
+		wellplate_type_names=[f"{i} well plate" for i in [6,12,24,96,384]]
+		wellplate_selector.addItems(wellplate_type_names)
+		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{WELLPLATE_FORMAT} well plate"))
+		wellplate_selector.currentIndexChanged.connect(lambda wellplate_type: self.set_wellplate_type(wellplate_type_names[wellplate_type]))
+ 
 		wellplate_overview_header=QHBoxLayout()
 		wellplate_overview_header.addWidget(QLabel("wellplate overview"))
 		wellplate_overview_header.addWidget(clear_history_button)
+		wellplate_overview_header.addWidget(QLabel("change plate type:"))
+		wellplate_overview_header.addWidget(wellplate_selector)
 
 		navigationviewer_widget=QVBoxLayout()
 		navigationviewer_widget.addLayout(wellplate_overview_header)
@@ -269,6 +277,10 @@ class OctopiGUI(QMainWindow):
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
 		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+
+	def set_wellplate_type(self,wellplate_type:str):
+		self.navigationViewer.set_wellplate_type(wellplate_type)
+		self.wellSelectionWidget.set_wellplate_type(wellplate_type)
 
 	def closeEvent(self, event):
 		

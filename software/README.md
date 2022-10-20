@@ -55,7 +55,6 @@ The following aspects are specified in the configuration file:
 - whether encoders are used and encoder-related settings (e.g. `USE_ENCODER_X`)
 - whether homing is enabled for a particular axis (e.g. `HOMING_ENABLED_X`)
 - whether tracking is enabled (`ENABLE_TRACKING`)
-- plate reader related definations (`class PLATE_READER`)
 
 ## Using the software
 Use one of the following to start the program
