@@ -27,11 +27,7 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load window
-		if ENABLE_TRACKING:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
-			self.imageDisplayWindow.show_ROI_selector()
-		else:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
+		self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
 		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
 
 		# image display windows
@@ -69,8 +65,6 @@ class OctopiGUI(QMainWindow):
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
-		if ENABLE_TRACKING:
-			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
 		self.imageDisplay = core.ImageDisplay()
 
@@ -90,13 +84,9 @@ class OctopiGUI(QMainWindow):
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-		if ENABLE_TRACKING:
-			self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
 		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
-		if ENABLE_TRACKING:
-			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
@@ -153,15 +143,11 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
 		self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
 		self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-		# self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
 		self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
 		self.navigationController.xPos.connect(self.navigationWidget.label_Xpos.setNum)
 		self.navigationController.yPos.connect(self.navigationWidget.label_Ypos.setNum)
 		self.navigationController.zPos.connect(self.navigationWidget.label_Zpos.setNum)
-		if ENABLE_TRACKING:
-			self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
-		else:
-			self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
+		self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)

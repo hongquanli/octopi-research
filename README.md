@@ -9,14 +9,11 @@ Applications include
 - slide scanner for digital pathology
 - time lapse imaging with 2D or 3D tiling
 - spatial omics that involves multicolor and multi-round imaging
-- tracking microscopy
 - computational microscopy, including label free microscopy using phase/polarization/reflectance + deep learning
 - super resolution microscopy
 - light sheet microscopy
 
 ## Assets
-- main software repo: [GitHub](https://github.com/hongquanli/octopi-research) (this repo)
-- tracking software repo: [GitHub](https://github.com/prakashlab/squid-tracking)
 - CAD models/photos of assembled squids: [Google Drive](https://drive.google.com/drive/folders/1JdVp34HtERGpBCBlFX6jFDwMUdeBLCEx?usp=sharing)
 - BOM for the microscope, including CAD files for CNC machining: [link](https://docs.google.com/spreadsheets/d/1WA64HySj9I7XROtTXuaRvjlbhHXRGspvoxb_20CWDR8/edit?usp=drivesdk)
 - BOM for the multicolor laser engine: [link](https://docs.google.com/spreadsheets/d/1hEM6PsxZPTp1LY3cpxUJOS3Q1YLQN-xniF33ZddFj9U/edit#gid=1175873468)
