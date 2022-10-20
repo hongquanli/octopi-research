@@ -25,12 +25,12 @@ class OctopiGUI(QMainWindow):
 	# variables
 	fps_software_trigger = 100
 
-	def __init__(self, is_simulation = False, *args, **kwargs):
+	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load window
 		if ENABLE_TRACKING:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.imageDisplayWindow:core.ImageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
 			self.imageDisplayWindow.show_ROI_selector()
 		else:
 			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -44,18 +44,13 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
 		# load objects
-		if is_simulation:
-			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.microcontroller = microcontroller.Microcontroller_Simulation()
-		else:
-			try:
-				self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-				self.camera.open()
-			except:
-				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-				self.camera.open()
-				print('! camera not detected, using simulated camera !')
-			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+		try:
+			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+			self.camera.open()
+		except Exception as e:
+			print('! camera not detected, using simulated camera !')
+			raise e
+		self.microcontroller:microcontroller.Microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 
 		# reset the MCU
 		self.microcontroller.reset()
@@ -63,19 +58,19 @@ class OctopiGUI(QMainWindow):
 		# configure the actuators
 		self.microcontroller.configure_actuators()
 			
-		self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
-		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
-		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-		self.navigationController = core.NavigationController(self.microcontroller)
-		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
-		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.scanCoordinates = core.ScanCoordinates()
-		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
+		self.configurationManager:core.ConfigurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+		self.streamHandler:core.StreamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
+		self.liveController:core.LiveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
+		self.navigationController:core.NavigationController = core.NavigationController(self.microcontroller)
+		self.slidePositionController:core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+		self.autofocusController:core.AutoFocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
+		self.scanCoordinates:core.ScanCoordinates = core.ScanCoordinates()
+		self.multipointController:core.MultiPointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
-		self.imageSaver = core.ImageSaver()
-		self.imageDisplay = core.ImageDisplay()
-		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
+		self.imageSaver:core.ImageSaver = core.ImageSaver()
+		self.imageDisplay:core.ImageDisplay = core.ImageDisplay()
+		self.navigationViewer:core.NavigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
 
 		if HOMING_ENABLED_Z:
 			# retract the objective
@@ -177,6 +172,10 @@ class OctopiGUI(QMainWindow):
 		wellplate_selector=QComboBox()
 		wellplate_type_names=[f"{i} well plate" for i in [6,12,24,96,384]]
 		wellplate_selector.addItems(wellplate_type_names)
+		# disable 6 and 24 well wellplates, because the images displaying them are missing
+		for wpt in [0,2]:
+			item=wellplate_selector.model().item(wpt)
+			item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{WELLPLATE_FORMAT} well plate"))
 		wellplate_selector.currentIndexChanged.connect(lambda wellplate_type: self.set_wellplate_type(wellplate_type_names[wellplate_type]))
  

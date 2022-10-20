@@ -1,7 +1,8 @@
 # set QT_API environment variable
 import os 
 os.environ["QT_API"] = "pyqt5"
-import qtpy
+
+import core
 
 # qt libraries
 from qtpy.QtCore import *
@@ -14,7 +15,7 @@ from datetime import datetime
 
 from control._def import *
 
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 class CameraSettingsWidget(QFrame):
 
@@ -145,13 +146,22 @@ class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
-    def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=True, show_autolevel = False, autolevel=False, main=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+
+    def __init__(self, 
+        streamHandler, 
+        liveController:core.LiveController,
+        configurationManager:core.ConfigurationManager, 
+        show_trigger_options:bool=True, 
+        show_display_options:bool=True, 
+        show_autolevel:bool = False, 
+        autolevel:bool=False
+    ):
+        super().__init__()
         self.liveController = liveController
         self.streamHandler = streamHandler
         self.configurationManager = configurationManager
-        self.fps_trigger = 10
-        self.fps_display = 10
+        self.fps_trigger:float = 10
+        self.fps_display:float = 10
         self.liveController.set_trigger_fps(self.fps_trigger)
         self.streamHandler.set_display_fps(self.fps_display)
         
@@ -165,7 +175,12 @@ class LiveControlWidget(QFrame):
 
         self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
-    def add_components(self,show_trigger_options,show_display_options,show_autolevel,autolevel):
+    def add_components(self,
+        show_trigger_options:bool,
+        show_display_options:bool,
+        show_autolevel:bool,
+        autolevel:bool
+    ):
         # line 0: trigger mode
         self.triggerMode = None
         self.dropdown_triggerManu = QComboBox()
@@ -292,7 +307,7 @@ class LiveControlWidget(QFrame):
         self.grid.addStretch()
         self.setLayout(self.grid)
 
-    def toggle_live(self,pressed):
+    def toggle_live(self,pressed:bool):
         if pressed:
             self.btn_live.setText(LIVE_BUTTON_RUNNING_TEXT)
             self.liveController.start_live()
@@ -304,7 +319,7 @@ class LiveControlWidget(QFrame):
         self.signal_newAnalogGain.emit(self.entry_analogGain.value())
         self.signal_newExposureTime.emit(self.entry_exposureTime.value())
 
-    def update_microscope_mode_by_name(self,current_microscope_mode_name):
+    def update_microscope_mode_by_name(self,current_microscope_mode_name:str):
         self.is_switching_mode = True
         # identify the mode selected (note that this references the object in self.configurationManager.configurations)
         self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
@@ -319,7 +334,7 @@ class LiveControlWidget(QFrame):
     def update_trigger_mode(self):
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
-    def update_config_exposure_time(self,new_value):
+    def update_config_exposure_time(self,new_value:float):
         if self.is_switching_mode == False:
             self.currentConfiguration.exposure_time = new_value
             self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
@@ -1313,349 +1328,21 @@ class TrackingControllerWidget(QFrame):
             self.btn_startAcquisition.setEnabled(enabled)
     '''
 
-class TriggerControlWidget(QFrame):
-    # for synchronized trigger 
-    signal_toggle_live = Signal(bool)
-    signal_trigger_mode = Signal(str)
-    signal_trigger_fps = Signal(float)
-
-    def __init__(self, microcontroller2):
-        super().__init__()
-        self.fps_trigger = 10
-        self.fps_display = 10
-        self.microcontroller2 = microcontroller2
-        self.triggerMode = TriggerMode.SOFTWARE
-        self.add_components()
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-    def add_components(self):
-        # line 0: trigger mode
-        self.triggerMode = None
-        self.dropdown_triggerManu = QComboBox()
-        self.dropdown_triggerManu.addItems([TriggerMode.SOFTWARE,TriggerMode.HARDWARE])
-
-        # line 1: fps
-        self.entry_triggerFPS = QDoubleSpinBox()
-        self.entry_triggerFPS.setMinimum(0.02) 
-        self.entry_triggerFPS.setMaximum(1000) 
-        self.entry_triggerFPS.setSingleStep(1)
-        self.entry_triggerFPS.setValue(self.fps_trigger)
-
-        self.btn_live = QPushButton("Live")
-        self.btn_live.setCheckable(True)
-        self.btn_live.setChecked(False)
-        self.btn_live.setDefault(False)
-
-        # connections
-        self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
-        self.btn_live.clicked.connect(self.toggle_live)
-        self.entry_triggerFPS.valueChanged.connect(self.update_trigger_fps)
-
-        # inititialization
-        self.microcontroller2.set_camera_trigger_frequency(self.fps_trigger)
-
-        # layout
-        grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('Trigger Mode'), 0,0)
-        grid_line0.addWidget(self.dropdown_triggerManu, 0,1)
-        grid_line0.addWidget(QLabel('Trigger FPS'), 0,2)
-        grid_line0.addWidget(self.entry_triggerFPS, 0,3)
-        grid_line0.addWidget(self.btn_live, 1,0,1,4)
-        self.setLayout(grid_line0)
-
-    def toggle_live(self,pressed):
-        self.signal_toggle_live.emit(pressed)
-        if pressed:
-            self.microcontroller2.start_camera_trigger()
-        else:
-            self.microcontroller2.stop_camera_trigger()
-
-    def update_trigger_mode(self):
-        self.signal_trigger_mode.emit(self.dropdown_triggerManu.currentText())
-
-    def update_trigger_fps(self,fps):
-        self.fps_trigger = fps
-        self.signal_trigger_fps.emit(fps)
-        self.microcontroller2.set_camera_trigger_frequency(self.fps_trigger)
-
-class MultiCameraRecordingWidget(QFrame):
-    def __init__(self, streamHandler, imageSaver, channels, main=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.imageSaver = imageSaver # for saving path control
-        self.streamHandler = streamHandler
-        self.channels = channels
-        self.base_path_is_set = False
-        self.add_components()
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-    def add_components(self):
-        self.btn_setSavingDir = QPushButton('Browse')
-        self.btn_setSavingDir.setDefault(False)
-        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        
-        self.lineEdit_savingDir = QLineEdit()
-        self.lineEdit_savingDir.setReadOnly(True)
-        self.lineEdit_savingDir.setText('Choose a base saving directory')
-
-        self.lineEdit_experimentID = QLineEdit()
-
-        self.entry_saveFPS = QDoubleSpinBox()
-        self.entry_saveFPS.setMinimum(0.02) 
-        self.entry_saveFPS.setMaximum(1000) 
-        self.entry_saveFPS.setSingleStep(1)
-        self.entry_saveFPS.setValue(1)
-        for channel in self.channels:
-            self.streamHandler[channel].set_save_fps(1)
-
-        self.entry_timeLimit = QSpinBox()
-        self.entry_timeLimit.setMinimum(-1) 
-        self.entry_timeLimit.setMaximum(60*60*24*30) 
-        self.entry_timeLimit.setSingleStep(1)
-        self.entry_timeLimit.setValue(-1)
-
-        self.btn_record = QPushButton("Record")
-        self.btn_record.setCheckable(True)
-        self.btn_record.setChecked(False)
-        self.btn_record.setDefault(False)
-
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Saving Path'))
-        grid_line1.addWidget(self.lineEdit_savingDir, 0,1)
-        grid_line1.addWidget(self.btn_setSavingDir, 0,2)
-
-        grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('Experiment ID'), 0,0)
-        grid_line2.addWidget(self.lineEdit_experimentID,0,1)
-
-        grid_line3 = QGridLayout()
-        grid_line3.addWidget(QLabel('Saving FPS'), 0,0)
-        grid_line3.addWidget(self.entry_saveFPS, 0,1)
-        grid_line3.addWidget(QLabel('Time Limit (s)'), 0,2)
-        grid_line3.addWidget(self.entry_timeLimit, 0,3)
-        grid_line3.addWidget(self.btn_record, 0,4)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line1,0,0)
-        self.grid.addLayout(grid_line2,1,0)
-        self.grid.addLayout(grid_line3,2,0)
-        self.setLayout(self.grid)
-
-        # add and display a timer - to be implemented
-        # self.timer = QTimer()
-
-        # connections
-        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
-        self.btn_record.clicked.connect(self.toggle_recording)
-        for channel in self.channels:
-            self.entry_saveFPS.valueChanged.connect(self.streamHandler[channel].set_save_fps)
-            self.entry_timeLimit.valueChanged.connect(self.imageSaver[channel].set_recording_time_limit)
-            self.imageSaver[channel].stop_recording.connect(self.stop_recording)
-
-    def set_saving_dir(self):
-        dialog = QFileDialog()
-        save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
-        for channel in self.channels:
-            self.imageSaver[channel].set_base_path(save_dir_base)
-        self.lineEdit_savingDir.setText(save_dir_base)
-        self.save_dir_base = save_dir_base
-        self.base_path_is_set = True
-
-    def toggle_recording(self,pressed):
-        if self.base_path_is_set == False:
-            self.btn_record.setChecked(False)
-            msg = QMessageBox()
-            msg.setText("Please choose base saving directory first")
-            msg.exec_()
-            return
-        if pressed:
-            self.lineEdit_experimentID.setEnabled(False)
-            self.btn_setSavingDir.setEnabled(False)
-            experiment_ID = self.lineEdit_experimentID.text()
-            experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
-            os.mkdir(os.path.join(self.save_dir_base,experiment_ID))
-            for channel in self.channels:
-                self.imageSaver[channel].start_new_experiment(os.path.join(experiment_ID,channel),add_timestamp=False)
-                self.streamHandler[channel].start_recording()
-        else:
-            for channel in self.channels:
-                self.streamHandler[channel].stop_recording()
-            self.lineEdit_experimentID.setEnabled(True)
-            self.btn_setSavingDir.setEnabled(True)
-
-    # stop_recording can be called by imageSaver
-    def stop_recording(self):
-        self.lineEdit_experimentID.setEnabled(True)
-        self.btn_record.setChecked(False)
-        for channel in self.channels:
-            self.streamHandler[channel].stop_recording()
-        self.btn_setSavingDir.setEnabled(True)
-
-class WaveformDisplay(QFrame):
-
-    def __init__(self, N=1000, main=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.N = N
-        self.add_components()
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-    def add_components(self):
-        self.plotWidget = {}
-        self.plotWidget['X'] = PlotWidget('X', N=self.N, add_legend=True)
-        self.plotWidget['Y'] = PlotWidget('X', N=self.N, add_legend=True)
-
-        layout = QGridLayout() #layout = QStackedLayout()
-        layout.addWidget(self.plotWidget['X'],0,0)
-        layout.addWidget(self.plotWidget['Y'],1,0)
-        self.setLayout(layout)
-
-    def plot(self,time,data):
-        self.plotWidget['X'].plot(time,data[0,:],'X',color=(255,255,255),clear=True)
-        self.plotWidget['Y'].plot(time,data[1,:],'Y 1',color=(255,255,255),clear=True)
-
-    def update_N(self,N):
-        self.N = N
-        self.plotWidget['X'].update_N(N)
-        self.plotWidget['Y'].update_N(N)
-
-class PlotWidget(pg.GraphicsLayoutWidget):
-    
-    def __init__(self, title='', N = 1000, parent=None,add_legend=False):
-        super().__init__(parent)
-        self.plotWidget = self.addPlot(title = '', axisItems = {'bottom': pg.DateAxisItem()})
-        if add_legend:
-            self.plotWidget.addLegend()
-        self.N = N
-    
-    def plot(self,x,y,label,color,clear=False):
-        self.plotWidget.plot(x[-self.N:],y[-self.N:],pen=pg.mkPen(color=color,width=2),name=label,clear=clear)
-
-    def update_N(self,N):
-        self.N = N
-
-class DisplacementMeasurementWidget(QFrame):
-    def __init__(self, displacementMeasurementController, waveformDisplay, main=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.displacementMeasurementController = displacementMeasurementController
-        self.waveformDisplay = waveformDisplay
-        self.add_components()
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-    def add_components(self):
-        self.entry_x_offset = QDoubleSpinBox()
-        self.entry_x_offset.setMinimum(0) 
-        self.entry_x_offset.setMaximum(3000) 
-        self.entry_x_offset.setSingleStep(0.2)
-        self.entry_x_offset.setDecimals(3)
-        self.entry_x_offset.setValue(0)
-        self.entry_x_offset.setKeyboardTracking(False)
-
-        self.entry_y_offset = QDoubleSpinBox()
-        self.entry_y_offset.setMinimum(0) 
-        self.entry_y_offset.setMaximum(3000) 
-        self.entry_y_offset.setSingleStep(0.2)
-        self.entry_y_offset.setDecimals(3)
-        self.entry_y_offset.setValue(0)
-        self.entry_y_offset.setKeyboardTracking(False)
-
-        self.entry_x_scaling = QDoubleSpinBox()
-        self.entry_x_scaling.setMinimum(-100) 
-        self.entry_x_scaling.setMaximum(100) 
-        self.entry_x_scaling.setSingleStep(0.1)
-        self.entry_x_scaling.setDecimals(3)
-        self.entry_x_scaling.setValue(1)
-        self.entry_x_scaling.setKeyboardTracking(False)
-
-        self.entry_y_scaling = QDoubleSpinBox()
-        self.entry_y_scaling.setMinimum(-100) 
-        self.entry_y_scaling.setMaximum(100) 
-        self.entry_y_scaling.setSingleStep(0.1)
-        self.entry_y_scaling.setDecimals(3)
-        self.entry_y_scaling.setValue(1)
-        self.entry_y_scaling.setKeyboardTracking(False)
-
-        self.entry_N_average = QSpinBox()
-        self.entry_N_average.setMinimum(1) 
-        self.entry_N_average.setMaximum(25) 
-        self.entry_N_average.setSingleStep(1)
-        self.entry_N_average.setValue(1)
-        self.entry_N_average.setKeyboardTracking(False)
-
-        self.entry_N = QSpinBox()
-        self.entry_N.setMinimum(1) 
-        self.entry_N.setMaximum(5000) 
-        self.entry_N.setSingleStep(1)
-        self.entry_N.setValue(1000)
-        self.entry_N.setKeyboardTracking(False)
-
-        self.reading_x = QLabel()
-        self.reading_x.setNum(0)
-        self.reading_x.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-
-        self.reading_y = QLabel()
-        self.reading_y.setNum(0)
-        self.reading_y.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-
-        # layout
-        grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('x offset'), 0,0)
-        grid_line0.addWidget(self.entry_x_offset, 0,1)
-        grid_line0.addWidget(QLabel('x scaling'), 0,2)
-        grid_line0.addWidget(self.entry_x_scaling, 0,3)
-        grid_line0.addWidget(QLabel('y offset'), 0,4)
-        grid_line0.addWidget(self.entry_y_offset, 0,5)
-        grid_line0.addWidget(QLabel('y scaling'), 0,6)
-        grid_line0.addWidget(self.entry_y_scaling, 0,7)
-        
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('d from x'), 0,0)
-        grid_line1.addWidget(self.reading_x, 0,1)
-        grid_line1.addWidget(QLabel('d from y'), 0,2)
-        grid_line1.addWidget(self.reading_y, 0,3)
-        grid_line1.addWidget(QLabel('N average'), 0,4)
-        grid_line1.addWidget(self.entry_N_average, 0,5)
-        grid_line1.addWidget(QLabel('N'), 0,6)
-        grid_line1.addWidget(self.entry_N, 0,7)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
-        self.setLayout(self.grid)
-        
-        # connections
-        self.entry_x_offset.valueChanged.connect(self.update_settings)
-        self.entry_y_offset.valueChanged.connect(self.update_settings)
-        self.entry_x_scaling.valueChanged.connect(self.update_settings)
-        self.entry_y_scaling.valueChanged.connect(self.update_settings)
-        self.entry_N_average.valueChanged.connect(self.update_settings)
-        self.entry_N.valueChanged.connect(self.update_settings)
-        self.entry_N.valueChanged.connect(self.update_waveformDisplay_N)
-
-    def update_settings(self,new_value):
-        print('update settings')
-        self.displacementMeasurementController.update_settings(self.entry_x_offset.value(),self.entry_y_offset.value(),self.entry_x_scaling.value(),self.entry_y_scaling.value(),self.entry_N_average.value(),self.entry_N.value())
-    
-    def update_waveformDisplay_N(self,N):    
-        self.waveformDisplay.update_N(N)
-
-    def display_readings(self,readings):
-        self.reading_x.setText("{:.2f}".format(readings[0]))
-        self.reading_y.setText("{:.2f}".format(readings[1]))
-
 class WellSelectionWidget(QTableWidget):
  
     signal_wellSelected = Signal(int,int,float)
     signal_wellSelectedPos = Signal(float,float)
  
-    def __init__(self, format):
+    def __init__(self, format: int):
         self.was_initialized=False
         self.set_wellplate_type(format)
         self.was_initialized=True
  
     def set_wellplate_type(self,wellplate_type:Union[str,int]):
         if type(wellplate_type)==str:
-            wellplate_type_int=int(wellplate_type.split(" ")[0])
+            wellplate_type_int:int=int(wellplate_type.split(" ")[0])  # type: ignore
         else:
-            wellplate_type_int=wellplate_type
+            wellplate_type_int:int=wellplate_type # type: ignore
  
         wellplate_type_format=WELLPLATE_FORMATS[wellplate_type_int]
         self.rows = wellplate_type_format.rows
@@ -1666,7 +1353,7 @@ class WellSelectionWidget(QTableWidget):
             old_layout=WELLPLATE_FORMATS[self.format]
             self.set_selectable_widgets(layout=old_layout,is_selectable=True,exhaustive=True)
  
-            self.format=wellplate_type_int
+            self.format:int=wellplate_type_int
  
             self.setRowCount(self.rows)
             self.setColumnCount(self.columns)
@@ -1741,7 +1428,7 @@ class WellSelectionWidget(QTableWidget):
         elif wellplate_format.number_of_skip>1:
             assert False, "more than one layer of disabled outer wells is currently unimplemented"
  
-    def onDoubleClick(self,row,col):
+    def onDoubleClick(self,row:int,col:int):
         wellplate_format=WELLPLATE_FORMATS[self.format]
  
         if (row >= 0 + wellplate_format.number_of_skip and row <= self.rows-1-wellplate_format.number_of_skip ) and ( col >= 0 + wellplate_format.number_of_skip and col <= self.columns-1-wellplate_format.number_of_skip ):
@@ -1750,8 +1437,8 @@ class WellSelectionWidget(QTableWidget):
             y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + row*wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
  
-    def get_selected_cells(self):
+    def get_selected_cells(self) -> List[Tuple[int,int]]:
         list_of_selected_cells = []
         for index in self.selectedIndexes():
              list_of_selected_cells.append((index.row(),index.column()))
-        return(list_of_selected_cells)
+        return list_of_selected_cells

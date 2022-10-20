@@ -30,6 +30,9 @@ import pandas as pd
 
 import imageio as iio
 
+from typing import Optional, List, Union, Tuple
+import widgets
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -175,18 +178,18 @@ class ImageSaver(QObject):
 
     def __init__(self,image_format=Acquisition.IMAGE_FORMAT):
         QObject.__init__(self)
-        self.base_path = './'
-        self.experiment_ID = ''
+        self.base_path:str = './'
+        self.experiment_ID:str = ''
         self.image_format = image_format
-        self.max_num_image_per_folder = 1000
-        self.queue = Queue(10) # max 10 items in the queue
-        self.image_lock = Lock()
-        self.stop_signal_received = False
+        self.max_num_image_per_folder:int = 1000
+        self.queue:Queue = Queue(10) # max 10 items in the queue
+        self.image_lock:Lock = Lock()
+        self.stop_signal_received:bool = False
         self.thread = Thread(target=self.process_queue)
         self.thread.start()
-        self.counter = 0
-        self.recording_start_time = 0
-        self.recording_time_limit = -1
+        self.counter:int = 0
+        self.recording_start_time:float = 0.0
+        self.recording_time_limit:float = -1.0
 
     def process_queue(self):
         while True:
@@ -232,7 +235,7 @@ class ImageSaver(QObject):
     def set_recording_time_limit(self,time_limit):
         self.recording_time_limit = time_limit
 
-    def start_new_experiment(self,experiment_ID,add_timestamp=True):
+    def start_new_experiment(self,experiment_ID:str,add_timestamp:bool=True):
         if add_timestamp:
             # generate unique experiment ID
             self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
@@ -255,15 +258,15 @@ class ImageSaver(QObject):
 
 
 class ImageSaver_Tracking(QObject):
-    def __init__(self,base_path,image_format='bmp'):
+    def __init__(self,base_path,image_format:str='bmp'):
         QObject.__init__(self)
-        self.base_path = base_path
-        self.image_format = image_format
-        self.max_num_image_per_folder = 1000
-        self.queue = Queue(100) # max 100 items in the queue
-        self.image_lock = Lock()
-        self.stop_signal_received = False
-        self.thread = Thread(target=self.process_queue)
+        self.base_path:str = base_path
+        self.image_format:str = image_format
+        self.max_num_image_per_folder:int = 1000
+        self.queue:Queue = Queue(100) # max 100 items in the queue
+        self.image_lock:Lock = Lock()
+        self.stop_signal_received:bool = False
+        self.thread:Thread = Thread(target=self.process_queue)
         self.thread.start()
 
     def process_queue(self):
@@ -355,27 +358,36 @@ class Configuration:
     def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
         self.id = mode_id
         self.name = name
-        self.exposure_time = exposure_time
-        self.analog_gain = analog_gain
-        self.illumination_source = illumination_source
-        self.illumination_intensity = illumination_intensity
+        self.exposure_time:float = exposure_time
+        self.analog_gain:float = analog_gain
+        self.illumination_source:int = illumination_source
+        self.illumination_intensity:float = illumination_intensity
         self.camera_sn = camera_sn
 
+import microcontroller
+import core
+import camera
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True,use_internal_timer_for_hardware_trigger=True):
+    def __init__(self,
+        camera:camera.Camera,
+        microcontroller:microcontroller.Microcontroller,
+        configurationManager:core.ConfigurationManager,
+        control_illumination:bool=True,
+        use_internal_timer_for_hardware_trigger:bool=True
+    ):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
-        self.configurationManager = configurationManager
-        self.currentConfiguration = None
+        self.configurationManager:core.ConfigurationManager = configurationManager
+        self.currentConfiguration:Optional[Configuration] = None
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
-        self.is_live = False
+        self.is_live:bool = False
         self.control_illumination = control_illumination
-        self.illumination_on = False
+        self.illumination_on:bool = False
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
 
-        self.fps_trigger = 1;
+        self.fps_trigger = 1
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
 
         self.timer_trigger = QTimer()
@@ -399,7 +411,7 @@ class LiveController(QObject):
         self.microcontroller.turn_off_illumination()
         self.illumination_on = False
 
-    def set_illumination(self,illumination_source,intensity):
+    def set_illumination(self,illumination_source:int,intensity:int):
         if illumination_source < 10: # LED matrix
             self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
@@ -458,7 +470,7 @@ class LiveController(QObject):
         self.timer_trigger.stop()
 
     # trigger mode and settings
-    def set_trigger_mode(self,mode):
+    def set_trigger_mode(self,mode:TriggerMode):
         if mode == TriggerMode.SOFTWARE:
             if self.is_live and ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
@@ -485,7 +497,7 @@ class LiveController(QObject):
     
     # set microscope mode
     # @@@ to do: change softwareTriggerGenerator to TriggerGeneratror
-    def set_microscope_mode(self,configuration):
+    def set_microscope_mode(self,configuration:Configuration):
 
         self.currentConfiguration = configuration
         print("setting microscope mode to " + self.currentConfiguration.name)
@@ -531,7 +543,7 @@ class NavigationController(QObject):
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
 
-    def __init__(self,microcontroller):
+    def __init__(self,microcontroller:microcontroller.Microcontroller):
         QObject.__init__(self)
         self.microcontroller = microcontroller
         self.x_pos_mm = 0
@@ -543,7 +555,7 @@ class NavigationController(QObject):
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
-        self.enable_joystick_button_action = True
+        self.enable_joystick_button_action:bool = True
 
         # to be moved to gui for transparency
         self.microcontroller.set_callback(self.update_pos)
@@ -690,7 +702,7 @@ class SlidePositionControlWorker(QObject):
     signal_stop_live = Signal()
     signal_resume_live = Signal()
 
-    def __init__(self,slidePositionController,home_x_and_y_separately=False):
+    def __init__(self,slidePositionController:core.SlidePositionController,home_x_and_y_separately:bool=False):
         QObject.__init__(self)
         self.slidePositionController = slidePositionController
         self.navigationController = slidePositionController.navigationController
@@ -793,11 +805,11 @@ class SlidePositionController(QObject):
 
     def __init__(self,navigationController,liveController):
         QObject.__init__(self)
-        self.navigationController = navigationController
-        self.liveController = liveController
-        self.slide_loading_position_reached = False
-        self.slide_scanning_position_reached = False
-        self.homing_done = False
+        self.navigationController:core.NavigationController = navigationController
+        self.liveController:core.LiveController = liveController
+        self.slide_loading_position_reached:bool = False
+        self.slide_scanning_position_reached:bool = False
+        self.homing_done:bool = False
 
     def move_to_slide_loading_position(self):
         # create a QThread object
@@ -848,7 +860,7 @@ class AutofocusWorker(QObject):
     image_to_display = Signal(np.ndarray)
     # signal_current_configuration = Signal(Configuration)
 
-    def __init__(self,autofocusController):
+    def __init__(self,autofocusController:core.AutoFocusController):
         QObject.__init__(self)
         self.autofocusController = autofocusController
 
@@ -936,33 +948,35 @@ class AutofocusWorker(QObject):
         if idx_in_focus == self.N-1:
             print('moved to the top end of the AF range')
 
+import camera
+
 class AutoFocusController(QObject):
 
     z_pos = Signal(float)
     autofocusFinished = Signal()
     image_to_display = Signal(np.ndarray)
 
-    def __init__(self,camera,navigationController,liveController):
+    def __init__(self,camera:camera.Camera,navigationController:core.NavigationController,liveController:core.LiveController):
         QObject.__init__(self)
         self.camera = camera
-        self.navigationController = navigationController
-        self.liveController = liveController
+        self.navigationController:core.NavigationController = navigationController
+        self.liveController:core.LiveController = liveController
         self.N = None
         self.deltaZ = None
         self.deltaZ_usteps = None
-        self.crop_width = AF.CROP_WIDTH
-        self.crop_height = AF.CROP_HEIGHT
-        self.autofocus_in_progress = False
+        self.crop_width:int = AF.CROP_WIDTH
+        self.crop_height:int = AF.CROP_HEIGHT
+        self.autofocus_in_progress:bool = False
 
     def set_N(self,N):
         self.N = N
 
-    def set_deltaZ(self,deltaZ_um):
+    def set_deltaZ(self,deltaZ_um:float):
         mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 
-    def set_crop(self,crop_width,crop_height):
+    def set_crop(self,crop_width:int,crop_height:int):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -1042,13 +1056,12 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,multiPointController):
+    def __init__(self,multiPointController:core.MultiPointController):
         QObject.__init__(self)
         self.multiPointController = multiPointController
 
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
-        self.usb_spectrometer = self.multiPointController.usb_spectrometer
         self.navigationController = self.multiPointController.navigationController
         self.liveController = self.multiPointController.liveController
         self.autofocusController = self.multiPointController.autofocusController
@@ -1244,12 +1257,7 @@ class MultiPointWorker(QObject):
                                     cv2.imwrite(saving_path,image)
                                 QApplication.processEvents()
                             else:
-                                if self.usb_spectrometer != None:
-                                    for l in range(N_SPECTRUM_PER_POINT):
-                                        data = self.usb_spectrometer.read_spectrum()
-                                        self.spectrum_to_display.emit(data)
-                                        saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
-                                        np.savetxt(saving_path,data,delimiter=',')
+                                pass
 
                         # add the coordinate of the current location
                         coordinates_pd = pd.concat([
@@ -1346,6 +1354,42 @@ class MultiPointWorker(QObject):
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
 
+class ScanCoordinates(object):
+    def __init__(self):
+        self.coordinates_mm = []
+        self.name = []
+        self.well_selector:Optional[widgets.WellSelectionWidget] = None
+
+    def add_well_selector(self,well_selector:widgets.WellSelectionWidget):
+        self.well_selector = well_selector
+
+    def get_selected_wells(self):
+        # get selected wells from the widget
+        assert not self.well_selector is None
+        selected_wells = self.well_selector.get_selected_cells()
+        selected_wells = np.array(selected_wells)
+        # clear the previous selection
+        self.coordinates_mm = []
+        self.name = []
+        # populate the coordinates
+        rows = np.unique(selected_wells[:,0])
+        _increasing = True
+        for row in rows:
+            items = selected_wells[selected_wells[:,0]==row]
+            columns = items[:,1]
+            columns = np.sort(columns)
+            if _increasing==False:
+                columns = np.flip(columns)
+            for column in columns:
+                wellplateformat_384=WELLPLATE_FORMATS[384]
+                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+                self.coordinates_mm.append((x_mm,y_mm))
+                self.name.append(chr(ord('A')+row)+str(column+1))
+            _increasing = not _increasing
+
+import camera
+
 class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
@@ -1355,7 +1399,14 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None):
+    def __init__(self,
+        camera:camera.Camera,
+        navigationController:core.NavigationController,
+        liveController:core.LiveController,
+        autofocusController:core.AutoFocusController,
+        configurationManager:core.ConfigurationManager,
+        scanCoordinates:Optional[ScanCoordinates]=None
+    ):
         QObject.__init__(self)
 
         self.camera = camera
@@ -1383,10 +1434,9 @@ class MultiPointController(QObject):
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
         self.counter = 0
-        self.experiment_ID = None
-        self.base_path = None
+        self.experiment_ID: Optional[str] = None
+        self.base_path  = None
         self.selected_configurations = []
-        self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
         self.autofocus_channel_name=MULTIPOINT_AUTOFOCUS_CHANNEL
 
@@ -1465,13 +1515,6 @@ class MultiPointController(QObject):
         else:
             self.camera_callback_was_enabled_before_multipoint = False
 
-        if self.usb_spectrometer != None:
-            if self.usb_spectrometer.streaming_started == True and self.usb_spectrometer.streaming_paused == False:
-                self.usb_spectrometer.pause_streaming()
-                self.usb_spectrometer_was_streaming = True
-            else:
-                self.usb_spectrometer_was_streaming = False
-
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
@@ -1507,10 +1550,6 @@ class MultiPointController(QObject):
         # re-enable live if it's previously on
         if self.liveController_was_live_before_multipoint:
             self.liveController.start_live()
-
-        if self.usb_spectrometer != None:
-            if self.usb_spectrometer_was_streaming:
-                self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
         self.acquisitionFinished.emit()
@@ -2229,10 +2268,10 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename=str(Path.home()) + "/configurations_default.xml"):
+    def __init__(self,filename=str(Path.home() / "configurations_default.xml")):
         QObject.__init__(self)
-        self.config_filename = filename
-        self.configurations = []
+        self.config_filename:str = filename
+        self.configurations:List[Configuration] = []
         self.read_configurations()
         
     def save_configurations(self):
@@ -2265,36 +2304,3 @@ class ConfigurationManager(QObject):
         mode_to_update = list[0]
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
-
-class ScanCoordinates(object):
-    def __init__(self):
-        self.coordinates_mm = []
-        self.name = []
-        self.well_selector = None
-
-    def add_well_selector(self,well_selector):
-        self.well_selector = well_selector
-
-    def get_selected_wells(self):
-        # get selected wells from the widget
-        selected_wells = self.well_selector.get_selected_cells()
-        selected_wells = np.array(selected_wells)
-        # clear the previous selection
-        self.coordinates_mm = []
-        self.name = []
-        # populate the coordinates
-        rows = np.unique(selected_wells[:,0])
-        _increasing = True
-        for row in rows:
-            items = selected_wells[selected_wells[:,0]==row]
-            columns = items[:,1]
-            columns = np.sort(columns)
-            if _increasing==False:
-                columns = np.flip(columns)
-            for column in columns:
-                wellplateformat_384=WELLPLATE_FORMATS[384]
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
-                self.coordinates_mm.append((x_mm,y_mm))
-                self.name.append(chr(ord('A')+row)+str(column+1))
-            _increasing = not _increasing

@@ -101,7 +101,7 @@ class Microcontroller():
         cmd[1] = CMD_SET.TURN_OFF_ILLUMINATION
         self.send_command(cmd)
 
-    def set_illumination(self,illumination_source,intensity,r=None,g=None,b=None):
+    def set_illumination(self,illumination_source,intensity:int,r=None,g=None,b=None):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION
         cmd[2] = illumination_source
