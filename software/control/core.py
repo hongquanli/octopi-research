@@ -30,7 +30,7 @@ import pandas as pd
 import imageio as iio
 
 from typing import Optional, List, Union, Tuple
-import widgets
+import control.widgets as widgets
 
 import microcontroller
 import camera
