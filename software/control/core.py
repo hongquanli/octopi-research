@@ -42,7 +42,11 @@ class StreamHandler(QObject):
     packet_image_for_tracking = Signal(np.ndarray, int, float)
     signal_new_frame_received = Signal()
 
-    def __init__(self,crop_width=Acquisition.CROP_WIDTH,crop_height=Acquisition.CROP_HEIGHT,display_resolution_scaling=1):
+    def __init__(self,
+        crop_width:int=Acquisition.CROP_WIDTH,
+        crop_height:int=Acquisition.CROP_HEIGHT,
+        display_resolution_scaling:float=1.0
+    ):
         QObject.__init__(self)
         self.fps_display = 1
         self.fps_save = 1
@@ -691,7 +695,7 @@ class SlidePositionControlWorker(QObject):
     signal_stop_live = Signal()
     signal_resume_live = Signal()
 
-    def __init__(self,slidePositionController:core.SlidePositionController,home_x_and_y_separately:bool=False):
+    def __init__(self,slidePositionController,home_x_and_y_separately:bool=False):
         QObject.__init__(self)
         self.slidePositionController = slidePositionController
         self.navigationController = slidePositionController.navigationController
@@ -794,8 +798,8 @@ class SlidePositionController(QObject):
 
     def __init__(self,navigationController,liveController):
         QObject.__init__(self)
-        self.navigationController:core.NavigationController = navigationController
-        self.liveController:core.LiveController = liveController
+        self.navigationController:NavigationController = navigationController
+        self.liveController:LiveController = liveController
         self.slide_loading_position_reached:bool = False
         self.slide_scanning_position_reached:bool = False
         self.homing_done:bool = False
@@ -849,7 +853,7 @@ class AutofocusWorker(QObject):
     image_to_display = Signal(np.ndarray)
     # signal_current_configuration = Signal(Configuration)
 
-    def __init__(self,autofocusController:core.AutoFocusController):
+    def __init__(self,autofocusController):
         QObject.__init__(self)
         self.autofocusController = autofocusController
 
@@ -943,11 +947,11 @@ class AutoFocusController(QObject):
     autofocusFinished = Signal()
     image_to_display = Signal(np.ndarray)
 
-    def __init__(self,camera:camera.Camera,navigationController:core.NavigationController,liveController:core.LiveController):
+    def __init__(self,camera:camera.Camera,navigationController:NavigationController,liveController:LiveController):
         QObject.__init__(self)
         self.camera = camera
-        self.navigationController:core.NavigationController = navigationController
-        self.liveController:core.LiveController = liveController
+        self.navigationController = navigationController
+        self.liveController = liveController
         self.N = None
         self.deltaZ = None
         self.deltaZ_usteps = None
@@ -1043,7 +1047,7 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,multiPointController:core.MultiPointController):
+    def __init__(self,multiPointController):
         QObject.__init__(self)
         self.multiPointController = multiPointController
 
@@ -1342,13 +1346,11 @@ class MultiPointWorker(QObject):
         self.navigationController.enable_joystick_button_action = True
 
 class ScanCoordinates(object):
-    def __init__(self):
+    def __init__(self,well_selector,navigation_viewer):
         self.coordinates_mm = []
         self.name = []
-        self.well_selector:Optional[widgets.WellSelectionWidget] = None
-
-    def add_well_selector(self,well_selector:widgets.WellSelectionWidget):
         self.well_selector = well_selector
+        self.navigation_viewer=navigation_viewer
 
     def get_selected_wells(self):
         # get selected wells from the widget
@@ -1361,18 +1363,31 @@ class ScanCoordinates(object):
         # populate the coordinates
         rows = np.unique(selected_wells[:,0])
         _increasing = True
+
         for row in rows:
             items = selected_wells[selected_wells[:,0]==row]
             columns = items[:,1]
             columns = np.sort(columns)
+
             if _increasing==False:
                 columns = np.flip(columns)
+
             for column in columns:
                 wellplateformat_384=WELLPLATE_FORMATS[384]
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+                wellplateformat=WELLPLATE_FORMATS[int(self.navigation_viewer.sample.split(" ")[0])]
+
+                x_mm = X_MM_384_WELLPLATE_UPPERLEFT \
+                    + wellplateformat_384.well_size_mm / 2 \
+                    - (wellplateformat_384.A1_x_mm + wellplateformat_384.well_spacing_mm * wellplateformat_384.number_of_skip) \
+                    + column * wellplateformat.well_spacing_mm + wellplateformat.A1_x_mm + WELLPLATE_OFFSET_X_mm
+                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT \
+                    + wellplateformat_384.well_size_mm / 2 \
+                    - (wellplateformat_384.A1_y_mm + wellplateformat_384.well_spacing_mm * wellplateformat_384.number_of_skip) \
+                    + row * wellplateformat.well_spacing_mm + wellplateformat.A1_y_mm + WELLPLATE_OFFSET_Y_mm
+
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
+
             _increasing = not _increasing
 
 class MultiPointController(QObject):

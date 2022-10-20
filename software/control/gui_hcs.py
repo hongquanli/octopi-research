@@ -59,12 +59,13 @@ class OctopiGUI(QMainWindow):
 		self.liveController:core.LiveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController:core.NavigationController = core.NavigationController(self.microcontroller)
 		self.slidePositionController:core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
 		self.autofocusController:core.AutoFocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.scanCoordinates:core.ScanCoordinates = core.ScanCoordinates()
+		self.navigationViewer:core.NavigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
+		self.scanCoordinates:core.ScanCoordinates = core.ScanCoordinates(self.wellSelectionWidget,self.navigationViewer)
 		self.multipointController:core.MultiPointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
 		self.imageSaver:core.ImageSaver = core.ImageSaver()
 		self.imageDisplay:core.ImageDisplay = core.ImageDisplay()
-		self.navigationViewer:core.NavigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
 
 		if HOMING_ENABLED_Z:
 			# retract the objective
@@ -152,9 +153,6 @@ class OctopiGUI(QMainWindow):
 		self.recordTabWidget = QTabWidget()
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
-
-		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
-		self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
 		clear_history_button=QPushButton("clear history")
 		clear_history_button.clicked.connect(self.navigationViewer.clear_imaged_positions)
