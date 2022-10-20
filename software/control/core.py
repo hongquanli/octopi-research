@@ -372,7 +372,7 @@ class LiveController(QObject):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
-        self.configurationManager:core.ConfigurationManager = configurationManager
+        self.configurationManager:ConfigurationManager = configurationManager
         self.currentConfiguration:Optional[Configuration] = None
         self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
         self.is_live:bool = False
@@ -1401,10 +1401,10 @@ class MultiPointController(QObject):
 
     def __init__(self,
         camera:camera.Camera,
-        navigationController:core.NavigationController,
-        liveController:core.LiveController,
-        autofocusController:core.AutoFocusController,
-        configurationManager:core.ConfigurationManager,
+        navigationController:NavigationController,
+        liveController:LiveController,
+        autofocusController:AutoFocusController,
+        configurationManager:ConfigurationManager,
         scanCoordinates:Optional[ScanCoordinates]=None
     ):
         QObject.__init__(self)
