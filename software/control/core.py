@@ -33,6 +33,9 @@ import imageio as iio
 from typing import Optional, List, Union, Tuple
 import widgets
 
+import microcontroller
+import camera
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -364,15 +367,51 @@ class Configuration:
         self.illumination_intensity:float = illumination_intensity
         self.camera_sn = camera_sn
 
-import microcontroller
-import core
-import camera
+class ConfigurationManager(QObject):
+    def __init__(self,filename=str(Path.home() / "configurations_default.xml")):
+        QObject.__init__(self)
+        self.config_filename:str = filename
+        self.configurations:List[Configuration] = []
+        self.read_configurations()
+        
+    def save_configurations(self):
+        self.write_configuration(self.config_filename)
+
+    def write_configuration(self,filename):
+        self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
+
+    def read_configurations(self):
+        if(os.path.isfile(self.config_filename)==False):
+            utils_config.generate_default_configuration(self.config_filename)
+        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree_root = self.config_xml_tree.getroot()
+        self.num_configurations = 0
+        for mode in self.config_xml_tree_root.iter('mode'):
+            self.num_configurations = self.num_configurations + 1
+            self.configurations.append(
+                Configuration(
+                    mode_id = mode.get('ID'),
+                    name = mode.get('Name'),
+                    exposure_time = float(mode.get('ExposureTime')),
+                    analog_gain = float(mode.get('AnalogGain')),
+                    illumination_source = int(mode.get('IlluminationSource')),
+                    illumination_intensity = float(mode.get('IlluminationIntensity')),
+                    camera_sn = mode.get('CameraSN'))
+            )
+
+    def update_configuration(self,configuration_id,attribute_name,new_value):
+        list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+        self.save_configurations()
+
+
 class LiveController(QObject):
 
     def __init__(self,
         camera:camera.Camera,
         microcontroller:microcontroller.Microcontroller,
-        configurationManager:core.ConfigurationManager,
+        configurationManager:ConfigurationManager,
         control_illumination:bool=True,
         use_internal_timer_for_hardware_trigger:bool=True
     ):
@@ -948,8 +987,6 @@ class AutofocusWorker(QObject):
         if idx_in_focus == self.N-1:
             print('moved to the top end of the AF range')
 
-import camera
-
 class AutoFocusController(QObject):
 
     z_pos = Signal(float)
@@ -1387,8 +1424,6 @@ class ScanCoordinates(object):
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
             _increasing = not _increasing
-
-import camera
 
 class MultiPointController(QObject):
 
@@ -2266,41 +2301,3 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_3.img.setImage(image,autoLevels=False)
         elif illumination_source == 13:
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
-
-class ConfigurationManager(QObject):
-    def __init__(self,filename=str(Path.home() / "configurations_default.xml")):
-        QObject.__init__(self)
-        self.config_filename:str = filename
-        self.configurations:List[Configuration] = []
-        self.read_configurations()
-        
-    def save_configurations(self):
-        self.write_configuration(self.config_filename)
-
-    def write_configuration(self,filename):
-        self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
-
-    def read_configurations(self):
-        if(os.path.isfile(self.config_filename)==False):
-            utils_config.generate_default_configuration(self.config_filename)
-        self.config_xml_tree = ET.parse(self.config_filename)
-        self.config_xml_tree_root = self.config_xml_tree.getroot()
-        self.num_configurations = 0
-        for mode in self.config_xml_tree_root.iter('mode'):
-            self.num_configurations = self.num_configurations + 1
-            self.configurations.append(
-                Configuration(
-                    mode_id = mode.get('ID'),
-                    name = mode.get('Name'),
-                    exposure_time = float(mode.get('ExposureTime')),
-                    analog_gain = float(mode.get('AnalogGain')),
-                    illumination_source = int(mode.get('IlluminationSource')),
-                    illumination_intensity = float(mode.get('IlluminationIntensity')),
-                    camera_sn = mode.get('CameraSN'))
-            )
-
-    def update_configuration(self,configuration_id,attribute_name,new_value):
-        list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
-        mode_to_update = list[0]
-        mode_to_update.set(attribute_name,str(new_value))
-        self.save_configurations()
