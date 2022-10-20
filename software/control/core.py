@@ -32,8 +32,8 @@ import imageio as iio
 from typing import Optional, List, Union, Tuple
 import control.widgets as widgets
 
-import microcontroller
-import camera
+import control.microcontroller as microcontroller
+import control.camera as camera
 
 class StreamHandler(QObject):
 
