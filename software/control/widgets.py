@@ -1643,40 +1643,6 @@ class DisplacementMeasurementWidget(QFrame):
 
 class WellSelectionWidget(QTableWidget):
  
-    # this data was here before, but seems duplicated with control/_def.py
-    #well_selector_plate_data_table={
-    #    6:WellSelectorPlateData(
-    #        rows = 2,
-    #        columns = 3,
-    #        spacing_mm = 39.2,
-    #    ),
-    #    12:WellSelectorPlateData(
-    #        rows = 3,
-    #        columns = 4,
-    #        spacing_mm = 26,
-    #    ),
-    #    24:WellSelectorPlateData(
-    #        rows = 4,
-    #        columns = 6,
-    #        spacing_mm = 18,
-    #    ),
-    #    96:WellSelectorPlateData(
-    #        rows = 8,
-    #        columns = 12,
-    #        spacing_mm = 9,
-    #    ),
-    #    384:WellSelectorPlateData(
-    #        rows = 16,
-    #        columns = 24,
-    #        spacing_mm = 4.5,
-    #    ),
-    #    1536:WellSelectorPlateData(
-    #        rows = 32,
-    #        columns = 48,
-    #        spacing_mm = 2.25,
-    #    ),
-    #}
- 
     signal_wellSelected = Signal(int,int,float)
     signal_wellSelectedPos = Signal(float,float)
  
@@ -1769,11 +1735,9 @@ class WellSelectionWidget(QTableWidget):
  
         # make the outer cells not selectable if using 96 and 384 well plates
         wellplate_format=WELLPLATE_FORMATS[self.format]
-        well_selector_plate_data=WellSelectionWidget.well_selector_plate_data_table[self.format]
  
-        # self.set_selectable_widgets(layout=well_selector_plate_data,is_selectable=True,exhaustive=True)
         if wellplate_format.number_of_skip==1:
-            self.set_selectable_widgets(layout=well_selector_plate_data,is_selectable=False)
+            self.set_selectable_widgets(layout=wellplate_format,is_selectable=False)
         elif wellplate_format.number_of_skip>1:
             assert False, "more than one layer of disabled outer wells is currently unimplemented"
  
