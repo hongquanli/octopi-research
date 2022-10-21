@@ -13,16 +13,12 @@ from qtpy.QtGui import *
 import control.gui_hcs as gui
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action = 'store_true')
 args = parser.parse_args()
 
 if __name__ == "__main__":
 
     app = QApplication([])
     app.setStyle('Fusion')
-    if(args.simulation):
-        win = gui.OctopiGUI(is_simulation = True)
-    else:
-        win = gui.OctopiGUI()
+    win = gui.OctopiGUI()
     win.show()
     app.exec_() #sys.exit(app.exec_())

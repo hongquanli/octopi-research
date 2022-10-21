@@ -23,7 +23,7 @@ class OctopiGUI(QMainWindow):
 	# variables
 	fps_software_trigger = 100
 
-	def __init__(self, is_simulation = False, *args, **kwargs):
+	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load window
@@ -36,22 +36,18 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
 		# load objects
-		if is_simulation:
-			self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.microcontroller = microcontroller.Microcontroller_Simulation()
-		else:
-			try:
-				self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-				self.camera.open()
-			except:
-				self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-				self.camera.open()
-				print('! camera not detected, using simulated camera !')
-			try:
-				self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
-			except:
-				print('! Microcontroller not detected, using simulated microcontroller !')
-				self.microcontroller = microcontroller.Microcontroller_Simulation()
+		try:
+			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+			self.camera.open()
+		except Exception as e:
+			print('! camera not detected !')
+			raise e
+
+		try:
+			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+		except Exception as e:
+			print('! Microcontroller not detected !')
+			raise e
 
 		# reset the MCU
 		self.microcontroller.reset()

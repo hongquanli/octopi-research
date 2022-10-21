@@ -43,7 +43,7 @@ class ImageSaver(QObject):
         self.queue:Queue = Queue(10) # max 10 items in the queue
         self.image_lock:Lock = Lock()
         self.stop_signal_received:bool = False
-        self.thread = Thread(target=self.process_queue)
+        self.thread = Thread(target=self.process_queue) # type: ignore
         self.thread.start()
         self.counter:int = 0
         self.recording_start_time:float = 0.0

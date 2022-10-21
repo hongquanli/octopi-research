@@ -62,7 +62,3 @@ python3 main.py
 python3 main_camera_only.py
 python3 main_motion_only.py
 ```
-To start the program when no hardware is connected, use
-```
-python3 main_simulation.py
-```
