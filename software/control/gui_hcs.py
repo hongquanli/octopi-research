@@ -1,7 +1,6 @@
 # set QT_API environment variable
 import os 
 os.environ["QT_API"] = "pyqt5"
-import qtpy
 
 # qt libraries
 from qtpy.QtCore import Qt
@@ -15,7 +14,6 @@ import control.microcontroller as microcontroller
 from control._def import *
 
 import pyqtgraph.dockarea as dock
-import time
 
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
@@ -70,12 +68,8 @@ class OctopiGUI(QMainWindow):
 			# retract the objective
 			self.navigationController.home_z()
 			# wait for the operation to finish
-			t0 = time.time()
-			while self.microcontroller.is_busy():
-				time.sleep(0.005)
-				if time.time() - t0 > 10:
-					print('z homing timeout, the program will exit')
-					exit()
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z homing timeout, the program will exit')
+
 			print('objective retracted')
 
 		if HOMING_ENABLED_Z and HOMING_ENABLED_X and HOMING_ENABLED_Y:
@@ -86,34 +80,21 @@ class OctopiGUI(QMainWindow):
 			# self.navigationController.home_xy() 
 			# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
 			self.navigationController.move_x(12)
-			while self.microcontroller.is_busy(): # to do, add a blocking option move_x()
-				time.sleep(0.005)
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
 			
 			self.navigationController.home_y()
-			t0 = time.time()
-			while self.microcontroller.is_busy():
-				time.sleep(0.005)
-				if time.time() - t0 > 10:
-					print('y homing timeout, the program will exit')
-					exit()
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='y homing timeout, the program will exit')
 			
 			self.navigationController.home_x()
-			t0 = time.time()
-			while self.microcontroller.is_busy():
-				time.sleep(0.005)
-				if time.time() - t0 > 10:
-					print('x homing timeout, the program will exit')
-					exit()
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x homing timeout, the program will exit')
 	
 			print('xy homing completed')
 
 			# move to (20 mm, 20 mm)
 			self.navigationController.move_x(20)
-			while self.microcontroller.is_busy():
-				time.sleep(0.005)
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
 			self.navigationController.move_y(20)
-			while self.microcontroller.is_busy():
-				time.sleep(0.005)
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
 
 			self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
 			self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
@@ -125,12 +106,7 @@ class OctopiGUI(QMainWindow):
 			# move the objective back
 			self.navigationController.move_z(DEFAULT_Z_POS_MM)
 			# wait for the operation to finish
-			t0 = time.time() 
-			while self.microcontroller.is_busy():
-				time.sleep(0.005)
-				if time.time() - t0 > 5:
-					print('z return timeout, the program will exit')
-					exit()
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
 		
 		# open the camera
 		# camera start streaming
@@ -268,17 +244,16 @@ class OctopiGUI(QMainWindow):
 		
 		# move the objective to a defined position upon exit
 		self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
-		while self.microcontroller.is_busy():
-			time.sleep(0.005)
+		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
+
 		self.navigationController.move_x_to(30)
-		while self.microcontroller.is_busy():
-			time.sleep(0.005)
+		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
+
 		self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
-		while self.microcontroller.is_busy():
-			time.sleep(0.005)
+		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
+
 		self.navigationController.move_y_to(30)
-		while self.microcontroller.is_busy():
-			time.sleep(0.005)
+		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
 
 		event.accept()
 		self.liveController.stop_live()

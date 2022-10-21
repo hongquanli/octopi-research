@@ -1,24 +1,17 @@
 # set QT_API environment variable
-import os 
-import argparse
+import os
 os.environ["QT_API"] = "pyqt5"
-import qtpy
+import sys
 
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtWidgets import QApplication
 
 # app specific libraries
 import control.gui_hcs as gui
 
-parser = argparse.ArgumentParser()
-args = parser.parse_args()
-
 if __name__ == "__main__":
-
     app = QApplication([])
     app.setStyle('Fusion')
     win = gui.OctopiGUI()
     win.show()
-    app.exec_() #sys.exit(app.exec_())
+    sys.exit(app.exec_())

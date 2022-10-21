@@ -643,12 +643,12 @@ class Microcontroller():
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
-    def wait_till_operation_is_completed(self, TIMEOUT_LIMIT_S=5):
+    def wait_till_operation_is_completed(self, timeout_limit_s:int=5, time_step:float=0.02, timeout_msg='Error - microcontroller timeout, the program will exit'):
         timestamp_start = time.time()
         while self.is_busy():
-            time.sleep(0.02)
-            if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
-                print('Error - microcontroller timeout, the program will exit')
+            time.sleep(time_step)
+            if time.time() - timestamp_start > timeout_limit_s:
+                print(timeout_msg)
                 exit()
 
     def _int_to_payload(self,signed_int,number_of_bytes):
