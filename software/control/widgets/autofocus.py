@@ -1,14 +1,7 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
-
-import pyqtgraph as pg
-
-from datetime import datetime
+from qtpy.QtWidgets import QFrame, QDoubleSpinBox, QSpinBox, QPushButton, QGridLayout, QLabel
 
 from control._def import *
-import control.core as core
 
 from typing import Optional, Union, List, Tuple
 

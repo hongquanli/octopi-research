@@ -1,7 +1,5 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject, QTimer
 
 from control._def import *
 import time
@@ -33,7 +31,7 @@ class LiveController(QObject):
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
 
         self.fps_trigger = 1
-        self.timer_trigger_interval = (1/self.fps_trigger)*1000
+        self.timer_trigger_interval:int = int((1/self.fps_trigger)*1000)
 
         self.timer_trigger = QTimer()
         self.timer_trigger.setInterval(self.timer_trigger_interval)
@@ -56,7 +54,7 @@ class LiveController(QObject):
         self.microcontroller.turn_off_illumination()
         self.illumination_on = False
 
-    def set_illumination(self,illumination_source:int,intensity:int):
+    def set_illumination(self,illumination_source:int,intensity:float):
         if illumination_source < 10: # LED matrix
             self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
@@ -99,6 +97,7 @@ class LiveController(QObject):
                 self.fps_real = self.counter
                 self.counter = 0
                 # print('real trigger fps is ' + str(self.fps_real))
+
         elif self.trigger_mode == TriggerMode.HARDWARE:
             self.trigger_ID = self.trigger_ID + 1
             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
@@ -115,25 +114,33 @@ class LiveController(QObject):
         self.timer_trigger.stop()
 
     # trigger mode and settings
-    def set_trigger_mode(self,mode:TriggerMode):
+    def set_trigger_mode(self,mode:str):
         if mode == TriggerMode.SOFTWARE:
             if self.is_live and ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
+
             self.camera.set_software_triggered_acquisition()
             if self.is_live:
                 self._start_triggerred_acquisition()
-        if mode == TriggerMode.HARDWARE:
+
+        elif mode == TriggerMode.HARDWARE:
             if self.trigger_mode == TriggerMode.SOFTWARE and self.is_live:
                 self._stop_triggerred_acquisition()
+
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
             self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
                 self._start_triggerred_acquisition()
-        if mode == TriggerMode.CONTINUOUS: 
+
+        elif mode == TriggerMode.CONTINUOUS: 
             if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
+
             self.camera.set_continuous_acquisition()
+        else:
+            assert False
+
         self.trigger_mode = mode
 
     def set_trigger_fps(self,fps):
@@ -143,7 +150,6 @@ class LiveController(QObject):
     # set microscope mode
     # @@@ to do: change softwareTriggerGenerator to TriggerGeneratror
     def set_microscope_mode(self,configuration:Configuration):
-
         self.currentConfiguration = configuration
         print("setting microscope mode to " + self.currentConfiguration.name)
         
@@ -165,6 +171,7 @@ class LiveController(QObject):
         if self.is_live is True:
             if self.control_illumination:
                 self.turn_on_illumination()
+
             self.timer_trigger.start()
 
     def get_trigger_mode(self):

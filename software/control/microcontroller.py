@@ -8,10 +8,6 @@ from crc import CrcCalculator, Crc8
 
 from control._def import *
 
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
-
 # add user to the dialout group to avoid the need to use sudo
 
 # done (7/20/2021) - remove the time.sleep in all functions (except for __init__) to 
@@ -22,7 +18,7 @@ from qtpy.QtGui import *
 
 class Microcontroller():    
     def __init__(self,version='Arduino Due',sn=None,parent=None):
-        self.serial = None
+        self.serial:serial.Serial = None # type:ignore
         self.platform_name = platform.system()
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
         self.rx_buffer_length = MicrocontrollerDef.MSG_LENGTH
@@ -63,7 +59,7 @@ class Microcontroller():
         if len(controller_ports) > 1:
             print('multiple controller found - using the first')
         
-        self.serial = serial.Serial(controller_ports[0],2000000)
+        self.serial:serial.Serial = serial.Serial(controller_ports[0],2000000)
         time.sleep(0.2)
         print('controller connected')
 
@@ -101,7 +97,7 @@ class Microcontroller():
         cmd[1] = CMD_SET.TURN_OFF_ILLUMINATION
         self.send_command(cmd)
 
-    def set_illumination(self,illumination_source,intensity:int,r=None,g=None,b=None):
+    def set_illumination(self,illumination_source:int,intensity:float):#,r=None,g=None,b=None):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION
         cmd[2] = illumination_source

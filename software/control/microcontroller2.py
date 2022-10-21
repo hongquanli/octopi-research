@@ -9,12 +9,10 @@ from control._def import *
 
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
-from qtpy.QtGui import *
 
 # temporary
 class Microcontroller2():
     def __init__(self):
-        self.serial = None
         self.platform_name = platform.system()
         self.tx_buffer_length = Microcontroller2Def.CMD_LENGTH
         self.rx_buffer_length = Microcontroller2Def.MSG_LENGTH
@@ -40,6 +38,7 @@ class Microcontroller2():
         '''
 
     def close(self):
+        assert not self.serial is None
         self.serial.close()
 
     def analog_write_DAC8050x(self,dac,value):

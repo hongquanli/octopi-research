@@ -1,7 +1,5 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject, Signal, QThread # type: ignore
 
 import control.utils as utils
 from control._def import *
@@ -126,6 +124,7 @@ class SlidePositionController(QObject):
         self.slide_loading_position_reached:bool = False
         self.slide_scanning_position_reached:bool = False
         self.homing_done:bool = False
+        self.thread:Optional[QThread]=None
 
     def move_to_slide_loading_position(self):
         # create a QThread object
@@ -136,8 +135,8 @@ class SlidePositionController(QObject):
         self.slidePositionControlWorker.moveToThread(self.thread)
         # connect signals and slots
         self.thread.started.connect(self.slidePositionControlWorker.move_to_slide_loading_position)
-        self.slidePositionControlWorker.signal_stop_live.connect(self.slot_stop_live,type=Qt.BlockingQueuedConnection)
-        self.slidePositionControlWorker.signal_resume_live.connect(self.slot_resume_live,type=Qt.BlockingQueuedConnection)
+        self.slidePositionControlWorker.signal_stop_live.connect(self.slot_stop_live,type=Qt.BlockingQueuedConnection) # type: ignore
+        self.slidePositionControlWorker.signal_resume_live.connect(self.slot_resume_live,type=Qt.BlockingQueuedConnection) # type: ignore
         self.slidePositionControlWorker.finished.connect(self.signal_slide_loading_position_reached.emit)
         self.slidePositionControlWorker.finished.connect(self.slidePositionControlWorker.deleteLater)
         self.slidePositionControlWorker.finished.connect(self.thread.quit)
@@ -154,8 +153,8 @@ class SlidePositionController(QObject):
         self.slidePositionControlWorker.moveToThread(self.thread)
         # connect signals and slots
         self.thread.started.connect(self.slidePositionControlWorker.move_to_slide_scanning_position)
-        self.slidePositionControlWorker.signal_stop_live.connect(self.slot_stop_live,type=Qt.BlockingQueuedConnection)
-        self.slidePositionControlWorker.signal_resume_live.connect(self.slot_resume_live,type=Qt.BlockingQueuedConnection)
+        self.slidePositionControlWorker.signal_stop_live.connect(self.slot_stop_live,type=Qt.BlockingQueuedConnection) # type: ignore
+        self.slidePositionControlWorker.signal_resume_live.connect(self.slot_resume_live,type=Qt.BlockingQueuedConnection) # type: ignore
         self.slidePositionControlWorker.finished.connect(self.signal_slide_scanning_position_reached.emit)
         self.slidePositionControlWorker.finished.connect(self.slidePositionControlWorker.deleteLater)
         self.slidePositionControlWorker.finished.connect(self.thread.quit)

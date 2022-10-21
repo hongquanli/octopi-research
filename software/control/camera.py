@@ -2,16 +2,19 @@ import argparse
 import cv2
 import time
 import numpy as np
+
+from control.gxipy import gxiapi
 try:
     import control.gxipy as gx
 except:
     print('gxipy import error')
 
 from control._def import *
+from typing import Optional
 
 class Camera(object):
 
-    def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+    def __init__(self,sn:Optional[str]=None,is_global_shutter:bool=False,rotate_image_angle:Optional[int]=None,flip_image:Optional[str]=None):
 
         # many to be purged
         self.sn = sn
@@ -19,7 +22,7 @@ class Camera(object):
         self.device_manager = gx.DeviceManager()
         self.device_info_list = None
         self.device_index = 0
-        self.camera = None
+        self.camera:Optional[gxiapi.Device] = None
         self.is_color = None
         self.gamma_lut = None
         self.contrast_lut = None
@@ -76,6 +79,8 @@ class Camera(object):
             self.camera = self.device_manager.open_device_by_index(index + 1)
         else:
             self.camera = self.device_manager.open_device_by_sn(self.sn)
+
+        assert not self.camera is None
         self.is_color = self.camera.PixelColorFilter.is_implemented()
         # self._update_image_improvement_params()
         # self.camera.register_capture_callback(self,self._on_frame_callback)
@@ -104,6 +109,7 @@ class Camera(object):
             was_streaming = False
         # enable callback
         user_param = None
+        assert not self.camera is None
         self.camera.register_capture_callback(user_param,self._on_frame_callback)
         self.callback_is_enabled = True
         # resume streaming if it was on
@@ -118,6 +124,7 @@ class Camera(object):
         else:
             was_streaming = False
         # disable call back
+        assert not self.camera is None
         self.camera.unregister_capture_callback()
         self.callback_is_enabled = False
         # resume streaming if it was on
@@ -128,9 +135,11 @@ class Camera(object):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:
             raise RuntimeError('Could not find any USB camera devices!')
+
         self.camera = self.device_manager.open_device_by_sn(sn)
+        assert not self.camera is None
         self.is_color = self.camera.PixelColorFilter.is_implemented()
-        self._update_image_improvement_params()
+        self._update_image_improvement_params() # type: ignore
 
         '''
         if self.is_color is True:
@@ -140,6 +149,7 @@ class Camera(object):
         '''
 
     def close(self):
+        assert not self.camera is None
         self.camera.close_device()
         self.device_info_list = None
         self.camera = None
@@ -152,6 +162,7 @@ class Camera(object):
         self.last_numpy_image = None
 
     def set_exposure_time(self,exposure_time):
+        assert not self.camera is None
         use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
         if use_strobe == False or self.is_global_shutter:
             self.exposure_time = exposure_time
@@ -164,6 +175,7 @@ class Camera(object):
             self.camera.ExposureTime.set(camera_exposure_time)
 
     def update_camera_exposure_time(self):
+        assert not self.camera is None
         use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
         if use_strobe == False or self.is_global_shutter:
             self.camera.ExposureTime.set(self.exposure_time * 1000)
@@ -172,10 +184,12 @@ class Camera(object):
             self.camera.ExposureTime.set(camera_exposure_time)
 
     def set_analog_gain(self,analog_gain):
+        assert not self.camera is None
         self.analog_gain = analog_gain
         self.camera.Gain.set(analog_gain)
 
     def get_awb_ratios(self):
+        assert not self.camera is None
         self.camera.BalanceWhiteAuto.set(2)
         self.camera.BalanceRatioSelector.set(0)
         awb_r = self.camera.BalanceRatio.get()
@@ -186,6 +200,7 @@ class Camera(object):
         return (awb_r, awb_g, awb_b)
 
     def set_wb_ratios(self, wb_r=None, wb_g=None, wb_b=None):
+        assert not self.camera is None
         self.camera.BalanceWhiteAuto.set(0)
         if wb_r is not None:
             self.camera.BalanceRatioSelector.set(0)
@@ -198,20 +213,25 @@ class Camera(object):
             awb_b = self.camera.BalanceRatio.set(wb_b)
 
     def set_reverse_x(self,value):
+        assert not self.camera is None
         self.camera.ReverseX.set(value)
 
     def set_reverse_y(self,value):
+        assert not self.camera is None
         self.camera.ReverseY.set(value)
 
     def start_streaming(self):
+        assert not self.camera is None
         self.camera.stream_on()
         self.is_streaming = True
 
     def stop_streaming(self):
+        assert not self.camera is None
         self.camera.stream_off()
         self.is_streaming = False
 
     def set_pixel_format(self,pixel_format):
+        assert not self.camera is None
         if self.is_streaming == True:
             was_streaming = True
             self.stop_streaming()
@@ -249,17 +269,20 @@ class Camera(object):
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
     def set_continuous_acquisition(self):
+        assert not self.camera is None
         self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
         self.trigger_mode = TriggerMode.CONTINUOUS
         self.update_camera_exposure_time()
 
     def set_software_triggered_acquisition(self):
+        assert not self.camera is None
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.SOFTWARE)
         self.trigger_mode = TriggerMode.SOFTWARE
         self.update_camera_exposure_time()
 
     def set_hardware_triggered_acquisition(self):
+        assert not self.camera is None
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
         self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
         # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
@@ -268,12 +291,14 @@ class Camera(object):
         self.update_camera_exposure_time()
 
     def send_trigger(self):
+        assert not self.camera is None
         if self.is_streaming:
             self.camera.TriggerSoftware.send_command()
         else:
-        	print('trigger not sent - camera is not streaming')
+            print('trigger not sent - camera is not streaming')
 
     def read_frame(self):
+        assert not self.camera is None
         raw_image = self.camera.data_stream[self.device_index].get_image()
         if self.is_color:
             rgb_image = raw_image.convert("RGB")
@@ -322,6 +347,7 @@ class Camera(object):
         # print(self.frameID)
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
+        assert not self.camera is None
         if offset_x is not None:
             self.ROI_offset_x = offset_x
             # stop streaming if streaming is on
@@ -391,6 +417,7 @@ class Camera(object):
                 self.start_streaming()
 
     def reset_camera_acquisition_counter(self):
+        assert not self.camera is None
         if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
             self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2)
         else:
@@ -402,12 +429,14 @@ class Camera(object):
             print("CounterReset is not implemented")
 
     def set_line3_to_strobe(self):
+        assert not self.camera is None
         # self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
         self.camera.LineSelector.set(gx.GxLineSelectorEntry.LINE3)
         self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         self.camera.LineSource.set(gx.GxLineSourceEntry.STROBE)
 
     def set_line3_to_exposure_active(self):
+        assert not self.camera is None
         # self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
         self.camera.LineSelector.set(gx.GxLineSelectorEntry.LINE3)
         self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)

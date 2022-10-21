@@ -1,14 +1,8 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
-
-import pyqtgraph as pg
-
-from datetime import datetime
+from qtpy.QtCore import Qt, Signal # type: ignore
+from qtpy.QtWidgets import QTableWidget, QHeaderView, QSizePolicy, QTableWidgetItem
 
 from control._def import *
-import control.core as core
 
 from typing import Optional, Union, List, Tuple
 
@@ -58,13 +52,13 @@ class WellSelectionWidget(QTableWidget):
  
         # size
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(5*self.spacing_mm)
+        self.verticalHeader().setDefaultSectionSize(int(5*self.spacing_mm))
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.horizontalHeader().setMinimumSectionSize(5*self.spacing_mm)
+        self.horizontalHeader().setMinimumSectionSize(int(5*self.spacing_mm))
  
         self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
         self.resizeColumnsToContents()
         self.setFixedSize(
             self.horizontalHeader().length() + self.verticalHeader().width(),
@@ -80,14 +74,14 @@ class WellSelectionWidget(QTableWidget):
         for i in range(layout.rows):
             for j in (range(layout.columns) if exhaustive else [0,layout.columns-1]):
                 item = QTableWidgetItem()
-                item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable))
+                item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable)) # type: ignore
                 self.setItem(i,j,item)
  
         if not exhaustive:
             for j in range(layout.columns):
                 for i in [0,layout.rows-1]:
                     item = QTableWidgetItem()
-                    item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable))
+                    item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable)) # type: ignore
                     self.setItem(i,j,item)
  
     def setData(self):

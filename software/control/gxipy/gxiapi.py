@@ -7,400 +7,12 @@ from control.gxipy.gxwrapper import *
 from control.gxipy.dxwrapper import *
 from control.gxipy.gxidef import *
 
+from typing import Optional, Any, Callable
+
 ERROR_SIZE = 1024
 PIXEL_BIT_MASK = 0x00ff0000
 
-if sys.version_info.major > 2:
-    INT_TYPE = int
-else:
-    INT_TYPE = (int, long)
-
-
-class DeviceManager(object):
-    __instance_num = 0
-
-    def __new__(cls, *args, **kw):
-        cls.__instance_num += 1
-        status = gx_init_lib()
-        StatusProcessor.process(status, 'DeviceManager', 'init_lib')
-        return object.__new__(cls, *args)
-    
-    def __init__(self):
-        self.__device_num = 0
-        self.__device_info_list = []
-
-        
-
-    def __del__(self):
-        self.__class__.__instance_num -= 1
-        if self.__class__.__instance_num <= 0:
-            status = gx_close_lib()
-            StatusProcessor.process(status, 'DeviceManager', 'close_lib')
-
-    def __get_device_info_list(self, base_info, ip_info, num):
-        """
-        :brief      Convert GxDeviceBaseInfo and GxDeviceIPInfo to device info list
-        :param      base_info:  device base info list[GxDeviceBaseInfo]
-        :param      ip_info:    device ip info list[GxDeviceIPInfo]
-        :param      num:        device number
-        :return:    device info list
-        """
-        device_info_list = []
-        for i in range(num):
-            device_info_list.append({
-                'index': i+1,
-                'vendor_name': string_decoding(base_info[i].vendor_name),
-                'model_name': string_decoding(base_info[i].model_name),
-                'sn': string_decoding(base_info[i].serial_number),
-                'display_name': string_decoding(base_info[i].display_name),
-                'device_id': string_decoding(base_info[i].device_id),
-                'user_id': string_decoding(base_info[i].user_id),
-                'access_status': base_info[i].access_status,
-                'device_class': base_info[i].device_class,
-                'mac': string_decoding(ip_info[i].mac),
-                'ip': string_decoding(ip_info[i].ip),
-                'subnet_mask': string_decoding(ip_info[i].subnet_mask),
-                'gateway': string_decoding(ip_info[i].gateway),
-                'nic_mac': string_decoding(ip_info[i].nic_mac),
-                'nic_ip': string_decoding(ip_info[i].nic_ip),
-                'nic_subnet_mask': string_decoding(ip_info[i].nic_subnet_mask),
-                'nic_gateWay': string_decoding(ip_info[i].nic_gateWay),
-                'nic_description': string_decoding(ip_info[i].nic_description)
-            })
-
-        return device_info_list
-
-    def __get_ip_info(self, base_info_list, dev_mum):
-        """
-        :brief      Get the network information
-        """
-
-        ip_info_list = []
-        for i in range(dev_mum):
-            if base_info_list[i].device_class == GxDeviceClassList.GEV:
-                status, ip_info = gx_get_device_ip_info(i+1)
-                StatusProcessor.process(status, 'DeviceManager', '__get_ip_info')
-                ip_info_list.append(ip_info)
-            else:
-                ip_info_list.append(GxDeviceIPInfo())
-
-        return ip_info_list
-
-    def update_device_list(self, timeout=200):
-        """
-        :brief      enumerate the same network segment devices
-        :param      timeout:    Enumeration timeout, range:[0, 0xFFFFFFFF]
-        :return:    dev_num:    device number
-                    device_info_list: all device info list
-        """
-        if not isinstance(timeout, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.update_device_list: "
-                                     "Expected timeout type is int, not %s" % type(timeout))
-
-        if (timeout < 0) or (timeout > UNSIGNED_INT_MAX):
-            print("DeviceManager.update_device_list: "
-                  "timeout out of bounds, timeout: minimum=0, maximum=%s" % hex(UNSIGNED_INT_MAX).__str__())
-            return 0, None
-
-        status, dev_num = gx_update_device_list(timeout)
-        StatusProcessor.process(status, 'DeviceManager', 'update_device_list')
-
-        status, base_info_list = gx_get_all_device_base_info(dev_num)
-        StatusProcessor.process(status, 'DeviceManager', 'update_device_list')
-
-        ip_info_list = self.__get_ip_info(base_info_list, dev_num)
-        self.__device_num = dev_num
-        self.__device_info_list = self.__get_device_info_list(base_info_list, ip_info_list, dev_num)
-
-        return self.__device_num, self.__device_info_list
-
-    def update_all_device_list(self, timeout=200):
-        """
-        :brief      Enumerate devices on different network segments
-        :param      timeout:    Enumeration timeout, range:[0, 0xFFFFFFFF]
-        :return:    dev_num:    device number
-                    device_info_list:   all device info list
-        """
-        if not isinstance(timeout, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.update_all_device_list: "
-                                     "Expected timeout type is int, not %s" % type(timeout))
-
-        if (timeout < 0) or (timeout > UNSIGNED_INT_MAX):
-            print("DeviceManager.update_all_device_list: "
-                  "timeout out of bounds, timeout: minimum=0, maximum=%s" % hex(UNSIGNED_INT_MAX).__str__())
-            return 0, None
-
-        status, dev_num = gx_update_all_device_list(timeout)
-        StatusProcessor.process(status, 'DeviceManager', 'update_all_device_list')
-
-        status, base_info_list = gx_get_all_device_base_info(dev_num)
-        StatusProcessor.process(status, 'DeviceManager', 'update_all_device_list')
-
-        ip_info_list = self.__get_ip_info(base_info_list, dev_num)
-        self.__device_num = dev_num
-        self.__device_info_list = self.__get_device_info_list(base_info_list, ip_info_list, dev_num)
-
-        return self.__device_num, self.__device_info_list
-
-    def get_device_number(self):
-        """
-        :brief      Get device number
-        :return:    device number
-        """
-        return self.__device_num
-
-    def get_device_info(self):
-        """
-        :brief      Get all device info
-        :return:    info_dict:      device info list
-        """
-        return self.__device_info_list
-
-    def open_device_by_index(self, index, access_mode=GxAccessMode.CONTROL):
-        """
-        :brief      open device by index
-                    USB3 device return U3VDevice object
-                    USB2 device return U2Device object
-                    GEV  device return GEVDevice object
-        :param      index:          device index must start from 1
-        :param      access_mode:    the access of open device
-        :return:    Device object
-        """
-        if not isinstance(index, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.open_device_by_index: "
-                                     "Expected index type is int, not %s" % type(index))
-
-        if not isinstance(access_mode, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.open_device_by_index: "
-                                     "Expected access_mode type is int, not %s" % type(access_mode))
-
-        if index < 1:
-            print("DeviceManager.open_device_by_index: index must start from 1")
-            return None
-        elif index > UNSIGNED_INT_MAX:
-            print("DeviceManager.open_device_by_index: index maximum: %s" % hex(UNSIGNED_INT_MAX).__str__())
-            return None
-
-        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
-        if access_mode not in access_mode_dict.values():
-            print("DeviceManager.open_device_by_index: "
-                  "access_mode out of bounds, %s" % access_mode_dict.__str__())
-            return None
-
-        if self.__device_num < index:
-            # Re-update the device
-            self.update_all_device_list()
-            if self.__device_num < index:
-                raise NotFoundDevice("DeviceManager.open_device_by_index: invalid index")
-
-        # open devices by index
-        open_param = GxOpenParam()
-        open_param.content = string_encoding(str(index))
-        open_param.open_mode = GxOpenMode.INDEX
-        open_param.access_mode = access_mode
-        status, handle = gx_open_device(open_param)
-        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_index')
-
-        # get device class
-        device_class = self.__device_info_list[index-1]["device_class"]
-
-        if device_class == GxDeviceClassList.U3V:
-            return U3VDevice(handle)
-        elif device_class == GxDeviceClassList.USB2:
-            return U2Device(handle)
-        elif device_class == GxDeviceClassList.GEV:
-            return GEVDevice(handle)
-        else:
-            raise NotFoundDevice("DeviceManager.open_device_by_index: Does not support this device type.")
-
-    def __get_device_class_by_sn(self, sn):
-        """
-        :brief:     1.find device by sn in self.__device_info_list
-                    2.return different objects according to device class
-        :param      sn:      device serial number
-        :return:    device class
-        """
-        for index in range(self.__device_num):
-            if self.__device_info_list[index]["sn"] == sn:
-                return self.__device_info_list[index]["device_class"]
-
-        # don't find this id in device base info list
-        return -1
-
-    def open_device_by_sn(self, sn, access_mode=GxAccessMode.CONTROL):
-        """
-        :brief      open device by serial number(SN)
-                    USB3 device return U3VDevice object
-                    USB2 device return U2Device object
-                    GEV device return GEVDevice object
-        :param      sn:             device serial number, type: str
-        :param      access_mode:    the mode of open device[GxAccessMode]
-        :return:    Device object
-        """
-        if not isinstance(sn, str):
-            raise ParameterTypeError("DeviceManager.open_device_by_sn: "
-                                     "Expected sn type is str, not %s" % type(sn))
-
-        if not isinstance(access_mode, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.open_device_by_sn: "
-                                     "Expected access_mode type is int, not %s" % type(access_mode))
-
-        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
-        if access_mode not in access_mode_dict.values():
-            print("DeviceManager.open_device_by_sn: "
-                  "access_mode out of bounds, %s" % access_mode_dict.__str__())
-            return None
-
-        # get device class from self.__device_info_list
-        device_class = self.__get_device_class_by_sn(sn)
-        if device_class == -1:
-            # Re-update the device
-            self.update_all_device_list()
-            device_class = self.__get_device_class_by_sn(sn)
-            if device_class == -1:
-                # don't find this sn
-                raise NotFoundDevice("DeviceManager.open_device_by_sn: Not found device")
-
-        # open devices by sn
-        open_param = GxOpenParam()
-        open_param.content = string_encoding(sn)
-        open_param.open_mode = GxOpenMode.SN
-        open_param.access_mode = access_mode
-        status, handle = gx_open_device(open_param)
-        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_sn')
-
-        if device_class == GxDeviceClassList.U3V:
-            return U3VDevice(handle)
-        elif device_class == GxDeviceClassList.USB2:
-            return U2Device(handle)
-        elif device_class == GxDeviceClassList.GEV:
-            return GEVDevice(handle)
-        else:
-            raise NotFoundDevice("DeviceManager.open_device_by_sn: Does not support this device type.")
-
-    def __get_device_class_by_user_id(self, user_id):
-        """
-        :brief:     1.find device according to sn in self.__device_info_list
-                    2.return different objects according to device class
-        :param      user_id:        user ID
-        :return:    device class
-        """
-        for index in range(self.__device_num):
-            if self.__device_info_list[index]["user_id"] == user_id:
-                return self.__device_info_list[index]["device_class"]
-
-        # don't find this id in device base info list
-        return -1
-
-    def open_device_by_user_id(self, user_id, access_mode=GxAccessMode.CONTROL):
-        """
-        :brief      open device by user defined name
-                    USB3 device return U3VDevice object
-                    GEV  device return GEVDevice object
-        :param      user_id:        user defined name, type:str
-        :param      access_mode:    the mode of open device[GxAccessMode]
-        :return:    Device object
-        """
-        if not isinstance(user_id, str):
-            raise ParameterTypeError("DeviceManager.open_device_by_user_id: "
-                                     "Expected user_id type is str, not %s" % type(user_id))
-        elif user_id.__len__() == 0:
-            raise InvalidParameter("DeviceManager.open_device_by_user_id: Don't support user_id's length is 0")
-
-        if not isinstance(access_mode, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.open_device_by_user_id: "
-                                     "Expected access_mode type is int, not %s" % type(access_mode))
-
-        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
-        if access_mode not in access_mode_dict.values():
-            print("DeviceManager.open_device_by_user_id: access_mode out of bounds, %s" % access_mode_dict.__str__())
-            return None
-
-        # get device class from self.__device_info_list
-        device_class = self.__get_device_class_by_user_id(user_id)
-        if device_class == -1:
-            # Re-update the device
-            self.update_all_device_list()
-            device_class = self.__get_device_class_by_user_id(user_id)
-            if device_class == -1:
-                # don't find this user_id
-                raise NotFoundDevice("DeviceManager.open_device_by_user_id: Not found device")
-
-        # open device by user_id
-        open_param = GxOpenParam()
-        open_param.content = string_encoding(user_id)
-        open_param.open_mode = GxOpenMode.USER_ID
-        open_param.access_mode = access_mode
-        status, handle = gx_open_device(open_param)
-        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_user_id')
-
-        if device_class == GxDeviceClassList.U3V:
-            return U3VDevice(handle)
-        elif device_class == GxDeviceClassList.GEV:
-            return GEVDevice(handle)
-        else:
-            raise NotFoundDevice("DeviceManager.open_device_by_user_id: Does not support this device type.")
-
-    def open_device_by_ip(self, ip, access_mode=GxAccessMode.CONTROL):
-        """
-        :brief      open device by device ip address
-        :param      ip:             device ip address, type:str
-        :param      access_mode:    the mode of open device[GxAccessMode]
-        :return:    GEVDevice object
-        """
-        if not isinstance(ip, str):
-            raise ParameterTypeError("DeviceManager.open_device_by_ip: "
-                                     "Expected ip type is str, not %s" % type(ip))
-
-        if not isinstance(access_mode, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.open_device_by_ip: "
-                                     "Expected access_mode type is int, not %s" % type(access_mode))
-
-        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
-        if access_mode not in access_mode_dict.values():
-            print("DeviceManager.open_device_by_ip: access_mode out of bounds, %s" % access_mode_dict.__str__())
-            return None
-
-        # open device by ip
-        open_param = GxOpenParam()
-        open_param.content = string_encoding(ip)
-        open_param.open_mode = GxOpenMode.IP
-        open_param.access_mode = access_mode
-        status, handle = gx_open_device(open_param)
-        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_ip')
-
-        return GEVDevice(handle)
-
-    def open_device_by_mac(self, mac, access_mode=GxAccessMode.CONTROL):
-        """
-        :brief      open device by device mac address
-        :param      mac:            device mac address, type:str
-        :param      access_mode:    the mode of open device[GxAccessMode]
-        :return:    GEVDevice object
-        """
-        if not isinstance(mac, str):
-            raise ParameterTypeError("DeviceManager.open_device_by_mac: "
-                                     "Expected mac type is str, not %s" % type(mac))
-
-        if not isinstance(access_mode, INT_TYPE):
-            raise ParameterTypeError("DeviceManager.open_device_by_mac: "
-                                     "Expected access_mode type is int, not %s" % type(access_mode))
-
-        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
-        if access_mode not in access_mode_dict.values():
-            print("DeviceManager.open_device_by_mac: access_mode out of bounds, %s" % access_mode_dict.__str__())
-            return None
-
-        # open device by ip
-        open_param = GxOpenParam()
-        open_param.content = string_encoding(mac)
-        open_param.open_mode = GxOpenMode.MAC
-        open_param.access_mode = access_mode
-        status, handle = gx_open_device(open_param)
-        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_mac')
-
-        return GEVDevice(handle)
-
+INT_TYPE = int
 
 class Feature:
     def __init__(self, handle, feature):
@@ -531,6 +143,7 @@ class IntFeature(Feature):
             return
 
         int_range = self.get_range()
+        assert not int_range is None
         check_ret = range_check(int_value, int_range["min"], int_range["max"], int_range["inc"])
         if not check_ret:
             print("IntFeature.set: "
@@ -611,6 +224,7 @@ class FloatFeature(Feature):
             return
 
         float_range = self.get_range()
+        assert not float_range is None
         check_ret = range_check(float_value, float_range["min"], float_range["max"])
         if not check_ret:
             print("FloatFeature.set: float_value out of bounds, %s.range=[%f, %f]" %
@@ -668,6 +282,7 @@ class EnumFeature(Feature):
         StatusProcessor.process(status, 'EnumFeature', 'get')
 
         range_dict = self.get_range()
+        assert not range_dict is None
         new_dicts = {v: k for k, v in range_dict.items()}
         return enum_value, new_dicts[enum_value]
 
@@ -687,6 +302,7 @@ class EnumFeature(Feature):
             return
 
         range_dict = self.get_range()
+        assert not range_dict is None
         enum_value_list = range_dict.values()
         if enum_value not in enum_value_list:
             print("EnumFeature.set: enum_value out of bounds, %s.range:%s" %
@@ -794,6 +410,7 @@ class StringFeature(Feature):
             return
 
         max_length = self.get_string_max_length()
+        assert not max_length is None
         if input_string.__len__() > max_length:
             print("StringFeature.set: "
                   "input_string length out of bounds, %s.length_max:%s"
@@ -814,7 +431,7 @@ class BufferFeature(Feature):
         self.__handle = handle
         self.__feature = feature
 
-    def get_buffer_length(self):
+    def get_buffer_length(self)->Optional[int]:
         """
         :brief      Getting buffer length
         :return:    length:     buffer length
@@ -859,9 +476,11 @@ class BufferFeature(Feature):
             return
 
         max_length = self.get_buffer_length()
+        assert not max_length is None
         if buf.get_length() > max_length:
             print("BuffFeature.set_buffer: "
                   "buff length out of bounds, %s.length_max:%s" % (self.feature_name, max_length))
+                  
             return
 
         status = gx_set_buffer(self.__handle, self.__feature,
@@ -1201,7 +820,7 @@ class Device:
         :brief      Device offline event callback function with an unused c_void_p.
         :return:    none
         """
-        self.__py_offline_callback()
+        self.__py_offline_callback() # type: ignore
 
 
     def register_capture_callback(self, user_param, cap_call):
@@ -1222,11 +841,11 @@ class Device:
         :return:    none
         """
         status = gx_unregister_capture_callback(self.__dev_handle)
-        self.__py_capture_callback = None
+        self.__py_capture_callback:Optional[Callable] = None
         self.__user_param = None
         StatusProcessor.process(status, 'Device', 'unregister_capture_callback')
 
-    def __on_capture_call_back(self, capture_data):
+    def __on_capture_call_back(self, capture_data:Any):
         """
         :brief      Capture event callback function with capture date.
         :return:    none
@@ -1241,6 +860,7 @@ class Device:
         frame_data.timestamp = capture_data.contents.timestamp
         frame_data.buf_id = capture_data.contents.frame_id
         image = RawImage(frame_data)
+        assert not self.__py_capture_callback is None
         self.__py_capture_callback(self.__user_param, image)
 
 
@@ -2053,3 +1673,389 @@ class Utility:
 
 
 
+
+
+class DeviceManager(object):
+    __instance_num = 0
+
+    def __new__(cls, *args, **kw):
+        cls.__instance_num += 1
+        status = gx_init_lib()
+        StatusProcessor.process(status, 'DeviceManager', 'init_lib')
+        return object.__new__(cls, *args)
+    
+    def __init__(self):
+        self.__device_num = 0
+        self.__device_info_list = []
+
+        
+
+    def __del__(self):
+        self.__class__.__instance_num -= 1
+        if self.__class__.__instance_num <= 0:
+            status = gx_close_lib()
+            StatusProcessor.process(status, 'DeviceManager', 'close_lib')
+
+    def __get_device_info_list(self, base_info, ip_info, num):
+        """
+        :brief      Convert GxDeviceBaseInfo and GxDeviceIPInfo to device info list
+        :param      base_info:  device base info list[GxDeviceBaseInfo]
+        :param      ip_info:    device ip info list[GxDeviceIPInfo]
+        :param      num:        device number
+        :return:    device info list
+        """
+        device_info_list = []
+        for i in range(num):
+            device_info_list.append({
+                'index': i+1,
+                'vendor_name': string_decoding(base_info[i].vendor_name),
+                'model_name': string_decoding(base_info[i].model_name),
+                'sn': string_decoding(base_info[i].serial_number),
+                'display_name': string_decoding(base_info[i].display_name),
+                'device_id': string_decoding(base_info[i].device_id),
+                'user_id': string_decoding(base_info[i].user_id),
+                'access_status': base_info[i].access_status,
+                'device_class': base_info[i].device_class,
+                'mac': string_decoding(ip_info[i].mac),
+                'ip': string_decoding(ip_info[i].ip),
+                'subnet_mask': string_decoding(ip_info[i].subnet_mask),
+                'gateway': string_decoding(ip_info[i].gateway),
+                'nic_mac': string_decoding(ip_info[i].nic_mac),
+                'nic_ip': string_decoding(ip_info[i].nic_ip),
+                'nic_subnet_mask': string_decoding(ip_info[i].nic_subnet_mask),
+                'nic_gateWay': string_decoding(ip_info[i].nic_gateWay),
+                'nic_description': string_decoding(ip_info[i].nic_description)
+            })
+
+        return device_info_list
+
+    def __get_ip_info(self, base_info_list, dev_mum):
+        """
+        :brief      Get the network information
+        """
+
+        ip_info_list = []
+        for i in range(dev_mum):
+            if base_info_list[i].device_class == GxDeviceClassList.GEV:
+                status, ip_info = gx_get_device_ip_info(i+1)
+                StatusProcessor.process(status, 'DeviceManager', '__get_ip_info')
+                ip_info_list.append(ip_info)
+            else:
+                ip_info_list.append(GxDeviceIPInfo())
+
+        return ip_info_list
+
+    def update_device_list(self, timeout=200):
+        """
+        :brief      enumerate the same network segment devices
+        :param      timeout:    Enumeration timeout, range:[0, 0xFFFFFFFF]
+        :return:    dev_num:    device number
+                    device_info_list: all device info list
+        """
+        if not isinstance(timeout, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.update_device_list: "
+                                     "Expected timeout type is int, not %s" % type(timeout))
+
+        if (timeout < 0) or (timeout > UNSIGNED_INT_MAX):
+            print("DeviceManager.update_device_list: "
+                  "timeout out of bounds, timeout: minimum=0, maximum=%s" % hex(UNSIGNED_INT_MAX).__str__())
+            return 0, None
+
+        status, dev_num = gx_update_device_list(timeout)
+        StatusProcessor.process(status, 'DeviceManager', 'update_device_list')
+
+        status, base_info_list = gx_get_all_device_base_info(dev_num)
+        StatusProcessor.process(status, 'DeviceManager', 'update_device_list')
+
+        ip_info_list = self.__get_ip_info(base_info_list, dev_num)
+        self.__device_num = dev_num
+        self.__device_info_list = self.__get_device_info_list(base_info_list, ip_info_list, dev_num)
+
+        return self.__device_num, self.__device_info_list
+
+    def update_all_device_list(self, timeout=200):
+        """
+        :brief      Enumerate devices on different network segments
+        :param      timeout:    Enumeration timeout, range:[0, 0xFFFFFFFF]
+        :return:    dev_num:    device number
+                    device_info_list:   all device info list
+        """
+        if not isinstance(timeout, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.update_all_device_list: "
+                                     "Expected timeout type is int, not %s" % type(timeout))
+
+        if (timeout < 0) or (timeout > UNSIGNED_INT_MAX):
+            print("DeviceManager.update_all_device_list: "
+                  "timeout out of bounds, timeout: minimum=0, maximum=%s" % hex(UNSIGNED_INT_MAX).__str__())
+            return 0, None
+
+        status, dev_num = gx_update_all_device_list(timeout)
+        StatusProcessor.process(status, 'DeviceManager', 'update_all_device_list')
+
+        status, base_info_list = gx_get_all_device_base_info(dev_num)
+        StatusProcessor.process(status, 'DeviceManager', 'update_all_device_list')
+
+        ip_info_list = self.__get_ip_info(base_info_list, dev_num)
+        self.__device_num = dev_num
+        self.__device_info_list = self.__get_device_info_list(base_info_list, ip_info_list, dev_num)
+
+        return self.__device_num, self.__device_info_list
+
+    def get_device_number(self):
+        """
+        :brief      Get device number
+        :return:    device number
+        """
+        return self.__device_num
+
+    def get_device_info(self):
+        """
+        :brief      Get all device info
+        :return:    info_dict:      device info list
+        """
+        return self.__device_info_list
+
+    def open_device_by_index(self, index, access_mode=GxAccessMode.CONTROL):
+        """
+        :brief      open device by index
+                    USB3 device return U3VDevice object
+                    USB2 device return U2Device object
+                    GEV  device return GEVDevice object
+        :param      index:          device index must start from 1
+        :param      access_mode:    the access of open device
+        :return:    Device object
+        """
+        if not isinstance(index, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.open_device_by_index: "
+                                     "Expected index type is int, not %s" % type(index))
+
+        if not isinstance(access_mode, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.open_device_by_index: "
+                                     "Expected access_mode type is int, not %s" % type(access_mode))
+
+        if index < 1:
+            print("DeviceManager.open_device_by_index: index must start from 1")
+            return None
+        elif index > UNSIGNED_INT_MAX:
+            print("DeviceManager.open_device_by_index: index maximum: %s" % hex(UNSIGNED_INT_MAX).__str__())
+            return None
+
+        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
+        if access_mode not in access_mode_dict.values():
+            print("DeviceManager.open_device_by_index: "
+                  "access_mode out of bounds, %s" % access_mode_dict.__str__())
+            return None
+
+        if self.__device_num < index:
+            # Re-update the device
+            self.update_all_device_list()
+            if self.__device_num < index:
+                raise NotFoundDevice("DeviceManager.open_device_by_index: invalid index")
+
+        # open devices by index
+        open_param = GxOpenParam()
+        open_param.content = string_encoding(str(index))
+        open_param.open_mode = GxOpenMode.INDEX
+        open_param.access_mode = access_mode
+        status, handle = gx_open_device(open_param)
+        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_index')
+
+        # get device class
+        device_class = self.__device_info_list[index-1]["device_class"]
+
+        if device_class == GxDeviceClassList.U3V:
+            return U3VDevice(handle)
+        elif device_class == GxDeviceClassList.USB2:
+            return U2Device(handle)
+        elif device_class == GxDeviceClassList.GEV:
+            return GEVDevice(handle)
+        else:
+            raise NotFoundDevice("DeviceManager.open_device_by_index: Does not support this device type.")
+
+    def __get_device_class_by_sn(self, sn):
+        """
+        :brief:     1.find device by sn in self.__device_info_list
+                    2.return different objects according to device class
+        :param      sn:      device serial number
+        :return:    device class
+        """
+        for index in range(self.__device_num):
+            if self.__device_info_list[index]["sn"] == sn:
+                return self.__device_info_list[index]["device_class"]
+
+        # don't find this id in device base info list
+        return -1
+
+    def open_device_by_sn(self, sn:str, access_mode=GxAccessMode.CONTROL) -> Optional[Device]:
+        """
+        :brief      open device by serial number(SN)
+                    USB3 device return U3VDevice object
+                    USB2 device return U2Device object
+                    GEV device return GEVDevice object
+        :param      sn:             device serial number, type: str
+        :param      access_mode:    the mode of open device[GxAccessMode]
+        :return:    Device object
+        """
+        if not isinstance(sn, str):
+            raise ParameterTypeError("DeviceManager.open_device_by_sn: "
+                                     "Expected sn type is str, not %s" % type(sn))
+
+        if not isinstance(access_mode, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.open_device_by_sn: "
+                                     "Expected access_mode type is int, not %s" % type(access_mode))
+
+        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
+        if access_mode not in access_mode_dict.values():
+            print("DeviceManager.open_device_by_sn: "
+                  "access_mode out of bounds, %s" % access_mode_dict.__str__())
+            return None
+
+        # get device class from self.__device_info_list
+        device_class = self.__get_device_class_by_sn(sn)
+        if device_class == -1:
+            # Re-update the device
+            self.update_all_device_list()
+            device_class = self.__get_device_class_by_sn(sn)
+            if device_class == -1:
+                # don't find this sn
+                raise NotFoundDevice("DeviceManager.open_device_by_sn: Not found device")
+
+        # open devices by sn
+        open_param = GxOpenParam()
+        open_param.content = string_encoding(sn)
+        open_param.open_mode = GxOpenMode.SN
+        open_param.access_mode = access_mode
+        status, handle = gx_open_device(open_param)
+        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_sn')
+
+        if device_class == GxDeviceClassList.U3V:
+            return U3VDevice(handle)
+        elif device_class == GxDeviceClassList.USB2:
+            return U2Device(handle)
+        elif device_class == GxDeviceClassList.GEV:
+            return GEVDevice(handle)
+        else:
+            raise NotFoundDevice("DeviceManager.open_device_by_sn: Does not support this device type.")
+
+    def __get_device_class_by_user_id(self, user_id):
+        """
+        :brief:     1.find device according to sn in self.__device_info_list
+                    2.return different objects according to device class
+        :param      user_id:        user ID
+        :return:    device class
+        """
+        for index in range(self.__device_num):
+            if self.__device_info_list[index]["user_id"] == user_id:
+                return self.__device_info_list[index]["device_class"]
+
+        # don't find this id in device base info list
+        return -1
+
+    def open_device_by_user_id(self, user_id, access_mode=GxAccessMode.CONTROL):
+        """
+        :brief      open device by user defined name
+                    USB3 device return U3VDevice object
+                    GEV  device return GEVDevice object
+        :param      user_id:        user defined name, type:str
+        :param      access_mode:    the mode of open device[GxAccessMode]
+        :return:    Device object
+        """
+        if not isinstance(user_id, str):
+            raise ParameterTypeError("DeviceManager.open_device_by_user_id: "
+                                     "Expected user_id type is str, not %s" % type(user_id))
+        elif user_id.__len__() == 0:
+            raise InvalidParameter("DeviceManager.open_device_by_user_id: Don't support user_id's length is 0")
+
+        if not isinstance(access_mode, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.open_device_by_user_id: "
+                                     "Expected access_mode type is int, not %s" % type(access_mode))
+
+        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
+        if access_mode not in access_mode_dict.values():
+            print("DeviceManager.open_device_by_user_id: access_mode out of bounds, %s" % access_mode_dict.__str__())
+            return None
+
+        # get device class from self.__device_info_list
+        device_class = self.__get_device_class_by_user_id(user_id)
+        if device_class == -1:
+            # Re-update the device
+            self.update_all_device_list()
+            device_class = self.__get_device_class_by_user_id(user_id)
+            if device_class == -1:
+                # don't find this user_id
+                raise NotFoundDevice("DeviceManager.open_device_by_user_id: Not found device")
+
+        # open device by user_id
+        open_param = GxOpenParam()
+        open_param.content = string_encoding(user_id)
+        open_param.open_mode = GxOpenMode.USER_ID
+        open_param.access_mode = access_mode
+        status, handle = gx_open_device(open_param)
+        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_user_id')
+
+        if device_class == GxDeviceClassList.U3V:
+            return U3VDevice(handle)
+        elif device_class == GxDeviceClassList.GEV:
+            return GEVDevice(handle)
+        else:
+            raise NotFoundDevice("DeviceManager.open_device_by_user_id: Does not support this device type.")
+
+    def open_device_by_ip(self, ip, access_mode=GxAccessMode.CONTROL):
+        """
+        :brief      open device by device ip address
+        :param      ip:             device ip address, type:str
+        :param      access_mode:    the mode of open device[GxAccessMode]
+        :return:    GEVDevice object
+        """
+        if not isinstance(ip, str):
+            raise ParameterTypeError("DeviceManager.open_device_by_ip: "
+                                     "Expected ip type is str, not %s" % type(ip))
+
+        if not isinstance(access_mode, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.open_device_by_ip: "
+                                     "Expected access_mode type is int, not %s" % type(access_mode))
+
+        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
+        if access_mode not in access_mode_dict.values():
+            print("DeviceManager.open_device_by_ip: access_mode out of bounds, %s" % access_mode_dict.__str__())
+            return None
+
+        # open device by ip
+        open_param = GxOpenParam()
+        open_param.content = string_encoding(ip)
+        open_param.open_mode = GxOpenMode.IP
+        open_param.access_mode = access_mode
+        status, handle = gx_open_device(open_param)
+        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_ip')
+
+        return GEVDevice(handle)
+
+    def open_device_by_mac(self, mac, access_mode=GxAccessMode.CONTROL):
+        """
+        :brief      open device by device mac address
+        :param      mac:            device mac address, type:str
+        :param      access_mode:    the mode of open device[GxAccessMode]
+        :return:    GEVDevice object
+        """
+        if not isinstance(mac, str):
+            raise ParameterTypeError("DeviceManager.open_device_by_mac: "
+                                     "Expected mac type is str, not %s" % type(mac))
+
+        if not isinstance(access_mode, INT_TYPE):
+            raise ParameterTypeError("DeviceManager.open_device_by_mac: "
+                                     "Expected access_mode type is int, not %s" % type(access_mode))
+
+        access_mode_dict = dict((name, getattr(GxAccessMode, name)) for name in dir(GxAccessMode) if not name.startswith('__'))
+        if access_mode not in access_mode_dict.values():
+            print("DeviceManager.open_device_by_mac: access_mode out of bounds, %s" % access_mode_dict.__str__())
+            return None
+
+        # open device by ip
+        open_param = GxOpenParam()
+        open_param.content = string_encoding(mac)
+        open_param.open_mode = GxOpenMode.MAC
+        open_param.access_mode = access_mode
+        status, handle = gx_open_device(open_param)
+        StatusProcessor.process(status, 'DeviceManager', 'open_device_by_mac')
+
+        return GEVDevice(handle)

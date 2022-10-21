@@ -1,7 +1,6 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject, Signal, Qt # type: ignore
+from qtpy.QtWidgets import QMainWindow, QWidget, QGridLayout, QDesktopWidget
 
 from control._def import *
 
@@ -21,8 +20,8 @@ class ImageDisplay(QObject):
         self.queue = Queue(10) # max 10 items in the queue
         self.image_lock = Lock()
         self.stop_signal_received = False
-        self.thread = Thread(target=self.process_queue) # type: ignore
-        self.thread.start()        
+        self.thread:Thread = Thread(target=self.process_queue)
+        self.thread.start()
         
     def process_queue(self):
         while True:
@@ -31,7 +30,7 @@ class ImageDisplay(QObject):
                 return
             # process the queue
             try:
-                [image,frame_ID,timestamp] = self.queue.get(timeout=0.1)
+                [image,_frame_ID,_timestamp] = self.queue.get(timeout=0.1)
                 self.image_lock.acquire(True)
                 self.image_to_display.emit(image)
                 self.image_lock.release()
@@ -62,8 +61,8 @@ class ImageDisplayWindow(QMainWindow):
     def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
         super().__init__()
         self.setWindowTitle(window_title)
-        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
         self.widget = QWidget()
         self.show_LUT = show_LUT
         self.autoLevels = autoLevels
@@ -94,7 +93,7 @@ class ImageDisplayWindow(QMainWindow):
 
         ## Create ROI
         self.roi_pos = (500,500)
-        self.roi_size = (500,500)
+        self.roi_size = pg.Point(500,500)
         self.ROI = pg.ROI(self.roi_pos, self.roi_size, scaleSnap=True, translateSnap=True)
         self.ROI.setZValue(10)
         self.ROI.addScaleHandle((0,0), (1,1))
@@ -124,8 +123,8 @@ class ImageDisplayWindow(QMainWindow):
         self.setCentralWidget(self.widget)
 
         # set window size
-        desktopWidget = QDesktopWidget();
-        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
+        desktopWidget = QDesktopWidget()
+        width = int(min(desktopWidget.height()*0.9,1000)) #@@@TO MOVE@@@#
         height = width
         self.setFixedSize(width,height)
 
@@ -168,8 +167,8 @@ class ImageArrayDisplayWindow(QMainWindow):
     def __init__(self, window_title=''):
         super().__init__()
         self.setWindowTitle(window_title)
-        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
         self.widget = QWidget()
 
         # interpret image data as row-major instead of col-major
@@ -210,7 +209,7 @@ class ImageArrayDisplayWindow(QMainWindow):
 
         # set window size
         desktopWidget = QDesktopWidget()
-        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
+        width = int(min(desktopWidget.height()*0.9,1000)) #@@@TO MOVE@@@#
         height = width
         self.setFixedSize(width,height)
 

@@ -1,14 +1,8 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
-
-import pyqtgraph as pg
-
-from datetime import datetime
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QFrame, QDoubleSpinBox, QGridLayout, QSlider, QLabel
 
 from control._def import *
-import control.core as core
 
 from typing import Optional, Union, List, Tuple
 
@@ -20,11 +14,11 @@ class DACControWidget(QFrame):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self):
-        self.slider_DAC0 = QSlider(Qt.Horizontal)
+        self.slider_DAC0 = QSlider(Qt.Horizontal) # type: ignore
         self.slider_DAC0.setTickPosition(QSlider.TicksBelow)
         self.slider_DAC0.setMinimum(0)
         self.slider_DAC0.setMaximum(100)
-        self.slider_DAC0.setSingleStep(0.1)
+        self.slider_DAC0.setSingleStep(1)
         self.slider_DAC0.setValue(0)
 
         self.entry_DAC0 = QDoubleSpinBox()
@@ -34,12 +28,12 @@ class DACControWidget(QFrame):
         self.entry_DAC0.setValue(0)
         self.entry_DAC0.setKeyboardTracking(False)
 
-        self.slider_DAC1 = QSlider(Qt.Horizontal)
+        self.slider_DAC1 = QSlider(Qt.Horizontal) # type: ignore
         self.slider_DAC1.setTickPosition(QSlider.TicksBelow)
         self.slider_DAC1.setMinimum(0)
         self.slider_DAC1.setMaximum(100)
         self.slider_DAC1.setValue(0)
-        self.slider_DAC1.setSingleStep(0.1)
+        self.slider_DAC1.setSingleStep(1)
 
         self.entry_DAC1 = QDoubleSpinBox()
         self.entry_DAC1.setMinimum(0) 

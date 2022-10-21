@@ -4,9 +4,7 @@ os.environ["QT_API"] = "pyqt5"
 import qtpy
 
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtWidgets import QMainWindow, QTabWidget, QWidget, QVBoxLayout, QDesktopWidget
 
 # app specific libraries
 import control.widgets as widgets
@@ -98,7 +96,7 @@ class OctopiGUI(QMainWindow):
 		layout.addStretch()
 		
 		# transfer the layout to the central widget
-		self.centralWidget = QWidget()
+		self.centralWidget:QWidget = QWidget()
 		self.centralWidget.setLayout(layout)
 		# self.centralWidget.setFixedSize(self.centralWidget.minimumSize())
 		# self.centralWidget.setFixedWidth(self.centralWidget.minimumWidth())
@@ -120,17 +118,17 @@ class OctopiGUI(QMainWindow):
 			main_dockArea.addDock(dock_controlPanel,'right')
 			self.setCentralWidget(main_dockArea)
 			desktopWidget = QDesktopWidget()
-			height_min = 0.9*desktopWidget.height()
-			width_min = 0.96*desktopWidget.width()
+			height_min = int(0.9*desktopWidget.height())
+			width_min = int(0.96*desktopWidget.width())
 			self.setMinimumSize(width_min,height_min)
 		else:
 			self.setCentralWidget(self.centralWidget)
 			self.tabbedImageDisplayWindow = QMainWindow()
 			self.tabbedImageDisplayWindow.setCentralWidget(self.imageDisplayTabs)
-			self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
-			self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
+			self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
+			self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
 			desktopWidget = QDesktopWidget()
-			width = 0.96*desktopWidget.height()
+			width = int(0.96*desktopWidget.height())
 			height = width
 			self.tabbedImageDisplayWindow.setFixedSize(width,height)
 			self.tabbedImageDisplayWindow.show()

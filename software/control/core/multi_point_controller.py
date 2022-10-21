@@ -1,7 +1,6 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject, Signal, QThread, Qt # type: ignore
+from qtpy.QtWidgets import QApplication
 
 import control.utils as utils
 from control._def import *
@@ -159,6 +158,7 @@ class MultiPointWorker(QObject):
                         configuration_name_AF = self.multiPointController.autofocus_channel_name
                         config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                         self.signal_current_configuration.emit(config_AF)
+                        self.camera.start_streaming() # work around a bug, explained in MultiPointController.run_experiment
                         self.autofocusController.autofocus()
                         self.autofocusController.wait_till_autofocus_has_completed()
                     
@@ -418,10 +418,11 @@ class MultiPointController(QObject):
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
         self.counter = 0
         self.experiment_ID: Optional[str] = None
-        self.base_path  = None
+        self.base_path:Optional[str]  = None
         self.selected_configurations = []
         self.scanCoordinates = scanCoordinates
         self.autofocus_channel_name=MULTIPOINT_AUTOFOCUS_CHANNEL
+        self.thread:Optional[QThread]=None
 
     def set_NX(self,N):
         self.NX = N
@@ -459,14 +460,15 @@ class MultiPointController(QObject):
         # generate unique experiment ID
         self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
         self.recording_start_time = time.time()
+
         # create a new folder
+        assert not self.base_path is None
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
         acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus}
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
-
 
     def set_selected_configurations(self, selected_configurations_name):
         self.selected_configurations = []

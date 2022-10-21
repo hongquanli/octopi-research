@@ -1,7 +1,5 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject, Signal # type: ignore
 
 import control.utils as utils
 from control._def import *
@@ -10,25 +8,12 @@ from queue import Queue
 from threading import Thread, Lock
 import time
 import numpy as np
-import pyqtgraph as pg
 import cv2
 from datetime import datetime
-
-from lxml import etree as ET
-from pathlib import Path
-import control.utils_config as utils_config
-
-import math
-import json
-import pandas as pd
 
 import imageio as iio
 
 from typing import Optional, List, Union, Tuple
-import control.widgets as widgets
-
-import control.microcontroller as microcontroller
-import control.camera as camera
 
 class ImageSaver(QObject):
 

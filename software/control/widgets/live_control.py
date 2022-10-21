@@ -1,7 +1,6 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import Signal, Qt # type: ignore
+from qtpy.QtWidgets import QFrame, QComboBox, QDoubleSpinBox, QPushButton, QSlider, QGridLayout, QLabel, QVBoxLayout
 
 import pyqtgraph as pg
 
@@ -9,6 +8,7 @@ from datetime import datetime
 
 from control._def import *
 import control.core as core
+from control.core import Configuration
 
 from typing import Optional, Union, List, Tuple
 # 'Live' button text
@@ -40,7 +40,7 @@ class LiveControlWidget(QFrame):
         
         self.triggerMode = TriggerMode.SOFTWARE
         # note that this references the object in self.configurationManager.configurations
-        self.currentConfiguration = self.configurationManager.configurations[0]
+        self.currentConfiguration:Configuration = self.configurationManager.configurations[0]
 
         self.add_components(show_trigger_options,show_display_options,show_autolevel,autolevel)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -91,12 +91,12 @@ class LiveControlWidget(QFrame):
         self.entry_analogGain.setSingleStep(0.1)
         self.entry_analogGain.setValue(0)
 
-        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
+        self.slider_illuminationIntensity = QSlider(Qt.Horizontal) # type: ignore
         self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
         self.slider_illuminationIntensity.setMinimum(0)
         self.slider_illuminationIntensity.setMaximum(100)
         self.slider_illuminationIntensity.setValue(100)
-        self.slider_illuminationIntensity.setSingleStep(0.1)
+        self.slider_illuminationIntensity.setSingleStep(0)
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
         self.entry_illuminationIntensity.setMinimum(0.1) 
@@ -111,7 +111,7 @@ class LiveControlWidget(QFrame):
         self.entry_displayFPS.setSingleStep(1)
         self.entry_displayFPS.setValue(self.fps_display)
 
-        self.slider_resolutionScaling = QSlider(Qt.Horizontal)
+        self.slider_resolutionScaling = QSlider(Qt.Horizontal) # type: ignore
         self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
         self.slider_resolutionScaling.setMinimum(10)
         self.slider_resolutionScaling.setMaximum(100)
@@ -195,7 +195,7 @@ class LiveControlWidget(QFrame):
     def update_microscope_mode_by_name(self,current_microscope_mode_name:str):
         self.is_switching_mode = True
         # identify the mode selected (note that this references the object in self.configurationManager.configurations)
-        self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
+        self.currentConfiguration = [config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name][0]
         # update the microscope to the current configuration
         self.liveController.set_microscope_mode(self.currentConfiguration)
         # update the exposure time and analog gain settings according to the selected configuration

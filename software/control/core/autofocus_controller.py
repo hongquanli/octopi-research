@@ -1,7 +1,6 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject, QThread, Signal # type: ignore
+from qtpy.QtWidgets import QApplication
 
 import control.utils as utils
 from control._def import *
@@ -47,8 +46,8 @@ class AutofocusWorker(QObject):
     def run_autofocus(self):
         # @@@ to add: increase gain, decrease exposure time
         # @@@ can move the execution into a thread - done 08/21/2021
-        focus_measure_vs_z = [0]*self.N
-        focus_measure_max = 0
+        focus_measure_vs_z:List[float] = [0]*self.N
+        focus_measure_max:float = 0
 
         z_af_offset_usteps = self.deltaZ_usteps*round(self.N/2)
         # self.navigationController.move_z_usteps(-z_af_offset_usteps) # combine with the back and forth maneuver below
@@ -67,21 +66,28 @@ class AutofocusWorker(QObject):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
             steps_moved = steps_moved + 1
+
             # trigger acquisition (including turning on the illumination)
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_on_illumination()
                 self.wait_till_operation_is_completed()
                 self.camera.send_trigger()
+
             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                 self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+
             # read camera frame
             image = self.camera.read_frame()
-            # tunr of the illumination if using software trigger
+
+            # turn off the illumination if using software trigger
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
+
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             self.image_to_display.emit(image)
+
             QApplication.processEvents()
+
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
             focus_measure_vs_z[i] = focus_measure
             focus_measure_max = max(focus_measure, focus_measure_max)
@@ -94,6 +100,7 @@ class AutofocusWorker(QObject):
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-steps_moved*self.deltaZ_usteps)
+
         # determine the in-focus position
         idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
         self.wait_till_operation_is_completed()
@@ -104,9 +111,10 @@ class AutofocusWorker(QObject):
         # self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
         # self.wait_till_operation_is_completed() # combine with the movement above
         if idx_in_focus == 0:
-            print('moved to the bottom end of the AF range')
-        if idx_in_focus == self.N-1:
-            print('moved to the top end of the AF range')
+            print('moved to the bottom end of the AF range (this is not good)')
+
+        elif idx_in_focus == self.N-1:
+            print('moved to the top end of the AF range (this is not good)')
 
 class AutoFocusController(QObject):
 
@@ -119,14 +127,15 @@ class AutoFocusController(QObject):
         self.camera = camera
         self.navigationController = navigationController
         self.liveController = liveController
-        self.N = None
-        self.deltaZ = None
-        self.deltaZ_usteps = None
+        self.N:int = 1 # arbitrary value of type
+        self.deltaZ:float = 0.1 # arbitrary value of type
+        self.deltaZ_usteps:int = 1 # arbitrary value of type
         self.crop_width:int = AF.CROP_WIDTH
         self.crop_height:int = AF.CROP_HEIGHT
         self.autofocus_in_progress:bool = False
+        self.thread:Optional[QThread] = None
 
-    def set_N(self,N):
+    def set_N(self,N:int):
         self.N = N
 
     def set_deltaZ(self,deltaZ_um:float):
@@ -154,16 +163,15 @@ class AutoFocusController(QObject):
             self.callback_was_enabled_before_autofocus = False
 
         self.autofocus_in_progress = True
+        self.camera.start_streaming() # work around a bug, explained in MultiPointController.run_experiment
 
         # create a QThread object
-        try:
-            if self.thread.isRunning():
-                print('*** autofocus thread is still running ***')
-                self.thread.terminate()
-                self.thread.wait()
-                print('*** autofocus threaded manually stopped ***')
-        except:
-            pass
+        if not self.thread is None and self.thread.isRunning():
+            print('*** autofocus thread is still running ***')
+            self.thread.terminate()
+            self.thread.wait()
+            print('*** autofocus threaded manually stopped ***')
+
         self.thread = QThread()
         # create a worker object
         self.autofocusWorker = AutofocusWorker(self)

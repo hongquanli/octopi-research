@@ -1,7 +1,5 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
+from qtpy.QtCore import QObject
 
 from control._def import *
 
@@ -13,20 +11,20 @@ from typing import Optional, List, Union, Tuple
 
 class Configuration:
     def __init__(self,
-        mode_id=None,
-        name:str=None,
-        camera_sn=None,
-        exposure_time=None,
-        analog_gain=None,
-        illumination_source=None,
-        illumination_intensity=None
+        mode_id,
+        name:str,
+        camera_sn,
+        exposure_time:float,
+        analog_gain:float,
+        illumination_source:int,
+        illumination_intensity:float
     ):
         self.id = mode_id
-        self.name:str = name
-        self.exposure_time:float = exposure_time
-        self.analog_gain:float = analog_gain
-        self.illumination_source:int = illumination_source
-        self.illumination_intensity:float = illumination_intensity
+        self.name = name
+        self.exposure_time = exposure_time
+        self.analog_gain = analog_gain
+        self.illumination_source = illumination_source
+        self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
 
 class ConfigurationManager(QObject):
@@ -45,7 +43,7 @@ class ConfigurationManager(QObject):
     def read_configurations(self):
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
-        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree = ET.parse(self.config_filename) # type: ignore
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):

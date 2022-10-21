@@ -1,19 +1,14 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
-
-import pyqtgraph as pg
-
-from datetime import datetime
+from qtpy.QtWidgets import QFrame, QLabel, QDoubleSpinBox, QPushButton, QGridLayout, QMessageBox
 
 from control._def import *
-import control.core as core
 
 from typing import Optional, Union, List, Tuple
 
+from control.core import SlidePositionController
+
 class NavigationWidget(QFrame):
-    def __init__(self, navigationController, slidePositionController=None, main=None, widget_configuration = 'full', *args, **kwargs):
+    def __init__(self, navigationController, slidePositionController:Optional[SlidePositionController]=None, widget_configuration:str = 'full', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.navigationController = navigationController
         self.slidePositionController = slidePositionController
@@ -188,7 +183,7 @@ class NavigationWidget(QFrame):
         msg.setText("Confirm your action")
         msg.setInformativeText("Click OK to run homing")
         msg.setWindowTitle("Confirmation")
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel) # type: ignore
         msg.setDefaultButton(QMessageBox.Cancel)
         retval = msg.exec_()
         if QMessageBox.Ok == retval:
@@ -200,7 +195,7 @@ class NavigationWidget(QFrame):
         msg.setText("Confirm your action")
         msg.setInformativeText("Click OK to run homing")
         msg.setWindowTitle("Confirmation")
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel) # type: ignore
         msg.setDefaultButton(QMessageBox.Cancel)
         retval = msg.exec_()
         if QMessageBox.Ok == retval:
@@ -212,7 +207,7 @@ class NavigationWidget(QFrame):
         msg.setText("Confirm your action")
         msg.setInformativeText("Click OK to run homing")
         msg.setWindowTitle("Confirmation")
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel) # type: ignore
         msg.setDefaultButton(QMessageBox.Cancel)
         retval = msg.exec_()
         if QMessageBox.Ok == retval:
@@ -250,6 +245,7 @@ class NavigationWidget(QFrame):
         self.btn_moveZ_backward.setEnabled(True)
 
     def switch_position(self):
+        assert not self.slidePositionController is None
         if self.slide_position != 'loading':
             self.slidePositionController.move_to_slide_loading_position()
         else:

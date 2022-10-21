@@ -11,7 +11,7 @@ try:
     import gi
     gi.require_version("Gst", "1.0")
     gi.require_version("Tcam", "0.1")
-    from gi.repository import Tcam, Gst, GLib, GObject
+    from gi.repository import Tcam, Gst, GLib, GObject # type: ignore
 except ImportError:
     print('gi import error')
 
@@ -59,7 +59,7 @@ class Camera(object):
         try:
             self.pipeline = Gst.parse_launch(p)
         except GLib.Error as error:
-            print("Error creating pipeline: {0}".format(err))
+            print("Error creating pipeline: {0}".format(error))
             raise
 
         self.pipeline.set_state(Gst.State.READY)
@@ -111,7 +111,7 @@ class Camera(object):
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
             self.is_streaming = True
         except GLib.Error as error:
-            print("Error starting pipeline: {0}".format(err))#error?
+            print("Error starting pipeline: {0}".format(error))
             raise
         self.frame_ID = 0
 
@@ -159,41 +159,47 @@ class Camera(object):
                 self.timestamp = time.time()
                 if self.new_image_callback_external is not None:
                     self.new_image_callback_external(self)
+
             except GLib.Error as error:
-                print("Error on_new_buffer pipeline: {0}".format(err)) #error
+                print("Error on_new_buffer pipeline: {0}".format(error))
                 self.img_mat = None
+
         return Gst.FlowReturn.OK
 
     def _get_property(self, PropertyName):
         try:
             return CameraProperty(*self.source.get_tcam_property(PropertyName))
+
         except GLib.Error as error:
-            print("Error get Property {0}: {1}",PropertyName, format(err))
+            print("Error get Property {0}: {1}",PropertyName, format(error))
             raise
 
     def _set_property(self, PropertyName, value):
         try:
             print('setting ' + PropertyName + 'to ' + str(value))
             self.source.set_tcam_property(PropertyName,GObject.Value(type(value),value))
+
         except GLib.Error as error:
-            print("Error set Property {0}: {1}",PropertyName, format(err))
+            print("Error set Property {0}: {1}",PropertyName, format(error))
             raise
 
     def _gstbuffer_to_opencv(self):
         # Sample code from https://gist.github.com/cbenhagen/76b24573fa63e7492fb6#file-gst-appsink-opencv-py-L34
-        buf = self.sample.get_buffer()
-        caps = self.sample.get_caps()
-        bpp = 4;
+        buf = self.sample.get_buffer() # type: ignore
+        caps = self.sample.get_caps() # type: ignore
+        bpp = 4
         if caps.get_structure(0).get_value('format') == "BGRx":
-            bpp = 4;
+            bpp = 4
 
         if caps.get_structure(0).get_value('format') == "GRAY8":
-            bpp = 1;
+            bpp = 1
 
         self.current_frame = numpy.ndarray(
-            (caps.get_structure(0).get_value('height'),
-             caps.get_structure(0).get_value('width'),
-             bpp),
+            (
+                caps.get_structure(0).get_value('height'),
+                caps.get_structure(0).get_value('width'),
+                bpp
+            ),
             buffer=buf.extract_dup(0, buf.get_size()),
             dtype=numpy.uint8)
             

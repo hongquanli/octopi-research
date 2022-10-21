@@ -1,16 +1,12 @@
 # qt libraries
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
-
-import pyqtgraph as pg
-
-from datetime import datetime
+from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog
+from qtpy.QtGui import QIcon
 
 from control._def import *
-import control.core as core
 
 from typing import Optional, Union, List, Tuple
+
+from control.core.configuration import ConfigurationManager
 
 autofocus_channel_names=[
     "Fluorescence 405 nm Ex",
@@ -21,7 +17,7 @@ autofocus_channel_names=[
 ]
 
 class MultiPointWidget(QFrame):
-    def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
+    def __init__(self, multipointController, configurationManager:ConfigurationManager, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
         self.configurationManager = configurationManager
