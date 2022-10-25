@@ -368,7 +368,7 @@ class Configuration:
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True,use_internal_timer_for_hardware_trigger=True):
+    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
@@ -379,6 +379,7 @@ class LiveController(QObject):
         self.control_illumination = control_illumination
         self.illumination_on = False
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
+        self.for_displacement_measurement = for_displacement_measurement
 
         self.fps_trigger = 1;
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
@@ -416,6 +417,9 @@ class LiveController(QObject):
         self.camera.start_streaming()
         if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
             self._start_triggerred_acquisition()
+        # if controlling the laser displacement measurement camera
+        if self.for_displacement_measurement:
+            self.microcontroller.set_pin_level(MCU_PINS,AF_LASER,1)
 
     def stop_live(self):
         if self.is_live:
@@ -425,11 +429,14 @@ class LiveController(QObject):
                 self._stop_triggerred_acquisition()
             # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
             if self.trigger_mode == TriggerMode.CONTINUOUS:
-            	self.camera.stop_streaming()
+                self.camera.stop_streaming()
             if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
             if self.control_illumination:
                 self.turn_off_illumination()
+            # if controlling the laser displacement measurement camera
+            if self.for_displacement_measurement:
+                self.microcontroller.set_pin_level(MCU_PINS,AF_LASER,0)
 
     # software trigger related
     def trigger_acquisition(self):
