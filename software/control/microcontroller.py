@@ -549,7 +549,7 @@ class Microcontroller():
 
     def set_pin_level(self,pin,level):
         cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
+        cmd[1] = CMD_SET.SET_PIN_LEVEL
         cmd[2] = pin
         cmd[3] = level
         self.send_command(cmd)

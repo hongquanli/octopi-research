@@ -11,6 +11,7 @@ from control._def import *
 
 def get_sn_by_model(model_name):
     try:
+        device_manager = gx.DeviceManager()
         device_num, device_info_list = device_manager.update_device_list()
     except:
         device_num = 0

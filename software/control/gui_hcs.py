@@ -282,6 +282,9 @@ class OctopiGUI(QMainWindow):
 		# (double) click to move to a well
 		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
 
+		# camera
+		self.camera.set_callback(self.streamHandler.on_new_frame)
+
 		# laser autofocus
 		if SUPPORT_LASER_AUTOFOCUS:
 
@@ -337,17 +340,13 @@ class OctopiGUI(QMainWindow):
 			# connections
 			self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
 			self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
-			self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
-			self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+			self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
+			self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget_focus_camera.set_analog_gain)
 			self.liveControlWidget.update_camera_settings()
 
 			self.streamHandler_focus_camera.image_to_display.connect(self.displacementMeasurementController.update_measurement)
 			self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
 			self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
-		
-
-		self.camera.set_callback(self.streamHandler.on_new_frame)
-
 
 	def closeEvent(self, event):
 		
