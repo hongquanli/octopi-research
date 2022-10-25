@@ -309,7 +309,7 @@ class OctopiGUI(QMainWindow):
 
 			dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
 			dock_laserfocus_image_display.showTitleBar()
-			dock_laserfocus_image_display.addWidget(self.imageDisplayWindow_focus)
+			dock_laserfocus_image_display.addWidget(self.imageDisplayWindow_focus.widget)
 			dock_laserfocus_image_display.setStretch(x=100,y=100)
 
 			dock_laserfocus_liveController = dock.Dock('Focus Camera Controller', autoOrientation = False)
@@ -327,6 +327,7 @@ class OctopiGUI(QMainWindow):
 			dock_displayMeasurement.showTitleBar()
 			dock_displayMeasurement.addWidget(self.displacementMeasurementWidget)
 			dock_displayMeasurement.setStretch(x=100,y=40)
+			dock_displayMeasurement.setFixedWidth(self.displacementMeasurementWidget.minimumSizeHint().width())
 
 			laserfocus_dockArea = dock.DockArea()
 			laserfocus_dockArea.addDock(dock_laserfocus_image_display)
@@ -375,6 +376,5 @@ class OctopiGUI(QMainWindow):
 			self.tabbedImageDisplayWindow.close()
 		if SUPPORT_LASER_AUTOFOCUS:
 			self.camera_focus.close()
-			self.liveController_focus_camera.close()
 			self.imageDisplay_focus_camera.close()
 		self.microcontroller.close()
