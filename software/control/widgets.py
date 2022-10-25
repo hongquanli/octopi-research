@@ -1634,9 +1634,11 @@ class MultiCameraRecordingWidget(QFrame):
 
 class WaveformDisplay(QFrame):
 
-    def __init__(self, N=1000, main=None, *args, **kwargs):
+    def __init__(self, N=1000, include_x=True, include_y=True, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.N = N
+        self.include_x = include_x
+        self.include_y = include_y
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1646,13 +1648,17 @@ class WaveformDisplay(QFrame):
         self.plotWidget['Y'] = PlotWidget('X', N=self.N, add_legend=True)
 
         layout = QGridLayout() #layout = QStackedLayout()
-        layout.addWidget(self.plotWidget['X'],0,0)
-        layout.addWidget(self.plotWidget['Y'],1,0)
+        if self.include_x:
+            layout.addWidget(self.plotWidget['X'],0,0)
+        if self.include_y:
+            layout.addWidget(self.plotWidget['Y'],1,0)
         self.setLayout(layout)
 
     def plot(self,time,data):
-        self.plotWidget['X'].plot(time,data[0,:],'X',color=(255,255,255),clear=True)
-        self.plotWidget['Y'].plot(time,data[1,:],'Y 1',color=(255,255,255),clear=True)
+        if self.include_x:
+            self.plotWidget['X'].plot(time,data[0,:],'X',color=(255,255,255),clear=True)
+        if self.include_y:
+            self.plotWidget['Y'].plot(time,data[1,:],'Y',color=(255,255,255),clear=True)
 
     def update_N(self,N):
         self.N = N

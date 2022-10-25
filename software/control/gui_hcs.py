@@ -304,7 +304,7 @@ class OctopiGUI(QMainWindow):
 			# widgets
 			self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=False)
 			self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
-			self.waveformDisplay = widgets.WaveformDisplay(N=1000)
+			self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
 			self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
 
 			dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
