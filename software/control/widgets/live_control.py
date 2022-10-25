@@ -7,10 +7,10 @@ import pyqtgraph as pg
 from datetime import datetime
 
 from control._def import *
-import control.core as core
-from control.core import Configuration
+from control.core import Configuration, LiveController, ConfigurationManager
 
 from typing import Optional, Union, List, Tuple
+
 # 'Live' button text
 LIVE_BUTTON_IDLE_TEXT="Start Live"
 LIVE_BUTTON_RUNNING_TEXT="Stop Live"
@@ -22,8 +22,8 @@ class LiveControlWidget(QFrame):
 
     def __init__(self, 
         streamHandler, 
-        liveController:core.LiveController,
-        configurationManager:core.ConfigurationManager, 
+        liveController:LiveController,
+        configurationManager:ConfigurationManager, 
         show_trigger_options:bool=True, 
         show_display_options:bool=True, 
         show_autolevel:bool = False, 
@@ -115,7 +115,7 @@ class LiveControlWidget(QFrame):
         self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
         self.slider_resolutionScaling.setMinimum(10)
         self.slider_resolutionScaling.setMaximum(100)
-        self.slider_resolutionScaling.setValue(DEFAULT_DISPLAY_CROP)
+        self.slider_resolutionScaling.setValue(MACHINE_CONFIG.DEFAULT_DISPLAY_CROP)
         self.slider_resolutionScaling.setSingleStep(10)
 
         # autolevel
@@ -213,22 +213,22 @@ class LiveControlWidget(QFrame):
             self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
             self.signal_newExposureTime.emit(new_value)
 
-    def update_config_analog_gain(self,new_value):
+    def update_config_analog_gain(self,new_value:float):
         if self.is_switching_mode == False:
             self.currentConfiguration.analog_gain = new_value
             self.configurationManager.update_configuration(self.currentConfiguration.id,'AnalogGain',new_value)
             self.signal_newAnalogGain.emit(new_value)
 
-    def update_config_illumination_intensity(self,new_value):
+    def update_config_illumination_intensity(self,new_value:float):
         if self.is_switching_mode == False:
             self.currentConfiguration.illumination_intensity = new_value
             self.configurationManager.update_configuration(self.currentConfiguration.id,'IlluminationIntensity',new_value)
             self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
 
-    def set_microscope_mode(self,config):
+    def set_microscope_mode(self,config:Configuration):
         # self.liveController.set_microscope_mode(config)
         self.dropdown_modeSelection.setCurrentText(config.name)
 
-    def set_trigger_mode(self,trigger_mode):
+    def set_trigger_mode(self,trigger_mode:str):
         self.dropdown_triggerManu.setCurrentText(trigger_mode)
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())

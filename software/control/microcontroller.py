@@ -150,7 +150,7 @@ class Microcontroller():
     '''
 
     def move_x_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
+        direction = MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
@@ -181,7 +181,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
 
     def move_x_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_X*usteps,4)
+        payload = self._int_to_payload(MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X*usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_X
         cmd[2] = payload >> 24
@@ -205,7 +205,7 @@ class Microcontroller():
     '''
 
     def move_y_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
+        direction = MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
@@ -236,7 +236,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
     
     def move_y_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_Y*usteps,4)
+        payload = self._int_to_payload(MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y*usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Y
         cmd[2] = payload >> 24
@@ -260,7 +260,7 @@ class Microcontroller():
     '''
 
     def move_z_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_Z*np.sign(usteps)
+        direction = MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Z*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
@@ -301,7 +301,7 @@ class Microcontroller():
         self.send_command(cmd)
 
     def move_theta_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_THETA*np.sign(usteps)
+        direction = MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_THETA*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
@@ -360,7 +360,7 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.X
-        cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        cmd[3] = int((MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
@@ -370,7 +370,7 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Y
-        cmd[3] = int((STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        cmd[3] = int((MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
         #     sleep(self._motion_status_checking_interval)
@@ -380,7 +380,7 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Z
-        cmd[3] = int((STAGE_MOVEMENT_SIGN_Z+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        cmd[3] = int((MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Z+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
@@ -390,7 +390,7 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = 3
-        cmd[3] = int((STAGE_MOVEMENT_SIGN_THETA+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        cmd[3] = int((MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_THETA+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
@@ -400,8 +400,8 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.XY
-        cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
-        cmd[4] = int((STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        cmd[3] = int((MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        cmd[4] = int((MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
 
     def zero_x(self):
@@ -502,32 +502,32 @@ class Microcontroller():
 
     def configure_actuators(self):
         # lead screw pitch
-        self.set_leadscrew_pitch(AXIS.X,SCREW_PITCH_X_MM)
+        self.set_leadscrew_pitch(AXIS.X,MACHINE_CONFIG.SCREW_PITCH_X_MM)
         self.wait_till_operation_is_completed()
-        self.set_leadscrew_pitch(AXIS.Y,SCREW_PITCH_Y_MM)
+        self.set_leadscrew_pitch(AXIS.Y,MACHINE_CONFIG.SCREW_PITCH_Y_MM)
         self.wait_till_operation_is_completed()
-        self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
+        self.set_leadscrew_pitch(AXIS.Z,MACHINE_CONFIG.SCREW_PITCH_Z_MM)
         self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
-        self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.X,MACHINE_CONFIG.MICROSTEPPING_DEFAULT_X,MACHINE_CONFIG.X_MOTOR_RMS_CURRENT_mA,MACHINE_CONFIG.X_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
-        self.configure_motor_driver(AXIS.Y,MICROSTEPPING_DEFAULT_Y,Y_MOTOR_RMS_CURRENT_mA,Y_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.Y,MACHINE_CONFIG.MICROSTEPPING_DEFAULT_Y,MACHINE_CONFIG.Y_MOTOR_RMS_CURRENT_mA,MACHINE_CONFIG.Y_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
-        self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
+        self.configure_motor_driver(AXIS.Z,MACHINE_CONFIG.MICROSTEPPING_DEFAULT_Z,MACHINE_CONFIG.Z_MOTOR_RMS_CURRENT_mA,MACHINE_CONFIG.Z_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
         # max velocity and acceleration
-        self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
+        self.set_max_velocity_acceleration(AXIS.X,MACHINE_CONFIG.MAX_VELOCITY_X_mm,MACHINE_CONFIG.MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
+        self.set_max_velocity_acceleration(AXIS.Y,MACHINE_CONFIG.MAX_VELOCITY_Y_mm,MACHINE_CONFIG.MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
+        self.set_max_velocity_acceleration(AXIS.Z,MACHINE_CONFIG.MAX_VELOCITY_Z_mm,MACHINE_CONFIG.MAX_ACCELERATION_Z_mm)
         self.wait_till_operation_is_completed()
         # home switch
-        self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.X,MACHINE_CONFIG.X_HOME_SWITCH_POLARITY)
         self.wait_till_operation_is_completed()
-        self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.Y,MACHINE_CONFIG.Y_HOME_SWITCH_POLARITY)
         self.wait_till_operation_is_completed()
-        self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
+        self.set_limit_switch_polarity(AXIS.Z,MACHINE_CONFIG.Z_HOME_SWITCH_POLARITY)
         self.wait_till_operation_is_completed()
 
     def ack_joystick_button_pressed(self):

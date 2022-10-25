@@ -31,10 +31,10 @@ class NavigationController(QObject):
         self.z_pos_mm = 0
         self.z_pos = 0
         self.theta_pos_rad = 0
-        self.x_microstepping = MICROSTEPPING_DEFAULT_X
-        self.y_microstepping = MICROSTEPPING_DEFAULT_Y
-        self.z_microstepping = MICROSTEPPING_DEFAULT_Z
-        self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
+        self.x_microstepping = MACHINE_CONFIG.MICROSTEPPING_DEFAULT_X
+        self.y_microstepping = MACHINE_CONFIG.MICROSTEPPING_DEFAULT_Y
+        self.z_microstepping = MACHINE_CONFIG.MICROSTEPPING_DEFAULT_Z
+        self.theta_microstepping = MACHINE_CONFIG.MICROSTEPPING_DEFAULT_THETA
         self.enable_joystick_button_action:bool = True
 
         # to be moved to gui for transparency
@@ -46,22 +46,22 @@ class NavigationController(QObject):
         # self.timer_read_pos.start()
 
     def move_x(self,delta):
-        self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        self.microcontroller.move_x_usteps(int(delta/(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))))
 
     def move_y(self,delta):
-        self.microcontroller.move_y_usteps(int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        self.microcontroller.move_y_usteps(int(delta/(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))))
 
     def move_z(self,delta):
-        self.microcontroller.move_z_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+        self.microcontroller.move_z_usteps(int(delta/(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))))
 
     def move_x_to(self,delta):
-        self.microcontroller.move_x_to_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        self.microcontroller.move_x_to_usteps(int(delta/(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))))
 
     def move_y_to(self,delta):
-        self.microcontroller.move_y_to_usteps(int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        self.microcontroller.move_y_to_usteps(int(delta/(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))))
 
     def move_z_to(self,delta):
-        self.microcontroller.move_z_to_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+        self.microcontroller.move_z_to_usteps(int(delta/(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))))
 
     def move_x_usteps(self,usteps):
         self.microcontroller.move_x_usteps(usteps)
@@ -76,23 +76,27 @@ class NavigationController(QObject):
         # get position from the microcontroller
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
         self.z_pos = z_pos
+        
         # calculate position in mm or rad
-        if USE_ENCODER_X:
-            self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
+        if MACHINE_CONFIG.USE_ENCODER_X:
+            self.x_pos_mm = x_pos*MACHINE_CONFIG.ENCODER_POS_SIGN_X*MACHINE_CONFIG.ENCODER_STEP_SIZE_X_MM
         else:
-            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
-        if USE_ENCODER_Y:
-            self.y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
+            self.x_pos_mm = x_pos*MACHINE_CONFIG.STAGE_POS_SIGN_X*(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))
+
+        if MACHINE_CONFIG.USE_ENCODER_Y:
+            self.y_pos_mm = y_pos*MACHINE_CONFIG.ENCODER_POS_SIGN_Y*MACHINE_CONFIG.ENCODER_STEP_SIZE_Y_MM
         else:
-            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
-        if USE_ENCODER_Z:
-            self.z_pos_mm = z_pos*ENCODER_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
+            self.y_pos_mm = y_pos*MACHINE_CONFIG.STAGE_POS_SIGN_Y*(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))
+
+        if MACHINE_CONFIG.USE_ENCODER_Z:
+            self.z_pos_mm = z_pos*MACHINE_CONFIG.ENCODER_POS_SIGN_Z*MACHINE_CONFIG.ENCODER_STEP_SIZE_Z_MM
         else:
-            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
-        if USE_ENCODER_THETA:
-            self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
+            self.z_pos_mm = z_pos*MACHINE_CONFIG.STAGE_POS_SIGN_Z*(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))
+
+        if MACHINE_CONFIG.USE_ENCODER_THETA:
+            self.theta_pos_rad = theta_pos*MACHINE_CONFIG.ENCODER_POS_SIGN_THETA*MACHINE_CONFIG.ENCODER_STEP_SIZE_THETA
         else:
-            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+            self.theta_pos_rad = theta_pos*MACHINE_CONFIG.STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_THETA))
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
         self.yPos.emit(self.y_pos_mm)
@@ -137,40 +141,40 @@ class NavigationController(QObject):
         pass
 
     def set_x_limit_pos_mm(self,value_mm):
-        if STAGE_MOVEMENT_SIGN_X > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        if MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X > 0:
+            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X*int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))))
 
     def set_x_limit_neg_mm(self,value_mm):
-        if STAGE_MOVEMENT_SIGN_X > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        if MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X > 0:
+            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_X*int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X))))
 
     def set_y_limit_pos_mm(self,value_mm):
-        if STAGE_MOVEMENT_SIGN_Y > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        if MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y > 0:
+            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,STAGE_MOVEMENT_SIGN_Y*int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y*int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))))
 
     def set_y_limit_neg_mm(self,value_mm):
-        if STAGE_MOVEMENT_SIGN_Y > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        if MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y > 0:
+            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,STAGE_MOVEMENT_SIGN_Y*int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Y*int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y))))
 
     def set_z_limit_pos_mm(self,value_mm):
-        if STAGE_MOVEMENT_SIGN_Z > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+        if MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Z > 0:
+            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Z*int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))))
 
     def set_z_limit_neg_mm(self,value_mm):
-        if STAGE_MOVEMENT_SIGN_Z > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+        if MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Z > 0:
+            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,MACHINE_CONFIG.STAGE_MOVEMENT_SIGN_Z*int(value_mm/(MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z))))
     
     def move_to(self,x_mm,y_mm):
         self.move_x_to(x_mm)
@@ -239,8 +243,8 @@ class NavigationViewer(QFrame):
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
             self.fov_size_mm = 3000*1.85/(50/10)/1000
-            self.origin_bottom_left_x = X_ORIGIN_384_WELLPLATE_PIXEL - (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
-            self.origin_bottom_left_y = Y_ORIGIN_384_WELLPLATE_PIXEL - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
+            self.origin_bottom_left_x = MACHINE_CONFIG.X_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
+            self.origin_bottom_left_y = MACHINE_CONFIG.Y_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
  
         self.clear_imaged_positions()
  

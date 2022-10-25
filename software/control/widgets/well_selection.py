@@ -111,8 +111,8 @@ class WellSelectionWidget(QTableWidget):
  
         if (row >= 0 + wellplate_format.number_of_skip and row <= self.rows-1-wellplate_format.number_of_skip ) and ( col >= 0 + wellplate_format.number_of_skip and col <= self.columns-1-wellplate_format.number_of_skip ):
             wellplateformat_384=WELLPLATE_FORMATS[384]
-            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + col*wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm + WELLPLATE_OFFSET_X_mm
-            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + row*wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + WELLPLATE_OFFSET_Y_mm
+            x_mm = MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_x_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + col*wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm
+            y_mm = MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + row*wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
  
     def get_selected_cells(self) -> List[Tuple[int,int]]:

@@ -5,6 +5,7 @@ from qtpy.QtWidgets import QApplication
 import control.utils as utils
 from control._def import *
 
+import os
 import time
 import numpy as np
 import cv2
@@ -89,7 +90,7 @@ class MultiPointWorker(QObject):
 
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
-            time.sleep(SLEEP_TIME_S)
+            time.sleep(MACHINE_CONFIG.SLEEP_TIME_S)
 
     def run_single_time_point(self):
 
@@ -126,10 +127,10 @@ class MultiPointWorker(QObject):
                 # move to the specified coordinate
                 self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
                 self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
                 self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
                 self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
                 # add '_' to the coordinate name
                 coordiante_name = coordiante_name + '_'
 
@@ -140,7 +141,7 @@ class MultiPointWorker(QObject):
             z_pos = self.navigationController.z_pos
 
             # z stacking config
-            if Z_STACKING_CONFIG == 'FROM TOP':
+            if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
             # along y
@@ -152,7 +153,7 @@ class MultiPointWorker(QObject):
                 for j in range(self.NX):
 
                     # perform AF only if when not taking z stack or doing z stack from center
-                    if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                    if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                     # temporary: replace the above line with the line below to AF every FOV
                     # if (self.NZ == 1) and (self.do_autofocus):
                         configuration_name_AF = self.multiPointController.autofocus_channel_name
@@ -164,16 +165,16 @@ class MultiPointWorker(QObject):
                     
                     if (self.NZ > 1):
                         # move to bottom of the z stack
-                        if Z_STACKING_CONFIG == 'FROM CENTER':
+                        if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
                             self.navigationController.move_z_usteps(-self.deltaZ_usteps*round((self.NZ-1)/2))
                             self.wait_till_operation_is_completed()
-                            time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
                         self.navigationController.move_z_usteps(-160)
                         self.wait_till_operation_is_completed()
                         self.navigationController.move_z_usteps(160)
                         self.wait_till_operation_is_completed()
-                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                        time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                     # z-stack
                     for k in range(self.NZ):
@@ -211,20 +212,20 @@ class MultiPointWorker(QObject):
                                     saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                     if self.camera.is_color:
                                         if 'BF LED matrix' in config.name:
-                                            if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                            if MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                            elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                            elif MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                 image = image[:,:,1]
                                     iio.imwrite(saving_path,image)
                                 else:
                                     saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                     if self.camera.is_color:
                                         if 'BF LED matrix' in config.name:
-                                            if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                                            if MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'Raw':
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                            elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                            elif MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                            elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                            elif MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                 image = image[:,:,1]
                                         else:
                                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
@@ -263,12 +264,12 @@ class MultiPointWorker(QObject):
                             if k < self.NZ - 1:
                                 self.navigationController.move_z_usteps(self.deltaZ_usteps)
                                 self.wait_till_operation_is_completed()
-                                time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                                time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
                                 dz_usteps = dz_usteps + self.deltaZ_usteps
                     
                     if self.NZ > 1:
                         # move z back
-                        if Z_STACKING_CONFIG == 'FROM CENTER':
+                        if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
                             self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
                             self.wait_till_operation_is_completed()
                             dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
@@ -285,7 +286,7 @@ class MultiPointWorker(QObject):
                         if j < self.NX - 1:
                             self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
                             self.wait_till_operation_is_completed()
-                            time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
                             dx_usteps = dx_usteps + x_scan_direction*self.deltaX_usteps
 
                 '''
@@ -303,7 +304,7 @@ class MultiPointWorker(QObject):
                     if i < self.NY - 1:
                         self.navigationController.move_y_usteps(self.deltaY_usteps)
                         self.wait_till_operation_is_completed()
-                        time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                        time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
                         dy_usteps = dy_usteps + self.deltaY_usteps
 
             if n_regions == 1:
@@ -312,14 +313,14 @@ class MultiPointWorker(QObject):
                     # move y back
                     self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
                     self.wait_till_operation_is_completed()
-                    time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                    time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
                     dy_usteps = dy_usteps - self.deltaY_usteps*(self.NY-1)
 
                 # move x back at the end of the scan
                 if x_scan_direction == -1:
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                     self.wait_till_operation_is_completed()
-                    time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                    time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
 
                 # move z back
                 self.navigationController.microcontroller.move_z_to_usteps(z_pos)
@@ -359,14 +360,14 @@ class ScanCoordinates(object):
                 wellplateformat_384=WELLPLATE_FORMATS[384]
                 wellplateformat=WELLPLATE_FORMATS[int(self.navigation_viewer.sample.split(" ")[0])]
 
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT \
+                x_mm = MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT \
                     + wellplateformat_384.well_size_mm / 2 \
                     - (wellplateformat_384.A1_x_mm + wellplateformat_384.well_spacing_mm * wellplateformat_384.number_of_skip) \
-                    + column * wellplateformat.well_spacing_mm + wellplateformat.A1_x_mm + WELLPLATE_OFFSET_X_mm
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT \
+                    + column * wellplateformat.well_spacing_mm + wellplateformat.A1_x_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm
+                y_mm = MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT \
                     + wellplateformat_384.well_size_mm / 2 \
                     - (wellplateformat_384.A1_y_mm + wellplateformat_384.well_spacing_mm * wellplateformat_384.number_of_skip) \
-                    + row * wellplateformat.well_spacing_mm + wellplateformat.A1_y_mm + WELLPLATE_OFFSET_Y_mm
+                    + row * wellplateformat.well_spacing_mm + wellplateformat.A1_y_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm
 
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
@@ -402,9 +403,9 @@ class MultiPointController(QObject):
         self.NY = 1
         self.NZ = 1
         self.Nt = 1
-        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
-        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
-        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep_X = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X)
+        mm_per_ustep_Y = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
+        mm_per_ustep_Z = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         self.deltaX = Acquisition.DX
         self.deltaX_usteps = round(self.deltaX/mm_per_ustep_X)
         self.deltaY = Acquisition.DY
@@ -421,7 +422,7 @@ class MultiPointController(QObject):
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
         self.scanCoordinates = scanCoordinates
-        self.autofocus_channel_name=MULTIPOINT_AUTOFOCUS_CHANNEL
+        self.autofocus_channel_name=MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
 
     def set_NX(self,N):
@@ -433,15 +434,15 @@ class MultiPointController(QObject):
     def set_Nt(self,N):
         self.Nt = N
     def set_deltaX(self,delta):
-        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
+        mm_per_ustep_X = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X)
         self.deltaX = delta
         self.deltaX_usteps = round(delta/mm_per_ustep_X)
     def set_deltaY(self,delta):
-        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep_Y = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
         self.deltaY = delta
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
     def set_deltaZ(self,delta_um):
-        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep_Z = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
     def set_deltat(self,delta):

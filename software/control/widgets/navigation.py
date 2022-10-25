@@ -35,7 +35,7 @@ class NavigationWidget(QFrame):
 
         self.btn_home_X = QPushButton('Home X')
         self.btn_home_X.setDefault(False)
-        self.btn_home_X.setEnabled(HOMING_ENABLED_X)
+        self.btn_home_X.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_X)
         self.btn_zero_X = QPushButton('Zero X')
         self.btn_zero_X.setDefault(False)
         
@@ -56,7 +56,7 @@ class NavigationWidget(QFrame):
 
         self.btn_home_Y = QPushButton('Home Y')
         self.btn_home_Y.setDefault(False)
-        self.btn_home_Y.setEnabled(HOMING_ENABLED_Y)
+        self.btn_home_Y.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_Y)
         self.btn_zero_Y = QPushButton('Zero Y')
         self.btn_zero_Y.setDefault(False)
 
@@ -77,7 +77,7 @@ class NavigationWidget(QFrame):
 
         self.btn_home_Z = QPushButton('Home Z')
         self.btn_home_Z.setDefault(False)
-        self.btn_home_Z.setEnabled(HOMING_ENABLED_Z)
+        self.btn_home_Z.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_Z)
         self.btn_zero_Z = QPushButton('Zero Z')
         self.btn_zero_Z.setDefault(False)
 
@@ -165,15 +165,15 @@ class NavigationWidget(QFrame):
         self.navigationController.move_z(-self.entry_dZ.value()/1000) 
 
     def set_deltaX(self,value):
-        mm_per_ustep = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_dX.setValue(deltaX)
     def set_deltaY(self,value):
-        mm_per_ustep = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
         deltaY = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_dY.setValue(deltaY)
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_dZ.setValue(deltaZ)
 

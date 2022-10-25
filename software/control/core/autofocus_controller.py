@@ -41,7 +41,7 @@ class AutofocusWorker(QObject):
 
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
-            time.sleep(SLEEP_TIME_S)
+            time.sleep(MACHINE_CONFIG.SLEEP_TIME_S)
 
     def run_autofocus(self):
         # @@@ to add: increase gain, decrease exposure time
@@ -88,10 +88,10 @@ class AutofocusWorker(QObject):
 
             QApplication.processEvents()
 
-            focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
+            focus_measure = utils.calculate_focus_measure(image,MACHINE_CONFIG.FOCUS_MEASURE_OPERATOR)
             focus_measure_vs_z[i] = focus_measure
             focus_measure_max = max(focus_measure, focus_measure_max)
-            if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
+            if focus_measure < focus_measure_max*MACHINE_CONFIG.AF.STOP_THRESHOLD:
                 break
 
         # move to the starting location
@@ -117,6 +117,10 @@ class AutofocusWorker(QObject):
             print('moved to the top end of the AF range (this is not good)')
 
 class AutoFocusController(QObject):
+    """
+    runs autofocus procedure on request\n
+    can be configured between creation and request
+    """
 
     z_pos = Signal(float)
     autofocusFinished = Signal()
@@ -130,8 +134,8 @@ class AutoFocusController(QObject):
         self.N:int = 1 # arbitrary value of type
         self.deltaZ:float = 0.1 # arbitrary value of type
         self.deltaZ_usteps:int = 1 # arbitrary value of type
-        self.crop_width:int = AF.CROP_WIDTH
-        self.crop_height:int = AF.CROP_HEIGHT
+        self.crop_width:int = MACHINE_CONFIG.AF.CROP_WIDTH
+        self.crop_height:int = MACHINE_CONFIG.AF.CROP_HEIGHT
         self.autofocus_in_progress:bool = False
         self.thread:Optional[QThread] = None
 
@@ -139,7 +143,7 @@ class AutoFocusController(QObject):
         self.N = N
 
     def set_deltaZ(self,deltaZ_um:float):
-        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep_Z = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 

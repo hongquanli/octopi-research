@@ -43,7 +43,7 @@ class LiveController(QObject):
         self.counter = 0
         self.timestamp_last = 0
 
-        self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
+        self.display_resolution_scaling = MACHINE_CONFIG.DEFAULT_DISPLAY_CROP/100
 
     # illumination control
     def turn_on_illumination(self):
@@ -56,7 +56,7 @@ class LiveController(QObject):
 
     def set_illumination(self,illumination_source:int,intensity:float):
         if illumination_source < 10: # LED matrix
-            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*MACHINE_CONFIG.LED_MATRIX_R_FACTOR,g=(intensity/100)*MACHINE_CONFIG.LED_MATRIX_G_FACTOR,b=(intensity/100)*MACHINE_CONFIG.LED_MATRIX_B_FACTOR)
         else:
             self.microcontroller.set_illumination(illumination_source,intensity)
 

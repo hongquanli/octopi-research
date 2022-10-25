@@ -35,8 +35,8 @@ class MultiPointWidget(QFrame):
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
 
-        self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
-        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.lineEdit_savingDir.setText(MACHINE_CONFIG.DEFAULT_SAVING_PATH)
+        self.multipointController.set_base_path(MACHINE_CONFIG.DEFAULT_SAVING_PATH)
         self.base_path_is_set = True
 
         self.lineEdit_experimentID = QLineEdit()
@@ -107,8 +107,8 @@ class MultiPointWidget(QFrame):
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
-        self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
-        self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.checkbox_withAutofocus.setChecked(MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.multipointController.set_af_flag(MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
@@ -207,19 +207,19 @@ class MultiPointWidget(QFrame):
         self.multipointController.autofocus_channel_name=autofocus_channel_names[new_channel_index]
 
     def set_deltaX(self,value):
-        mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaX.setValue(deltaX)
         self.multipointController.set_deltaX(deltaX)
 
     def set_deltaY(self,value):
-        mm_per_ustep = SCREW_PITCH_Y_MM/(self.multipointController.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.multipointController.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
         deltaY = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaY.setValue(deltaY)
         self.multipointController.set_deltaY(deltaY)
 
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.multipointController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.multipointController.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_deltaZ.setValue(deltaZ)
         self.multipointController.set_deltaZ(deltaZ)

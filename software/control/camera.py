@@ -418,13 +418,13 @@ class Camera(object):
 
     def reset_camera_acquisition_counter(self):
         assert not self.camera is None
-        if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
-            self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2)
+        if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable(): # type: ignore
+            self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2) # type: ignore
         else:
             print("CounterEventSource is not implemented or not writable")
 
-        if self.camera.CounterReset.is_implemented():
-            self.camera.CounterReset.send_command()
+        if self.camera.CounterReset.is_implemented(): # type: ignore
+            self.camera.CounterReset.send_command() # type: ignore
         else:
             print("CounterReset is not implemented")
 

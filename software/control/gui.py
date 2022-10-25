@@ -25,7 +25,7 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load window
-		self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=AUTOLEVEL_DEFAULT_SETTING)
+		self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=MACHINE_CONFIG.AUTOLEVEL_DEFAULT_SETTING)
 		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
 
 		# image display windows
@@ -35,14 +35,14 @@ class OctopiGUI(QMainWindow):
 
 		# load objects
 		try:
-			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+			self.camera = camera.Camera(rotate_image_angle=MACHINE_CONFIG.ROTATE_IMAGE_ANGLE,flip_image=MACHINE_CONFIG.FLIP_IMAGE)
 			self.camera.open()
 		except Exception as e:
 			print('! camera not detected !')
 			raise e
 
 		try:
-			self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+			self.microcontroller = microcontroller.Microcontroller(version=MACHINE_CONFIG.CONTROLLER_VERSION)
 		except Exception as e:
 			print('! Microcontroller not detected !')
 			raise e
@@ -54,7 +54,7 @@ class OctopiGUI(QMainWindow):
 		self.microcontroller.configure_actuators()
 			
 		self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
-		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
+		self.streamHandler = core.StreamHandler(display_resolution_scaling=MACHINE_CONFIG.DEFAULT_DISPLAY_CROP/100)
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
@@ -62,18 +62,20 @@ class OctopiGUI(QMainWindow):
 		self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
 		self.imageDisplay = core.ImageDisplay()
 
-		# set up the camera		
-		# self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
-		# self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
+		# set up the camera
 		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
 		self.camera.set_callback(self.streamHandler.on_new_frame)
 		self.camera.enable_callback()
-		if ENABLE_STROBE_OUTPUT:
+		if MACHINE_CONFIG.ENABLE_STROBE_OUTPUT:
 			self.camera.set_line3_to_exposure_active()
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=SHOW_AUTOLEVEL_BTN,autolevel=AUTOLEVEL_DEFAULT_SETTING)
+		self.liveControlWidget = widgets.LiveControlWidget(
+			self.streamHandler,self.liveController,self.configurationManager,
+			show_trigger_options=True,show_display_options=True,
+			show_autolevel=MACHINE_CONFIG.SHOW_AUTOLEVEL_BTN,
+			autolevel=MACHINE_CONFIG.AUTOLEVEL_DEFAULT_SETTING)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
@@ -89,7 +91,7 @@ class OctopiGUI(QMainWindow):
 		layout.addWidget(self.cameraSettingWidget)
 		layout.addWidget(self.liveControlWidget)
 		layout.addWidget(self.navigationWidget)
-		if SHOW_DAC_CONTROL:
+		if MACHINE_CONFIG.SHOW_DAC_CONTROL:
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)

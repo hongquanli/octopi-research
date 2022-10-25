@@ -60,7 +60,7 @@ class AutoFocusWidget(QFrame):
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
 
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_delta.setValue(deltaZ)
         self.autofocusController.set_deltaZ(deltaZ)

@@ -36,14 +36,15 @@ def calculate_focus_measure(image:cv2.Mat,method:str='LAPE') -> float:
 
 def rotate_and_flip_image(image:cv2.Mat,rotate_image_angle:int,flip_image:Optional[str]) -> cv2.Mat:
     if(rotate_image_angle != 0):
-        if(rotate_image_angle == 90):
-            image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
-        elif(rotate_image_angle == -90):
-            image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
-        elif(rotate_image_angle == 180):
-            image = cv2.rotate(image,cv2.ROTATE_180)
-        else:
-            assert False, "invalid rotation angle (is not 90|-90|180)"
+        try:
+            rotation_flag={
+                -90:cv2.ROTATE_90_COUNTERCLOCKWISE,
+                90:cv2.ROTATE_90_CLOCKWISE,
+                180:cv2.ROTATE_180
+            }[rotate_image_angle]
+            image = cv2.rotate(image,rotation_flag)
+        except:
+            assert False, "invalid rotation angle (is not 0|90|-90|180)"
 
     if(flip_image is not None):
         '''
@@ -61,3 +62,4 @@ def rotate_and_flip_image(image:cv2.Mat,rotate_image_angle:int,flip_image:Option
             assert False, "invalid image flipping mode"
 
     return image
+    

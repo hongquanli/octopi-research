@@ -17,6 +17,79 @@ import pyqtgraph.dockarea as dock
 
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
+class HCSController():
+	def __init__(self,well_selection_widget:widgets.WellSelectionWidget):
+		# load objects
+		try:
+			self.camera = camera.Camera(rotate_image_angle=MACHINE_CONFIG.ROTATE_IMAGE_ANGLE,flip_image=MACHINE_CONFIG.FLIP_IMAGE)
+			self.camera.open()
+		except Exception as e:
+			print('! camera not detected !')
+			raise e
+
+		self.microcontroller:microcontroller.Microcontroller = microcontroller.Microcontroller(version=MACHINE_CONFIG.CONTROLLER_VERSION)
+
+		# reset the MCU
+		self.microcontroller.reset()
+		
+		# configure the actuators
+		self.microcontroller.configure_actuators()
+
+		self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_configurations.xml')
+		self.streamHandler:           core.StreamHandler           = core.StreamHandler(display_resolution_scaling=MACHINE_CONFIG.DEFAULT_DISPLAY_CROP/100)
+		self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
+		self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
+		self.slidePositionController: core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+		self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
+		self.navigationViewer:        core.NavigationViewer        = core.NavigationViewer(sample=str(MACHINE_CONFIG.WELLPLATE_FORMAT)+' well plate')
+		self.scanCoordinates:         core.ScanCoordinates         = core.ScanCoordinates(well_selection_widget,self.navigationViewer)
+		self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
+		self.imageSaver:              core.ImageSaver              = core.ImageSaver()
+		self.imageDisplay:            core.ImageDisplay            = core.ImageDisplay()
+
+		if MACHINE_CONFIG.HOMING_ENABLED_Z:
+			# retract the objective
+			self.navigationController.home_z()
+			# wait for the operation to finish
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z homing timeout, the program will exit')
+
+			print('objective retracted')
+
+			if MACHINE_CONFIG.HOMING_ENABLED_Z and MACHINE_CONFIG.HOMING_ENABLED_X and MACHINE_CONFIG.HOMING_ENABLED_Y:
+				# self.navigationController.set_x_limit_pos_mm(100)
+				# self.navigationController.set_x_limit_neg_mm(-100)
+				# self.navigationController.set_y_limit_pos_mm(100)
+				# self.navigationController.set_y_limit_neg_mm(-100)
+				# self.navigationController.home_xy() 
+				# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
+				self.navigationController.move_x(12)
+				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+				
+				self.navigationController.home_y()
+				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='y homing timeout, the program will exit')
+				
+				self.navigationController.home_x()
+				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x homing timeout, the program will exit')
+		
+				print('xy homing completed')
+
+				# move to (20 mm, 20 mm)
+				self.navigationController.move_x(20)
+				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+				self.navigationController.move_y(20)
+				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+
+				self.navigationController.set_x_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_POSITIVE)
+				self.navigationController.set_x_limit_neg_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_NEGATIVE)
+				self.navigationController.set_y_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Y_POSITIVE)
+				self.navigationController.set_y_limit_neg_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+				self.navigationController.set_z_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Z_POSITIVE)
+
+			# move the objective back
+			self.navigationController.move_z(MACHINE_CONFIG.DEFAULT_Z_POS_MM)
+			# wait for the operation to finish
+			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
+
 class OctopiGUI(QMainWindow):
 
 	# variables
@@ -27,103 +100,46 @@ class OctopiGUI(QMainWindow):
 
 		# load window
 		self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
-		# self.imageDisplayWindow.show()
-		# self.imageArrayDisplayWindow.show()
+		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
 
 		# image display windows
 		self.imageDisplayTabs = QTabWidget()
 		self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
-		# load objects
-		try:
-			self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-			self.camera.open()
-		except Exception as e:
-			print('! camera not detected, using simulated camera !')
-			raise e
-		self.microcontroller:microcontroller.Microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+		# load one widget that is used by a controller
+		self.wellSelectionWidget = widgets.WellSelectionWidget(MACHINE_CONFIG.WELLPLATE_FORMAT)
 
-		# reset the MCU
-		self.microcontroller.reset()
+		self.hcs_controller=HCSController(self.wellSelectionWidget)
 		
-		# configure the actuators
-		self.microcontroller.configure_actuators()
+		self.camera=self.hcs_controller.camera
+		self.microcontroller=self.hcs_controller.microcontroller
 			
-		self.configurationManager:core.ConfigurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
-		self.streamHandler:core.StreamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
-		self.liveController:core.LiveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-		self.navigationController:core.NavigationController = core.NavigationController(self.microcontroller)
-		self.slidePositionController:core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
-		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
-		self.autofocusController:core.AutoFocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.navigationViewer:core.NavigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')		
-		self.scanCoordinates:core.ScanCoordinates = core.ScanCoordinates(self.wellSelectionWidget,self.navigationViewer)
-		self.multipointController:core.MultiPointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
-		self.imageSaver:core.ImageSaver = core.ImageSaver()
-		self.imageDisplay:core.ImageDisplay = core.ImageDisplay()
-
-		if HOMING_ENABLED_Z:
-			# retract the objective
-			self.navigationController.home_z()
-			# wait for the operation to finish
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z homing timeout, the program will exit')
-
-			print('objective retracted')
-
-		if HOMING_ENABLED_Z and HOMING_ENABLED_X and HOMING_ENABLED_Y:
-			# self.navigationController.set_x_limit_pos_mm(100)
-			# self.navigationController.set_x_limit_neg_mm(-100)
-			# self.navigationController.set_y_limit_pos_mm(100)
-			# self.navigationController.set_y_limit_neg_mm(-100)
-			# self.navigationController.home_xy() 
-			# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
-			self.navigationController.move_x(12)
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-			
-			self.navigationController.home_y()
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='y homing timeout, the program will exit')
-			
-			self.navigationController.home_x()
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x homing timeout, the program will exit')
-	
-			print('xy homing completed')
-
-			# move to (20 mm, 20 mm)
-			self.navigationController.move_x(20)
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-			self.navigationController.move_y(20)
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-
-			self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
-			self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
-			self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
-			self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
-			self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
-
-		if HOMING_ENABLED_Z:
-			# move the objective back
-			self.navigationController.move_z(DEFAULT_Z_POS_MM)
-			# wait for the operation to finish
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
+		self.configurationManager:    core.ConfigurationManager    = self.hcs_controller.configurationManager
+		self.streamHandler:           core.StreamHandler           = self.hcs_controller.streamHandler
+		self.liveController:          core.LiveController          = self.hcs_controller.liveController
+		self.navigationController:    core.NavigationController    = self.hcs_controller.navigationController
+		self.slidePositionController: core.SlidePositionController = self.hcs_controller.slidePositionController
+		self.autofocusController:     core.AutoFocusController     = self.hcs_controller.autofocusController
+		self.navigationViewer:        core.NavigationViewer        = self.hcs_controller.navigationViewer
+		self.scanCoordinates:         core.ScanCoordinates         = self.hcs_controller.scanCoordinates
+		self.multipointController:    core.MultiPointController    = self.hcs_controller.multipointController
+		self.imageSaver:              core.ImageSaver              = self.hcs_controller.imageSaver
+		self.imageDisplay:            core.ImageDisplay            = self.hcs_controller.imageDisplay
 		
 		# open the camera
-		# camera start streaming
-		# self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
-		# self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
-		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
+		self.camera.set_software_triggered_acquisition()
 		self.camera.set_callback(self.streamHandler.on_new_frame)
 		self.camera.enable_callback()
 
 		# load widgets
-		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
-		self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
-		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
-		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
+		self.cameraSettingWidget    = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
+		self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
+		self.navigationWidget       = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
+		self.dacControlWidget       = widgets.DACControWidget(self.microcontroller)
+		self.autofocusWidget        = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+		self.multiPointWidget       = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
@@ -139,7 +155,7 @@ class OctopiGUI(QMainWindow):
 		for wpt in [0,2]:
 			item=wellplate_selector.model().item(wpt)
 			item.setFlags(item.flags() & ~Qt.ItemIsEnabled) # type: ignore
-		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{WELLPLATE_FORMAT} well plate"))
+		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{MACHINE_CONFIG.WELLPLATE_FORMAT} well plate"))
 		wellplate_selector.currentIndexChanged.connect(lambda wellplate_type: self.set_wellplate_type(wellplate_type_names[wellplate_type]))
  
 		wellplate_overview_header=QHBoxLayout()
@@ -157,7 +173,7 @@ class OctopiGUI(QMainWindow):
 		#layout.addWidget(self.cameraSettingWidget)
 		layout.addWidget(self.liveControlWidget)
 		layout.addWidget(self.navigationWidget)
-		if SHOW_DAC_CONTROL:
+		if MACHINE_CONFIG.SHOW_DAC_CONTROL:
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)
