@@ -62,4 +62,3 @@ def rotate_and_flip_image(image:cv2.Mat,rotate_image_angle:int,flip_image:Option
             assert False, "invalid image flipping mode"
 
     return image
-    

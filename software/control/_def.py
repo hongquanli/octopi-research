@@ -158,13 +158,13 @@ class ControllerType:
 ###########################################################
 from typing import Optional, Dict, List
 
+from control.typechecker import Typecheck, ClosedRange
+
+@Typecheck()
 @dataclass
 class MachineConfiguration:
     # hardware specific stuff
     ROTATE_IMAGE_ANGLE:int=0 # type: ignore
-
-    def __getattr__(self,name):
-        print(name)
     
     FLIP_IMAGE:Optional[str]=None
 
@@ -194,7 +194,7 @@ class MachineConfiguration:
     ENCODER_STEP_SIZE_X_MM:float = 100e-6
     ENCODER_STEP_SIZE_Y_MM:float = 100e-6
     ENCODER_STEP_SIZE_Z_MM:float = 100e-6
-    ENCODER_STEP_SIZE_THETA:float = 1
+    ENCODER_STEP_SIZE_THETA:float = 1.0
 
     FULLSTEPS_PER_REV_X:int = 200
     FULLSTEPS_PER_REV_Y:int = 200
@@ -203,8 +203,8 @@ class MachineConfiguration:
 
     # beginning of actuator specific configurations
 
-    SCREW_PITCH_X_MM:float = 1
-    SCREW_PITCH_Y_MM:float = 1
+    SCREW_PITCH_X_MM:float = 1.0
+    SCREW_PITCH_Y_MM:float = 1.0
     SCREW_PITCH_Z_MM:float = 0.012*25.4
 
     MICROSTEPPING_DEFAULT_X:int = 8
@@ -212,27 +212,27 @@ class MachineConfiguration:
     MICROSTEPPING_DEFAULT_Z:int = 8
     MICROSTEPPING_DEFAULT_THETA:int = 8
 
-    X_MOTOR_RMS_CURRENT_mA:float = 490
-    Y_MOTOR_RMS_CURRENT_mA:float = 490
-    Z_MOTOR_RMS_CURRENT_mA:float = 490
+    X_MOTOR_RMS_CURRENT_mA:int = 490
+    Y_MOTOR_RMS_CURRENT_mA:int = 490
+    Z_MOTOR_RMS_CURRENT_mA:int = 490
 
     X_MOTOR_I_HOLD:float = 0.5
     Y_MOTOR_I_HOLD:float = 0.5
     Z_MOTOR_I_HOLD:float = 0.5
 
-    MAX_VELOCITY_X_mm:float = 25
-    MAX_VELOCITY_Y_mm:float = 25
-    MAX_VELOCITY_Z_mm:float = 2
+    MAX_VELOCITY_X_mm:float = 25.0
+    MAX_VELOCITY_Y_mm:float = 25.0
+    MAX_VELOCITY_Z_mm:float = 2.0
 
-    MAX_ACCELERATION_X_mm:float = 500
-    MAX_ACCELERATION_Y_mm:float = 500
-    MAX_ACCELERATION_Z_mm:float = 20
+    MAX_ACCELERATION_X_mm:float = 500.0
+    MAX_ACCELERATION_Y_mm:float = 500.0
+    MAX_ACCELERATION_Z_mm:float = 20.0
 
     # end of actuator specific configurations
 
-    SCAN_STABILIZATION_TIME_MS_X:float = 160
-    SCAN_STABILIZATION_TIME_MS_Y:float = 160
-    SCAN_STABILIZATION_TIME_MS_Z:float = 20
+    SCAN_STABILIZATION_TIME_MS_X:float = 160.0
+    SCAN_STABILIZATION_TIME_MS_Y:float = 160.0
+    SCAN_STABILIZATION_TIME_MS_Z:float = 20.0
 
     # limit switch
     X_HOME_SWITCH_POLARITY:int = LIMIT_SWITCH_POLARITY.ACTIVE_HIGH
@@ -251,7 +251,8 @@ class MachineConfiguration:
 
     DEFAULT_SAVING_PATH:str = field(default_factory=lambda:str(Path.home()/"Downloads"))
 
-    DEFAULT_DISPLAY_CROP:int = 100 # value ranges from 1 to 100 - image display crop size 
+    # image display crop size 
+    DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
 
     CAMERA_PIXEL_SIZE_UM:Dict[str,float]=field(default_factory=lambda:{
         'IMX290':    2.9,
@@ -304,12 +305,12 @@ class MachineConfiguration:
         )
     })
 
-    TUBE_LENS_MM:float = 50
+    TUBE_LENS_MM:float = 50.0
     CAMERA_SENSOR:str = 'IMX226'
     TRACKERS:List[str] = field(default_factory= lambda:['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN'])
     DEFAULT_TRACKER:str = 'csrt'
 
-    AF:AutofocusConfig=field(default=AutofocusConfig())
+    AF:AutofocusConfig=field(default_factory=lambda: AutofocusConfig())
 
     SHOW_DAC_CONTROL:bool = False
 
@@ -319,7 +320,7 @@ class MachineConfiguration:
         SCANNING_X_MM:float = 3
         SCANNING_Y_MM:float = 3
 
-    SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S:float = 10
+    SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S:float = 10.0
     SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:bool = False
 
     SOFTWARE_POS_LIMIT:SoftwareStagePositionLimits=field(default=SoftwareStagePositionLimits())
@@ -333,17 +334,17 @@ class MachineConfiguration:
     Z_STACKING_CONFIG:str = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 
     # for 384 well plate
-    X_MM_384_WELLPLATE_UPPERLEFT:float = 0
-    Y_MM_384_WELLPLATE_UPPERLEFT:float = 0
-    DEFAULT_Z_POS_MM:float = 2
+    X_MM_384_WELLPLATE_UPPERLEFT:float = 0.0
+    Y_MM_384_WELLPLATE_UPPERLEFT:float = 0.0
+    DEFAULT_Z_POS_MM:float = 2.0
     X_ORIGIN_384_WELLPLATE_PIXEL:int = 177 # upper left of B2 (corner opposite from clamp)
     Y_ORIGIN_384_WELLPLATE_PIXEL:int = 141 # upper left of B2 (corner opposite from clamp)
     # B1 upper left corner in pixel: x = 124, y = 141
     # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
     # B2 upper left corner in pixel: x = 177, y = 141
 
-    WELLPLATE_OFFSET_X_mm:float = 0 # x offset adjustment for using different plates
-    WELLPLATE_OFFSET_Y_mm:float = 0 # y offset adjustment for using different plates
+    WELLPLATE_OFFSET_X_mm:float = 0.0 # x offset adjustment for using different plates
+    WELLPLATE_OFFSET_Y_mm:float = 0.0 # y offset adjustment for using different plates
 
     FOCUS_MEASURE_OPERATOR:str = field(default=FocusMeasureOperators.LAPE)
 
@@ -358,7 +359,7 @@ class MachineConfiguration:
     WELLPLATE_FORMAT:int = 384
 
     # things that can change in software
-    DEFAULT_TRIGGER_MODE = TriggerMode.SOFTWARE
+    DEFAULT_TRIGGER_MODE:str = TriggerMode.SOFTWARE
     AUTOLEVEL_DEFAULT_SETTING:bool = False
 
     MULTIPOINT_AUTOFOCUS_CHANNEL:str = 'BF LED matrix full'
@@ -387,19 +388,19 @@ MACHINE_CONFIG=MachineConfiguration(
     Y_MOTOR_I_HOLD = 0.25,
     Z_MOTOR_I_HOLD = 0.5,
 
-    MAX_VELOCITY_X_mm = 40,
-    MAX_VELOCITY_Y_mm = 40,
-    MAX_VELOCITY_Z_mm = 2,
+    MAX_VELOCITY_X_mm = 40.0,
+    MAX_VELOCITY_Y_mm = 40.0,
+    MAX_VELOCITY_Z_mm = 2.0,
 
-    MAX_ACCELERATION_X_mm = 500,
-    MAX_ACCELERATION_Y_mm = 500,
-    MAX_ACCELERATION_Z_mm = 100,
+    MAX_ACCELERATION_X_mm = 500.0,
+    MAX_ACCELERATION_Y_mm = 500.0,
+    MAX_ACCELERATION_Z_mm = 100.0,
 
     # end of actuator specific configurations
 
-    SCAN_STABILIZATION_TIME_MS_X = 160,
-    SCAN_STABILIZATION_TIME_MS_Y = 160,
-    SCAN_STABILIZATION_TIME_MS_Z = 20,
+    SCAN_STABILIZATION_TIME_MS_X = 160.0,
+    SCAN_STABILIZATION_TIME_MS_Y = 160.0,
+    SCAN_STABILIZATION_TIME_MS_Z = 20.0,
 
     HOMING_ENABLED_X = True,
     HOMING_ENABLED_Y = True,
@@ -414,7 +415,7 @@ MACHINE_CONFIG=MachineConfiguration(
     MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True,
     MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only',
 
-    TUBE_LENS_MM = 50,
+    TUBE_LENS_MM = 50.0,
     CAMERA_SENSOR = 'IMX226',
     DEFAULT_OBJECTIVE = '10x (Mitutoyo)',
 
@@ -431,8 +432,8 @@ MACHINE_CONFIG=MachineConfiguration(
     Y_MM_384_WELLPLATE_UPPERLEFT = 11.28,
 
     # for other plate format
-    WELLPLATE_OFFSET_X_mm = 0,
-    WELLPLATE_OFFSET_Y_mm = 0,
+    WELLPLATE_OFFSET_X_mm = 0.0,
+    WELLPLATE_OFFSET_Y_mm = 0.0,
 
     # default z
     DEFAULT_Z_POS_MM = 4.677,

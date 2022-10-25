@@ -462,9 +462,13 @@ class Microcontroller():
         cmd[3] = polarity
         self.send_command(cmd)
 
-    def configure_motor_driver(self,axis,microstepping,current_rms,I_hold):
+    def configure_motor_driver(self,axis,microstepping,current_rms:int,I_hold:float):
         # current_rms in mA
+        
         # I_hold 0.0-1.0
+        assert I_hold>=0.0
+        assert I_hold<=1.0
+
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.CONFIGURE_STEPPER_DRIVER
         cmd[2] = axis
