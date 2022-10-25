@@ -365,7 +365,6 @@ class OctopiGUI(QMainWindow):
 		while self.microcontroller.is_busy():
 			time.sleep(0.005)
 
-		event.accept()
 		self.liveController.stop_live()
 		self.camera.close()
 		self.imageSaver.close()
@@ -376,5 +375,7 @@ class OctopiGUI(QMainWindow):
 			self.tabbedImageDisplayWindow.close()
 		if SUPPORT_LASER_AUTOFOCUS:
 			self.camera_focus.close()
-			self.imageDisplay_focus_camera.close()
+			self.imageDisplayWindow_focus.close()
 		self.microcontroller.close()
+
+		event.accept()
