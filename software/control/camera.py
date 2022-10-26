@@ -472,6 +472,8 @@ class Camera_Simulation(object):
 
         self.pixel_format = 'MONO8'
 
+        self.is_live = False
+
     def open(self,index=0):
         pass
 
