@@ -295,6 +295,7 @@ class OctopiGUI(QMainWindow):
 			self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
 			self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
 			self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
+			self.laserAutofocusController = None
 
 			# camera
 			self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
@@ -306,6 +307,9 @@ class OctopiGUI(QMainWindow):
 			self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
 			self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
 			self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
+			self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
+
+			self.recordTabWidget.addTab(self.laserAutofocusControlWidget, "Laser Autofocus Control")
 
 			dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
 			dock_laserfocus_image_display.showTitleBar()

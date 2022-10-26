@@ -1789,6 +1789,61 @@ class DisplacementMeasurementWidget(QFrame):
         self.reading_x.setText("{:.2f}".format(readings[0]))
         self.reading_y.setText("{:.2f}".format(readings[1]))
 
+class LaserAutofocusControlWidget(QFrame):
+    def __init__(self, laserAutofocusController, main=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.laserAutofocusController = laserAutofocusController
+        self.add_components()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def add_components(self):
+        self.btn_initialize = QPushButton("Initialize")
+        self.btn_initialize.setCheckable(False)
+        self.btn_initialize.setChecked(False)
+        self.btn_initialize.setDefault(False)
+
+        self.label_displacement = QLabel()
+        self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+
+        self.btn_measure_displacement = QPushButton("Measure displacement")
+        self.btn_measure_displacement.setCheckable(False)
+        self.btn_measure_displacement.setChecked(False)
+        self.btn_measure_displacement.setDefault(False)
+
+        self.entry_target = QDoubleSpinBox()
+        self.entry_target.setMinimum(-100)
+        self.entry_target.setMaximum(100)
+        self.entry_target.setSingleStep(0.01)
+        self.entry_target.setDecimals(2)
+        self.entry_target.setValue(0)
+        self.entry_target.setKeyboardTracking(False)
+
+        self.btn_move_to_target = QPushButton("Move to target")
+        self.btn_move_to_target.setCheckable(False)
+        self.btn_move_to_target.setChecked(False)
+        self.btn_move_to_target.setDefault(False)
+
+        self.grid = QGridLayout()
+        self.grid.addWidget(self.btn_initialize,0,0,1,3)
+        self.grid.addWidget(QLabel('Displacement (um)'),1,0)
+        self.grid.addWidget(self.label_displacement,1,1)
+        self.grid.addWidget(self.btn_check_displacement,1,2)
+        self.grid.addWidget(QLabel('Target (um)'),2,0)
+        self.grid.addWidget(self.entry_target,2,1)
+        self.grid.addWidget(self.btn_move_to_target,2,2)
+        self.grid.setRowStretch(self.grid.rowCount(), 1)
+
+        self.setLayout(self.grid)
+
+        # make connections
+        self.btn_initialize.clicked.connect(self.laserAutofocusController.initialize_auto)
+        self.btn_measure_displacement.clicked.connect(self.laserAutofocusController.measure_displacement)
+        self.btn_move_to_target.clicked.connect(self.move_to_target)
+
+    def move_to_target():
+        self.autofocusController.move_to_target(self.entry_target.value())
+
+
 class WellSelectionWidget(QTableWidget):
 
     signal_wellSelected = Signal(int,int,float)
