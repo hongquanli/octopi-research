@@ -295,7 +295,7 @@ class OctopiGUI(QMainWindow):
 			self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
 			self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
 			self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
-			self.laserAutofocusController = None
+			self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController)
 
 			# camera
 			self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
@@ -352,6 +352,7 @@ class OctopiGUI(QMainWindow):
 			self.streamHandler_focus_camera.image_to_display.connect(self.displacementMeasurementController.update_measurement)
 			self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
 			self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
+			self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
 	def closeEvent(self, event):
 		

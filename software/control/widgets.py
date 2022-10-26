@@ -1842,15 +1842,14 @@ class LaserAutofocusControlWidget(QFrame):
         self.setLayout(self.grid)
 
         # make connections
-        '''
         self.btn_initialize.clicked.connect(self.laserAutofocusController.initialize_auto)
         self.btn_set_reference.clicked.connect(self.laserAutofocusController.set_reference)
         self.btn_measure_displacement.clicked.connect(self.laserAutofocusController.measure_displacement)
         self.btn_move_to_target.clicked.connect(self.move_to_target)
-        '''
+        self.laserAutofocusController.signal_displacement_um.connect(self.label_displacement.setNum)
 
-    def move_to_target():
-        self.autofocusController.move_to_target(self.entry_target.value())
+    def move_to_target(self,target_um):
+        self.laserAutofocusController.move_to_target(self.entry_target.value())
 
 
 class WellSelectionWidget(QTableWidget):
