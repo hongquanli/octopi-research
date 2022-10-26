@@ -1802,6 +1802,11 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_initialize.setChecked(False)
         self.btn_initialize.setDefault(False)
 
+        self.btn_set_reference = QPushButton("Set as reference plane")
+        self.btn_set_reference.setCheckable(False)
+        self.btn_set_reference.setChecked(False)
+        self.btn_set_reference.setDefault(False)
+
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
@@ -1825,20 +1830,24 @@ class LaserAutofocusControlWidget(QFrame):
 
         self.grid = QGridLayout()
         self.grid.addWidget(self.btn_initialize,0,0,1,3)
-        self.grid.addWidget(QLabel('Displacement (um)'),1,0)
-        self.grid.addWidget(self.label_displacement,1,1)
-        self.grid.addWidget(self.btn_check_displacement,1,2)
-        self.grid.addWidget(QLabel('Target (um)'),2,0)
-        self.grid.addWidget(self.entry_target,2,1)
-        self.grid.addWidget(self.btn_move_to_target,2,2)
+        self.grid.addWidget(self.btn_set_reference,1,0,1,3)
+        self.grid.addWidget(QLabel('Displacement (um)'),2,0)
+        self.grid.addWidget(self.label_displacement,2,1)
+        self.grid.addWidget(self.btn_measure_displacement,2,2)
+        self.grid.addWidget(QLabel('Target (um)'),3,0)
+        self.grid.addWidget(self.entry_target,3,1)
+        self.grid.addWidget(self.btn_move_to_target,3,2)
         self.grid.setRowStretch(self.grid.rowCount(), 1)
 
         self.setLayout(self.grid)
 
         # make connections
+        '''
         self.btn_initialize.clicked.connect(self.laserAutofocusController.initialize_auto)
+        self.btn_set_reference.clicked.connect(self.laserAutofocusController.set_reference)
         self.btn_measure_displacement.clicked.connect(self.laserAutofocusController.measure_displacement)
         self.btn_move_to_target.clicked.connect(self.move_to_target)
+        '''
 
     def move_to_target():
         self.autofocusController.move_to_target(self.entry_target.value())
