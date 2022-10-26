@@ -554,7 +554,7 @@ class Microcontroller():
         cmd[3] = level
         self.send_command(cmd)
 
-    def turn_on_AF_laser():
+    def turn_on_AF_laser(self):
         self.set_pin_level(MCU_PINS.AF_LASER,1)
 
     def turn_off_AF_laser(self):
@@ -1004,7 +1004,7 @@ class Microcontroller_Simulation():
     def is_busy(self):
         return self.mcu_cmd_execution_in_progress
 
-    def turn_on_AF_laser():
+    def turn_on_AF_laser(self):
         self.set_pin_level(MCU_PINS.AF_LASER,1)
 
     def turn_off_AF_laser(self):
