@@ -6,7 +6,8 @@ from control._def import *
 
 from typing import Optional, Union, List, Tuple
 
-from control.core.configuration import ConfigurationManager
+from control.core import MultiPointController, ConfigurationManager
+from control.typechecker import TypecheckFunction
 
 autofocus_channel_names=[
     "Fluorescence 405 nm Ex",
@@ -17,7 +18,7 @@ autofocus_channel_names=[
 ]
 
 class MultiPointWidget(QFrame):
-    def __init__(self, multipointController, configurationManager:ConfigurationManager, *args, **kwargs):
+    def __init__(self, multipointController:MultiPointController, configurationManager:ConfigurationManager, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
         self.configurationManager = configurationManager
@@ -25,6 +26,7 @@ class MultiPointWidget(QFrame):
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
+    @TypecheckFunction
     def add_components(self):
 
         self.btn_setSavingDir = QPushButton('Browse')
@@ -203,27 +205,32 @@ class MultiPointWidget(QFrame):
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
 
-    def set_autofocusChannel(self,new_channel_index):
+    @TypecheckFunction
+    def set_autofocusChannel(self,new_channel_index:int):
         self.multipointController.autofocus_channel_name=autofocus_channel_names[new_channel_index]
 
-    def set_deltaX(self,value):
+    @TypecheckFunction
+    def set_deltaX(self,value:float):
         mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaX.setValue(deltaX)
         self.multipointController.set_deltaX(deltaX)
 
-    def set_deltaY(self,value):
+    @TypecheckFunction
+    def set_deltaY(self,value:float):
         mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.multipointController.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
         deltaY = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaY.setValue(deltaY)
         self.multipointController.set_deltaY(deltaY)
 
-    def set_deltaZ(self,value):
+    @TypecheckFunction
+    def set_deltaZ(self,value:float):
         mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.multipointController.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_deltaZ.setValue(deltaZ)
         self.multipointController.set_deltaZ(deltaZ)
 
+    @TypecheckFunction
     def set_saving_dir(self):
         dialog = QFileDialog()
         save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
@@ -231,7 +238,8 @@ class MultiPointWidget(QFrame):
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
 
-    def toggle_acquisition(self,pressed):
+    @TypecheckFunction
+    def toggle_acquisition(self,pressed:bool):
         if self.base_path_is_set == False:
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
@@ -249,11 +257,13 @@ class MultiPointWidget(QFrame):
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
 
+    @TypecheckFunction
     def acquisition_is_finished(self):
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
-    def setEnabled_all(self,enabled,exclude_btn_startAcquisition=True):
+    @TypecheckFunction
+    def setEnabled_all(self,enabled:bool,exclude_btn_startAcquisition:bool=True):
         self.btn_setSavingDir.setEnabled(enabled)
         self.lineEdit_savingDir.setEnabled(enabled)
         self.lineEdit_experimentID.setEnabled(enabled)
@@ -270,8 +280,10 @@ class MultiPointWidget(QFrame):
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
+    @TypecheckFunction
     def disable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(False)
 
+    @TypecheckFunction
     def enable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(True)

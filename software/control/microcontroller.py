@@ -8,6 +8,9 @@ from crc import CrcCalculator, Crc8
 
 from control._def import *
 
+from control.typechecker import TypecheckFunction, ClosedRange, ClosedSet
+from typing import Union, Any, Tuple, List
+
 # add user to the dialout group to avoid the need to use sudo
 
 # done (7/20/2021) - remove the time.sleep in all functions (except for __init__) to 
@@ -16,9 +19,9 @@ from control._def import *
 
 # to do (7/28/2021) - add functions for configuring the stepper motors
 
-class Microcontroller():    
-    def __init__(self,version='Arduino Due',sn=None,parent=None):
-        self.serial:serial.Serial = None # type:ignore
+class Microcontroller():
+    @TypecheckFunction
+    def __init__(self,version:ClosedSet[str]('Arduino Due','Teensy')='Arduino Due',sn:Optional[str]=None,parent:Any=None):
         self.platform_name = platform.system()
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
         self.rx_buffer_length = MicrocontrollerDef.MSG_LENGTH
@@ -455,19 +458,18 @@ class Microcontroller():
         cmd[6] = payload & 0xff
         self.send_command(cmd)
 
-    def set_limit_switch_polarity(self,axis,polarity):
+    @TypecheckFunction
+    def set_limit_switch_polarity(self,axis:int,polarity:int):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LIM_SWITCH_POLARITY
         cmd[2] = axis
         cmd[3] = polarity
         self.send_command(cmd)
 
-    def configure_motor_driver(self,axis,microstepping,current_rms:int,I_hold:float):
+    @TypecheckFunction
+    def configure_motor_driver(self,axis:int,microstepping:int,current_rms:int,I_hold:ClosedRange[float](0.0,1.0)):
         # current_rms in mA
-        
         # I_hold 0.0-1.0
-        assert I_hold>=0.0
-        assert I_hold<=1.0
 
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.CONFIGURE_STEPPER_DRIVER
@@ -483,7 +485,8 @@ class Microcontroller():
         cmd[6] = int(I_hold*255)
         self.send_command(cmd)
 
-    def set_max_velocity_acceleration(self,axis,velocity,acceleration):
+    @TypecheckFunction
+    def set_max_velocity_acceleration(self,axis:int,velocity:Union[int,float],acceleration:Union[int,float]):
         # velocity: max 65535/100 mm/s
         # acceleration: max 65535/10 mm/s^2
         cmd = bytearray(self.tx_buffer_length)
@@ -495,7 +498,8 @@ class Microcontroller():
         cmd[6] = int(acceleration*10) & 0xff
         self.send_command(cmd)
 
-    def set_leadscrew_pitch(self,axis,pitch_mm):
+    @TypecheckFunction
+    def set_leadscrew_pitch(self,axis:int,pitch_mm:Union[float,int]):
         # pitch: max 65535/1000 = 65.535 (mm)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LEAD_SCREW_PITCH
@@ -504,6 +508,7 @@ class Microcontroller():
         cmd[4] = int(pitch_mm*1000) & 0xff
         self.send_command(cmd)
 
+    @TypecheckFunction
     def configure_actuators(self):
         # lead screw pitch
         self.set_leadscrew_pitch(AXIS.X,MACHINE_CONFIG.SCREW_PITCH_X_MM)
@@ -534,12 +539,14 @@ class Microcontroller():
         self.set_limit_switch_polarity(AXIS.Z,MACHINE_CONFIG.Z_HOME_SWITCH_POLARITY)
         self.wait_till_operation_is_completed()
 
+    @TypecheckFunction
     def ack_joystick_button_pressed(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.ACK_JOYSTICK_BUTTON_PRESSED
         self.send_command(cmd)
 
-    def analog_write_onboard_DAC(self,dac,value):
+    @TypecheckFunction
+    def analog_write_onboard_DAC(self,dac:int,value:int):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.ANALOG_WRITE_ONBOARD_DAC
         cmd[2] = dac
@@ -558,12 +565,14 @@ class Microcontroller():
         self.last_command_timestamp = time.time()
         self.retry = 0
 
+    @TypecheckFunction
     def resend_last_command(self):
         self.serial.write(self.last_command)
         self.mcu_cmd_execution_in_progress = True
         self.timeout_counter = 0
         self.retry = self.retry + 1
 
+    @TypecheckFunction
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
             # wait to receive data
@@ -635,19 +644,24 @@ class Microcontroller():
             if self.new_packet_callback_external is not None:
                 self.new_packet_callback_external(self)
 
-    def get_pos(self):
+    @TypecheckFunction
+    def get_pos(self)->Tuple[int,int,int,int]:
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
 
-    def get_button_and_switch_state(self):
+    @TypecheckFunction
+    def get_button_and_switch_state(self)->int:
         return self.button_and_switch_state
 
-    def is_busy(self):
+    @TypecheckFunction
+    def is_busy(self)->bool:
         return self.mcu_cmd_execution_in_progress
 
-    def set_callback(self,function):
+    @TypecheckFunction
+    def set_callback(self,function:Any):
         self.new_packet_callback_external = function
 
-    def wait_till_operation_is_completed(self, timeout_limit_s:int=5, time_step:float=0.02, timeout_msg='Error - microcontroller timeout, the program will exit'):
+    @TypecheckFunction
+    def wait_till_operation_is_completed(self, timeout_limit_s:int=5, time_step:float=0.02, timeout_msg:str='Error - microcontroller timeout, the program will exit'):
         timestamp_start = time.time()
         while self.is_busy():
             time.sleep(time_step)
@@ -655,14 +669,17 @@ class Microcontroller():
                 print(timeout_msg)
                 exit()
 
-    def _int_to_payload(self,signed_int,number_of_bytes):
+    # signed_int type is actually int64 (?)
+    @TypecheckFunction
+    def _int_to_payload(self,signed_int:Union[np.int64,int],number_of_bytes:int)->Union[np.int64,int]:
         if signed_int >= 0:
             payload = signed_int
         else:
             payload = 2**(8*number_of_bytes) + signed_int # find two's completement
         return payload
 
-    def _payload_to_int(self,payload,number_of_bytes):
+    @TypecheckFunction
+    def _payload_to_int(self,payload:List[int],number_of_bytes:int)->Union[np.int64,int]:
         signed = 0
         for i in range(number_of_bytes):
             signed = signed + int(payload[i])*(256**(number_of_bytes-1-i))

@@ -14,4 +14,4 @@ if __name__ == "__main__":
     app.setStyle('Fusion')
     win = gui.OctopiGUI()
     win.show()
-    sys.exit(app.exec_())
+    app.exec_()

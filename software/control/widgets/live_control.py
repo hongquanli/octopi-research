@@ -8,6 +8,7 @@ from datetime import datetime
 
 from control._def import *
 from control.core import Configuration, LiveController, ConfigurationManager
+from control.typechecker import TypecheckFunction
 
 from typing import Optional, Union, List, Tuple
 
@@ -48,6 +49,7 @@ class LiveControlWidget(QFrame):
 
         self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
+    @TypecheckFunction
     def add_components(self,
         show_trigger_options:bool,
         show_display_options:bool,
@@ -180,6 +182,7 @@ class LiveControlWidget(QFrame):
         self.grid.addStretch()
         self.setLayout(self.grid)
 
+    @TypecheckFunction
     def toggle_live(self,pressed:bool):
         if pressed:
             self.btn_live.setText(LIVE_BUTTON_RUNNING_TEXT)
@@ -188,10 +191,12 @@ class LiveControlWidget(QFrame):
             self.btn_live.setText(LIVE_BUTTON_IDLE_TEXT)
             self.liveController.stop_live()
 
+    @TypecheckFunction
     def update_camera_settings(self):
         self.signal_newAnalogGain.emit(self.entry_analogGain.value())
         self.signal_newExposureTime.emit(self.entry_exposureTime.value())
 
+    @TypecheckFunction
     def update_microscope_mode_by_name(self,current_microscope_mode_name:str):
         self.is_switching_mode = True
         # identify the mode selected (note that this references the object in self.configurationManager.configurations)
@@ -204,31 +209,37 @@ class LiveControlWidget(QFrame):
         self.entry_illuminationIntensity.setValue(self.currentConfiguration.illumination_intensity)
         self.is_switching_mode = False
 
+    @TypecheckFunction
     def update_trigger_mode(self):
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
+    @TypecheckFunction
     def update_config_exposure_time(self,new_value:float):
         if self.is_switching_mode == False:
             self.currentConfiguration.exposure_time = new_value
             self.configurationManager.update_configuration(self.currentConfiguration.id,'ExposureTime',new_value)
             self.signal_newExposureTime.emit(new_value)
 
+    @TypecheckFunction
     def update_config_analog_gain(self,new_value:float):
         if self.is_switching_mode == False:
             self.currentConfiguration.analog_gain = new_value
             self.configurationManager.update_configuration(self.currentConfiguration.id,'AnalogGain',new_value)
             self.signal_newAnalogGain.emit(new_value)
 
+    @TypecheckFunction
     def update_config_illumination_intensity(self,new_value:float):
         if self.is_switching_mode == False:
             self.currentConfiguration.illumination_intensity = new_value
             self.configurationManager.update_configuration(self.currentConfiguration.id,'IlluminationIntensity',new_value)
             self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
 
+    @TypecheckFunction
     def set_microscope_mode(self,config:Configuration):
         # self.liveController.set_microscope_mode(config)
         self.dropdown_modeSelection.setCurrentText(config.name)
 
+    @TypecheckFunction
     def set_trigger_mode(self,trigger_mode:str):
         self.dropdown_triggerManu.setCurrentText(trigger_mode)
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())

@@ -10,10 +10,13 @@ except:
     print('gxipy import error')
 
 from control._def import *
-from typing import Optional
+from typing import Optional, Any
+
+from control.typechecker import TypecheckFunction
 
 class Camera(object):
 
+    @TypecheckFunction
     def __init__(self,sn:Optional[str]=None,is_global_shutter:bool=False,rotate_image_angle:Optional[int]=None,flip_image:Optional[str]=None):
 
         # many to be purged
@@ -70,7 +73,8 @@ class Camera(object):
         self.is_live = False # this determines whether a new frame received will be handled in the streamHandler
         # mainly for discarding the last frame received after stop_live() is called, where illumination is being turned off during exposure
 
-    def open(self,index=0):
+    @TypecheckFunction
+    def open(self,index:int=0):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:
             raise RuntimeError('Could not find any USB camera devices!')
@@ -100,6 +104,7 @@ class Camera(object):
     def set_callback(self,function):
         self.new_image_callback_external = function
 
+    @TypecheckFunction
     def enable_callback(self):
         # stop streaming
         if self.is_streaming:
@@ -108,7 +113,7 @@ class Camera(object):
         else:
             was_streaming = False
         # enable callback
-        user_param = None
+        user_param:Optional[Any] = None
         assert not self.camera is None
         self.camera.register_capture_callback(user_param,self._on_frame_callback)
         self.callback_is_enabled = True
@@ -116,6 +121,7 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
+    @TypecheckFunction
     def disable_callback(self):
         # stop streaming
         if self.is_streaming:
@@ -131,7 +137,8 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
-    def open_by_sn(self,sn):
+    @TypecheckFunction
+    def open_by_sn(self,sn:str):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:
             raise RuntimeError('Could not find any USB camera devices!')
@@ -148,6 +155,7 @@ class Camera(object):
             self.camera.register_capture_callback(_on_frame_callback)
         '''
 
+    @TypecheckFunction
     def close(self):
         assert not self.camera is None
         self.camera.close_device()
@@ -161,7 +169,8 @@ class Camera(object):
         self.last_converted_image = None
         self.last_numpy_image = None
 
-    def set_exposure_time(self,exposure_time):
+    @TypecheckFunction
+    def set_exposure_time(self,exposure_time:float):
         assert not self.camera is None
         use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
         if use_strobe == False or self.is_global_shutter:
@@ -174,6 +183,7 @@ class Camera(object):
             camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
             self.camera.ExposureTime.set(camera_exposure_time)
 
+    @TypecheckFunction
     def update_camera_exposure_time(self):
         assert not self.camera is None
         use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
@@ -183,11 +193,13 @@ class Camera(object):
             camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
             self.camera.ExposureTime.set(camera_exposure_time)
 
-    def set_analog_gain(self,analog_gain):
+    @TypecheckFunction
+    def set_analog_gain(self,analog_gain:float):
         assert not self.camera is None
         self.analog_gain = analog_gain
         self.camera.Gain.set(analog_gain)
 
+    @TypecheckFunction
     def get_awb_ratios(self):
         assert not self.camera is None
         self.camera.BalanceWhiteAuto.set(2)
@@ -199,7 +211,8 @@ class Camera(object):
         awb_b = self.camera.BalanceRatio.get()
         return (awb_r, awb_g, awb_b)
 
-    def set_wb_ratios(self, wb_r=None, wb_g=None, wb_b=None):
+    @TypecheckFunction
+    def set_wb_ratios(self, wb_r:Optional[float]=None, wb_g:Optional[float]=None, wb_b:Optional[float]=None):
         assert not self.camera is None
         self.camera.BalanceWhiteAuto.set(0)
         if wb_r is not None:
@@ -212,25 +225,30 @@ class Camera(object):
             self.camera.BalanceRatioSelector.set(2)
             awb_b = self.camera.BalanceRatio.set(wb_b)
 
-    def set_reverse_x(self,value):
+    @TypecheckFunction
+    def set_reverse_x(self,value:bool):
         assert not self.camera is None
         self.camera.ReverseX.set(value)
 
-    def set_reverse_y(self,value):
+    @TypecheckFunction
+    def set_reverse_y(self,value:bool):
         assert not self.camera is None
         self.camera.ReverseY.set(value)
 
+    @TypecheckFunction
     def start_streaming(self):
         assert not self.camera is None
         self.camera.stream_on()
         self.is_streaming = True
 
+    @TypecheckFunction
     def stop_streaming(self):
         assert not self.camera is None
         self.camera.stream_off()
         self.is_streaming = False
 
-    def set_pixel_format(self,pixel_format):
+    @TypecheckFunction
+    def set_pixel_format(self,pixel_format:str):
         assert not self.camera is None
         if self.is_streaming == True:
             was_streaming = True
@@ -268,12 +286,14 @@ class Camera(object):
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
+    @TypecheckFunction
     def set_continuous_acquisition(self):
         assert not self.camera is None
         self.camera.TriggerMode.set(gx.GxSwitchEntry.OFF)
         self.trigger_mode = TriggerMode.CONTINUOUS
         self.update_camera_exposure_time()
 
+    @TypecheckFunction
     def set_software_triggered_acquisition(self):
         assert not self.camera is None
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
@@ -281,6 +301,7 @@ class Camera(object):
         self.trigger_mode = TriggerMode.SOFTWARE
         self.update_camera_exposure_time()
 
+    @TypecheckFunction
     def set_hardware_triggered_acquisition(self):
         assert not self.camera is None
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
@@ -290,6 +311,7 @@ class Camera(object):
         self.trigger_mode = TriggerMode.HARDWARE
         self.update_camera_exposure_time()
 
+    @TypecheckFunction
     def send_trigger(self):
         assert not self.camera is None
         if self.is_streaming:
@@ -297,7 +319,8 @@ class Camera(object):
         else:
             print('trigger not sent - camera is not streaming')
 
-    def read_frame(self):
+    @TypecheckFunction
+    def read_frame(self)->np.ndarray:
         assert not self.camera is None
         raw_image = self.camera.data_stream[self.device_index].get_image()
         if self.is_color:
@@ -312,7 +335,8 @@ class Camera(object):
         # self.current_frame = numpy_image
         return numpy_image
 
-    def _on_frame_callback(self, user_param, raw_image):
+    @TypecheckFunction
+    def _on_frame_callback(self, user_param:Optional[Any], raw_image:Optional[gxiapi.RawImage]):
         if raw_image is None:
             print("Getting image failed.")
             return
@@ -346,7 +370,8 @@ class Camera(object):
         # self.frameID = self.frameID + 1
         # print(self.frameID)
     
-    def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
+    @TypecheckFunction
+    def set_ROI(self,offset_x:Optional[int]=None,offset_y:Optional[int]=None,width:Optional[int]=None,height:Optional[int]=None):
         assert not self.camera is None
         if offset_x is not None:
             self.ROI_offset_x = offset_x

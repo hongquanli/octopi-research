@@ -8,14 +8,14 @@ class TriggerMode:
     CONTINUOUS = 'Continuous Acqusition'
 
 class Acquisition:
-    CROP_WIDTH = 3000
-    CROP_HEIGHT = 3000
-    NUMBER_OF_FOVS_PER_AF = 3
-    IMAGE_FORMAT = 'bmp'
-    IMAGE_DISPLAY_SCALING_FACTOR = 0.3
-    DX = 0.9
-    DY = 0.9
-    DZ = 1.5
+    CROP_WIDTH:int = 3000
+    CROP_HEIGHT:int = 3000
+    NUMBER_OF_FOVS_PER_AF:int = 3
+    IMAGE_FORMAT:str = 'bmp'
+    IMAGE_DISPLAY_SCALING_FACTOR:float = 0.3
+    DX:float = 0.9
+    DY:float = 0.9
+    DZ:float = 1.5
 
 class PosUpdate:
     INTERVAL_MS = 25
@@ -30,99 +30,99 @@ class Microcontroller2Def:
     CMD_LENGTH = 8
     N_BYTES_POS = 4
 
-USE_SEPARATE_MCU_FOR_DAC = False
+USE_SEPARATE_MCU_FOR_DAC:bool = False
 
 class CMD_SET:
-    MOVE_X = 0
-    MOVE_Y = 1
-    MOVE_Z = 2
-    MOVE_THETA = 3
-    HOME_OR_ZERO = 5
-    TURN_ON_ILLUMINATION = 10
-    TURN_OFF_ILLUMINATION = 11
-    SET_ILLUMINATION = 12
-    SET_ILLUMINATION_LED_MATRIX = 13
-    ACK_JOYSTICK_BUTTON_PRESSED = 14
-    ANALOG_WRITE_ONBOARD_DAC = 15
-    MOVETO_X = 6
-    MOVETO_Y = 7
-    MOVETO_Z = 8
-    SET_LIM = 9
-    SET_LIM_SWITCH_POLARITY = 20
-    CONFIGURE_STEPPER_DRIVER = 21
-    SET_MAX_VELOCITY_ACCELERATION = 22
-    SET_LEAD_SCREW_PITCH = 23
-    SET_OFFSET_VELOCITY = 24
-    SEND_HARDWARE_TRIGGER = 30
-    SET_STROBE_DELAY = 31
-    INITIALIZE = 254
-    RESET = 255
+    MOVE_X:int = 0
+    MOVE_Y:int = 1
+    MOVE_Z:int = 2
+    MOVE_THETA:int = 3
+    HOME_OR_ZERO:int = 5
+    TURN_ON_ILLUMINATION:int = 10
+    TURN_OFF_ILLUMINATION:int = 11
+    SET_ILLUMINATION:int = 12
+    SET_ILLUMINATION_LED_MATRIX:int = 13
+    ACK_JOYSTICK_BUTTON_PRESSED:int = 14
+    ANALOG_WRITE_ONBOARD_DAC:int = 15
+    MOVETO_X:int = 6
+    MOVETO_Y:int = 7
+    MOVETO_Z:int = 8
+    SET_LIM:int = 9
+    SET_LIM_SWITCH_POLARITY:int = 20
+    CONFIGURE_STEPPER_DRIVER:int = 21
+    SET_MAX_VELOCITY_ACCELERATION:int = 22
+    SET_LEAD_SCREW_PITCH:int = 23
+    SET_OFFSET_VELOCITY:int = 24
+    SEND_HARDWARE_TRIGGER:int = 30
+    SET_STROBE_DELAY:int = 31
+    INITIALIZE:int = 254
+    RESET:int = 255
 
 class CMD_SET2:
-    ANALOG_WRITE_DAC8050X = 0
-    SET_CAMERA_TRIGGER_FREQUENCY = 1
-    START_CAMERA_TRIGGERING = 2
-    STOP_CAMERA_TRIGGERING = 3
+    ANALOG_WRITE_DAC8050X:int = 0
+    SET_CAMERA_TRIGGER_FREQUENCY:int = 1
+    START_CAMERA_TRIGGERING:int = 2
+    STOP_CAMERA_TRIGGERING:int = 3
 
 BIT_POS_JOYSTICK_BUTTON = 0
 BIT_POS_SWITCH = 1
 
 class HOME_OR_ZERO:
-    HOME_NEGATIVE = 1 # motor moves along the negative direction (MCU coordinates)
-    HOME_POSITIVE = 0 # motor moves along the negative direction (MCU coordinates)
-    ZERO = 2
+    HOME_NEGATIVE:int = 1 # motor moves along the negative direction (MCU coordinates)
+    HOME_POSITIVE:int = 0 # motor moves along the negative direction (MCU coordinates)
+    ZERO:int = 2
 
 class AXIS:
-    X = 0
-    Y = 1
-    Z = 2
-    THETA = 3
-    XY = 4
+    X:int = 0
+    Y:int = 1
+    Z:int = 2
+    THETA:int = 3
+    XY:int = 4
 
 class LIMIT_CODE:
-    X_POSITIVE = 0
-    X_NEGATIVE = 1
-    Y_POSITIVE = 2
-    Y_NEGATIVE = 3
-    Z_POSITIVE = 4
-    Z_NEGATIVE = 5
+    X_POSITIVE:int = 0
+    X_NEGATIVE:int = 1
+    Y_POSITIVE:int = 2
+    Y_NEGATIVE:int = 3
+    Z_POSITIVE:int = 4
+    Z_NEGATIVE:int = 5
 
 class LIMIT_SWITCH_POLARITY:
-    ACTIVE_LOW = 0
-    ACTIVE_HIGH = 1
-    DISABLED = 2
+    ACTIVE_LOW:int = 0
+    ACTIVE_HIGH:int = 1
+    DISABLED:int = 2
 
 class ILLUMINATION_CODE:
-    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1
-    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3
-    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5
-    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6
-    ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20
-    ILLUMINATION_SOURCE_405NM = 11
-    ILLUMINATION_SOURCE_488NM = 12
-    ILLUMINATION_SOURCE_638NM = 13
-    ILLUMINATION_SOURCE_561NM = 14
-    ILLUMINATION_SOURCE_730NM = 15
+    ILLUMINATION_SOURCE_LED_ARRAY_FULL:int = 0
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:int = 1
+    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:int = 2
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR:int = 3
+    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA:int = 4
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT:int = 5
+    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:int = 6
+    ILLUMINATION_SOURCE_LED_EXTERNAL_FET:int = 20
+    ILLUMINATION_SOURCE_405NM:int = 11
+    ILLUMINATION_SOURCE_488NM:int = 12
+    ILLUMINATION_SOURCE_638NM:int = 13
+    ILLUMINATION_SOURCE_561NM:int = 14
+    ILLUMINATION_SOURCE_730NM:int = 15
 
 class CAMERA:
-    ROI_OFFSET_X_DEFAULT = 0
-    ROI_OFFSET_Y_DEFAULT = 0
-    ROI_WIDTH_DEFAULT = 3000
-    ROI_HEIGHT_DEFAULT = 3000
+    ROI_OFFSET_X_DEFAULT:int = 0
+    ROI_OFFSET_Y_DEFAULT:int = 0
+    ROI_WIDTH_DEFAULT:int = 3000
+    ROI_HEIGHT_DEFAULT:int = 3000
 
 class VOLUMETRIC_IMAGING:
-    NUM_PLANES_PER_VOLUME = 20
+    NUM_PLANES_PER_VOLUME:int = 20
 
 class CMD_EXECUTION_STATUS:
-    COMPLETED_WITHOUT_ERRORS = 0
-    IN_PROGRESS = 1
-    CMD_CHECKSUM_ERROR = 2
-    CMD_INVALID = 3
-    CMD_EXECUTION_ERROR = 4
-    ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED = 100
+    COMPLETED_WITHOUT_ERRORS:int = 0
+    IN_PROGRESS:int = 1
+    CMD_CHECKSUM_ERROR:int = 2
+    CMD_INVALID:int = 3
+    CMD_EXECUTION_ERROR:int = 4
+    ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED:int = 100
 
 @dataclass(frozen=True)
 class ObjectiveData:
@@ -158,15 +158,15 @@ class ControllerType:
 ###########################################################
 from typing import Optional, Dict, List
 
-from control.typechecker import Typecheck, ClosedRange
+from control.typechecker import TypecheckClass, ClosedRange, ClosedSet
 
-@Typecheck()
+@TypecheckClass
 @dataclass
 class MachineConfiguration:
     # hardware specific stuff
-    ROTATE_IMAGE_ANGLE:int=0 # type: ignore
+    ROTATE_IMAGE_ANGLE:ClosedSet[int](-90,0,90,180)=0
     
-    FLIP_IMAGE:Optional[str]=None
+    FLIP_IMAGE:ClosedSet[Optional[str]](None,'Vertical','Horizontal','Both')=None
 
     # note: XY are the in-plane axes, Z is the focus axis
 
@@ -216,9 +216,9 @@ class MachineConfiguration:
     Y_MOTOR_RMS_CURRENT_mA:int = 490
     Z_MOTOR_RMS_CURRENT_mA:int = 490
 
-    X_MOTOR_I_HOLD:float = 0.5
-    Y_MOTOR_I_HOLD:float = 0.5
-    Z_MOTOR_I_HOLD:float = 0.5
+    X_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.5
+    Y_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.5
+    Z_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.5
 
     MAX_VELOCITY_X_mm:float = 25.0
     MAX_VELOCITY_Y_mm:float = 25.0
@@ -308,7 +308,7 @@ class MachineConfiguration:
     TUBE_LENS_MM:float = 50.0
     CAMERA_SENSOR:str = 'IMX226'
     TRACKERS:List[str] = field(default_factory= lambda:['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN'])
-    DEFAULT_TRACKER:str = 'csrt'
+    DEFAULT_TRACKER:ClosedSet[str]('csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN') = 'csrt'
 
     AF:AutofocusConfig=field(default_factory=lambda: AutofocusConfig())
 
@@ -331,7 +331,7 @@ class MachineConfiguration:
 
     ENABLE_STROBE_OUTPUT:bool = False
 
-    Z_STACKING_CONFIG:str = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
+    Z_STACKING_CONFIG:ClosedSet[str]('FROM CENTER', 'FROM BOTTOM', 'FROM TOP') = 'FROM CENTER'
 
     # for 384 well plate
     X_MM_384_WELLPLATE_UPPERLEFT:float = 0.0
@@ -356,18 +356,18 @@ class MachineConfiguration:
 
     DEFAULT_OBJECTIVE:str = '10x (Mitutoyo)'
     # default plate format
-    WELLPLATE_FORMAT:int = 384
+    WELLPLATE_FORMAT:ClosedSet[int](6,12,24,96,384) = 384
 
     # things that can change in software
-    DEFAULT_TRIGGER_MODE:str = TriggerMode.SOFTWARE
+    DEFAULT_TRIGGER_MODE:ClosedSet[str]('Software Trigger','Hardware Trigger','Continuous Acqusition') = TriggerMode.SOFTWARE
     AUTOLEVEL_DEFAULT_SETTING:bool = False
 
     MULTIPOINT_AUTOFOCUS_CHANNEL:str = 'BF LED matrix full'
-    MULTIPOINT_BF_SAVING_OPTION:str = 'Raw'
+    MULTIPOINT_BF_SAVING_OPTION:ClosedSet[str]('Raw','RGB2GRAY','Green Channel Only') = 'Raw'
 
 
 MACHINE_CONFIG=MachineConfiguration(
-    FLIP_IMAGE = 'Vertical', # type: ignore
+    FLIP_IMAGE = 'Vertical',
 
     # beginning of actuator specific configurations
 
@@ -519,15 +519,6 @@ WELLPLATE_FORMATS={
         number_of_skip = 1,
         rows = 16,
         columns = 24,
-    ),
-    #1536:WellplateFormatPhysical(
-    #    well_size_mm = ???
-    #    well_spacing_mm = 2.25
-    #    A1_x_mm = ???
-    #    A1_y_mm = ???
-    #    number_of_skip = ???
-    #    rows = 32,
-    #    columns = 48,
-    #),
+    )
 }
  

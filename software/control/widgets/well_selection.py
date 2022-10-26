@@ -6,16 +6,20 @@ from control._def import *
 
 from typing import Optional, Union, List, Tuple
 
+from control.typechecker import TypecheckFunction
+
 class WellSelectionWidget(QTableWidget):
  
     signal_wellSelected = Signal(int,int,float)
     signal_wellSelectedPos = Signal(float,float)
  
+    @TypecheckFunction
     def __init__(self, format: int):
         self.was_initialized=False
         self.set_wellplate_type(format)
         self.was_initialized=True
  
+    @TypecheckFunction
     def set_wellplate_type(self,wellplate_type:Union[str,int]):
         if type(wellplate_type)==str:
             wellplate_type_int:int=int(wellplate_type.split(" ")[0])  # type: ignore
@@ -65,6 +69,7 @@ class WellSelectionWidget(QTableWidget):
             self.verticalHeader().length() + self.horizontalHeader().height()
         )
  
+    @TypecheckFunction
     def set_selectable_widgets(self,layout:WellplateFormatPhysical,is_selectable:bool,exhaustive:bool=False):
         # item.flags is a bitvector, so changing the IsSelectable flag is bit manipulating magic
  
@@ -84,6 +89,7 @@ class WellSelectionWidget(QTableWidget):
                     item.setFlags((item.flags() | Qt.ItemIsSelectable) if is_selectable else (item.flags() & ~Qt.ItemIsSelectable)) # type: ignore
                     self.setItem(i,j,item)
  
+    @TypecheckFunction
     def setData(self):
         '''
         # cells
@@ -106,6 +112,7 @@ class WellSelectionWidget(QTableWidget):
         elif wellplate_format.number_of_skip>1:
             assert False, "more than one layer of disabled outer wells is currently unimplemented"
  
+    @TypecheckFunction
     def onDoubleClick(self,row:int,col:int):
         wellplate_format=WELLPLATE_FORMATS[self.format]
  
@@ -115,6 +122,7 @@ class WellSelectionWidget(QTableWidget):
             y_mm = MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT + wellplateformat_384.well_size_mm/2 - (wellplateformat_384.A1_y_mm+wellplateformat_384.well_spacing_mm*wellplateformat_384.number_of_skip) + row*wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
  
+    @TypecheckFunction
     def get_selected_cells(self) -> List[Tuple[int,int]]:
         list_of_selected_cells = []
         for index in self.selectedIndexes():

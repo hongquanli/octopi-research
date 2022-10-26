@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 
 from typing import Optional, List, Union, Tuple
+from control.typechecker import TypecheckFunction
 
 class StreamHandler(QObject):
 
@@ -61,13 +62,14 @@ class StreamHandler(QObject):
     def set_save_fps(self,fps):
         self.fps_save = fps
 
-    def set_crop(self,crop_width,crop_height):
+    @TypecheckFunction
+    def set_crop(self,crop_width:int,crop_height:int):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
-    def set_display_resolution_scaling(self, display_resolution_scaling):
+    @TypecheckFunction
+    def set_display_resolution_scaling(self, display_resolution_scaling:int):
         self.display_resolution_scaling = display_resolution_scaling/100
-        print(self.display_resolution_scaling)
 
     def on_new_frame(self, camera):
 

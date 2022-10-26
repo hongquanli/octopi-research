@@ -4,13 +4,16 @@ from qtpy.QtWidgets import QFrame, QDoubleSpinBox, QComboBox, QSpinBox, QLabel, 
 
 from control._def import *
 
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Any
+
+from control.camera import Camera
+from control.typechecker import TypecheckFunction
 
 class CameraSettingsWidget(QFrame):
 
     signal_camera_set_temperature = Signal(float)
 
-    def __init__(self, camera, include_gain_exposure_time = True, include_camera_temperature_setting = False, main=None, *args, **kwargs):
+    def __init__(self, camera:Camera, include_gain_exposure_time:bool = True, include_camera_temperature_setting:bool = False, main:Optional[Any]=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.camera = camera
@@ -18,22 +21,23 @@ class CameraSettingsWidget(QFrame):
         # set frame style
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
-    def add_components(self,include_gain_exposure_time,include_camera_temperature_setting):
+    @TypecheckFunction
+    def add_components(self,include_gain_exposure_time:bool,include_camera_temperature_setting:bool):
 
         # add buttons and input fields
         self.entry_exposureTime = QDoubleSpinBox()
         self.entry_exposureTime.setMinimum(self.camera.EXPOSURE_TIME_MS_MIN) 
         self.entry_exposureTime.setMaximum(self.camera.EXPOSURE_TIME_MS_MAX) 
-        self.entry_exposureTime.setSingleStep(1)
-        self.entry_exposureTime.setValue(20)
-        self.camera.set_exposure_time(20)
+        self.entry_exposureTime.setSingleStep(1.0)
+        self.entry_exposureTime.setValue(20.0)
+        self.camera.set_exposure_time(20.0)
 
         self.entry_analogGain = QDoubleSpinBox()
         self.entry_analogGain.setMinimum(self.camera.GAIN_MIN) 
         self.entry_analogGain.setMaximum(self.camera.GAIN_MAX) 
         self.entry_analogGain.setSingleStep(self.camera.GAIN_STEP)
-        self.entry_analogGain.setValue(0)
-        self.camera.set_analog_gain(0)
+        self.entry_analogGain.setValue(0.0)
+        self.camera.set_analog_gain(0.0)
 
         self.dropdown_pixelFormat = QComboBox()
         self.dropdown_pixelFormat.addItems(['MONO8','MONO12','MONO14','MONO16','BAYER_RG8','BAYER_RG12'])
@@ -114,14 +118,18 @@ class CameraSettingsWidget(QFrame):
         self.grid.addLayout(hbox1,1,0)
         self.setLayout(self.grid)
 
-    def set_exposure_time(self,exposure_time):
+    @TypecheckFunction
+    def set_exposure_time(self,exposure_time:float):
         self.entry_exposureTime.setValue(exposure_time)
 
-    def set_analog_gain(self,analog_gain):
+    @TypecheckFunction
+    def set_analog_gain(self,analog_gain:float):
         self.entry_analogGain.setValue(analog_gain)
 
+    @TypecheckFunction
     def set_ROI(self):
         self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
-    def update_measured_temperature(self,temperature):
+    @TypecheckFunction
+    def update_measured_temperature(self,temperature:float):
         self.label_temperature_measured.setNum(temperature)

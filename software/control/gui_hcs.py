@@ -3,7 +3,7 @@ import os
 os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QEvent
 from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget
 
 # app specific libraries
@@ -15,9 +15,12 @@ from control._def import *
 
 import pyqtgraph.dockarea as dock
 
+from control.typechecker import TypecheckFunction
+
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
 class HCSController():
+	@TypecheckFunction
 	def __init__(self,well_selection_widget:widgets.WellSelectionWidget):
 		# load objects
 		try:
@@ -252,11 +255,13 @@ class OctopiGUI(QMainWindow):
 
 		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
 
+	@TypecheckFunction
 	def set_wellplate_type(self,wellplate_type:str):
 		self.navigationViewer.set_wellplate_type(wellplate_type)
 		self.wellSelectionWidget.set_wellplate_type(wellplate_type)
 
-	def closeEvent(self, event):
+	@TypecheckFunction
+	def closeEvent(self, event:QEvent):
 		
 		# move the objective to a defined position upon exit
 		self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick

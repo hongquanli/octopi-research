@@ -4,6 +4,7 @@ os.environ["QT_API"] = "pyqt5"
 import qtpy
 
 # qt libraries
+from qtpy.QtCore import QEvent
 from qtpy.QtWidgets import QMainWindow, QTabWidget, QWidget, QVBoxLayout, QDesktopWidget
 
 # app specific libraries
@@ -12,6 +13,8 @@ import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
 from control._def import *
+
+from control.typechecker import TypecheckFunction
 
 import pyqtgraph.dockarea as dock
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
@@ -153,7 +156,8 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.update_camera_settings()
 		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
-	def closeEvent(self, event):
+	@TypecheckFunction
+	def closeEvent(self, event:QEvent):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
 		self.navigationController.home()
