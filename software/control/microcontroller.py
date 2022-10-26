@@ -554,8 +554,11 @@ class Microcontroller():
         cmd[3] = level
         self.send_command(cmd)
 
+    def turn_on_AF_laser():
+        self.set_pin_level(MCU_PINS.AF_LASER,1)
+
     def turn_on_AF_laser(self):
-        self.set_pin_level()
+        self.set_pin_level(MCU_PINS.AF_LASER,0)
 
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
