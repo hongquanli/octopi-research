@@ -557,7 +557,7 @@ class Microcontroller():
     def turn_on_AF_laser():
         self.set_pin_level(MCU_PINS.AF_LASER,1)
 
-    def turn_on_AF_laser(self):
+    def turn_off_AF_laser(self):
         self.set_pin_level(MCU_PINS.AF_LASER,0)
 
     def send_command(self,command):
@@ -727,6 +727,13 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.RESET
         self.send_command(cmd)
+
+    def initialize_drivers(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.INITIALIZE
+        self.send_command(cmd)
+        print('initialize the drivers') # debug
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + STAGE_MOVEMENT_SIGN_X*usteps
@@ -996,6 +1003,12 @@ class Microcontroller_Simulation():
 
     def is_busy(self):
         return self.mcu_cmd_execution_in_progress
+
+    def turn_on_AF_laser():
+        self.set_pin_level(MCU_PINS.AF_LASER,1)
+
+    def turn_off_AF_laser(self):
+        self.set_pin_level(MCU_PINS.AF_LASER,0)
 
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
