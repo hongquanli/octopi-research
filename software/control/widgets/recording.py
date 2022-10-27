@@ -5,9 +5,11 @@ from qtpy.QtGui import QIcon
 from control._def import *
 
 from typing import Optional, Union, List, Tuple
+from control.typechecker import TypecheckFunction
+from control.core import StreamHandler, ImageSaver
 
 class RecordingWidget(QFrame):
-    def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
+    def __init__(self, streamHandler:StreamHandler, imageSaver:ImageSaver, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.imageSaver = imageSaver # for saving path control
         self.streamHandler = streamHandler
@@ -79,6 +81,7 @@ class RecordingWidget(QFrame):
         self.entry_timeLimit.valueChanged.connect(self.imageSaver.set_recording_time_limit)
         self.imageSaver.stop_recording.connect(self.stop_recording)
 
+    @TypecheckFunction
     def set_saving_dir(self):
         dialog = QFileDialog()
         save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
@@ -86,7 +89,8 @@ class RecordingWidget(QFrame):
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
 
-    def toggle_recording(self,pressed):
+    @TypecheckFunction
+    def toggle_recording(self,pressed:bool):
         if self.base_path_is_set == False:
             self.btn_record.setChecked(False)
             msg = QMessageBox()
@@ -96,7 +100,7 @@ class RecordingWidget(QFrame):
         if pressed:
             self.lineEdit_experimentID.setEnabled(False)
             self.btn_setSavingDir.setEnabled(False)
-            self.imageSaver.start_new_experiment(self.lineEdit_experimentID.text())
+            self.imageSaver.prepare_folder_for_new_experiment(self.lineEdit_experimentID.text())
             self.streamHandler.start_recording()
         else:
             self.streamHandler.stop_recording()
@@ -104,6 +108,7 @@ class RecordingWidget(QFrame):
             self.btn_setSavingDir.setEnabled(True)
 
     # stop_recording can be called by imageSaver
+    @TypecheckFunction
     def stop_recording(self):
         self.lineEdit_experimentID.setEnabled(True)
         self.btn_record.setChecked(False)

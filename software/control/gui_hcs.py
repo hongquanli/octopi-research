@@ -65,7 +65,7 @@ class HCSController():
 				# self.navigationController.set_y_limit_neg_mm(-100)
 				# self.navigationController.home_xy() 
 				# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
-				self.navigationController.move_x(12)
+				self.navigationController.move_x(12.0)
 				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
 				
 				self.navigationController.home_y()
@@ -77,9 +77,9 @@ class HCSController():
 				print('xy homing completed')
 
 				# move to (20 mm, 20 mm)
-				self.navigationController.move_x(20)
+				self.navigationController.move_x(20.0)
 				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-				self.navigationController.move_y(20)
+				self.navigationController.move_y(20.0)
 				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
 
 				self.navigationController.set_x_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_POSITIVE)
@@ -267,13 +267,13 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
 		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
 
-		self.navigationController.move_x_to(30)
+		self.navigationController.move_x_to(30.0)
 		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
 
 		self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
 		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
 
-		self.navigationController.move_y_to(30)
+		self.navigationController.move_y_to(30.0)
 		self.microcontroller.wait_till_operation_is_completed(5, 0.005)
 
 		event.accept()

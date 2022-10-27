@@ -38,7 +38,7 @@ class ImageDisplay(QObject):
             except:
                 pass
 
-    # def enqueue(self,image,frame_ID,timestamp):
+    # def enqueue(self,image,frame_ID:int,timestamp):
     def enqueue(self,image):
         try:
             self.queue.put_nowait([image,None,None])

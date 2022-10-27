@@ -12,11 +12,14 @@ class TriggerMode(str,Enum):
     HARDWARE = 'Hardware Trigger'
     CONTINUOUS = 'Continuous Acqusition'
 
+class ImageFormat(str,Enum):
+    BMP="bmp"
+
 class Acquisition:
     CROP_WIDTH:int = 3000
     CROP_HEIGHT:int = 3000
     NUMBER_OF_FOVS_PER_AF:int = 3
-    IMAGE_FORMAT:str = 'bmp'
+    IMAGE_FORMAT:ImageFormat = ImageFormat.BMP
     IMAGE_DISPLAY_SCALING_FACTOR:float = 0.3
     DX:float = 0.9
     DY:float = 0.9

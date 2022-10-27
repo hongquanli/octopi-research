@@ -114,6 +114,7 @@ class WellSelectionWidget(QTableWidget):
  
     @TypecheckFunction
     def onDoubleClick(self,row:int,col:int):
+        # this code is also used in control.core.ScanCoordinates.get_selected_wells
         wellplate_format=WELLPLATE_FORMATS[self.format]
         wellplate_format_384=WELLPLATE_FORMATS[384]
  

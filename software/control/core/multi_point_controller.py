@@ -20,6 +20,7 @@ from typing import Optional, List, Union, Tuple
 
 import control.camera as camera
 from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager
+from control.typechecker import TypecheckFunction
 
 class MultiPointWorker(QObject):
 
@@ -31,8 +32,8 @@ class MultiPointWorker(QObject):
     signal_register_current_fov = Signal(float,float)
 
     def __init__(self,multiPointController):
-        QObject.__init__(self)
-        self.multiPointController = multiPointController
+        super().__init__()
+        self.multiPointController:MultiPointController = multiPointController
 
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
@@ -357,17 +358,30 @@ class ScanCoordinates(object):
                 columns = np.flip(columns)
 
             for column in columns:
-                wellplateformat_384=WELLPLATE_FORMATS[384]
-                wellplateformat=WELLPLATE_FORMATS[int(self.navigation_viewer.sample.split(" ")[0])]
+                wellplate_format=WELLPLATE_FORMATS[int(self.navigation_viewer.sample.split(" ")[0])]
+                wellplate_format_384=WELLPLATE_FORMATS[384]
+
+                # see control.widgets.onDoubleClick
+                origin_x_offset=MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT-(wellplate_format_384.A1_x_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip)
+                origin_y_offset=MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT-(wellplate_format_384.A1_y_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip)
+                well_on_plate_offset_x=column * wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm
+                well_on_plate_offset_y=row * wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm
+                well_cursor_offset_x=wellplate_format_384.well_size_mm/2
+                well_cursor_offset_y=well_cursor_offset_x
 
                 x_mm = MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT \
-                    + wellplateformat_384.well_size_mm / 2 \
-                    - (wellplateformat_384.A1_x_mm + wellplateformat_384.well_spacing_mm * wellplateformat_384.number_of_skip) \
-                    + column * wellplateformat.well_spacing_mm + wellplateformat.A1_x_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm
+                    + wellplate_format_384.well_size_mm / 2 \
+                    - (wellplate_format_384.A1_x_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip) \
+                    + column * wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm
                 y_mm = MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT \
-                    + wellplateformat_384.well_size_mm / 2 \
-                    - (wellplateformat_384.A1_y_mm + wellplateformat_384.well_spacing_mm * wellplateformat_384.number_of_skip) \
-                    + row * wellplateformat.well_spacing_mm + wellplateformat.A1_y_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm
+                    + wellplate_format_384.well_size_mm / 2 \
+                    - (wellplate_format_384.A1_y_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip) \
+                    + row * wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm
+
+                x_mm = origin_x_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm \
+                    + well_on_plate_offset_x + well_cursor_offset_x
+                y_mm = origin_y_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm \
+                    + well_on_plate_offset_y + well_cursor_offset_y
 
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
@@ -383,6 +397,7 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
+    @TypecheckFunction
     def __init__(self,
         camera:camera.Camera,
         navigationController:NavigationController,
@@ -399,25 +414,22 @@ class MultiPointController(QObject):
         self.liveController = liveController
         self.autofocusController = autofocusController
         self.configurationManager = configurationManager
-        self.NX = 1
-        self.NY = 1
-        self.NZ = 1
-        self.Nt = 1
-        mm_per_ustep_X = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X)
-        mm_per_ustep_Y = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
-        mm_per_ustep_Z = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
+        self.NX:int = 1
+        self.NY:int = 1
+        self.NZ:int = 1
+        self.Nt:int = 1
         self.deltaX = Acquisition.DX
-        self.deltaX_usteps = round(self.deltaX/mm_per_ustep_X)
+        self.deltaX_usteps:int = round(self.deltaX/self.mm_per_ustep_X)
         self.deltaY = Acquisition.DY
-        self.deltaY_usteps = round(self.deltaY/mm_per_ustep_Y)
+        self.deltaY_usteps:int = round(self.deltaY/self.mm_per_ustep_Y)
         self.deltaZ = Acquisition.DZ/1000
-        self.deltaZ_usteps = round(self.deltaZ/mm_per_ustep_Z)
-        self.deltat = 0
-        self.do_autofocus = False
+        self.deltaZ_usteps:int = round(self.deltaZ/self.mm_per_ustep_Z)
+        self.deltat:float = 0.0
+        self.do_autofocus:bool = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
-        self.counter = 0
+        self.counter:int = 0
         self.experiment_ID: Optional[str] = None
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
@@ -425,39 +437,59 @@ class MultiPointController(QObject):
         self.autofocus_channel_name=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
 
-    def set_NX(self,N):
+    @property
+    def mm_per_ustep_X(self):
+        return MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X)
+    @property
+    def mm_per_ustep_Y(self):
+        return MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
+    @property
+    def mm_per_ustep_Z(self):
+        return MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
+
+    @TypecheckFunction
+    def set_NX(self,N:int):
         self.NX = N
-    def set_NY(self,N):
+    @TypecheckFunction
+    def set_NY(self,N:int):
         self.NY = N
-    def set_NZ(self,N):
+    @TypecheckFunction
+    def set_NZ(self,N:int):
         self.NZ = N
-    def set_Nt(self,N):
+    @TypecheckFunction
+    def set_Nt(self,N:int):
         self.Nt = N
-    def set_deltaX(self,delta):
-        mm_per_ustep_X = MACHINE_CONFIG.SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_X)
+
+    @TypecheckFunction
+    def set_deltaX(self,delta:float):
         self.deltaX = delta
-        self.deltaX_usteps = round(delta/mm_per_ustep_X)
-    def set_deltaY(self,delta):
-        mm_per_ustep_Y = MACHINE_CONFIG.SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Y)
+        self.deltaX_usteps = round(delta/self.mm_per_ustep_X)
+    @TypecheckFunction
+    def set_deltaY(self,delta:float):
         self.deltaY = delta
-        self.deltaY_usteps = round(delta/mm_per_ustep_Y)
-    def set_deltaZ(self,delta_um):
-        mm_per_ustep_Z = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
+        self.deltaY_usteps = round(delta/self.mm_per_ustep_Y)
+    @TypecheckFunction
+    def set_deltaZ(self,delta_um:float):
         self.deltaZ = delta_um/1000
-        self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
-    def set_deltat(self,delta):
+        self.deltaZ_usteps = round((delta_um/1000)/self.mm_per_ustep_Z)
+    @TypecheckFunction
+    def set_deltat(self,delta:float):
         self.deltat = delta
-    def set_af_flag(self,flag):
+    @TypecheckFunction
+    def set_af_flag(self,flag:bool):
         self.do_autofocus = flag
 
-    def set_crop(self,crop_width,crop_height):
+    @TypecheckFunction
+    def set_crop(self,crop_width:int,crop_height:int):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
-    def set_base_path(self,path):
+    @TypecheckFunction
+    def set_base_path(self,path:str):
         self.base_path = path
 
-    def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
+    @TypecheckFunction
+    def prepare_folder_for_new_experiment(self,experiment_ID:str):
         # generate unique experiment ID
         self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
         self.recording_start_time = time.time()

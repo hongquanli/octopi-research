@@ -11,7 +11,6 @@ from qtpy.QtGui import *
 import control.utils as utils
 from control._def import *
 from control.core import *
-import control.tracking as tracking
 
 from queue import Queue
 from threading import Thread, Lock
@@ -91,7 +90,6 @@ class PDAFController(QObject):
     def close(self):
         pass
 
-class TwoCamerasPDAFCalibrationController(QObject):
 
     acquisitionFinished = Signal()
     image_to_display_camera1 = Signal(np.ndarray)
@@ -147,7 +145,7 @@ class TwoCamerasPDAFCalibrationController(QObject):
         self.crop_height = crop_height
     def set_base_path(self,path):
         self.base_path = path
-    def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
+    def prepare_folder_for_new_experiment(self,experiment_ID):
         # generate unique experiment ID
         self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d %H-%M-%-S.%f')
         self.recording_start_time = time.time()

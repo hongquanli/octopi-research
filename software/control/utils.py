@@ -45,27 +45,22 @@ def rotate_and_flip_image(image:ImageType,rotate_image_angle:int,flip_image:Opti
     if(rotate_image_angle != 0):
         try:
             rotation_flag={
-                -90:cv2.ROTATE_90_COUNTERCLOCKWISE,
-                90:cv2.ROTATE_90_CLOCKWISE,
-                180:cv2.ROTATE_180
+                -90:  cv2.ROTATE_90_COUNTERCLOCKWISE,
+                 90:  cv2.ROTATE_90_CLOCKWISE,
+                 180: cv2.ROTATE_180
             }[rotate_image_angle]
+            
             image = cv2.rotate(image,rotation_flag)
         except:
             assert False, "invalid rotation angle (is not 0|90|-90|180)"
 
     if(flip_image is not None):
-        '''
-            flipcode = 0: flip vertically
-            flipcode > 0: flip horizontally
-            flipcode < 0: flip vertically and horizontally
-        '''
-        if(flip_image == 'Vertical'):
-            image = cv2.flip(image, 0)
-        elif(flip_image == 'Horizontal'):
-            image = cv2.flip(image, 1)
-        elif(flip_image == 'Both'):
-            image = cv2.flip(image, -1)
-        else:
-            assert False, "invalid image flipping mode"
+        flipcode={
+            'Vertical':   0, # flipcode = 0: flip vertically
+            'Horizontal': 1, # flipcode > 0: flip horizontally
+            'Both':      -1  # flipcode < 0: flip vertically and horizontally
+        }[flip_image]
+
+        image = cv2.flip(image, flipcode)
 
     return image
