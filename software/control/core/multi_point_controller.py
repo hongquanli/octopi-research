@@ -212,20 +212,20 @@ class MultiPointWorker(QObject):
                                     saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                     if self.camera.is_color:
                                         if 'BF LED matrix' in config.name:
-                                            if MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                            if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                            elif MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                            elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
                                                 image = image[:,:,1]
                                     iio.imwrite(saving_path,image)
                                 else:
                                     saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                     if self.camera.is_color:
                                         if 'BF LED matrix' in config.name:
-                                            if MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'Raw':
+                                            if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                            elif MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                            elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                            elif MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
+                                            elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
                                                 image = image[:,:,1]
                                         else:
                                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
@@ -422,7 +422,7 @@ class MultiPointController(QObject):
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
         self.scanCoordinates = scanCoordinates
-        self.autofocus_channel_name=MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
+        self.autofocus_channel_name=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
 
     def set_NX(self,N):

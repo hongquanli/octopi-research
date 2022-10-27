@@ -24,7 +24,7 @@ class LiveController(QObject):
         self.microcontroller = microcontroller
         self.configurationManager:ConfigurationManager = configurationManager
         self.currentConfiguration:Optional[Configuration] = None
-        self.trigger_mode = TriggerMode.SOFTWARE # @@@ change to None
+        self.trigger_mode:TriggerMode = TriggerMode.SOFTWARE
         self.is_live:bool = False
         self.control_illumination = control_illumination
         self.illumination_on:bool = False
@@ -43,7 +43,7 @@ class LiveController(QObject):
         self.counter = 0
         self.timestamp_last = 0
 
-        self.display_resolution_scaling = MACHINE_CONFIG.DEFAULT_DISPLAY_CROP/100
+        self.display_resolution_scaling = MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP/100
 
     # illumination control
     def turn_on_illumination(self):

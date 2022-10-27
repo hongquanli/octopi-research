@@ -24,8 +24,8 @@ class RecordingWidget(QFrame):
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
 
-        self.lineEdit_savingDir.setText(MACHINE_CONFIG.DEFAULT_SAVING_PATH)
-        self.imageSaver.set_base_path(MACHINE_CONFIG.DEFAULT_SAVING_PATH)
+        self.lineEdit_savingDir.setText(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
+        self.imageSaver.set_base_path(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
 
         self.lineEdit_experimentID = QLineEdit()
 

@@ -59,7 +59,7 @@ class LiveControlWidget(QFrame):
         # line 0: trigger mode
         self.triggerMode = None
         self.dropdown_triggerManu = QComboBox()
-        self.dropdown_triggerManu.addItems([TriggerMode.SOFTWARE,TriggerMode.HARDWARE,TriggerMode.CONTINUOUS])
+        self.dropdown_triggerManu.addItems([mode.value for mode in TriggerMode])
 
         # line 1: fps
         self.entry_triggerFPS = QDoubleSpinBox()
@@ -117,7 +117,7 @@ class LiveControlWidget(QFrame):
         self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
         self.slider_resolutionScaling.setMinimum(10)
         self.slider_resolutionScaling.setMaximum(100)
-        self.slider_resolutionScaling.setValue(MACHINE_CONFIG.DEFAULT_DISPLAY_CROP)
+        self.slider_resolutionScaling.setValue(MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP)
         self.slider_resolutionScaling.setSingleStep(10)
 
         # autolevel

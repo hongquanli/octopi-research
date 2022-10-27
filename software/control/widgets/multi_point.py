@@ -37,8 +37,8 @@ class MultiPointWidget(QFrame):
         self.lineEdit_savingDir.setReadOnly(True)
         self.lineEdit_savingDir.setText('Choose a base saving directory')
 
-        self.lineEdit_savingDir.setText(MACHINE_CONFIG.DEFAULT_SAVING_PATH)
-        self.multipointController.set_base_path(MACHINE_CONFIG.DEFAULT_SAVING_PATH)
+        self.lineEdit_savingDir.setText(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
+        self.multipointController.set_base_path(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
         self.base_path_is_set = True
 
         self.lineEdit_experimentID = QLineEdit()
@@ -109,8 +109,8 @@ class MultiPointWidget(QFrame):
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
-        self.checkbox_withAutofocus.setChecked(MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
-        self.multipointController.set_af_flag(MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.checkbox_withAutofocus.setChecked(MACHINE_DISPLAY_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.multipointController.set_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)

@@ -1,8 +1,13 @@
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+from enum import Enum
 
-class TriggerMode:
+from typing import Optional, Dict, List, ClassVar
+
+from control.typechecker import TypecheckClass, ClosedRange, ClosedSet
+
+class TriggerMode(str,Enum):
     SOFTWARE = 'Software Trigger'
     HARDWARE = 'Hardware Trigger'
     CONTINUOUS = 'Continuous Acqusition'
@@ -32,7 +37,7 @@ class Microcontroller2Def:
 
 USE_SEPARATE_MCU_FOR_DAC:bool = False
 
-class CMD_SET:
+class CMD_SET: # enum
     MOVE_X:int = 0
     MOVE_Y:int = 1
     MOVE_Z:int = 2
@@ -58,7 +63,7 @@ class CMD_SET:
     INITIALIZE:int = 254
     RESET:int = 255
 
-class CMD_SET2:
+class CMD_SET2: # enum
     ANALOG_WRITE_DAC8050X:int = 0
     SET_CAMERA_TRIGGER_FREQUENCY:int = 1
     START_CAMERA_TRIGGERING:int = 2
@@ -67,7 +72,7 @@ class CMD_SET2:
 BIT_POS_JOYSTICK_BUTTON = 0
 BIT_POS_SWITCH = 1
 
-class HOME_OR_ZERO:
+class HOME_OR_ZERO: # enum
     HOME_NEGATIVE:int = 1 # motor moves along the negative direction (MCU coordinates)
     HOME_POSITIVE:int = 0 # motor moves along the negative direction (MCU coordinates)
     ZERO:int = 2
@@ -87,12 +92,12 @@ class LIMIT_CODE:
     Z_POSITIVE:int = 4
     Z_NEGATIVE:int = 5
 
-class LIMIT_SWITCH_POLARITY:
+class LIMIT_SWITCH_POLARITY: # enum
     ACTIVE_LOW:int = 0
     ACTIVE_HIGH:int = 1
     DISABLED:int = 2
 
-class ILLUMINATION_CODE:
+class ILLUMINATION_CODE: # enum
     ILLUMINATION_SOURCE_LED_ARRAY_FULL:int = 0
     ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF:int = 1
     ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF:int = 2
@@ -116,7 +121,7 @@ class CAMERA:
 class VOLUMETRIC_IMAGING:
     NUM_PLANES_PER_VOLUME:int = 20
 
-class CMD_EXECUTION_STATUS:
+class CMD_EXECUTION_STATUS: # enum
     COMPLETED_WITHOUT_ERRORS:int = 0
     IN_PROGRESS:int = 1
     CMD_CHECKSUM_ERROR:int = 2
@@ -144,24 +149,32 @@ class SoftwareStagePositionLimits:
     Y_NEGATIVE:float = -0.5
     Z_POSITIVE:float = 6
 
-class FocusMeasureOperators:
+class FocusMeasureOperators(str,Enum):
     """ focus measure operators - GLVA has worked well for darkfield/fluorescence, and LAPE has worked well for brightfield """
-    GLVA:str="GLVA"
-    LAPE:str="LAPE"
+    GLVA="GLVA"
+    LAPE="LAPE"
 
-class ControllerType:
-    DUE:str='Arduino Due'
-    TEENSY:str='Teensy'
+class ControllerType(str,Enum):
+    DUE='Arduino Due'
+    TEENSY='Teensy'
+
+@TypecheckClass(create_init=True)
+class SlidePosition:
+    LOADING_X_MM:float = 30.0
+    LOADING_Y_MM:float = 55.0
+    SCANNING_X_MM:float = 3.0
+    SCANNING_Y_MM:float = 3.0
+
+class BrightfieldSavingMode(str,Enum):
+    RAW='Raw'
+    RGB2GRAY='RGB2GRAY'
+    GREEN_ONLY='Green Channel Only'
 
 ###########################################################
 #### machine specific configurations - to be overridden ###
 ###########################################################
-from typing import Optional, Dict, List
-
-from control.typechecker import TypecheckClass, ClosedRange, ClosedSet
 
 @TypecheckClass
-@dataclass
 class MachineConfiguration:
     # hardware specific stuff
     ROTATE_IMAGE_ANGLE:ClosedSet[int](-90,0,90,180)=0
@@ -249,12 +262,7 @@ class MachineConfiguration:
     LED_MATRIX_G_FACTOR:int = 1
     LED_MATRIX_B_FACTOR:int = 1
 
-    DEFAULT_SAVING_PATH:str = field(default_factory=lambda:str(Path.home()/"Downloads"))
-
-    # image display crop size 
-    DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
-
-    CAMERA_PIXEL_SIZE_UM:Dict[str,float]=field(default_factory=lambda:{
+    CAMERA_PIXEL_SIZE_UM:ClassVar[Dict[str,float]]={
         'IMX290':    2.9,
         'IMX178':    2.4,
         'IMX226':    1.85,
@@ -265,9 +273,9 @@ class MachineConfiguration:
         'IMX265':    3.45,
         'IMX571':    3.76,
         'PYTHON300': 4.8
-    })
+    }
 
-    OBJECTIVES:Dict[str,ObjectiveData] = field(default_factory=lambda: {
+    OBJECTIVES:ClassVar[Dict[str,ObjectiveData]]={
         '2x':ObjectiveData(
             magnification=2,
             NA=0.10,
@@ -303,31 +311,26 @@ class MachineConfiguration:
             NA=0.6,
             tube_lens_f_mm=180
         )
-    })
+    }
 
     TUBE_LENS_MM:float = 50.0
     CAMERA_SENSOR:str = 'IMX226'
-    TRACKERS:List[str] = field(default_factory= lambda:['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN'])
+    TRACKERS:ClassVar[List[str]] = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
     DEFAULT_TRACKER:ClosedSet[str]('csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN') = 'csrt'
 
-    AF:AutofocusConfig=field(default_factory=lambda: AutofocusConfig())
+    AF:AutofocusConfig=AutofocusConfig()
 
-    SHOW_DAC_CONTROL:bool = False
-
-    class SLIDE_POSITION:
-        LOADING_X_MM:float = 30
-        LOADING_Y_MM:float = 55
-        SCANNING_X_MM:float = 3
-        SCANNING_Y_MM:float = 3
+    SLIDE_POSITION:SlidePosition=SlidePosition(
+        LOADING_X_MM = 30.0,
+        LOADING_Y_MM = 55.0,
+        SCANNING_X_MM = 3.0,
+        SCANNING_Y_MM = 3.0,
+    )
 
     SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S:float = 10.0
     SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:bool = False
 
-    SOFTWARE_POS_LIMIT:SoftwareStagePositionLimits=field(default=SoftwareStagePositionLimits())
-
-    SHOW_AUTOLEVEL_BTN:bool = False
-
-    CAMERA_SN:Dict[str,str] = field(default_factory=lambda:{'ch 1':'SN1','ch 2': 'SN2'}) # for multiple cameras, to be overwritten in the configuration file
+    SOFTWARE_POS_LIMIT:SoftwareStagePositionLimits=SoftwareStagePositionLimits()
 
     ENABLE_STROBE_OUTPUT:bool = False
 
@@ -346,24 +349,31 @@ class MachineConfiguration:
     WELLPLATE_OFFSET_X_mm:float = 0.0 # x offset adjustment for using different plates
     WELLPLATE_OFFSET_Y_mm:float = 0.0 # y offset adjustment for using different plates
 
-    FOCUS_MEASURE_OPERATOR:str = field(default=FocusMeasureOperators.LAPE)
+    CONTROLLER_VERSION:ControllerType = ControllerType.TEENSY
 
-    CONTROLLER_VERSION:str = ControllerType.TEENSY
 
-    MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
-
+@TypecheckClass
+class MutableMachineConfiguration:
     # things that can change in hardware (manual changes)
-
     DEFAULT_OBJECTIVE:str = '10x (Mitutoyo)'
-    # default plate format
     WELLPLATE_FORMAT:ClosedSet[int](6,12,24,96,384) = 384
 
     # things that can change in software
-    DEFAULT_TRIGGER_MODE:ClosedSet[str]('Software Trigger','Hardware Trigger','Continuous Acqusition') = TriggerMode.SOFTWARE
-    AUTOLEVEL_DEFAULT_SETTING:bool = False
-
+    DEFAULT_TRIGGER_MODE:TriggerMode = TriggerMode.SOFTWARE
+    FOCUS_MEASURE_OPERATOR:FocusMeasureOperators = FocusMeasureOperators.LAPE
     MULTIPOINT_AUTOFOCUS_CHANNEL:str = 'BF LED matrix full'
-    MULTIPOINT_BF_SAVING_OPTION:ClosedSet[str]('Raw','RGB2GRAY','Green Channel Only') = 'Raw'
+    MULTIPOINT_BF_SAVING_OPTION:BrightfieldSavingMode = BrightfieldSavingMode.RAW
+
+
+@TypecheckClass
+class MachineDisplayConfiguration:
+    # display settings
+    DEFAULT_SAVING_PATH:str = field(default_factory=lambda:str(Path.home()/"Downloads"))
+    AUTOLEVEL_DEFAULT_SETTING:bool = False
+    DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
+    MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
+    SHOW_AUTOLEVEL_BTN:bool = False
+    SHOW_DAC_CONTROL:bool = False
 
 
 MACHINE_CONFIG=MachineConfiguration(
@@ -408,16 +418,8 @@ MACHINE_CONFIG=MachineConfiguration(
 
     SLEEP_TIME_S = 0.005,
 
-    DEFAULT_SAVING_PATH = str(Path.home() / "Downloads"),
-
-    # multipoint acquisition settings
-    MULTIPOINT_AUTOFOCUS_CHANNEL = 'Fluorescence 561 nm Ex',
-    MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True,
-    MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only',
-
     TUBE_LENS_MM = 50.0,
     CAMERA_SENSOR = 'IMX226',
-    DEFAULT_OBJECTIVE = '10x (Mitutoyo)',
 
     SOFTWARE_POS_LIMIT=SoftwareStagePositionLimits(
         X_POSITIVE = 112.5,
@@ -437,12 +439,19 @@ MACHINE_CONFIG=MachineConfiguration(
 
     # default z
     DEFAULT_Z_POS_MM = 4.677,
-
-    # well plate format selection
-    WELLPLATE_FORMAT = 96,
-
-    FOCUS_MEASURE_OPERATOR = FocusMeasureOperators.GLVA,
     CONTROLLER_VERSION = ControllerType.TEENSY,
+)
+
+MACHINE_DISPLAY_CONFIG=MachineDisplayConfiguration(
+    MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True,
+)
+
+MUTABLE_MACHINE_CONFIG=MutableMachineConfiguration(
+    # multipoint acquisition settings
+    MULTIPOINT_AUTOFOCUS_CHANNEL = 'Fluorescence 561 nm Ex',
+    MULTIPOINT_BF_SAVING_OPTION = BrightfieldSavingMode.GREEN_ONLY,
+    WELLPLATE_FORMAT = 96,
+    DEFAULT_OBJECTIVE = '10x (Mitutoyo)',
 )
 
 ##########################################################

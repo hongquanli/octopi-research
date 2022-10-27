@@ -21,7 +21,7 @@ from typing import Union, Any, Tuple, List
 
 class Microcontroller():
     @TypecheckFunction
-    def __init__(self,version:ClosedSet[str]('Arduino Due','Teensy')='Arduino Due',sn:Optional[str]=None,parent:Any=None):
+    def __init__(self,version:ControllerType=ControllerType.DUE,sn:Optional[str]=None,parent:Any=None):
         self.platform_name = platform.system()
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
         self.rx_buffer_length = MicrocontrollerDef.MSG_LENGTH
@@ -47,9 +47,9 @@ class Microcontroller():
         self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
         self.retry = 0
 
-        print('connecting to controller based on ' + version)
+        print(f'connecting to controller based on {version.value}')
 
-        if version =='Arduino Due':
+        if version == ControllerType.DUE:
             controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
         else:
             if sn is not None:

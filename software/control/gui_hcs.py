@@ -39,12 +39,12 @@ class HCSController():
 		self.microcontroller.configure_actuators()
 
 		self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_configurations.xml')
-		self.streamHandler:           core.StreamHandler           = core.StreamHandler(display_resolution_scaling=MACHINE_CONFIG.DEFAULT_DISPLAY_CROP/100)
+		self.streamHandler:           core.StreamHandler           = core.StreamHandler(display_resolution_scaling=MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP/100)
 		self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
 		self.slidePositionController: core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.navigationViewer:        core.NavigationViewer        = core.NavigationViewer(sample=str(MACHINE_CONFIG.WELLPLATE_FORMAT)+' well plate')
+		self.navigationViewer:        core.NavigationViewer        = core.NavigationViewer(sample=str(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)+' well plate')
 		self.scanCoordinates:         core.ScanCoordinates         = core.ScanCoordinates(well_selection_widget,self.navigationViewer)
 		self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
 		self.imageSaver:              core.ImageSaver              = core.ImageSaver()
@@ -111,7 +111,7 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
 		# load one widget that is used by a controller
-		self.wellSelectionWidget = widgets.WellSelectionWidget(MACHINE_CONFIG.WELLPLATE_FORMAT)
+		self.wellSelectionWidget = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
 
 		self.hcs_controller=HCSController(self.wellSelectionWidget)
 		
@@ -158,7 +158,7 @@ class OctopiGUI(QMainWindow):
 		for wpt in [0,2]:
 			item=wellplate_selector.model().item(wpt)
 			item.setFlags(item.flags() & ~Qt.ItemIsEnabled) # type: ignore
-		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{MACHINE_CONFIG.WELLPLATE_FORMAT} well plate"))
+		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT} well plate"))
 		wellplate_selector.currentIndexChanged.connect(lambda wellplate_type: self.set_wellplate_type(wellplate_type_names[wellplate_type]))
  
 		wellplate_overview_header=QHBoxLayout()
@@ -176,7 +176,7 @@ class OctopiGUI(QMainWindow):
 		#layout.addWidget(self.cameraSettingWidget)
 		layout.addWidget(self.liveControlWidget)
 		layout.addWidget(self.navigationWidget)
-		if MACHINE_CONFIG.SHOW_DAC_CONTROL:
+		if MACHINE_DISPLAY_CONFIG.SHOW_DAC_CONTROL:
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)

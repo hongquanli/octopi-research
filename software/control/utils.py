@@ -2,9 +2,14 @@ import cv2
 from numpy import std, square, mean
 import numpy as np
 
-from typing import Optional
+from typing import Optional, Union
+from control._def import FocusMeasureOperators
+from control.typechecker import TypecheckFunction
 
-def crop_image(image:cv2.Mat,crop_width:int,crop_height:int):
+ImageType=Union[cv2.Mat,np.ndarray]
+
+@TypecheckFunction
+def crop_image(image:ImageType,crop_width:int,crop_height:int)->ImageType:
     image_height = image.shape[0]
     image_width = image.shape[1]
     roi_left = int(max(image_width/2 - crop_width/2,0))
@@ -14,11 +19,12 @@ def crop_image(image:cv2.Mat,crop_width:int,crop_height:int):
     image_cropped = image[roi_top:roi_bottom,roi_left:roi_right]
     return image_cropped
 
-def calculate_focus_measure(image:cv2.Mat,method:str='LAPE') -> float:
+@TypecheckFunction
+def calculate_focus_measure(image:ImageType,method:FocusMeasureOperators=FocusMeasureOperators.LAPE) -> float:
     if len(image.shape) == 3:
         image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY) # optional
 
-    if method == 'LAPE':
+    if method == FocusMeasureOperators.LAPE:
         if image.dtype == np.uint16:
             lap = cv2.Laplacian(image,cv2.CV_32F)
         else:
@@ -26,7 +32,7 @@ def calculate_focus_measure(image:cv2.Mat,method:str='LAPE') -> float:
 
         focus_measure:float = mean(square(lap)) # type: ignore
 
-    elif method == 'GLVA':
+    elif method == FocusMeasureOperators.GLVA:
         focus_measure:float = np.std(image, axis=None) #type: ignore
 
     else:
@@ -34,7 +40,8 @@ def calculate_focus_measure(image:cv2.Mat,method:str='LAPE') -> float:
 
     return focus_measure
 
-def rotate_and_flip_image(image:cv2.Mat,rotate_image_angle:int,flip_image:Optional[str]) -> cv2.Mat:
+@TypecheckFunction
+def rotate_and_flip_image(image:ImageType,rotate_image_angle:int,flip_image:Optional[str]) -> ImageType:
     if(rotate_image_angle != 0):
         try:
             rotation_flag={
