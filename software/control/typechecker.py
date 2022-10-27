@@ -1,12 +1,19 @@
-from typing import Union, Optional, List, TypeVar, Generic, Tuple, Any
+from ast import Assert
+from typing import Union, Optional, List, TypeVar, Generic, Tuple, Any, ClassVar
 NoneType=type(None)
-from dataclasses import Field
+from dataclasses import Field, field, dataclass, _MISSING_TYPE
 from functools import wraps
 from inspect import signature, Parameter, getmro
 
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QApplication
+
 def type_name(t)->str:
     try:
-        return t.__qualname__
+        if t.__module__!="builtins":
+            return f"{t.__module__}.{t.__qualname__}"
+        else:
+            return t.__qualname__
     except:
         return str(t)
 
@@ -45,6 +52,17 @@ def type_match(et,v,_vt=None):
 
     # this is currently not implemented (blindly accept)
     if vt==Field:
+        if type(v.default) != _MISSING_TYPE:
+            tmr=type_match(et,v.default)
+            if not tmr:
+                return TypeCheckResult(False,f"dataclass.field(default={v.default}:{type_name(type(v.default))}) does not match {type_name(et)}")
+
+        if type(v.default_factory) != _MISSING_TYPE:
+            default_factory_generated_value=v.default_factory()
+            tmr=type_match(et,default_factory_generated_value)
+            if not tmr:
+                return TypeCheckResult(False,f"dataclass.field(default_factory={default_factory_generated_value}:{type_name(type(default_factory_generated_value))}) does not match {type_name(et)}")
+
         return TypeCheckResult(True)
     
     # check for unions, lists, tuples
@@ -52,10 +70,12 @@ def type_match(et,v,_vt=None):
         et_type_is_union=et.__origin__==Union
         et_type_is_list=et.__origin__==list
         et_type_is_tuple=et.__origin__==tuple
+        et_type_is_dict=et.__origin__==dict
     except:
         et_type_is_union=False
         et_type_is_list=False
         et_type_is_tuple=False
+        et_type_is_dict=False
 
     if et_type_is_union:
         for arg in et.__args__:
@@ -81,6 +101,19 @@ def type_match(et,v,_vt=None):
             et_tuple_item_type=et.__args__[i]
             if not type_match(et_tuple_item_type,v):
                 return TypeCheckResult(False,msg=f"tuple item type mismatch {type_name(et_tuple_item_type)} != {type_name(type(v))} at index {i}")
+
+        return TypeCheckResult(True)
+    elif et_type_is_dict:
+        if dict!=vt:
+            return TypeCheckResult(False,msg=f"{type_name(vt)} is not a dict")
+
+        for k,v in v.items():
+            et_dict_key_type=et.__args__[0]
+            et_dict_item_type=et.__args__[1]
+            if not type_match(et_dict_key_type,k):
+                return TypeCheckResult(False,msg=f"dict key type mismatch {type_name(et_dict_key_type)} != {type_name(type(k))} at key {k}")
+            if not type_match(et_dict_item_type,v):
+                return TypeCheckResult(False,msg=f"dict item type mismatch {type_name(et_dict_item_type)} != {type_name(type(v))} at key {v}")
 
         return TypeCheckResult(True)
 
@@ -126,17 +159,27 @@ def type_match(et,v,_vt=None):
         return TypeCheckResult(False,f"{et} does not contain {v}")
 
     # fallback to failure
-    return TypeCheckResult(False,msg=f"{v}:{type_name(vt)}!={type_name(et)} (generic)")
+    return TypeCheckResult(False,msg=f"{v}:{type_name(vt)}!={type_name(et)}")
 
 # decorator that serves as type checker for classes
-def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=False,create_str:bool=False):
+def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,create_str:bool=True,check_assignment:bool=True):
     def inner(t):
         t_attributes={}
+        t_class_attributes={}
 
         sorted_keys=sorted(list(t.__dict__.keys()))
 
         for k,v in t.__annotations__.items():
-            t_attributes[k]=v
+            try:
+                k_is_class_var=v.__origin__==ClassVar
+            except:
+                k_is_class_var=False
+
+            if k_is_class_var:
+                assert not k in t_class_attributes
+                t_class_attributes[k]=v.__args__[0]
+            else:
+                t_attributes[k]=v
 
         # check default value type match
         if check_defaults:
@@ -147,11 +190,13 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=False,cre
                 if callable(t.__dict__[symbol]):
                     continue
 
-                if not symbol in t.__annotations__:
+                if not symbol in t_attributes and not symbol in t_class_attributes:
                     raise TypeError(f"no type annotation for {t.__name__}.{symbol}")
 
-                annotated_type=t.__annotations__[symbol]
-                t_attributes[symbol]=annotated_type
+                if symbol in t_attributes:
+                    annotated_type=t_attributes[symbol]
+                else:
+                    annotated_type=t_class_attributes[symbol]
 
                 try:
                     default_value=t.__dict__[symbol]
@@ -170,7 +215,7 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=False,cre
                 raise ValueError(f"init method already present for {t}")
 
             def init(s,*args,**kwargs):
-                # keep track of already initialized fields to avoid overlap
+                # keep track of already initialized fields to avoid overlap and add defaults
                 already_initialized_fields={
                     k:False
                     for k in t_attributes
@@ -209,6 +254,25 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=False,cre
                         attribute_type_check_failure(a,k,type_match_check)
 
                     s.__dict__[k]=a
+                    already_initialized_fields[k]=True
+
+                for k,v in already_initialized_fields.items():
+                    if not v:
+                        # has no default value
+                        if not k in t.__dict__:
+                            raise ValueError(f"no value provided for {t.__qualname__}.{k}")
+                            
+                        default_value=t.__dict__[k]
+                        if type(default_value)==Field:
+                            field_default=default_value.default
+                            field_default_factory=default_value.default_factory
+                            if type(field_default)!=_MISSING_TYPE:
+                                s.__dict__[k]=field_default
+                            else:
+                                assert type(field_default_factory)!=_MISSING_TYPE
+                                s.__dict__[k]=field_default_factory()
+                        else:
+                            s.__dict__[k]=default_value
 
             t.__init__=init
         
@@ -230,6 +294,20 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=False,cre
                 return ret+" )"
 
             t.__str__=as_string
+
+        if check_assignment:
+            if "__setattr__" in t.__dict__:
+                raise ValueError()
+
+            def setattr(s,name,value):
+                if name in t_attributes:
+                    tmr=type_match(t_attributes[name],value)
+                    if not tmr:
+                        raise TypeError(f"cannot assign {value}:{type_name(type(value))} to {t.__qualname__}.{name}:{type_name(t_attributes[name])}")
+
+                object.__setattr__(s,name,value)
+
+            t.__setattr__=setattr
 
         return t
 
@@ -486,3 +564,58 @@ if __name__=="__main__":
 
     tsi=TestSetInt(someint=96)
     print(tsi)
+
+    @TypecheckClass(create_init=True,create_str=True)
+    class OtherEstClass:
+        a:int=field(default=2)
+        b:ClassVar[int]=2
+
+    oec=OtherEstClass()
+    print(oec)
+    OtherEstClass.b=3
+    print(oec)
+
+    @TypecheckClass(create_init=True,create_str=True)
+    class OtherEstClass2:
+        a:int=field(default_factory=lambda:2)
+        b:ClassVar[int]=2
+
+    oec2=OtherEstClass2()
+    print(oec2)
+
+    T=TypeVar("T")
+    class TestGeneric(Generic[T]):
+        class_T=None
+
+        #@TypecheckFunction
+        def __init__(self,min:T,max:T,l_incl:bool=True,u_incl:bool=True):
+            self.T=self.class_T
+            assert type_match(self.T,min)
+            self.min=min
+            assert type_match(self.T,max)
+            self.max=max
+
+            assert min<max
+
+        def __class_getitem__(cls,arg):
+            cls.class_T=arg
+            return cls
+
+        def __str__(self):
+            return f"TestGeneric({self.min} < {type_name(self.T)} < {self.max})"
+
+    val=TestGeneric[float](min=1.0,max=2.0)
+    print(val)
+
+    class Testapp(QApplication):
+        asd=Signal(float)
+        def __init__(self):
+            super().__init__([])
+    app=Testapp()
+
+    def p(newval):
+        print(newval)
+
+    app.asd.connect(p)
+    app.asd.emit(2.0)
+    
