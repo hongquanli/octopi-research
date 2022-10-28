@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 from enum import Enum
 
-from typing import Optional, Dict, List, ClassVar
+from typing import Optional, Dict, List, ClassVar, Any
 
 from control.typechecker import TypecheckClass, ClosedRange, ClosedSet
+from qtpy.QtCore import Signal, QObject
 
 class TriggerMode(str,Enum):
     SOFTWARE = 'Software Trigger'
@@ -356,7 +357,7 @@ class MachineConfiguration:
 
 
 @TypecheckClass
-class MutableMachineConfiguration:
+class MutableMachineConfiguration(QObject):
     # things that can change in hardware (manual changes)
     DEFAULT_OBJECTIVE:str = '10x (Mitutoyo)'
     WELLPLATE_FORMAT:ClosedSet[int](6,12,24,96,384) = 384
@@ -367,18 +368,37 @@ class MutableMachineConfiguration:
     MULTIPOINT_AUTOFOCUS_CHANNEL:str = 'BF LED matrix full'
     MULTIPOINT_BF_SAVING_OPTION:BrightfieldSavingMode = BrightfieldSavingMode.RAW
 
+    objective_change:Signal=Signal(str)
+    wellplate_format_change:Signal=Signal(int)
+    trigger_mode_change:Signal=Signal(TriggerMode)
+    focuse_measure_operator_change:Signal=Signal(FocusMeasureOperators)
+    autofocus_channel_change:Signal=Signal(str)
+    brightfield_saving_mode_change:Signal=Signal(BrightfieldSavingMode)
+
+    def __setattr__(self,name,value):
+        print(f"MutableMachineConfiguration: set {name} to {value}")
+        
+        {
+            "DEFAULT_OBJECTIVE":self.objective_change,
+            "WELLPLATE_FORMAT":self.wellplate_format_change,
+            "DEFAULT_TRIGGER_MODE":self.trigger_mode_change,
+            "FOCUS_MEASURE_OPERATOR":self.focuse_measure_operator_change,
+            "MULTIPOINT_AUTOFOCUS_CHANNEL":self.autofocus_channel_change,
+            "MULTIPOINT_BF_SAVING_OPTION":self.brightfield_saving_mode_change,
+        }[name].emit(value)
+
 
 @TypecheckClass
 class MachineDisplayConfiguration:
     """ display settings """
-    DEFAULT_SAVING_PATH:str = field(default_factory=lambda:str(Path.home()/"Downloads"))
+    DEFAULT_SAVING_PATH:str = str(Path.home()/"Downloads")
     SHOW_AUTOLEVEL_BTN:bool = False
     AUTOLEVEL_DEFAULT_SETTING:bool = False
     DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
     MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
     SHOW_DAC_CONTROL:bool = False
     # set to False if use separate windows for display and control
-    SINGLE_WINDOW = True
+    SINGLE_WINDOW:bool = True
 
 
 MACHINE_CONFIG=MachineConfiguration(

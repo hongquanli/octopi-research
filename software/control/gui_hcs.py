@@ -17,6 +17,8 @@ import pyqtgraph.dockarea as dock
 
 from control.typechecker import TypecheckFunction
 
+from typing import List, Tuple
+
 class HCSController():
 	@TypecheckFunction
 	def __init__(self,well_selection_widget:widgets.WellSelectionWidget):
@@ -42,11 +44,8 @@ class HCSController():
 		self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
 		self.slidePositionController: core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.navigationViewer:        core.NavigationViewer        = core.NavigationViewer(sample=str(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)+' well plate')
-		self.scanCoordinates:         core.ScanCoordinates         = core.ScanCoordinates(well_selection_widget,self.navigationViewer)
-		self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
+		self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,well_selection_widget)
 		self.imageSaver:              core.ImageSaver              = core.ImageSaver()
-		self.imageDisplay:            core.ImageDisplay            = core.ImageDisplay()
 
 		if MACHINE_CONFIG.HOMING_ENABLED_Z:
 			# retract the objective
@@ -57,11 +56,6 @@ class HCSController():
 			print('objective retracted')
 
 			if MACHINE_CONFIG.HOMING_ENABLED_Z and MACHINE_CONFIG.HOMING_ENABLED_X and MACHINE_CONFIG.HOMING_ENABLED_Y:
-				# self.navigationController.set_x_limit_pos_mm(100)
-				# self.navigationController.set_x_limit_neg_mm(-100)
-				# self.navigationController.set_y_limit_pos_mm(100)
-				# self.navigationController.set_y_limit_neg_mm(-100)
-				# self.navigationController.home_xy() 
 				# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
 				self.navigationController.move_x(12.0)
 				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
@@ -91,42 +85,73 @@ class HCSController():
 			# wait for the operation to finish
 			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
 
+	def acquire(self,
+		well_list:List[Tuple[int,int]],
+		channels:List[str],
+		af_channel:str,
+	):
+		# set objective and well plate type from machine config (or.. should be part of imaging configuration..?)
+		# set wells to be imaged <- acquire.well_list argument
+		# set grid per well to be imaged
+		# set lighting settings per channel
+		# set selection and order of channels to be imaged <- acquire.channels argument
+		pass
+
+	# add callbacks to be triggered on image acquisition (e.g. for histograms, saving to disk etc.)
+
 class OctopiGUI(QMainWindow):
 
 	# variables
 	fps_software_trigger = 100
 
+	@property
+	def configurationManager(self)->core.ConfigurationManager:
+		return self.hcs_controller.configurationManager
+	@property
+	def streamHandler(self)->core.StreamHandler:
+		return self.hcs_controller.streamHandler
+	@property
+	def liveController(self)->core.LiveController:
+		return self.hcs_controller.liveController
+	@property
+	def navigationController(self)->core.NavigationController:
+		return self.hcs_controller.navigationController
+	@property
+	def slidePositionController(self)->core.SlidePositionController:
+		return self.hcs_controller.slidePositionController
+	@property
+	def autofocusController(self)->core.AutoFocusController:
+		return self.hcs_controller.autofocusController
+	@property
+	def multipointController(self)->core.MultiPointController:
+		return self.hcs_controller.multipointController
+	@property
+	def imageSaver(self)->core.ImageSaver:
+		return self.hcs_controller.imageSaver
+	@property
+	def camera(self)->camera.Camera:
+		return self.hcs_controller.camera
+	@property
+	def microcontroller(self)->microcontroller.Microcontroller:
+		return self.hcs_controller.microcontroller
+
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 		# load window
-		self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+		self.imageDisplayWindow = widgets.ImageDisplayWindow(draw_crosshairs=True)
+		self.imageArrayDisplayWindow = widgets.ImageArrayDisplayWindow()
 
 		# image display windows
 		self.imageDisplayTabs = QTabWidget()
 		self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 		self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
-		# load one widget that is used by a controller
+		# these widgets are used by a controller (which already tells us that there is something very wrong!)
+		default_well_plate=str(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)+' well plate'
 		self.wellSelectionWidget = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
 
 		self.hcs_controller=HCSController(self.wellSelectionWidget)
-		
-		self.camera=self.hcs_controller.camera
-		self.microcontroller=self.hcs_controller.microcontroller
-			
-		self.configurationManager:    core.ConfigurationManager    = self.hcs_controller.configurationManager
-		self.streamHandler:           core.StreamHandler           = self.hcs_controller.streamHandler
-		self.liveController:          core.LiveController          = self.hcs_controller.liveController
-		self.navigationController:    core.NavigationController    = self.hcs_controller.navigationController
-		self.slidePositionController: core.SlidePositionController = self.hcs_controller.slidePositionController
-		self.autofocusController:     core.AutoFocusController     = self.hcs_controller.autofocusController
-		self.navigationViewer:        core.NavigationViewer        = self.hcs_controller.navigationViewer
-		self.scanCoordinates:         core.ScanCoordinates         = self.hcs_controller.scanCoordinates
-		self.multipointController:    core.MultiPointController    = self.hcs_controller.multipointController
-		self.imageSaver:              core.ImageSaver              = self.hcs_controller.imageSaver
-		self.imageDisplay:            core.ImageDisplay            = self.hcs_controller.imageDisplay
 		
 		# open the camera
 		self.camera.set_software_triggered_acquisition()
@@ -134,13 +159,15 @@ class OctopiGUI(QMainWindow):
 		self.camera.enable_callback()
 
 		# load widgets
+		self.imageDisplay           = widgets.ImageDisplay()
 		self.cameraSettingWidget    = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
-		self.navigationWidget       = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
+		self.liveControlWidget      = widgets.LiveControlWidget(self.hcs_controller.streamHandler,self.hcs_controller.liveController,self.hcs_controller.configurationManager,show_display_options=True)
+		self.navigationWidget       = widgets.NavigationWidget(self.hcs_controller.navigationController,self.hcs_controller.slidePositionController,widget_configuration=default_well_plate)
 		self.dacControlWidget       = widgets.DACControWidget(self.microcontroller)
-		self.autofocusWidget        = widgets.AutoFocusWidget(self.autofocusController)
-		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-		self.multiPointWidget       = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+		self.autofocusWidget        = widgets.AutoFocusWidget(self.hcs_controller.autofocusController)
+		self.recordingControlWidget = widgets.RecordingWidget(self.hcs_controller.streamHandler,self.hcs_controller.imageSaver)
+		self.multiPointWidget       = widgets.MultiPointWidget(self.hcs_controller.multipointController,self.hcs_controller.configurationManager)
+		self.navigationViewer       = widgets.NavigationViewer(sample=default_well_plate)
 
 		self.recordTabWidget = QTabWidget()
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
@@ -150,14 +177,15 @@ class OctopiGUI(QMainWindow):
 		clear_history_button.clicked.connect(self.navigationViewer.clear_imaged_positions)
 
 		wellplate_selector=QComboBox()
-		wellplate_type_names=[f"{i} well plate" for i in [6,12,24,96,384]]
-		wellplate_selector.addItems(wellplate_type_names)
+		wellplate_types_int=[k for k in WELLPLATE_FORMATS.keys()]
+		wellplate_types_str=[f"{i} well plate" for i in wellplate_types_int]
+		wellplate_selector.addItems(wellplate_types_str)
 		# disable 6 and 24 well wellplates, because the images displaying them are missing
 		for wpt in [0,2]:
 			item=wellplate_selector.model().item(wpt)
 			item.setFlags(item.flags() & ~Qt.ItemIsEnabled) # type: ignore
-		wellplate_selector.setCurrentIndex(wellplate_type_names.index(f"{MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT} well plate"))
-		wellplate_selector.currentIndexChanged.connect(lambda wellplate_type: self.set_wellplate_type(wellplate_type_names[wellplate_type]))
+		wellplate_selector.setCurrentIndex(wellplate_types_str.index(default_well_plate))
+		wellplate_selector.currentIndexChanged.connect(lambda wellplate_type_index:setattr(MUTABLE_MACHINE_CONFIG,"WELLPLATE_FORMAT",wellplate_types_int[wellplate_type_index]))
  
 		wellplate_overview_header=QHBoxLayout()
 		wellplate_overview_header.addWidget(QLabel("wellplate overview"))
@@ -184,9 +212,6 @@ class OctopiGUI(QMainWindow):
 		# transfer the layout to the central widget
 		self.centralWidget:QWidget = QWidget()
 		self.centralWidget.setLayout(layout)
-		# self.centralWidget.setFixedSize(self.centralWidget.minimumSize())
-		# self.centralWidget.setFixedWidth(self.centralWidget.minimumWidth())
-		# self.centralWidget.setMaximumWidth(self.centralWidget.minimumWidth())
 		self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
 		
 		if MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
@@ -252,11 +277,6 @@ class OctopiGUI(QMainWindow):
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
 		self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
-
-	@TypecheckFunction
-	def set_wellplate_type(self,wellplate_type:str):
-		self.navigationViewer.set_wellplate_type(wellplate_type)
-		self.wellSelectionWidget.set_wellplate_type(wellplate_type)
 
 	@TypecheckFunction
 	def closeEvent(self, event:QEvent):

@@ -5,8 +5,7 @@ from dataclasses import Field, field, dataclass, _MISSING_TYPE
 from functools import wraps
 from inspect import signature, Parameter, getmro
 
-from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import Signal, QObject
 
 def type_name(t)->str:
     try:
@@ -191,7 +190,8 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
                     continue
 
                 if not symbol in t_attributes and not symbol in t_class_attributes:
-                    raise TypeError(f"no type annotation for {t.__name__}.{symbol}")
+                    error_msg=f"no type annotation for {t.__name__}.{symbol}"
+                    raise TypeError(error_msg)
 
                 if symbol in t_attributes:
                     annotated_type=t_attributes[symbol]
@@ -205,16 +205,22 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
 
                 type_match_check=type_match(annotated_type,default_value)
                 if not type_match_check:
-                    raise TypeError(f"default value type mismatch in {t.__name__}.{symbol}: {type_match_check.msg}")
+                    error_msg=f"default value type mismatch in {t.__name__}.{symbol}: {type_match_check.msg}"
+                    raise TypeError(error_msg)
 
         t_attributes_sorted=sorted(list(t_attributes.keys()))
 
         # create __init__ method for class t
         if create_init:
             if "__init__" in t.__dict__:
-                raise ValueError(f"init method already present for {t}")
+                error_msg=f"init method already present for {t}"
+                raise ValueError(error_msg)
 
             def init(s,*args,**kwargs):
+                inheritence_class_list=getmro(t)
+                if len(inheritence_class_list)>1:
+                    inheritence_class_list[1].__init__(s) # todo bug : well, this revealed a bug: automatically generated __init__ does not require giving values for parent classes' constructors
+
                 # keep track of already initialized fields to avoid overlap and add defaults
                 already_initialized_fields={
                     k:False
@@ -226,7 +232,8 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
                     type_t_name=type_name(t)
                     type_k_expcted_type_name=type_name(k_expected_type)
 
-                    raise ValueError(f"value {a}:{type_a_name} cannot be assigned to {type_t_name}.{k}:{type_k_expcted_type_name} because {type_match_check.msg}")
+                    error_msg=f"value {a}:{type_a_name} cannot be assigned to {type_t_name}.{k}:{type_k_expcted_type_name} because {type_match_check.msg}"
+                    raise ValueError(error_msg)
 
 
                 # iterate over positional args to __init__
@@ -243,10 +250,12 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
                 # iterate over keyword args to __init__
                 for k,a in kwargs.items():
                     if not k in t_attributes:
-                        raise ValueError(f"field {k} does not exist in {t}")
+                        error_msg=f"field {k} does not exist in {t}"
+                        raise ValueError(error_msg)
 
                     if already_initialized_fields[k]:
-                        raise ValueError(f"field {k} already initialized as positional argument")
+                        error_msg=f"field {k} already initialized as positional argument"
+                        raise ValueError(error_msg)
 
                     k_expected_type=t_attributes[k]
                     type_match_check=type_match(k_expected_type,a)
@@ -258,9 +267,14 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
 
                 for k,v in already_initialized_fields.items():
                     if not v:
+                        # make an exception for qt signals, which are magic-ed into existence by Qt itself
+                        if t_attributes[k]==Signal:
+                            continue
+
                         # has no default value
                         if not k in t.__dict__:
-                            raise ValueError(f"no value provided for {t.__qualname__}.{k}")
+                            error_msg=f"no value provided for {t.__qualname__}.{k}"
+                            raise ValueError(error_msg)
                             
                         default_value=t.__dict__[k]
                         if type(default_value)==Field:
@@ -278,7 +292,8 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
         
         if create_str:
             if "__str__" in t.__dict__:
-                raise ValueError(f"str method already present for {t}")
+                error_msg=f"str method already present for {t}"
+                raise ValueError(error_msg)
 
             def as_string(s)->str:
                 ret=f"{t.__name__}( "
@@ -296,16 +311,21 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
             t.__str__=as_string
 
         if check_assignment:
+            original_setattr=None
             if "__setattr__" in t.__dict__:
-                raise ValueError()
+                original_setattr=t.__setattr__
 
             def setattr(s,name,value):
                 if name in t_attributes:
                     tmr=type_match(t_attributes[name],value)
                     if not tmr:
-                        raise TypeError(f"cannot assign {value}:{type_name(type(value))} to {t.__qualname__}.{name}:{type_name(t_attributes[name])}")
+                        error_msg=f"cannot assign {value}:{type_name(type(value))} to {t.__qualname__}.{name}:{type_name(t_attributes[name])}"
+                        raise TypeError(error_msg)
 
-                object.__setattr__(s,name,value)
+                if not original_setattr is None:
+                    original_setattr(s,name,value)
+                else:
+                    object.__setattr__(s,name,value)
 
             t.__setattr__=setattr
 
@@ -325,12 +345,14 @@ def TypecheckFunction(_f=None,*,check_defaults:bool=True):
 
         for arg_name,arg in f_signature.parameters.items():
             if arg.annotation==Parameter.empty and arg_name!="self":
-                raise TypeError(f"in {full_function_name_and_position}, argument {arg_name} has no type annotation")
+                error_msg=f"in {full_function_name_and_position}, argument {arg_name} has no type annotation"
+                raise TypeError(error_msg)
 
             if check_defaults and arg.default!=Parameter.empty:
                 tmr=type_match(arg.annotation,arg.default)
                 if not tmr:
-                    raise TypeError(f"in {full_function_name_and_position}, argument {arg_name}:{type_name(arg.annotation)} has invalid default value {arg.default}:{type_name(type(arg.default))}")
+                    error_msg=f"in {full_function_name_and_position}, argument {arg_name}:{type_name(arg.annotation)} has invalid default value {arg.default}:{type_name(type(arg.default))}"
+                    raise TypeError(error_msg)
 
         potentially_positional_args={arg_name:arg.annotation for arg_name,arg in f_signature.parameters.items()}
 
@@ -344,7 +366,8 @@ def TypecheckFunction(_f=None,*,check_defaults:bool=True):
 
                 tmr=type_match(arg_expected_type,arg)
                 if not tmr:
-                    raise TypeError(f"runtime argument {arg_name} at position {arg_i} in {full_function_name_and_position} has invalid type: {tmr.msg}")
+                    error_msg=f"runtime argument {arg_name} at position {arg_i} in {full_function_name_and_position} has invalid type: {tmr.msg}"
+                    raise TypeError(error_msg)
 
             res=f(*args,**kwargs)
 
@@ -354,7 +377,8 @@ def TypecheckFunction(_f=None,*,check_defaults:bool=True):
                 tmr=type_match(f_signature.return_annotation,res)
 
             if not tmr:
-                raise TypeError(f"return value {res} mismatch in {full_function_name_and_position}: {tmr.msg}")
+                error_msg=f"return value {res} mismatch in {full_function_name_and_position}: {tmr.msg}"
+                raise TypeError(error_msg)
 
             return res
 
@@ -418,14 +442,9 @@ class ClosedSet(Generic[T]):
     type_arg:object
 
     def __class_getitem__(cls, key):
-        if cls.arg is NO_ARG or cls.arg is T:
-            cls.arg = key
-        else:
-            try:
-                cls.arg = cls.arg[key] # type: ignore
-            except TypeError:
-                cls.arg = key
-        return super().__class_getitem__(key) # type: ignore
+        cls.arg = key
+
+        return super().__class_getitem__(key)
 
     def __init__(self,*args):
         self.type_arg=self.arg
@@ -447,43 +466,44 @@ if __name__=="__main__":
         if bool(tmr)==should_fail:
             raise TypeError(tmr.msg if len(tmr.msg)>0 else "should have failed, but did not")
 
-    test( type_match(int,3), should_fail=False)
+    test( type_match(int,3),   should_fail=False)
     test( type_match(int,3.0), should_fail=True) 
     test( type_match(float,3), should_fail=True) 
 
-    test( type_match(Union[int,float],3), should_fail=False)
-    test( type_match(Union[int,float],3.0), should_fail=False)
+    test( type_match(Union[int,float],3),    should_fail=False)
+    test( type_match(Union[int,float],3.0),  should_fail=False)
     test( type_match(Union[int,float],None), should_fail=True)
     test( type_match(Union[float,int],"hi"), should_fail=True)
 
     test( type_match(Optional[int],None), should_fail=False)
-    test( type_match(Optional[int],3), should_fail=False)
+    test( type_match(Optional[int],3),    should_fail=False)
 
+    test( type_match(tuple,(3.0,2)),            should_fail=False)
     test( type_match(Tuple[float,int],(3.0,2)), should_fail=False)
 
-    test( type_match(list,[3.0]), should_fail=False)
-    test( type_match(List[int],[3.0]), should_fail=True)
-    test( type_match(List[int],[3,3.0]), should_fail=True)
-    test( type_match(List[Optional[float]],[3.0,None,2]), should_fail=True)
+    test( type_match(list,[3.0]),                           should_fail=False)
+    test( type_match(List[int],[3.0]),                      should_fail=True)
+    test( type_match(List[int],[3,3.0]),                    should_fail=True)
+    test( type_match(List[Optional[float]],[3.0,None,2]),   should_fail=True)
     test( type_match(List[Optional[float]],[3.0,None,2.0]), should_fail=False)
-    test( type_match(List[Optional[float]],[]), should_fail=False)
-    test( type_match(List[float],[]), should_fail=False)
+    test( type_match(List[Optional[float]],[]),             should_fail=False)
+    test( type_match(List[float],[]),                       should_fail=False)
 
     test( type_match(ClosedRange[float](1.0,2.0),1.5), should_fail=False)
     test( type_match(ClosedRange[float](1.0,2.0),1.0), should_fail=False)
     test( type_match(ClosedRange[float](1.0,2.0),2.0), should_fail=False)
     test( type_match(ClosedRange[float](1.0,2.0),3.0), should_fail=True)
-    test( type_match(ClosedRange[float](1.0,2.0),3), should_fail=True)
-    test( type_match(ClosedRange[float](1.0,2.0),1), should_fail=True)
+    test( type_match(ClosedRange[float](1.0,2.0),3),   should_fail=True)
+    test( type_match(ClosedRange[float](1.0,2.0),1),   should_fail=True)
 
     test( type_match(ClosedSet[str]("a","b"),"a"), should_fail=False)
     test( type_match(ClosedSet[str]("a","b"),"b"), should_fail=False)
     test( type_match(ClosedSet[str]("a","b"),"c"), should_fail=True)
-    test( type_match(ClosedSet[str]("a","b"),1), should_fail=True)
-    test( type_match(ClosedSet[int](2,3),2), should_fail=False)
-    test( type_match(ClosedSet[int](2,3),3), should_fail=False)
-    test( type_match(ClosedSet[int](2,3),2.0), should_fail=True)
-    test( type_match(ClosedSet[int](2,3),4), should_fail=True)
+    test( type_match(ClosedSet[str]("a","b"),1),   should_fail=True)
+    test( type_match(ClosedSet[int](2,3),2),       should_fail=False)
+    test( type_match(ClosedSet[int](2,3),3),       should_fail=False)
+    test( type_match(ClosedSet[int](2,3),2.0),     should_fail=True)
+    test( type_match(ClosedSet[int](2,3),4),       should_fail=True)
 
 
     @TypecheckClass(create_str=True)
@@ -521,7 +541,7 @@ if __name__=="__main__":
     tr=TestRange(vt=1.5)
     print(tr)
 
-    @TypecheckClass(create_init=True)
+    #@TypecheckClass(create_init=True)
     class ParentClass:
         a:int
     @TypecheckClass(create_init=True)
@@ -607,15 +627,20 @@ if __name__=="__main__":
     val=TestGeneric[float](min=1.0,max=2.0)
     print(val)
 
-    class Testapp(QApplication):
-        asd=Signal(float)
-        def __init__(self):
-            super().__init__([])
-    app=Testapp()
+    @TypecheckClass(create_init=True)
+    class Testapp(QObject):
+        asd:Signal=Signal(float)
+        b:float
+        def ___init__(self):
+            QObject.__init__(self)
 
+        def __setattr__(self,name,value):
+            print(f"{name}={value}")
+        
+    app=Testapp(b=2.0)
     def p(newval):
         print(newval)
-
     app.asd.connect(p)
     app.asd.emit(2.0)
-    
+    app.someattributethatdoesnotexist=2313
+    app.b=3

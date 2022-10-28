@@ -20,7 +20,9 @@ from typing import Optional, List, Union, Tuple
 
 import control.camera as camera
 from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager
+#import control.widgets as widgets # not possible because circular import
 from control.typechecker import TypecheckFunction
+from control.widgets.well_selection import WellSelectionWidget
 
 class MultiPointWorker(QObject):
 
@@ -108,32 +110,22 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
-        if self.multiPointController.scanCoordinates!=None:
-            # use scan coordinates for the scan
-            self.multiPointController.scanCoordinates.get_selected_wells()
-            self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
-            self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
-            self.use_scan_coordinates = True
-        else:
-            # use the current position for the scan
-            self.scan_coordinates_mm = [(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)]
-            self.scan_coordinates_name = ['']
-            self.use_scan_coordinates = False
+        self.scan_coordinates_name,self.scan_coordinates_mm = self.multiPointController.wellSelectionWidget.widget_well_indices_to_physical_positions()
 
         n_regions = len(self.scan_coordinates_name)
         for coordinate_id in range(n_regions):
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]
             coordiante_name = self.scan_coordinates_name[coordinate_id]
-            if self.use_scan_coordinates:
-                # move to the specified coordinate
-                self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.wait_till_operation_is_completed()
-                time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
-                self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
-                self.wait_till_operation_is_completed()
-                time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
-                # add '_' to the coordinate name
-                coordiante_name = coordiante_name + '_'
+
+            # move to the specified coordinate
+            self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
+            self.wait_till_operation_is_completed()
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
+            self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+            self.wait_till_operation_is_completed()
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
+            # add '_' to the coordinate name
+            coordiante_name = coordiante_name + '_'
 
             x_scan_direction = 1
             dx_usteps = 0
@@ -256,8 +248,10 @@ class MultiPointWorker(QObject):
                             self.wait_till_operation_is_completed()
                             self.navigationController.move_z_usteps(-dz_usteps)
                             self.wait_till_operation_is_completed()
+
                             coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
                             self.navigationController.enable_joystick_button_action = True
+
                             return
 
                         if self.NZ > 1:
@@ -330,64 +324,6 @@ class MultiPointWorker(QObject):
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
 
-class ScanCoordinates(object):
-    def __init__(self,well_selector,navigation_viewer):
-        self.coordinates_mm = []
-        self.name = []
-        self.well_selector = well_selector
-        self.navigation_viewer=navigation_viewer
-
-    def get_selected_wells(self):
-        # get selected wells from the widget
-        assert not self.well_selector is None
-        selected_wells = self.well_selector.get_selected_cells()
-        selected_wells = np.array(selected_wells)
-        # clear the previous selection
-        self.coordinates_mm = []
-        self.name = []
-        # populate the coordinates
-        rows = np.unique(selected_wells[:,0])
-        _increasing = True
-
-        for row in rows:
-            items = selected_wells[selected_wells[:,0]==row]
-            columns = items[:,1]
-            columns = np.sort(columns)
-
-            if _increasing==False:
-                columns = np.flip(columns)
-
-            for column in columns:
-                wellplate_format=WELLPLATE_FORMATS[int(self.navigation_viewer.sample.split(" ")[0])]
-                wellplate_format_384=WELLPLATE_FORMATS[384]
-
-                # see control.widgets.onDoubleClick
-                origin_x_offset=MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT-(wellplate_format_384.A1_x_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip)
-                origin_y_offset=MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT-(wellplate_format_384.A1_y_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip)
-                well_on_plate_offset_x=column * wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm
-                well_on_plate_offset_y=row * wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm
-                well_cursor_offset_x=wellplate_format_384.well_size_mm/2
-                well_cursor_offset_y=well_cursor_offset_x
-
-                x_mm = MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT \
-                    + wellplate_format_384.well_size_mm / 2 \
-                    - (wellplate_format_384.A1_x_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip) \
-                    + column * wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm
-                y_mm = MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT \
-                    + wellplate_format_384.well_size_mm / 2 \
-                    - (wellplate_format_384.A1_y_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip) \
-                    + row * wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm
-
-                x_mm = origin_x_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm \
-                    + well_on_plate_offset_x + well_cursor_offset_x
-                y_mm = origin_y_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm \
-                    + well_on_plate_offset_y + well_cursor_offset_y
-
-                self.coordinates_mm.append((x_mm,y_mm))
-                self.name.append(chr(ord('A')+row)+str(column+1))
-
-            _increasing = not _increasing
-
 class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
@@ -404,7 +340,7 @@ class MultiPointController(QObject):
         liveController:LiveController,
         autofocusController:AutoFocusController,
         configurationManager:ConfigurationManager,
-        scanCoordinates:Optional[ScanCoordinates]=None
+        wellSelectionWidget:WellSelectionWidget,
     ):
         QObject.__init__(self)
 
@@ -433,7 +369,7 @@ class MultiPointController(QObject):
         self.experiment_ID: Optional[str] = None
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
-        self.scanCoordinates = scanCoordinates
+        self.wellSelectionWidget = wellSelectionWidget
         self.autofocus_channel_name=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
 

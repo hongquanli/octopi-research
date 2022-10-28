@@ -7,17 +7,59 @@ from control._def import *
 from typing import Optional, Union, List, Tuple
 
 from control.typechecker import TypecheckFunction
+import numpy as np
 
 class WellSelectionWidget(QTableWidget):
  
-    signal_wellSelected = Signal(int,int,float)
-    signal_wellSelectedPos = Signal(float,float)
- 
+    signal_wellSelected:Signal = Signal(int,int,float)
+    signal_wellSelectedPos:Signal = Signal(float,float)
+
+    currently_selected_well_indices:List[Tuple[int,int]]=[]
+
     @TypecheckFunction
     def __init__(self, format: int):
         self.was_initialized=False
         self.set_wellplate_type(format)
         self.was_initialized=True
+
+        self.itemSelectionChanged.connect(self.itemselectionchanged)
+        MUTABLE_MACHINE_CONFIG.wellplate_format_change.connect(self.set_wellplate_type)
+
+    def itemselectionchanged(self):
+        self.currently_selected_well_indices = []
+        for index in self.selectedIndexes():
+            self.currently_selected_well_indices.append((index.row(),index.column()))
+
+        print(f"itemselectionchanged {self.currently_selected_well_indices}")
+
+    @TypecheckFunction
+    def widget_well_indices_to_physical_positions(self)->Tuple[List[str],List[Tuple[float,float]]]:
+        # get selected wells from the widget
+        selected_wells = np.array(self.currently_selected_well_indices)
+        # clear the previous selection
+        self.coordinates_mm = []
+        self.name = []
+        # populate the coordinates
+        rows = np.unique(selected_wells[:,0])
+        _increasing = True
+
+        for row in rows:
+            items = selected_wells[selected_wells[:,0]==row]
+            columns = items[:,1]
+            columns = np.sort(columns)
+
+            if _increasing==False:
+                columns = np.flip(columns)
+
+            for column in columns:
+                x_mm,y_mm=self.well_index_to_physical_position(row,column)
+
+                self.coordinates_mm.append((x_mm,y_mm))
+                self.name.append(chr(ord('A')+row)+str(column+1))
+
+            _increasing = not _increasing
+
+        return self.name,self.coordinates_mm
  
     @TypecheckFunction
     def set_wellplate_type(self,wellplate_type:Union[str,int]):
@@ -111,17 +153,11 @@ class WellSelectionWidget(QTableWidget):
             self.set_selectable_widgets(layout=wellplate_format,is_selectable=False)
         elif wellplate_format.number_of_skip>1:
             assert False, "more than one layer of disabled outer wells is currently unimplemented"
- 
+
     @TypecheckFunction
-    def onDoubleClick(self,row:int,col:int):
-        # this code is also used in control.core.ScanCoordinates.get_selected_wells
+    def well_index_to_physical_position(self,row:Union[int,np.int64],col:Union[int,np.int64])->Tuple[float,float]:
         wellplate_format=WELLPLATE_FORMATS[self.format]
         wellplate_format_384=WELLPLATE_FORMATS[384]
- 
-        row_lower_bound=0 + wellplate_format.number_of_skip
-        row_upper_bound=self.rows-1-wellplate_format.number_of_skip
-        column_lower_bound=0 + wellplate_format.number_of_skip
-        column_upper_bound=self.columns-1-wellplate_format.number_of_skip
 
         # offset for coordinate origin, required because origin was calibrated based on 384 wellplate, i guess. 
         # term in parenthesis is required because A1_x/y_mm actually referes to upper left corner of B2, not A1 (also assumes that number_of_skip==1)
@@ -138,17 +174,22 @@ class WellSelectionWidget(QTableWidget):
         well_cursor_offset_x=wellplate_format_384.well_size_mm/2
         well_cursor_offset_y=well_cursor_offset_x
 
-        if (row >= row_lower_bound and row <= row_upper_bound ) and ( col >= column_lower_bound and col <= column_upper_bound ):
-            x_mm = origin_x_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm \
-                + well_on_plate_offset_x + well_cursor_offset_x
-            y_mm = origin_y_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm \
-                + well_on_plate_offset_y + well_cursor_offset_y
+        x_mm = origin_x_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm \
+            + well_on_plate_offset_x + well_cursor_offset_x
+        y_mm = origin_y_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm \
+            + well_on_plate_offset_y + well_cursor_offset_y
 
-            self.signal_wellSelectedPos.emit(x_mm,y_mm)
+        return x_mm,y_mm
  
     @TypecheckFunction
-    def get_selected_cells(self) -> List[Tuple[int,int]]:
-        list_of_selected_cells = []
-        for index in self.selectedIndexes():
-             list_of_selected_cells.append((index.row(),index.column()))
-        return list_of_selected_cells
+    def onDoubleClick(self,row:int,col:int):
+        wellplate_format=WELLPLATE_FORMATS[self.format]
+ 
+        row_lower_bound=0 + wellplate_format.number_of_skip
+        row_upper_bound=self.rows-1-wellplate_format.number_of_skip
+        column_lower_bound=0 + wellplate_format.number_of_skip
+        column_upper_bound=self.columns-1-wellplate_format.number_of_skip
+
+        if (row >= row_lower_bound and row <= row_upper_bound ) and ( col >= column_lower_bound and col <= column_upper_bound ):
+            x_mm,y_mm=self.well_index_to_physical_position(row,col)
+            self.signal_wellSelectedPos.emit(x_mm,y_mm)

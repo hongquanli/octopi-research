@@ -27,8 +27,8 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load window
-		self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,autoLevels=MACHINE_DISPLAY_CONFIG.AUTOLEVEL_DEFAULT_SETTING)
-		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+		self.imageDisplayWindow = widgets.ImageDisplayWindow(draw_crosshairs=True,autoLevels=MACHINE_DISPLAY_CONFIG.AUTOLEVEL_DEFAULT_SETTING)
+		self.imageArrayDisplayWindow = widgets.ImageArrayDisplayWindow()
 
 		# image display windows
 		self.imageDisplayTabs = QTabWidget()
@@ -62,7 +62,7 @@ class OctopiGUI(QMainWindow):
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
 		self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
-		self.imageDisplay = core.ImageDisplay()
+		self.imageDisplay = widgets.ImageDisplay()
 
 		# set up the camera
 		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
