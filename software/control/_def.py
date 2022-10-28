@@ -370,13 +370,15 @@ class MutableMachineConfiguration:
 
 @TypecheckClass
 class MachineDisplayConfiguration:
-    # display settings
+    """ display settings """
     DEFAULT_SAVING_PATH:str = field(default_factory=lambda:str(Path.home()/"Downloads"))
+    SHOW_AUTOLEVEL_BTN:bool = False
     AUTOLEVEL_DEFAULT_SETTING:bool = False
     DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
     MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
-    SHOW_AUTOLEVEL_BTN:bool = False
     SHOW_DAC_CONTROL:bool = False
+    # set to False if use separate windows for display and control
+    SINGLE_WINDOW = True
 
 
 MACHINE_CONFIG=MachineConfiguration(

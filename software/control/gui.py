@@ -17,7 +17,6 @@ from control._def import *
 from control.typechecker import TypecheckFunction
 
 import pyqtgraph.dockarea as dock
-SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
 class OctopiGUI(QMainWindow):
 
@@ -108,7 +107,7 @@ class OctopiGUI(QMainWindow):
 		# self.centralWidget.setMaximumWidth(self.centralWidget.minimumWidth())
 		self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
 		
-		if SINGLE_WINDOW:
+		if MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
 			dock_display = dock.Dock('Image Display', autoOrientation = False)
 			dock_display.showTitleBar()
 			dock_display.addWidget(self.imageDisplayTabs)
@@ -165,7 +164,7 @@ class OctopiGUI(QMainWindow):
 		self.camera.close()
 		self.imageSaver.close()
 		self.imageDisplay.close()
-		if not SINGLE_WINDOW:
+		if not MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
 			self.imageDisplayWindow.close()
 			self.imageArrayDisplayWindow.close()
 			self.tabbedImageDisplayWindow.close()
