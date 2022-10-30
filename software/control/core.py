@@ -416,6 +416,7 @@ class LiveController(QObject):
         self.camera.is_live = True
         self.camera.start_streaming()
         if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
+            self.camera.enable_callback() # in case it's disabled e.g. by the laser AF controller
             self._start_triggerred_acquisition()
         # if controlling the laser displacement measurement camera
         if self.for_displacement_measurement:
@@ -436,7 +437,7 @@ class LiveController(QObject):
                 self.turn_off_illumination()
             # if controlling the laser displacement measurement camera
             if self.for_displacement_measurement:
-                self.microcontroller.set_pin_level(MCU_PINS,AF_LASER,0)
+                self.microcontroller.set_pin_level(MCU_PINS.AF_LASER,0)
 
     # software trigger related
     def trigger_acquisition(self):
@@ -2437,10 +2438,10 @@ class LaserAutofocusController(QObject):
     def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference):
         # x_reference is relative to the full sensor
         self.pixel_to_um = pixel_to_um
-        self.x_offset = (x_offset//4)*4
-        self.y_offset = (y_offset//2)*2
-        self.width = (width//4)*4
-        self.height = (height//2)*2
+        self.x_offset = int((x_offset//4)*4)
+        self.y_offset = int((y_offset//2)*2)
+        self.width = int((width//4)*4)
+        self.height = int((height//2)*2)
         self.x_reference = x_reference - self.x_offset # self.x_reference is relative to the cropped region
         self.camera.set_ROI(self.x_offset,self.y_offset,self.width,self.height)
         self.is_initialized = True
@@ -2540,6 +2541,8 @@ class LaserAutofocusController(QObject):
         return x,y
 
     def _get_laser_spot_centroid(self):
+        # disable camera callback
+        self.camera.disable_callback()
         tmp_x = 0
         tmp_y = 0
         for i in range(LASER_AF_AVERAGING_N):
