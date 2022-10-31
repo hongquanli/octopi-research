@@ -30,8 +30,6 @@ class WellSelectionWidget(QTableWidget):
         for index in self.selectedIndexes():
             self.currently_selected_well_indices.append((index.row(),index.column()))
 
-        print(f"itemselectionchanged {self.currently_selected_well_indices}")
-
     @TypecheckFunction
     def widget_well_indices_to_physical_positions(self)->Tuple[List[str],List[Tuple[float,float]]]:
         # get selected wells from the widget

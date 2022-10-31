@@ -356,7 +356,7 @@ class MachineConfiguration:
     CONTROLLER_VERSION:ControllerType = ControllerType.TEENSY
 
 
-@TypecheckClass
+@TypecheckClass(check_assignment=True)
 class MutableMachineConfiguration(QObject):
     # things that can change in hardware (manual changes)
     DEFAULT_OBJECTIVE:str = '10x (Mitutoyo)'
@@ -376,8 +376,6 @@ class MutableMachineConfiguration(QObject):
     brightfield_saving_mode_change:Signal=Signal(BrightfieldSavingMode)
 
     def __setattr__(self,name,value):
-        print(f"MutableMachineConfiguration: set {name} to {value}")
-        
         {
             "DEFAULT_OBJECTIVE":self.objective_change,
             "WELLPLATE_FORMAT":self.wellplate_format_change,
@@ -386,6 +384,7 @@ class MutableMachineConfiguration(QObject):
             "MULTIPOINT_AUTOFOCUS_CHANNEL":self.autofocus_channel_change,
             "MULTIPOINT_BF_SAVING_OPTION":self.brightfield_saving_mode_change,
         }[name].emit(value)
+        # no need for super().__setattr__ because TypecheckClass(check_assignment=True) already takes care of that
 
 
 @TypecheckClass

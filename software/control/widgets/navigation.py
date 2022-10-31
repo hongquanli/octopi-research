@@ -265,12 +265,27 @@ class NavigationViewer(QFrame):
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.graphics_widget.setBackground("w")
-        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True)
         ## lock the aspect ratio so pixels are always square
-        self.graphics_widget.view.setAspectLocked(True)
+        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True,lockAspect=True)
         ## Create image item
         self.graphics_widget.img = pg.ImageItem(border='w')
         self.graphics_widget.view.addItem(self.graphics_widget.img)
+        # make sure plate view is always visible, from view.getState()['viewRange']:
+        max_state=[[-70.74301114861895, 1579.743011148619], [-254.9490586181788, 1264.9490586181787]]
+        min_state=[[733.5075292478979, 886.8248563569729], [484.2505774030056, 639.926632621451]]
+        ((max_lowerx,max_upperx),(max_lowery,max_uppery))=max_state
+        ((min_lowerx,min_upperx),(min_lowery,min_uppery))=min_state
+        self.graphics_widget.view.setLimits(            
+            xMin=max_lowerx,
+            xMax=max_upperx,
+            yMin=max_lowery,
+            yMax=max_uppery,
+
+            minXRange=min_upperx-min_lowerx,
+            maxXRange=max_upperx-max_lowerx,
+            minYRange=min_uppery-min_lowery,
+            maxYRange=max_uppery-max_lowery,
+        )
 
         self.grid = QVBoxLayout()
         self.grid.addWidget(self.graphics_widget)
@@ -363,6 +378,7 @@ class NavigationViewer(QFrame):
                                     round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
             current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
                                     round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+
         cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
 
         self.last_fov_drawn=(x_mm,y_mm)
