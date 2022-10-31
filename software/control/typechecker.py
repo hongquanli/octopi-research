@@ -356,13 +356,21 @@ def TypecheckFunction(_f=None,*,check_defaults:bool=True):
 
         potentially_positional_args={arg_name:arg.annotation for arg_name,arg in f_signature.parameters.items()}
 
+        potentially_positional_args_key_list=list(potentially_positional_args.keys())
+        potentially_positional_args_value_list=list(potentially_positional_args.values())
+
         @wraps(f)
         def wrapper(*args,**kwargs):
+            if len(args)>len(potentially_positional_args_key_list):
+                error_msg=f"too many positional arguments to {full_function_name_and_position} (got {len(args)} instead of {len(potentially_positional_args_key_list)})"
+                raise TypeError(error_msg)
+
             for arg_i,arg in enumerate(args):
-                arg_name=list(potentially_positional_args.keys())[arg_i]
+
+                arg_name=potentially_positional_args_key_list[arg_i]
                 if arg_name=="self":
                     continue
-                arg_expected_type=list(potentially_positional_args.values())[arg_i]
+                arg_expected_type=potentially_positional_args_value_list[arg_i]
 
                 tmr=type_match(arg_expected_type,arg)
                 if not tmr:
