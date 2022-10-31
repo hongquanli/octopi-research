@@ -151,7 +151,7 @@ class LiveController(QObject):
     # @@@ to do: change softwareTriggerGenerator to TriggerGeneratror
     def set_microscope_mode(self,configuration:Configuration):
         self.currentConfiguration = configuration
-        print("setting microscope mode to " + self.currentConfiguration.name)
+        # print("setting microscope mode to " + self.currentConfiguration.name)
         
         # temporarily stop live while changing mode
         if self.is_live is True:
