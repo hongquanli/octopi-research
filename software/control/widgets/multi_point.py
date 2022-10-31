@@ -4,18 +4,10 @@ from qtpy.QtGui import QIcon
 
 from control._def import *
 
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Callable
 
 from control.core import MultiPointController, ConfigurationManager
 from control.typechecker import TypecheckFunction
-
-autofocus_channel_names=[
-    "Fluorescence 405 nm Ex",
-    "Fluorescence 488 nm Ex",
-    "Fluorescence 561 nm Ex",
-    "Fluorescence 638 nm Ex",
-    "Fluorescence 730 nm Ex",
-]
 
 class MultiPointWidget(QFrame):
     def __init__(self, multipointController:MultiPointController, configurationManager:ConfigurationManager, *args, **kwargs):
@@ -168,8 +160,9 @@ class MultiPointWidget(QFrame):
 
         af_channel_dropdown=QComboBox()
         af_channel_dropdown.setToolTip("set channel that will be used for autofocus measurements")
-        af_channel_dropdown.addItems(autofocus_channel_names)
-        af_channel_dropdown.setCurrentIndex(autofocus_channel_names.index(self.multipointController.autofocus_channel_name))
+        channel_names=[microscope_configuration.name for microscope_configuration in self.configurationManager.configurations]
+        af_channel_dropdown.addItems(channel_names)
+        af_channel_dropdown.setCurrentIndex(channel_names.index(self.multipointController.autofocus_channel_name))
         af_channel_dropdown.currentIndexChanged.connect(self.set_autofocusChannel)
 
         grid_multipoint_acquisition_config=QGridLayout()
@@ -207,7 +200,7 @@ class MultiPointWidget(QFrame):
 
     @TypecheckFunction
     def set_autofocusChannel(self,new_channel_index:int):
-        self.multipointController.autofocus_channel_name=autofocus_channel_names[new_channel_index]
+        self.multipointController.autofocus_channel_name=self.configurationManager.configurations[new_channel_index].name
 
     @TypecheckFunction
     def set_deltaX(self,value:float):
@@ -246,16 +239,21 @@ class MultiPointWidget(QFrame):
             msg.setText("Please choose base saving directory first")
             msg.exec_()
             return
-            
+
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
-            self.multipointController.prepare_folder_for_new_experiment(self.lineEdit_experimentID.text())
-            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.run_experiment()
+
+            experiment_data_target_folder:str=self.lineEdit_experimentID.text()
+            imaging_channel_list:List[str]=[item.text() for item in self.list_configurations.selectedItems()]
+
+            self.multipointController.start_experiment(
+                experiment_data_target_folder,
+                imaging_channel_list
+            )
         else:
-            self.multipointController.request_abort_aquisition()
+            self.multipointController.abort_experiment()
             self.setEnabled_all(True)
 
     @TypecheckFunction

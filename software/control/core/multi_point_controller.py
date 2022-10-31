@@ -16,7 +16,7 @@ import pandas as pd
 
 import imageio as iio
 
-from typing import Optional, List, Union, Tuple
+from typing import Optional, List, Union, Tuple, Callable
 
 import control.camera as camera
 from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager
@@ -33,10 +33,11 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,multiPointController):
+    def __init__(self,multiPointController,scan_coordinates:Tuple[List[str],List[Tuple[float,float]]]):
         super().__init__()
         self.multiPointController:MultiPointController = multiPointController
 
+        # copy all (relevant) fields to unlock multipointcontroller on thread start
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.navigationController = self.multiPointController.navigationController
@@ -65,6 +66,8 @@ class MultiPointWorker(QObject):
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
+
+        self.scan_coordinates_name,self.scan_coordinates_mm = scan_coordinates
 
     def run(self):
         while self.time_point < self.Nt:
@@ -109,8 +112,6 @@ class MultiPointWorker(QObject):
 
         # create a dataframe to save coordinates
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
-
-        self.scan_coordinates_name,self.scan_coordinates_mm = self.multiPointController.wellSelectionWidget.widget_well_indices_to_physical_positions()
 
         n_regions = len(self.scan_coordinates_name)
         for coordinate_id in range(n_regions):
@@ -178,54 +179,54 @@ class MultiPointWorker(QObject):
 
                         # iterate through selected modes
                         for config in self.selected_configurations:
-                            if 'USB Spectrometer' not in config.name:
-                                # update the current configuration
-                                self.signal_current_configuration.emit(config)
+                            if 'USB Spectrometer' in config.name:
+                                raise Exception("usb spectrometer not supported")
+
+                            # update the current configuration
+                            self.signal_current_configuration.emit(config)
+                            self.wait_till_operation_is_completed()
+                            # trigger acquisition (including turning on the illumination)
+                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                self.liveController.turn_on_illumination()
                                 self.wait_till_operation_is_completed()
-                                # trigger acquisition (including turning on the illumination)
-                                if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                                    self.liveController.turn_on_illumination()
-                                    self.wait_till_operation_is_completed()
-                                    self.camera.send_trigger()
-                                elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                    self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-                                # read camera frame
-                                image = self.camera.read_frame()
-                                # tunr of the illumination if using software trigger
-                                if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                                    self.liveController.turn_off_illumination()
-                                # process the image -  @@@ to move to camera
-                                image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                                image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                self.image_to_display.emit(image_to_display)
-                                self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                                if image.dtype == np.uint16:
-                                    saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
-                                    if self.camera.is_color:
-                                        if 'BF LED matrix' in config.name:
-                                            if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
-                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                            elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
-                                                image = image[:,:,1]
-                                    iio.imwrite(saving_path,image)
-                                else:
-                                    saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
-                                    if self.camera.is_color:
-                                        if 'BF LED matrix' in config.name:
-                                            if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW:
-                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                            elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
-                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                            elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
-                                                image = image[:,:,1]
-                                        else:
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                    cv2.imwrite(saving_path,image)
-                                QApplication.processEvents()
+                                self.camera.send_trigger()
+                            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
+                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                            # read camera frame
+                            image = self.camera.read_frame()
+                            # tunr of the illumination if using software trigger
+                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                self.liveController.turn_off_illumination()
+                            # process the image -  @@@ to move to camera
+                            image = utils.crop_image(image,self.crop_width,self.crop_height)
+                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                            # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+                            image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                            self.image_to_display.emit(image_to_display)
+                            self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                            if image.dtype == np.uint16:
+                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
+                                if self.camera.is_color:
+                                    if 'BF LED matrix' in config.name:
+                                        if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                        elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
+                                            image = image[:,:,1]
+                                iio.imwrite(saving_path,image)
                             else:
-                                pass
+                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
+                                if self.camera.is_color:
+                                    if 'BF LED matrix' in config.name:
+                                        if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW:
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                        elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
+                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                        elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
+                                            image = image[:,:,1]
+                                    else:
+                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                                cv2.imwrite(saving_path,image)
+                            QApplication.processEvents()
 
                         # add the coordinate of the current location
                         coordinates_pd = pd.concat([
@@ -333,14 +334,16 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    @TypecheckFunction
+    #@TypecheckFunction
     def __init__(self,
         camera:camera.Camera,
         navigationController:NavigationController,
         liveController:LiveController,
         autofocusController:AutoFocusController,
         configurationManager:ConfigurationManager,
-        wellSelectionWidget:WellSelectionWidget,
+        well_selection_generator:Optional[Callable[[],Tuple[List[str],List[Tuple[float,float]]]]],
+        start_experiment:Callable[[str,List[str]],None],
+        abort_experiment:Callable[[],None]
     ):
         QObject.__init__(self)
 
@@ -369,9 +372,19 @@ class MultiPointController(QObject):
         self.experiment_ID: Optional[str] = None
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
-        self.wellSelectionWidget = wellSelectionWidget
         self.autofocus_channel_name=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
+
+        self.well_selection_generator = well_selection_generator
+
+        self.start_experiment=start_experiment
+        self.abort_experiment=abort_experiment
+
+        # set some default values to avoid introducing new attributes outside constructor
+        self.abort_acqusition_requested = False
+        self.configuration_before_running_multipoint = self.liveController.currentConfiguration
+        self.liveController_was_live_before_multipoint = False
+        self.camera_callback_was_enabled_before_multipoint = False
 
     @property
     def mm_per_ustep_X(self):
@@ -412,8 +425,14 @@ class MultiPointController(QObject):
     def set_deltat(self,delta:float):
         self.deltat = delta
     @TypecheckFunction
-    def set_af_flag(self,flag:bool):
-        self.do_autofocus = flag
+    def set_af_flag(self,flag:Union[int,bool]):
+        if type(flag)==bool:
+            self.do_autofocus=flag
+        else:
+            self.do_autofocus = {
+                0:False,
+                2:True
+            }[flag]
 
     @TypecheckFunction
     def set_crop(self,crop_width:int,crop_height:int):
@@ -444,53 +463,70 @@ class MultiPointController(QObject):
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    def run_experiment(self):
-        print(f"start multipoint {self.Nt=} {self.NX=} {self.NY=} {self.NZ=}")
- 
+    def run_experiment(self,well_selection:Optional[Tuple[List[str],List[Tuple[float,float]]]]=None):
+        if well_selection is None:
+            image_positions=self.well_selection_generator()
+        else:
+            image_positions=well_selection
+
+        num_wells=len(image_positions[0])
+        num_images_per_well=self.NX*self.NY*self.NZ*self.Nt
+        num_channels=len(self.selected_configurations)
+
         self.abort_acqusition_requested = False
- 
+        self.liveController_was_live_before_multipoint = False
+        self.camera_callback_was_enabled_before_multipoint = False
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
-        # stop live
-        if self.liveController.is_live:
-            self.liveController_was_live_before_multipoint = True
-            self.liveController.stop_live() # @@@ to do: also uncheck the live button
-        else:
-            self.liveController_was_live_before_multipoint = False
- 
-        # LiveController.start_live enables this, but LiveController.stop_live does not disable, and a comment there explains that this (turning streaming off) causes issues
-        # with af in multipoint (the issue is a crash because the camera does not send a picture).
-        # if the live button was not pressed before multipoint acquisition is started, camera is not yet streaming, therefore crash -> start streaming when multipoint starts
-        self.camera.start_streaming()
 
-        # disable callback
-        if self.camera.callback_is_enabled:
-            self.camera_callback_was_enabled_before_multipoint = True
-            self.camera.disable_callback()
+        if num_wells==0:
+            print("no wells selected - not acquiring anything")
+            self._on_acquisition_completed()
+        elif num_images_per_well==0:
+            print("no images per well - not acquiring anything")
+            self._on_acquisition_completed()
+        elif num_channels==0:
+            print("no channels selected - not acquiring anything")
+            self._on_acquisition_completed()
         else:
-            self.camera_callback_was_enabled_before_multipoint = False
+            print(f"start multipoint with {num_wells} wells, {num_images_per_well} images per well, {num_channels} channels, total={num_wells*num_images_per_well*num_channels} images (AF is {'on' if self.do_autofocus else 'off'})")
+        
+            # stop live
+            if self.liveController.is_live:
+                self.liveController_was_live_before_multipoint = True
+                self.liveController.stop_live() # @@@ to do: also uncheck the live button
 
-        # run the acquisition
-        self.timestamp_acquisition_started = time.time()
-        # create a QThread object
-        self.thread = QThread()
-        # create a worker object
-        self.multiPointWorker = MultiPointWorker(self)
-        # move the worker to the thread
-        self.multiPointWorker.moveToThread(self.thread)
-        # connect signals and slots
-        self.thread.started.connect(self.multiPointWorker.run)
-        self.multiPointWorker.finished.connect(self._on_acquisition_completed)
-        self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
-        self.multiPointWorker.finished.connect(self.thread.quit)
-        self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
-        self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
-        self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
-        self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
-        self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
-        # self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.thread.quit)
-        # start the thread
-        self.thread.start()
+            # LiveController.start_live enables this, but LiveController.stop_live does not disable, and a comment there explains that this (turning streaming off) causes issues
+            # with af in multipoint (the issue is a crash because the camera does not send a picture).
+            # if the live button was not pressed before multipoint acquisition is started, camera is not yet streaming, therefore crash -> start streaming when multipoint starts
+            self.camera.start_streaming()
+
+            # disable callback
+            if self.camera.callback_is_enabled:
+                self.camera_callback_was_enabled_before_multipoint = True
+                self.camera.disable_callback()
+
+            # run the acquisition
+            self.timestamp_acquisition_started = time.time()
+            # create a QThread object
+            self.thread = QThread()
+            # create a worker object
+            self.multiPointWorker = MultiPointWorker(self,image_positions)
+            # move the worker to the thread
+            self.multiPointWorker.moveToThread(self.thread)
+            # connect signals and slots
+            self.thread.started.connect(self.multiPointWorker.run)
+            self.multiPointWorker.finished.connect(self._on_acquisition_completed)
+            self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
+            self.multiPointWorker.finished.connect(self.thread.quit)
+            self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
+            self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
+            self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
+            self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
+            self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
+            # self.thread.finished.connect(self.thread.deleteLater)
+            self.thread.finished.connect(self.thread.quit)
+            # start the thread
+            self.thread.start()
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode

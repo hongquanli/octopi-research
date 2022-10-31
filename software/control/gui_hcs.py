@@ -1,5 +1,6 @@
 # set QT_API environment variable
-import os 
+import os
+
 os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
@@ -17,11 +18,11 @@ import pyqtgraph.dockarea as dock
 
 from control.typechecker import TypecheckFunction
 
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 class HCSController():
-	@TypecheckFunction
-	def __init__(self,well_selection_widget:widgets.WellSelectionWidget):
+	#@TypecheckFunction
+	def __init__(self,well_selection_generator:Callable[[],Tuple[List[str],List[Tuple[float,float]]]]):
 		# load objects
 		try:
 			self.camera = camera.Camera(rotate_image_angle=MACHINE_CONFIG.ROTATE_IMAGE_ANGLE,flip_image=MACHINE_CONFIG.FLIP_IMAGE)
@@ -44,46 +45,12 @@ class HCSController():
 		self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
 		self.slidePositionController: core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,well_selection_widget)
+		self.multipointController:    core.MultiPointController    = core.MultiPointController(
+			self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,
+			well_selection_generator,self.start_experiment,self.abort_experiment)
 		self.imageSaver:              core.ImageSaver              = core.ImageSaver()
 
-		if MACHINE_CONFIG.HOMING_ENABLED_Z:
-			# retract the objective
-			self.navigationController.home_z()
-			# wait for the operation to finish
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z homing timeout, the program will exit')
-
-			print('objective retracted')
-
-			if MACHINE_CONFIG.HOMING_ENABLED_Z and MACHINE_CONFIG.HOMING_ENABLED_X and MACHINE_CONFIG.HOMING_ENABLED_Y:
-				# for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
-				self.navigationController.move_x(12.0)
-				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-				
-				self.navigationController.home_y()
-				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='y homing timeout, the program will exit')
-				
-				self.navigationController.home_x()
-				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x homing timeout, the program will exit')
-		
-				print('xy homing completed')
-
-				# move to (20 mm, 20 mm)
-				self.navigationController.move_x(20.0)
-				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-				self.navigationController.move_y(20.0)
-				self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
-
-				self.navigationController.set_x_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_POSITIVE)
-				self.navigationController.set_x_limit_neg_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_NEGATIVE)
-				self.navigationController.set_y_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Y_POSITIVE)
-				self.navigationController.set_y_limit_neg_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Y_NEGATIVE)
-				self.navigationController.set_z_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Z_POSITIVE)
-
-			# move the objective back
-			self.navigationController.move_z(MACHINE_CONFIG.DEFAULT_Z_POS_MM)
-			# wait for the operation to finish
-			self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
+		self.navigationController.home()
 
 	def acquire(self,
 		well_list:List[Tuple[int,int]],
@@ -95,7 +62,17 @@ class HCSController():
 		# set grid per well to be imaged
 		# set lighting settings per channel
 		# set selection and order of channels to be imaged <- acquire.channels argument
+
 		pass
+
+	@TypecheckFunction
+	def start_experiment(self,experiment_data_target_folder:str,imaging_channel_list:List[str]):
+		self.multipointController.prepare_folder_for_new_experiment(experiment_data_target_folder)
+		self.multipointController.set_selected_configurations(imaging_channel_list)
+		self.multipointController.run_experiment()
+
+	def abort_experiment(self):
+		self.multipointController.request_abort_aquisition()
 
 	# add callbacks to be triggered on image acquisition (e.g. for histograms, saving to disk etc.)
 
@@ -151,7 +128,7 @@ class OctopiGUI(QMainWindow):
 		default_well_plate=str(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)+' well plate'
 		self.wellSelectionWidget = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
 
-		self.hcs_controller=HCSController(self.wellSelectionWidget)
+		self.hcs_controller=HCSController(well_selection_generator=self.wellSelectionWidget.widget_well_indices_to_physical_positions)
 		
 		# open the camera
 		self.camera.set_software_triggered_acquisition()

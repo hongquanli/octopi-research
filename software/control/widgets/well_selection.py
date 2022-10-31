@@ -32,30 +32,32 @@ class WellSelectionWidget(QTableWidget):
 
     @TypecheckFunction
     def widget_well_indices_to_physical_positions(self)->Tuple[List[str],List[Tuple[float,float]]]:
-        # get selected wells from the widget
-        selected_wells = np.array(self.currently_selected_well_indices)
         # clear the previous selection
         self.coordinates_mm = []
         self.name = []
-        # populate the coordinates
-        rows = np.unique(selected_wells[:,0])
-        _increasing = True
+        
+        # get selected wells from the widget
+        if len(self.currently_selected_well_indices)>0:
+            selected_wells = np.array(self.currently_selected_well_indices)
+            # populate the coordinates
+            rows = np.unique(selected_wells[:,0])
+            _increasing = True
 
-        for row in rows:
-            items = selected_wells[selected_wells[:,0]==row]
-            columns = items[:,1]
-            columns = np.sort(columns)
+            for row in rows:
+                items = selected_wells[selected_wells[:,0]==row]
+                columns = items[:,1]
+                columns = np.sort(columns)
 
-            if _increasing==False:
-                columns = np.flip(columns)
+                if _increasing==False:
+                    columns = np.flip(columns)
 
-            for column in columns:
-                x_mm,y_mm=self.well_index_to_physical_position(row,column)
+                for column in columns:
+                    x_mm,y_mm=self.well_index_to_physical_position(row,column)
 
-                self.coordinates_mm.append((x_mm,y_mm))
-                self.name.append(chr(ord('A')+row)+str(column+1))
+                    self.coordinates_mm.append((x_mm,y_mm))
+                    self.name.append(chr(ord('A')+row)+str(column+1))
 
-            _increasing = not _increasing
+                _increasing = not _increasing
 
         return self.name,self.coordinates_mm
  

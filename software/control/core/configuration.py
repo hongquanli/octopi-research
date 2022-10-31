@@ -12,13 +12,8 @@ import control.utils_config as utils_config
 from typing import Optional, List, Union, Tuple
 
 class Configuration:
-    """
-        self.name is channel name
+    """ illumination channel configuration """
 
-        self.exposure_time is exposure_time in ms
-
-        self.analog_gain is % additional light source power (?)
-    """
     def __init__(self,
         mode_id:str,
         name:str,
@@ -29,12 +24,16 @@ class Configuration:
         illumination_intensity:float
     ):
         self.id = mode_id
-        """ channel name """
+        
         self.name = name
-        """ exposure time in ms """
+        """ channel name """
+
         self.exposure_time = exposure_time
-        """ analog gain in % additional light source power (?) """
+        """ exposure time in ms """
+
         self.analog_gain = analog_gain
+        """ analog gain in % additional light source power (?) """
+
         self.illumination_source = illumination_source
         self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
