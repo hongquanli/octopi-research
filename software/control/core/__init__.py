@@ -8,5 +8,5 @@ from .configuration import Configuration, ConfigurationManager
 from .live_controller import LiveController
 from .navigation_controller import NavigationController
 from .slide_position_controller import SlidePositionController
-from .autofocus_controller import AutoFocusController
+from .autofocus import AutoFocusController
 from .multi_point_controller import MultiPointController
