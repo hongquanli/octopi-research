@@ -15,7 +15,7 @@ cd ~
 
 # setuo microscope python env (which is global env, since Qt is used for gui, which does not work inside virtualenv)
 pip3 install --upgrade setuptools pip
-pip3 install pyqt5 pyqtgraph scipy numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc scikit-image # python dependencies for squid software
+pip3 install pyqt5 pyqtgraph scipy numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc scikit-image tqdm # python dependencies for squid software
 
 # install orange
 virtualenv orange_venv

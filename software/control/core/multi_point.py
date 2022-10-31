@@ -22,7 +22,8 @@ import control.camera as camera
 from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager
 #import control.widgets as widgets # not possible because circular import
 from control.typechecker import TypecheckFunction
-from control.widgets.well_selection import WellSelectionWidget
+
+from tqdm import tqdm
 
 class MultiPointWorker(QObject):
 
@@ -114,7 +115,7 @@ class MultiPointWorker(QObject):
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
         n_regions = len(self.scan_coordinates_name)
-        for coordinate_id in range(n_regions):
+        for coordinate_id in range(n_regions) if n_regions==1 else tqdm(range(n_regions),unit="well"):
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]
             coordiante_name = self.scan_coordinates_name[coordinate_id]
 
@@ -137,6 +138,11 @@ class MultiPointWorker(QObject):
             # z stacking config
             if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
+
+            # show progress when iterating over all well positions (do not differentiatte between xyz in this progress bar, it's too quick for that)
+            well_tqdm=tqdm(range(self.NX*self.NY*self.NZ),unit="pos",leave=False)
+            if len(well_tqdm)>1:
+                well_tqdm_iter=iter(well_tqdm)
 
             # along y
             for i in range(self.NY):
@@ -172,13 +178,15 @@ class MultiPointWorker(QObject):
 
                     # z-stack
                     for k in range(self.NZ):
+                        if len(well_tqdm)>1:
+                            _=next(well_tqdm_iter,0)
                         
                         file_ID = coordiante_name + str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
                         # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                         # metadata = json.dumps(metadata)
 
                         # iterate through selected modes
-                        for config in self.selected_configurations:
+                        for config in tqdm(self.selected_configurations,unit="channel",leave=False):
                             if 'USB Spectrometer' in config.name:
                                 raise Exception("usb spectrometer not supported")
 
@@ -285,14 +293,7 @@ class MultiPointWorker(QObject):
                             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
                             dx_usteps = dx_usteps + x_scan_direction*self.deltaX_usteps
 
-                '''
                 # instead of move back, reverse scan direction (12/29/2021)
-                if self.NX > 1:
-                    # move x back
-                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-                    self.wait_till_operation_is_completed()
-                    time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-                '''
                 x_scan_direction = -x_scan_direction
 
                 if self.NY > 1:
@@ -302,6 +303,10 @@ class MultiPointWorker(QObject):
                         self.wait_till_operation_is_completed()
                         time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
                         dy_usteps = dy_usteps + self.deltaY_usteps
+
+            # exhaust tqdm iterator
+            if len(well_tqdm)>1:
+                _=next(well_tqdm_iter,0)
 
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan

@@ -204,7 +204,7 @@ class AutoFocusController(QObject):
         # emit the autofocus finished signal to enable the UI
         self.autofocusFinished.emit()
         QApplication.processEvents()
-        print('autofocus finished')
+        #print('autofocus finished')
 
         # update the state
         self.autofocus_in_progress = False
@@ -215,4 +215,4 @@ class AutoFocusController(QObject):
     def wait_till_autofocus_has_completed(self):
         while self.autofocus_in_progress == True:
             time.sleep(0.005)
-        print('autofocus wait has completed, exit wait')
+        #print('autofocus wait has completed, exit wait')
