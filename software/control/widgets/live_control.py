@@ -93,16 +93,17 @@ class LiveControlWidget(QFrame):
         self.entry_analogGain.setSingleStep(0.1)
         self.entry_analogGain.setValue(0)
 
-        self.slider_illuminationIntensity = QSlider(Qt.Horizontal) # type: ignore
+        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
         self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
         self.slider_illuminationIntensity.setMinimum(0)
         self.slider_illuminationIntensity.setMaximum(100)
         self.slider_illuminationIntensity.setValue(100)
-        self.slider_illuminationIntensity.setSingleStep(0)
+        self.slider_illuminationIntensity.setSingleStep(1)
+        self.slider_illuminationIntensity.setTickInterval(5)
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
-        self.entry_illuminationIntensity.setMinimum(0.1) 
-        self.entry_illuminationIntensity.setMaximum(100) 
+        self.entry_illuminationIntensity.setMinimum(0.1)
+        self.entry_illuminationIntensity.setMaximum(100)
         self.entry_illuminationIntensity.setSingleStep(0.1)
         self.entry_illuminationIntensity.setValue(100)
 
@@ -113,7 +114,7 @@ class LiveControlWidget(QFrame):
         self.entry_displayFPS.setSingleStep(1)
         self.entry_displayFPS.setValue(self.fps_display)
 
-        self.slider_resolutionScaling = QSlider(Qt.Horizontal) # type: ignore
+        self.slider_resolutionScaling = QSlider(Qt.Horizontal)
         self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
         self.slider_resolutionScaling.setMinimum(10)
         self.slider_resolutionScaling.setMaximum(100)
@@ -136,8 +137,8 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
-        self.entry_illuminationIntensity.valueChanged.connect(self.slider_illuminationIntensity.setValue)
-        self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
+        self.entry_illuminationIntensity.valueChanged.connect(lambda v:self.slider_illuminationIntensity.setValue(int(v))) # slider does not take float values
+        self.slider_illuminationIntensity.valueChanged.connect(lambda v:self.entry_illuminationIntensity.setValue(float(v))) # doublespinbox does not take ints
         self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
         # layout
