@@ -24,6 +24,7 @@ class NavigationController(QObject):
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
 
+    @TypecheckFunction
     def __init__(self,microcontroller:microcontroller.Microcontroller):
         QObject.__init__(self)
         self.microcontroller = microcontroller
@@ -103,7 +104,8 @@ class NavigationController(QObject):
     def move_z_usteps(self,usteps:int):
         self.microcontroller.move_z_usteps(usteps)
 
-    def update_pos(self,microcontroller):
+    @TypecheckFunction
+    def update_pos(self,microcontroller:microcontroller.Microcontroller):
         # get position from the microcontroller
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
         self.z_pos = z_pos
@@ -128,6 +130,7 @@ class NavigationController(QObject):
             self.theta_pos_rad = theta_pos*MACHINE_CONFIG.ENCODER_POS_SIGN_THETA*MACHINE_CONFIG.ENCODER_STEP_SIZE_THETA
         else:
             self.theta_pos_rad = theta_pos*MACHINE_CONFIG.STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_THETA))
+
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
         self.yPos.emit(self.y_pos_mm)
@@ -169,7 +172,43 @@ class NavigationController(QObject):
         self.microcontroller.zero_theta()
 
     def home(self):
-        pass
+        if MACHINE_CONFIG.HOMING_ENABLED_Z:
+			# retract the objective
+            self.home_z()
+			# wait for the operation to finish
+            self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z homing timeout, the program will exit')
+
+            print('objective retracted')
+
+            if MACHINE_CONFIG.HOMING_ENABLED_Z and MACHINE_CONFIG.HOMING_ENABLED_X and MACHINE_CONFIG.HOMING_ENABLED_Y:
+                # for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
+                self.move_x(12.0)
+                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+                
+                self.home_y()
+                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='y homing timeout, the program will exit')
+                
+                self.home_x()
+                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x homing timeout, the program will exit')
+            
+                print('xy homing completed')
+            
+                # move to (20 mm, 20 mm)
+                self.move_x(20.0)
+                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+                self.move_y(20.0)
+                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+            
+                self.set_x_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_POSITIVE)
+                self.set_x_limit_neg_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.X_NEGATIVE)
+                self.set_y_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Y_POSITIVE)
+                self.set_y_limit_neg_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+                self.set_z_limit_pos_mm(MACHINE_CONFIG.SOFTWARE_POS_LIMIT.Z_POSITIVE)
+
+			# move the objective back
+            self.move_z(MACHINE_CONFIG.DEFAULT_Z_POS_MM)
+			# wait for the operation to finish
+            self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
 
     def set_x_limit_pos_mm(self,value_mm):
         u_steps=int(value_mm/self.screw_x_micro)
