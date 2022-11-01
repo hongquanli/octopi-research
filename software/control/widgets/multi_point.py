@@ -109,7 +109,7 @@ class MultiPointWidget(QFrame):
         for microscope_configuration in self.configurationManager.configurations:
             self.list_configurations.addItems([microscope_configuration.name])
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
-        self.list_configurations.setDragDropMode(QAbstractItemView.InternalMove)
+        self.list_configurations.setDragDropMode(QAbstractItemView.InternalMove) # allow moving items within list
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
