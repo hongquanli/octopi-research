@@ -11,7 +11,24 @@ import control.gui_hcs as gui
 
 if __name__ == "__main__":
     app = QApplication([])
-    app.setStyle('Fusion')
-    win = gui.OctopiGUI()
-    win.show()
-    app.exec_()
+    if True:
+        app.setStyle('Fusion')
+        win = gui.OctopiGUI()
+        win.show()
+        app.exec_()
+    else:
+        c=gui.HCSController()
+        c.acquire(
+            [(1,1)],
+            ["Fluorescence 561 nm Ex"],
+            "/home/pharmbio/Downloads/testdirfordata",
+        ).finished.connect(
+            lambda:c.acquire(
+                [(2,2)],
+                ["Fluorescence 561 nm Ex"],
+                "/home/pharmbio/Downloads/testdirfordata",
+            ).finished.connect(
+                lambda:c.close()
+            )
+        )
+        app.exec_()

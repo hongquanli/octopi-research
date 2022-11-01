@@ -10,11 +10,22 @@ from control.core import MultiPointController, ConfigurationManager
 from control.typechecker import TypecheckFunction
 
 class MultiPointWidget(QFrame):
-    def __init__(self, multipointController:MultiPointController, configurationManager:ConfigurationManager, *args, **kwargs):
+    def __init__(self,
+        multipointController:MultiPointController, 
+        configurationManager:ConfigurationManager,
+        start_experiment:Callable[[str,List[str]],None],
+        abort_experiment:Callable[[],None],
+        *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
+        
         self.multipointController = multipointController
         self.configurationManager = configurationManager
+        self.start_experiment=start_experiment
+        self.abort_experiment=abort_experiment
+
         self.base_path_is_set = False
+
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -98,6 +109,7 @@ class MultiPointWidget(QFrame):
         for microscope_configuration in self.configurationManager.configurations:
             self.list_configurations.addItems([microscope_configuration.name])
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
+        self.list_configurations.setDragDropMode(QAbstractItemView.InternalMove)
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
@@ -248,12 +260,12 @@ class MultiPointWidget(QFrame):
             experiment_data_target_folder:str=self.lineEdit_experimentID.text()
             imaging_channel_list:List[str]=[item.text() for item in self.list_configurations.selectedItems()]
 
-            self.multipointController.start_experiment(
+            self.start_experiment(
                 experiment_data_target_folder,
                 imaging_channel_list
             )
         else:
-            self.multipointController.abort_experiment()
+            self.abort_experiment()
             self.setEnabled_all(True)
 
     @TypecheckFunction

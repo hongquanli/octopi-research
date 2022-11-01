@@ -66,34 +66,46 @@ class MultiPointWorker(QObject):
         self.selected_configurations = self.multiPointController.selected_configurations
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
-        self.time_point = 0
+        self.time_point:int = 0
 
         self.scan_coordinates_name,self.scan_coordinates_mm = scan_coordinates
 
     def run(self):
         while self.time_point < self.Nt:
             # continous acquisition
-            if self.dt == 0:
+            if self.dt == 0.0:
                 self.run_single_time_point()
+
                 if self.multiPointController.abort_acqusition_requested:
                     break
+
                 self.time_point = self.time_point + 1
+
             # timed acquisition
             else:
                 self.run_single_time_point()
+
                 if self.multiPointController.abort_acqusition_requested:
                     break
+
+                if self.Nt==1:
+                    break
+
                 self.time_point = self.time_point + 1
                 # check if the aquisition has taken longer than dt or integer multiples of dt, if so skip the next time point(s)
                 while time.time() > self.timestamp_acquisition_started + self.time_point*self.dt:
                     print('skip time point ' + str(self.time_point+1))
                     self.time_point = self.time_point+1
+
                 if self.time_point == self.Nt:
                     break # no waiting after taking the last time point
+
                 # wait until it's time to do the next acquisition
                 while time.time() < self.timestamp_acquisition_started + self.time_point*self.dt:
                     time.sleep(0.05)
+
         self.finished.emit()
+        print("finished multipoint acquisition")
 
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
@@ -115,7 +127,7 @@ class MultiPointWorker(QObject):
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
         n_regions = len(self.scan_coordinates_name)
-        for coordinate_id in range(n_regions) if n_regions==1 else tqdm(range(n_regions),unit="well"):
+        for coordinate_id in range(n_regions) if n_regions==1 else tqdm(range(n_regions),desc="well on plate",unit="well"):
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]
             coordiante_name = self.scan_coordinates_name[coordinate_id]
 
@@ -139,9 +151,10 @@ class MultiPointWorker(QObject):
             if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
-            # show progress when iterating over all well positions (do not differentiatte between xyz in this progress bar, it's too quick for that)
-            well_tqdm=tqdm(range(self.NX*self.NY*self.NZ),unit="pos",leave=False)
-            if len(well_tqdm)>1:
+            num_positions_per_well=self.NX*self.NY*self.NZ
+            if num_positions_per_well>1:
+                # show progress when iterating over all well positions (do not differentiatte between xyz in this progress bar, it's too quick for that)
+                well_tqdm=tqdm(range(num_positions_per_well),desc="pos in well", unit="pos",leave=False)
                 well_tqdm_iter=iter(well_tqdm)
 
             # along y
@@ -178,7 +191,7 @@ class MultiPointWorker(QObject):
 
                     # z-stack
                     for k in range(self.NZ):
-                        if len(well_tqdm)>1:
+                        if num_positions_per_well>1:
                             _=next(well_tqdm_iter,0)
                         
                         file_ID = coordiante_name + str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
@@ -186,7 +199,7 @@ class MultiPointWorker(QObject):
                         # metadata = json.dumps(metadata)
 
                         # iterate through selected modes
-                        for config in tqdm(self.selected_configurations,unit="channel",leave=False):
+                        for config in tqdm(self.selected_configurations,desc="channel",unit="channel",leave=False):
                             if 'USB Spectrometer' in config.name:
                                 raise Exception("usb spectrometer not supported")
 
@@ -200,6 +213,7 @@ class MultiPointWorker(QObject):
                                 self.camera.send_trigger()
                             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                 self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+
                             # read camera frame
                             image = self.camera.read_frame()
                             # tunr of the illumination if using software trigger
@@ -305,7 +319,7 @@ class MultiPointWorker(QObject):
                         dy_usteps = dy_usteps + self.deltaY_usteps
 
             # exhaust tqdm iterator
-            if len(well_tqdm)>1:
+            if num_positions_per_well>1:
                 _=next(well_tqdm_iter,0)
 
             if n_regions == 1:
@@ -345,10 +359,7 @@ class MultiPointController(QObject):
         navigationController:NavigationController,
         liveController:LiveController,
         autofocusController:AutoFocusController,
-        configurationManager:ConfigurationManager,
-        well_selection_generator:Optional[Callable[[],Tuple[List[str],List[Tuple[float,float]]]]],
-        start_experiment:Callable[[str,List[str]],None],
-        abort_experiment:Callable[[],None]
+        configurationManager:ConfigurationManager
     ):
         QObject.__init__(self)
 
@@ -380,14 +391,9 @@ class MultiPointController(QObject):
         self.autofocus_channel_name=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
 
-        self.well_selection_generator = well_selection_generator
-
-        self.start_experiment=start_experiment
-        self.abort_experiment=abort_experiment
-
         # set some default values to avoid introducing new attributes outside constructor
         self.abort_acqusition_requested = False
-        self.configuration_before_running_multipoint = self.liveController.currentConfiguration
+        self.configuration_before_running_multipoint:Optional[Configuration] = None
         self.liveController_was_live_before_multipoint = False
         self.camera_callback_was_enabled_before_multipoint = False
 
@@ -463,16 +469,18 @@ class MultiPointController(QObject):
         f.write(json.dumps(acquisition_parameters))
         f.close()
 
-    def set_selected_configurations(self, selected_configurations_name):
+    @TypecheckFunction
+    def set_selected_configurations(self, selected_configurations_name:List[str]):
         self.selected_configurations = []
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    def run_experiment(self,well_selection:Optional[Tuple[List[str],List[Tuple[float,float]]]]=None):
-        if well_selection is None:
-            image_positions=self.well_selection_generator()
-        else:
-            image_positions=well_selection
+    @TypecheckFunction
+    def run_experiment(self,well_selection:Tuple[List[str],List[Tuple[float,float]]])->Optional[QThread]:
+        while not self.thread is None:
+            time.sleep(0.05)
+
+        image_positions=well_selection
 
         num_wells=len(image_positions[0])
         num_images_per_well=self.NX*self.NY*self.NZ*self.Nt
@@ -530,12 +538,16 @@ class MultiPointController(QObject):
             self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
             # self.thread.finished.connect(self.thread.deleteLater)
             self.thread.finished.connect(self.thread.quit)
+            self.thread.finished.connect(lambda:setattr(self,'thread',None))
             # start the thread
             self.thread.start()
 
+            return self.thread
+
     def _on_acquisition_completed(self):
         # restore the previous selected mode
-        self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
+        if not self.configuration_before_running_multipoint is None:
+            self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
         # re-enable callback
         if self.camera_callback_was_enabled_before_multipoint:

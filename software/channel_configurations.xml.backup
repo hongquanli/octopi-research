@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<modes>
+  <mode ID="5" Name="Fluorescence 405 nm Ex" ExposureTime="100" AnalogGain="10" IlluminationSource="11" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="6" Name="Fluorescence 488 nm Ex" ExposureTime="100" AnalogGain="10" IlluminationSource="12" IlluminationIntensity="99.0" CameraSN=""/>
+  <mode ID="7" Name="Fluorescence 638 nm Ex" ExposureTime="99.0" AnalogGain="9.9" IlluminationSource="13" IlluminationIntensity="99.0" CameraSN=""/>
+  <mode ID="8" Name="Fluorescence 561 nm Ex" ExposureTime="90.0" AnalogGain="10.1" IlluminationSource="14" IlluminationIntensity="99.0" CameraSN=""/>
+  <mode ID="12" Name="Fluorescence 730 nm Ex" ExposureTime="50" AnalogGain="10" IlluminationSource="15" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="1" Name="BF LED matrix full" ExposureTime="16.0" AnalogGain="0.4" IlluminationSource="0" IlluminationIntensity="83.0" CameraSN=""/>
+  <mode ID="2" Name="BF LED matrix left half" ExposureTime="16.0" AnalogGain="0.0" IlluminationSource="1" IlluminationIntensity="12.0" CameraSN=""/>
+  <mode ID="3" Name="BF LED matrix right half" ExposureTime="16" AnalogGain="0" IlluminationSource="2" IlluminationIntensity="5" CameraSN=""/>
+  <mode ID="4" Name="BF LED matrix color PDAF" ExposureTime="22" AnalogGain="0" IlluminationSource="3" IlluminationIntensity="5" CameraSN=""/>
+  <mode ID="9" Name="BF LED matrix low NA" ExposureTime="20" AnalogGain="0" IlluminationSource="4" IlluminationIntensity="20" CameraSN=""/>
+  <mode ID="10" Name="BF LED matrix left dot" ExposureTime="20" AnalogGain="0" IlluminationSource="5" IlluminationIntensity="20" CameraSN=""/>
+  <mode ID="11" Name="BF LED matrix right dot" ExposureTime="20" AnalogGain="0" IlluminationSource="6" IlluminationIntensity="20" CameraSN=""/>
+  <mode ID="20" Name="USB Spectrometer" ExposureTime="20" AnalogGain="0" IlluminationSource="6" IlluminationIntensity="0" CameraSN=""/>
+</modes>

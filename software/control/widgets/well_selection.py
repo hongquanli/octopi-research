@@ -31,7 +31,7 @@ class WellSelectionWidget(QTableWidget):
             self.currently_selected_well_indices.append((index.row(),index.column()))
 
     @TypecheckFunction
-    def widget_well_indices_to_physical_positions(self)->Tuple[List[str],List[Tuple[float,float]]]:
+    def widget_well_indices_as_physical_positions(self)->Tuple[List[str],List[Tuple[float,float]]]:
         # clear the previous selection
         self.coordinates_mm = []
         self.name = []
@@ -52,10 +52,11 @@ class WellSelectionWidget(QTableWidget):
                     columns = np.flip(columns)
 
                 for column in columns:
-                    x_mm,y_mm=self.well_index_to_physical_position(row,column)
+                    well_coords=WELLPLATE_FORMATS[self.format].convert_well_index(int(row),int(column))
+                    well_name=WELLPLATE_FORMATS[self.format].well_name(int(row),int(column))
 
-                    self.coordinates_mm.append((x_mm,y_mm))
-                    self.name.append(chr(ord('A')+row)+str(column+1))
+                    self.coordinates_mm.append(well_coords)
+                    self.name.append(well_name)
 
                 _increasing = not _increasing
 
@@ -133,13 +134,6 @@ class WellSelectionWidget(QTableWidget):
  
     @TypecheckFunction
     def setData(self):
-        '''
-        # cells
-        for i in range(16):
-            for j in range(24):
-                newitem = QTableWidgetItem( chr(ord('A')+i) + str(j) )
-                self.setItem(i, j, newitem)
-        '''
         # row header
         row_headers = []
         for i in range(self.rows):
@@ -153,33 +147,6 @@ class WellSelectionWidget(QTableWidget):
             self.set_selectable_widgets(layout=wellplate_format,is_selectable=False)
         elif wellplate_format.number_of_skip>1:
             assert False, "more than one layer of disabled outer wells is currently unimplemented"
-
-    @TypecheckFunction
-    def well_index_to_physical_position(self,row:Union[int,np.int64],col:Union[int,np.int64])->Tuple[float,float]:
-        wellplate_format=WELLPLATE_FORMATS[self.format]
-        wellplate_format_384=WELLPLATE_FORMATS[384]
-
-        # offset for coordinate origin, required because origin was calibrated based on 384 wellplate, i guess. 
-        # term in parenthesis is required because A1_x/y_mm actually referes to upper left corner of B2, not A1 (also assumes that number_of_skip==1)
-        assert wellplate_format_384.number_of_skip==1
-        origin_x_offset=MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT-(wellplate_format_384.A1_x_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip)
-        origin_y_offset=MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT-(wellplate_format_384.A1_y_mm + wellplate_format_384.well_spacing_mm * wellplate_format_384.number_of_skip)
-
-        # physical position of the well on the wellplate that the cursor should move to
-        well_on_plate_offset_x=col * wellplate_format.well_spacing_mm + wellplate_format.A1_x_mm
-        well_on_plate_offset_y=row * wellplate_format.well_spacing_mm + wellplate_format.A1_y_mm
-
-        # offset from top left of well to position within well where cursor/camera should go
-        # should be centered, so offset is same in x and y
-        well_cursor_offset_x=wellplate_format_384.well_size_mm/2
-        well_cursor_offset_y=well_cursor_offset_x
-
-        x_mm = origin_x_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_X_mm \
-            + well_on_plate_offset_x + well_cursor_offset_x
-        y_mm = origin_y_offset + MACHINE_CONFIG.WELLPLATE_OFFSET_Y_mm \
-            + well_on_plate_offset_y + well_cursor_offset_y
-
-        return x_mm,y_mm
  
     @TypecheckFunction
     def onDoubleClick(self,row:int,col:int):
@@ -191,5 +158,5 @@ class WellSelectionWidget(QTableWidget):
         column_upper_bound=self.columns-1-wellplate_format.number_of_skip
 
         if (row >= row_lower_bound and row <= row_upper_bound ) and ( col >= column_lower_bound and col <= column_upper_bound ):
-            x_mm,y_mm=self.well_index_to_physical_position(row,col)
+            x_mm,y_mm=WELLPLATE_FORMATS[self.format].convert_well_index(int(row),int(col))
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
