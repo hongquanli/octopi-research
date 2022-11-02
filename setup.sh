@@ -13,9 +13,10 @@ export PATH=$PATH:/home/ubuntu/.local/bin
 # install everything relative to home
 cd ~
 
-# setuo microscope python env (which is global env, since Qt is used for gui, which does not work inside virtualenv)
+# setup microscope python env (which is global env, since Qt is used for gui, which does not work inside virtualenv)
 pip3 install --upgrade setuptools pip
-pip3 install pyqt5 pyqtgraph scipy numpy==1.23 matplotlib qtpy pyserial pandas imageio opencv-python opencv-contrib-python lxml crc scikit-image tqdm # python dependencies for squid software
+# python dependencies for squid software (PyQt5 might not actually be required? seems like it is already installed via python3-pyqt5, same for pyqtgraph)
+pip3 install PyQt5==5.14.* pyqtgraph==0.12.* QtPy==2.2.* scipy==1.9.* numpy==1.23.* matplotlib pyserial pandas imageio opencv-python opencv-contrib-python lxml crc scikit-image tqdm
 
 # install orange
 virtualenv orange_venv
