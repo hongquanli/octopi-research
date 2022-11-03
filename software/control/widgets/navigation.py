@@ -342,15 +342,16 @@ class NavigationViewer(QFrame):
  
         self.sample = new_wellplate_type
  
+        camera_pixel_size_um=MachineConfiguration.CAMERA_PIXEL_SIZE_UM[MACHINE_CONFIG.CAMERA_SENSOR]
         if new_wellplate_type == 'glass slide':
             self.origin_bottom_left_x = 200
             self.origin_bottom_left_y = 120
             self.mm_per_pixel = 0.1453
-            self.fov_size_mm = 3000*1.85/(50/9)/1000
+            self.fov_size_mm = 3000*camera_pixel_size_um/(50/9)/1000
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
-            self.fov_size_mm = 3000*1.85/(50/10)/1000
+            self.fov_size_mm = 3000*camera_pixel_size_um/(50/10)/1000 # '50/10' = tube_lens_mm/objective_magnification ?
             self.origin_bottom_left_x = MACHINE_CONFIG.X_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
             self.origin_bottom_left_y = MACHINE_CONFIG.Y_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
  
