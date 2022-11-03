@@ -488,6 +488,7 @@ if __name__=="__main__":
 
     test( type_match(tuple,(3.0,2)),            should_fail=False)
     test( type_match(Tuple[float,int],(3.0,2)), should_fail=False)
+    test( type_match(Tuple[float,float],(3.0,2.0)), should_fail=False)
 
     test( type_match(list,[3.0]),                           should_fail=False)
     test( type_match(List[int],[3.0]),                      should_fail=True)
