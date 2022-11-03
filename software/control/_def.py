@@ -539,7 +539,7 @@ class WellplateFormatPhysical:
         return chr(ord('A')+row)+str(column+1)
     
  
-WELLPLATE_FORMATS={
+WELLPLATE_FORMATS:Dict[int,WellplateFormatPhysical]={
     6:WellplateFormatPhysical(
         well_size_mm = 34.94,
         well_spacing_mm = 39.2,
@@ -586,4 +586,7 @@ WELLPLATE_FORMATS={
         columns = 24,
     )
 }
- 
+WELLPLATE_NAMES:Dict[int,str]={
+    i:f"{i} well plate"
+    for i in WELLPLATE_FORMATS.keys()
+}
