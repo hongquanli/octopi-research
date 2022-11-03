@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 from qtpy.QtCore import Qt, QThread, QObject
 from qtpy.QtWidgets import QApplication
 
@@ -12,8 +13,11 @@ from control.typechecker import TypecheckFunction
 from typing import List, Tuple, Callable
 
 class HCSController(QObject):
-    def __init__(self):
+    def __init__(self,home:bool=True):
         super().__init__()
+
+        if not home:
+            print("warning: disabled homing on startup can lead to misalignment of the stage. proceed at your own risk. (may damage objective, and/or run into software stage position limits, which can lead to unexpected behaviour)")
 
         # load objects
         try:
@@ -44,7 +48,8 @@ class HCSController(QObject):
         self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
         self.imageSaver:              core.ImageSaver              = core.ImageSaver()
 
-        self.navigationController.home()
+        if home:
+            self.navigationController.home(home_x=MACHINE_CONFIG.HOMING_ENABLED_X,home_y=MACHINE_CONFIG.HOMING_ENABLED_Y,home_z=MACHINE_CONFIG.HOMING_ENABLED_Z)
 
         self.num_running_experiments=0
 
@@ -53,7 +58,7 @@ class HCSController(QObject):
         well_list:List[Tuple[int,int]],
         channels:List[str],
         experiment_id:str,
-        grid_data={
+        grid_data:Dict[str,dict]={
             'x':{'d':0.9,'N':1},
             'y':{'d':0.9,'N':1},
             'z':{'d':0.9,'N':1},
@@ -68,24 +73,48 @@ class HCSController(QObject):
         # set lighting settings per channel
         # set selection and order of channels to be imaged <- acquire.channels argument
 
+        # calculate physical imaging positions on wellplate given plate type and well selection
         wellplate_format=WELLPLATE_FORMATS[plate_type]
+
+        # validate well positions (should be on the plate, given selected wellplate type)
+        if wellplate_format.number_of_skip>0:
+            for well_row,well_column in well_list:
+                if well_row<0 or well_column<0:
+                    raise ValueError(f"are you mad?! {well_row=} {well_column=}")
+
+                if well_row>=wellplate_format.rows:
+                    raise ValueError(f"{well_row=} is out of bounds {wellplate_format}")
+                if well_column>=wellplate_format.columns:
+                    raise ValueError(f"{well_column=} is out of bounds {wellplate_format}")
+
+                if well_row<wellplate_format.number_of_skip:
+                    raise ValueError(f"well {well_row=} out of bounds {wellplate_format}")
+                if well_row>=(wellplate_format.rows-wellplate_format.number_of_skip):
+                    raise ValueError(f"well {well_row=} out of bounds {wellplate_format}")
+
+                if well_column<wellplate_format.number_of_skip:
+                    raise ValueError(f"well {well_column=} out of bounds {wellplate_format}")
+                if well_column>=(wellplate_format.columns-wellplate_format.number_of_skip):
+                    raise ValueError(f"well {well_column=} out of bounds {wellplate_format}")
 
         well_list_names:List[str]=[wellplate_format.well_name(c[0],c[1]) for c in well_list]
         well_list_physical_pos:List[Tuple[float,float]]=[wellplate_format.convert_well_index(c[0],c[1]) for c in well_list]
 
+        # print well names as debug info
         for i in well_list_names:
             print(f"{i}")
         for i in well_list_physical_pos:
             print(f"{i}")
 
+        # set autofocus parameters
         if af_channel is None:
             self.multipointController.set_af_flag(False)
         else:
             assert af_channel in [c.name for c in self.configurationManager.configurations], f"{af_channel} is not a valid (AF) channel"
             self.multipointController.autofocus_channel_name=af_channel
             self.multipointController.set_af_flag(True)
-            # TODO change autofocuscontroller settings
 
+        # set grid data per well
         self.multipointController.set_NX(grid_data['x']['N'])
         self.multipointController.set_NY(grid_data['y']['N'])
         self.multipointController.set_NZ(grid_data['z']['N'])
@@ -95,10 +124,14 @@ class HCSController(QObject):
         self.multipointController.set_deltaZ(grid_data['z']['d'])
         self.multipointController.set_deltat(grid_data['t']['d'])
 
+        # set list of imaging channels
         self.multipointController.set_selected_configurations(channels)
+
+        # set image saving location
         self.multipointController.set_base_path(path="/home/pharmbio/Downloads")
         self.multipointController.prepare_folder_for_new_experiment(experiment_ID=experiment_id) # todo change this to a callback (so that each image can be handled in a callback, not as batch or whatever)
 
+        # start experiment, and return thread that actually does the imaging (thread.finished can be connected to some callback)
         return self.multipointController.run_experiment((well_list_names,well_list_physical_pos))
 
     @TypecheckFunction
