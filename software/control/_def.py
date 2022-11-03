@@ -147,10 +147,11 @@ class AutofocusConfig:
 
 @dataclass(frozen=True)
 class SoftwareStagePositionLimits:
-    X_POSITIVE:float = 56
-    X_NEGATIVE:float = -0.5
-    Y_POSITIVE:float = 56
-    Y_NEGATIVE:float = -0.5
+    # limits that have popped up in other places (X_POSITIVE:float = 56, X_NEGATIVE:float = -0.5, Y_POSITIVE:float = 56, Y_NEGATIVE:float = -0.5) are likely used for another stage type!
+    X_POSITIVE:float = 112.5
+    X_NEGATIVE:float = 10
+    Y_POSITIVE:float = 76
+    Y_NEGATIVE:float = 6
     Z_POSITIVE:float = 6
 
 class FocusMeasureOperators(str,Enum):
@@ -256,8 +257,8 @@ class MachineConfiguration:
     Y_HOME_SWITCH_POLARITY:int = LIMIT_SWITCH_POLARITY.ACTIVE_HIGH
     Z_HOME_SWITCH_POLARITY:int = LIMIT_SWITCH_POLARITY.ACTIVE_LOW
 
-    HOMING_ENABLED_X:bool = True
-    HOMING_ENABLED_Y:bool = True
+    HOMING_ENABLED_X:bool = False
+    HOMING_ENABLED_Y:bool = False
     HOMING_ENABLED_Z:bool = False
 
     SLEEP_TIME_S:float = 0.005
