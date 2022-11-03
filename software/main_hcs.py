@@ -11,11 +11,11 @@ import control.gui_hcs as gui
 
 if __name__ == "__main__":
     app = QApplication([])
+
     if True:
         app.setStyle('Fusion')
         win = gui.OctopiGUI()
         win.show()
-        app.exec_()
     else:
         c=gui.HCSController()
         c.acquire(
@@ -34,4 +34,5 @@ if __name__ == "__main__":
                 lambda:c.close()
             )
         )
-        app.exec_()
+
+    sys.exit(app.exec())

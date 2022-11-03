@@ -116,10 +116,10 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
-        elif self.widget_configuration == '384 well plate':
+        elif self.widget_configuration == WELLPLATE_NAMES[384]:
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
-        elif self.widget_configuration == '96 well plate':
+        elif self.widget_configuration == WELLPLATE_NAMES[96]:
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
@@ -254,6 +254,13 @@ class NavigationWidget(QFrame):
 import pyqtgraph as pg
 import numpy as np
 import cv2
+from enum import Enum
+
+class Color(tuple,Enum):
+    LIGHT_BLUE=(0xAD,0xD8,0xE6)
+    RED=(255,0,0)
+    LIGHT_GREY=(160,)*3
+
 
 class NavigationViewer(QFrame):
 
@@ -296,7 +303,7 @@ class NavigationViewer(QFrame):
  
         self.location_update_threshold_mm = 0.4    
  
-        self.box_color = (255, 0, 0)
+        self.box_color = Color.RED
         self.box_line_thickness = 2
  
         self.x_mm = None
@@ -304,34 +311,31 @@ class NavigationViewer(QFrame):
  
         self.update_display()
 
+        self.preview_fovs=[]
+
         MUTABLE_MACHINE_CONFIG.wellplate_format_change.connect(self.set_wellplate_type)
 
     def set_wellplate_type(self,wellplate_type:Union[str,int]):
-        wellplate_type_int_to_name={
-            384:'384 well plate',
-            96:'96 well plate',
-            24:'24 well plate',
-            12:'12 well plate',
-            6:'6 well plate',
-        }
         if type(wellplate_type)==int:
-            new_wellplate_type=wellplate_type_int_to_name[wellplate_type]
+            new_wellplate_type=WELLPLATE_NAMES[wellplate_type]
         else:
             new_wellplate_type=wellplate_type
 
         wellplate_type_image={
-            'glass slide'    : 'images/slide carrier_828x662.png',
-            '384 well plate' : 'images/384 well plate_1509x1010.png',
-            '96 well plate'  : 'images/96 well plate_1509x1010.png',
-            '24 well plate'  : 'images/24 well plate_1509x1010.png',
-            '12 well plate'  : 'images/12 well plate_1509x1010.png',
-            '6 well plate'   : 'images/6 well plate_1509x1010.png'
+            'glass slide'        : 'images/slide carrier_828x662.png',
+            WELLPLATE_NAMES[384] : 'images/384 well plate_1509x1010.png',
+            WELLPLATE_NAMES[96]  : 'images/96 well plate_1509x1010.png',
+            WELLPLATE_NAMES[24]  : 'images/24 well plate_1509x1010.png',
+            WELLPLATE_NAMES[12]  : 'images/12 well plate_1509x1010.png',
+            WELLPLATE_NAMES[6]   : 'images/6 well plate_1509x1010.png'
         }
         assert new_wellplate_type in wellplate_type_image, f"{new_wellplate_type} is not a valid plate type"
  
         self.background_image=cv2.imread(wellplate_type_image[new_wellplate_type])
  
+        # current image is..
         self.current_image = np.copy(self.background_image)
+        # current image display is..
         self.current_image_display = np.copy(self.background_image)
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
@@ -352,7 +356,8 @@ class NavigationViewer(QFrame):
  
         self.clear_imaged_positions()
  
-    def update_current_location(self,x_mm,y_mm):
+    @TypecheckFunction
+    def update_current_location(self,x_mm:Optional[float],y_mm:Optional[float]):
         if self.x_mm != None and self.y_mm != None:
             # update only when the displacement has exceeded certain value
             if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
@@ -366,47 +371,75 @@ class NavigationViewer(QFrame):
             self.x_mm = x_mm
             self.y_mm = y_mm
 
-    def draw_current_fov(self,x_mm,y_mm):
-        self.current_image_display = np.copy(self.current_image)
+    @TypecheckFunction
+    def coord_to_bb(self,x_mm:float,y_mm:float)->Tuple[Tuple[int,int],Tuple[int,int]]:
         if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            topleft_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)
+            topleft_y:int=round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+
+            top_left = (topleft_x,topleft_y)
+
+            bottomright_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)
+            bottomright_y:int=round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+            
+            bottom_right = (bottomright_x, bottomright_y)
         else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            topleft_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)
+            topleft_y:int=round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
 
-        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
+            top_left = (topleft_x,topleft_y)
 
-        self.last_fov_drawn=(x_mm,y_mm)
+            bottomright_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)
+            bottomright_y:int=round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+
+            bottom_right = (bottomright_x,bottomright_y)
+
+        return top_left,bottom_right
 
     def clear_imaged_positions(self):
         self.current_image = np.copy(self.background_image)
         if not self.last_fov_drawn is None:
-            self.draw_current_fov(self.last_fov_drawn[0],self.last_fov_drawn[1])
+            self.draw_current_fov(*self.last_fov_drawn)
         self.update_display()
 
     def update_display(self):
+        """
+        needs to be called when self.current_image_display has been flushed
+        e.g. after self.draw_current_fov() or self.clear_slide(), which is done currently
+        """
         self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)
 
     def clear_slide(self):
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
         self.update_display()
-
-    def register_fov(self,x_mm,y_mm):
-        color = (0,0,255)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+    
+    # this is used to draw an arbitrary fov onto the displayed image view
+    @TypecheckFunction
+    def draw_fov(self,x_mm:float,y_mm:float,color:Tuple[int,int,int],foreground:bool=True):
+        current_FOV_top_left, current_FOV_bottom_right=self.coord_to_bb(x_mm,y_mm)
+        if foreground:
+            img_target=self.current_image_display
         else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            img_target=self.current_image
+        cv2.rectangle(img_target, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+
+    # this is used to draw the fov when running acquisition
+    # draw onto background buffer so that when live view is updated, the live view fov is drawn on top of the already imaged positions
+    @TypecheckFunction
+    def register_fov(self,x_mm:float,y_mm:float,color:Tuple[int,int,int] = Color.LIGHT_BLUE):
+        current_FOV_top_left, current_FOV_bottom_right=self.coord_to_bb(x_mm,y_mm)
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+
+    def register_preview_fovs(self):
+        for x,y in self.preview_fovs:
+            self.draw_fov(x,y,Color.LIGHT_GREY,foreground=False)
+
+    # this is used to draw the fov when moving around live
+    @TypecheckFunction
+    def draw_current_fov(self,x_mm:float,y_mm:float):
+        self.current_image_display = np.copy(self.current_image)
+        self.draw_fov(x_mm,y_mm,self.box_color)
+        self.update_display()
+
+        self.last_fov_drawn=(x_mm,y_mm)

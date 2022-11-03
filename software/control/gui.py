@@ -159,7 +159,7 @@ class OctopiGUI(QMainWindow):
 	def closeEvent(self, event:QEvent):
 		event.accept()
 		# self.softwareTriggerGenerator.stop() @@@ => 
-		self.navigationController.home()
+		self.navigationController.home(home_x=MACHINE_CONFIG.HOMING_ENABLED_X,home_y=MACHINE_CONFIG.HOMING_ENABLED_Y,home_z=MACHINE_CONFIG.HOMING_ENABLED_Z)
 		self.liveController.stop_live()
 		self.camera.close()
 		self.imageSaver.close()

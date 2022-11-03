@@ -171,8 +171,8 @@ class NavigationController(QObject):
     def zero_theta(self):
         self.microcontroller.zero_theta()
 
-    def home(self):
-        if MACHINE_CONFIG.HOMING_ENABLED_Z:
+    def home(self,home_x:bool=True,home_y:bool=True,home_z:bool=True):
+        if home_z:
 			# retract the objective
             self.home_z()
 			# wait for the operation to finish
@@ -180,7 +180,7 @@ class NavigationController(QObject):
 
             print('objective retracted')
 
-            if MACHINE_CONFIG.HOMING_ENABLED_Z and MACHINE_CONFIG.HOMING_ENABLED_X and MACHINE_CONFIG.HOMING_ENABLED_Y:
+            if home_z and home_y and home_x:
                 # for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
                 self.move_x(12.0)
                 self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)

@@ -126,25 +126,29 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
+        # each region is a well
         n_regions = len(self.scan_coordinates_name)
         for coordinate_id in range(n_regions) if n_regions==1 else tqdm(range(n_regions),desc="well on plate",unit="well"):
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            coordiante_name = self.scan_coordinates_name[coordinate_id]
+            coordinate_mm = self.scan_coordinates_mm[coordinate_id]
+            coordinate_name = self.scan_coordinates_name[coordinate_id]
+
+            base_x=coordinate_mm[0]-self.deltaX*(self.NX-1)/2
+            base_y=coordinate_mm[1]-self.deltaY*(self.NY-1)/2
 
             # move to the specified coordinate
-            self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
+            self.navigationController.move_x_to(base_x)
             self.wait_till_operation_is_completed()
             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
-            self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+            self.navigationController.move_y_to(base_y)
             self.wait_till_operation_is_completed()
             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
             # add '_' to the coordinate name
-            coordiante_name = coordiante_name + '_'
+            coordinate_name = coordinate_name + '_'
 
-            x_scan_direction = 1
-            dx_usteps = 0
-            dy_usteps = 0
-            dz_usteps = 0
+            x_scan_direction = 1 # will be flipped between {-1, 1} to alternate movement direction in rows within the same well (instead of moving to same edge of row and wasting time by doing so)
+            on_abort_dx_usteps = 0
+            on_abort_dy_usteps = 0
+            on_abort_dz_usteps = 0
             z_pos = self.navigationController.z_pos
 
             # z stacking config
@@ -179,7 +183,8 @@ class MultiPointWorker(QObject):
                     if (self.NZ > 1):
                         # move to bottom of the z stack
                         if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
-                            self.navigationController.move_z_usteps(-self.deltaZ_usteps*round((self.NZ-1)/2))
+                            base_z=-self.deltaZ_usteps*round((self.NZ-1)/2)
+                            self.navigationController.move_z_usteps(base_z)
                             self.wait_till_operation_is_completed()
                             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
@@ -194,7 +199,7 @@ class MultiPointWorker(QObject):
                         if num_positions_per_well>1:
                             _=next(well_tqdm_iter,0)
                         
-                        file_ID = coordiante_name + str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+                        file_ID = coordinate_name + str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
                         # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                         # metadata = json.dumps(metadata)
 
@@ -265,11 +270,11 @@ class MultiPointWorker(QObject):
                         # check if the acquisition should be aborted
                         if self.multiPointController.abort_acqusition_requested:
                             self.liveController.turn_off_illumination()
-                            self.navigationController.move_x_usteps(-dx_usteps)
+                            self.navigationController.move_x_usteps(-on_abort_dx_usteps)
                             self.wait_till_operation_is_completed()
-                            self.navigationController.move_y_usteps(-dy_usteps)
+                            self.navigationController.move_y_usteps(-on_abort_dy_usteps)
                             self.wait_till_operation_is_completed()
-                            self.navigationController.move_z_usteps(-dz_usteps)
+                            self.navigationController.move_z_usteps(-on_abort_dz_usteps)
                             self.wait_till_operation_is_completed()
 
                             coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
@@ -283,18 +288,18 @@ class MultiPointWorker(QObject):
                                 self.navigationController.move_z_usteps(self.deltaZ_usteps)
                                 self.wait_till_operation_is_completed()
                                 time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
-                                dz_usteps = dz_usteps + self.deltaZ_usteps
+                                on_abort_dz_usteps = on_abort_dz_usteps + self.deltaZ_usteps
                     
                     if self.NZ > 1:
                         # move z back
                         if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
                             self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
                             self.wait_till_operation_is_completed()
-                            dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
+                            on_abort_dz_usteps = on_abort_dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
                         else:
                             self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
                             self.wait_till_operation_is_completed()
-                            dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
+                            on_abort_dz_usteps = on_abort_dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
                     # update FOV counter
                     self.FOV_counter = self.FOV_counter + 1
@@ -305,7 +310,7 @@ class MultiPointWorker(QObject):
                             self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
                             self.wait_till_operation_is_completed()
                             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
-                            dx_usteps = dx_usteps + x_scan_direction*self.deltaX_usteps
+                            on_abort_dx_usteps = on_abort_dx_usteps + x_scan_direction*self.deltaX_usteps
 
                 # instead of move back, reverse scan direction (12/29/2021)
                 x_scan_direction = -x_scan_direction
@@ -316,7 +321,7 @@ class MultiPointWorker(QObject):
                         self.navigationController.move_y_usteps(self.deltaY_usteps)
                         self.wait_till_operation_is_completed()
                         time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
-                        dy_usteps = dy_usteps + self.deltaY_usteps
+                        on_abort_dy_usteps = on_abort_dy_usteps + self.deltaY_usteps
 
             # exhaust tqdm iterator
             if num_positions_per_well>1:
@@ -329,7 +334,7 @@ class MultiPointWorker(QObject):
                     self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
-                    dy_usteps = dy_usteps - self.deltaY_usteps*(self.NY-1)
+                    on_abort_dy_usteps = on_abort_dy_usteps - self.deltaY_usteps*(self.NY-1)
 
                 # move x back at the end of the scan
                 if x_scan_direction == -1:
@@ -536,10 +541,9 @@ class MultiPointController(QObject):
             self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
             self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
             self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
-            # self.thread.finished.connect(self.thread.deleteLater)
             self.thread.finished.connect(self.thread.quit)
             self.thread.finished.connect(lambda:setattr(self,'thread',None))
-            # start the thread
+            
             self.thread.start()
 
             return self.thread
@@ -579,3 +583,22 @@ class MultiPointController(QObject):
 
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
+
+    @TypecheckFunction
+    def grid_positions_for_well(self,well_center_x_mm:float,well_center_y_mm:float)->List[Tuple[float,float]]:
+        """ get coordinates in mm of each grid position """
+
+        coords=[]
+
+        base_x=well_center_x_mm-self.deltaX*(self.NX-1)/2
+        base_y=well_center_y_mm-self.deltaY*(self.NY-1)/2
+
+        for i in range(self.NY):
+            y=base_y+i*self.deltaY
+            for j in range(self.NX):
+                x=base_x+j*self.deltaX
+                ##for k in range(self.NZ):
+                    # todo z=???
+                coords.append((x,y))
+
+        return coords
