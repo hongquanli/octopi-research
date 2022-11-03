@@ -350,7 +350,9 @@ class NavigationViewer(QFrame):
             self.fov_size_mm = 3000*camera_pixel_size_um/(50/9)/1000
         else:
             self.location_update_threshold_mm = 0.05
-            self.mm_per_pixel = 0.084665
+            WELLPLATE_IMAGE_LENGTH_IN_PIXELS=1509 # images in path(software/images) are 1509x1010
+            WELLPLATE_384_LENGTH_IN_MM=127.8 # from https://www.thermofisher.com/document-connect/document-connect.html?url=https://assets.thermofisher.com/TFS-Assets%2FLSG%2Fmanuals%2Fcms_042831.pdf
+            self.mm_per_pixel = WELLPLATE_384_LENGTH_IN_MM/WELLPLATE_IMAGE_LENGTH_IN_PIXELS # 0.084665 was the hardcoded value, which is closer to this number as calculated from the width of the plate at 85.5mm/1010px=0.0846535
             self.fov_size_mm = 3000*camera_pixel_size_um/(50/10)/1000 # '50/10' = tube_lens_mm/objective_magnification ?
             self.origin_bottom_left_x = MACHINE_CONFIG.X_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
             self.origin_bottom_left_y = MACHINE_CONFIG.Y_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
