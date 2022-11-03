@@ -1,6 +1,6 @@
 # qt libraries
 from qtpy.QtCore import QObject, Signal, Qt # type: ignore
-from qtpy.QtWidgets import QMainWindow, QWidget, QGridLayout, QDesktopWidget
+from qtpy.QtWidgets import QMainWindow, QWidget, QGridLayout, QDesktopWidget, QVBoxLayout, QLabel
 
 from control._def import *
 
@@ -10,6 +10,8 @@ import numpy as np
 import pyqtgraph as pg
 
 from typing import Optional, List, Union, Tuple
+
+from control.core import ConfigurationManager
 
 class ImageDisplay(QObject):
 
@@ -164,47 +166,25 @@ class ImageDisplayWindow(QMainWindow):
 
 class ImageArrayDisplayWindow(QMainWindow):
 
-    def __init__(self, window_title=''):
+    def __init__(self, configurationManager:ConfigurationManager, window_title=''):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
         self.widget = QWidget()
+        self.configurationManager=configurationManager
 
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
 
-        self.graphics_widget_1 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_1.view = self.graphics_widget_1.addViewBox()
-        self.graphics_widget_1.view.setAspectLocked(True)
-        self.graphics_widget_1.img = pg.ImageItem(border='w')
-        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img)
+        self.set_image_displays({
+            11:0,
+            12:1,
+            13:2,
+            14:3,
+            15:4,
+        },num_rows=2,num_columns=3)
 
-        self.graphics_widget_2 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_2.view = self.graphics_widget_2.addViewBox()
-        self.graphics_widget_2.view.setAspectLocked(True)
-        self.graphics_widget_2.img = pg.ImageItem(border='w')
-        self.graphics_widget_2.view.addItem(self.graphics_widget_2.img)
-
-        self.graphics_widget_3 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_3.view = self.graphics_widget_3.addViewBox()
-        self.graphics_widget_3.view.setAspectLocked(True)
-        self.graphics_widget_3.img = pg.ImageItem(border='w')
-        self.graphics_widget_3.view.addItem(self.graphics_widget_3.img)
-
-        self.graphics_widget_4 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_4.view = self.graphics_widget_4.addViewBox()
-        self.graphics_widget_4.view.setAspectLocked(True)
-        self.graphics_widget_4.img = pg.ImageItem(border='w')
-        self.graphics_widget_4.view.addItem(self.graphics_widget_4.img)
-
-        ## Layout
-        layout = QGridLayout()
-        layout.addWidget(self.graphics_widget_1, 0, 0)
-        layout.addWidget(self.graphics_widget_2, 0, 1)
-        layout.addWidget(self.graphics_widget_3, 1, 0)
-        layout.addWidget(self.graphics_widget_4, 1, 1) 
-        self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
 
         # set window size
@@ -213,12 +193,37 @@ class ImageArrayDisplayWindow(QMainWindow):
         height = width
         self.setFixedSize(width,height)
 
-    def display_image(self,image,illumination_source):
-        if illumination_source < 11:
-            self.graphics_widget_1.img.setImage(image,autoLevels=False)
-        elif illumination_source == 11:
-            self.graphics_widget_2.img.setImage(image,autoLevels=False)
-        elif illumination_source == 12:
-            self.graphics_widget_3.img.setImage(image,autoLevels=False)
-        elif illumination_source == 13:
-            self.graphics_widget_4.img.setImage(image,autoLevels=False)
+    @TypecheckFunction
+    def set_image_displays(self,channel_mappings:Dict[int,int],num_rows:int,num_columns:int):
+        self.num_image_displays=len(channel_mappings)
+        self.channel_mappings=channel_mappings
+        self.graphics_widgets=[]
+        image_display_layout = QGridLayout()
+
+        assert num_rows*num_columns>=self.num_image_displays
+
+        for i in range(self.num_image_displays):
+            next_graphics_widget = pg.GraphicsLayoutWidget()
+            next_graphics_widget.view = next_graphics_widget.addViewBox()
+            next_graphics_widget.view.setAspectLocked(True)
+            next_graphics_widget.img = pg.ImageItem(border='w')
+            next_graphics_widget.view.addItem(next_graphics_widget.img)
+
+            next_graphics_widget_wrapper=QVBoxLayout()
+            illumination_source_code=list(channel_mappings.keys())[i]
+            for c in self.configurationManager.configurations:
+                if c.illumination_source==illumination_source_code:
+                    channel_name=c.name
+            next_graphics_widget_wrapper.addWidget(QLabel(channel_name))
+            next_graphics_widget_wrapper.addWidget(next_graphics_widget)
+
+            row=i//num_columns
+            column=i%num_columns
+            image_display_layout.addLayout(next_graphics_widget_wrapper, row, column)
+
+            self.graphics_widgets.append(next_graphics_widget)
+
+        self.widget.setLayout(image_display_layout)
+
+    def display_image(self,image,channel_index:int):
+        self.graphics_widgets[self.channel_mappings[channel_index]].img.setImage(image,autoLevels=False)

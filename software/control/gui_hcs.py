@@ -58,10 +58,23 @@ class OctopiGUI(QMainWindow):
     @TypecheckFunction
     def start_experiment(self,experiment_data_target_folder:str,imaging_channel_list:List[str]):
         self.navigationViewer.register_preview_fovs()
-        self.multipointController.prepare_folder_for_new_experiment(experiment_data_target_folder)
-        self.multipointController.set_selected_configurations(imaging_channel_list)
-        well_list=self.wellSelectionWidget.widget_well_indices_as_physical_positions()
-        self.multipointController.run_experiment(well_list)
+
+        well_list=self.wellSelectionWidget.currently_selected_well_indices
+
+        af_channel=self.multipointController.autofocus_channel_name if self.multipointController.do_autofocus else None
+
+        self.hcs_controller.acquire(
+            well_list,
+            imaging_channel_list,
+            experiment_data_target_folder,
+            grid_data={
+                'x':{'d':self.multipointController.deltaX,'N':self.multipointController.NX},
+                'y':{'d':self.multipointController.deltaY,'N':self.multipointController.NY},
+                'z':{'d':self.multipointController.deltaZ,'N':self.multipointController.NZ},
+                't':{'d':self.multipointController.deltat,'N':self.multipointController.Nt},
+            },
+            af_channel=af_channel,
+        )
 
     def abort_experiment(self):
         self.multipointController.request_abort_aquisition()
@@ -69,9 +82,11 @@ class OctopiGUI(QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.hcs_controller=HCSController()
+
         # load window
         self.imageDisplayWindow = widgets.ImageDisplayWindow(draw_crosshairs=True)
-        self.imageArrayDisplayWindow = widgets.ImageArrayDisplayWindow()
+        self.imageArrayDisplayWindow = widgets.ImageArrayDisplayWindow(self.configurationManager,window_title="HCS microscope control")
 
         # image display windows
         self.imageDisplayTabs = QTabWidget()
@@ -81,8 +96,6 @@ class OctopiGUI(QMainWindow):
         # these widgets are used by a controller (which already tells us that there is something very wrong!)
         default_well_plate=WELLPLATE_NAMES[MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT]
         self.wellSelectionWidget = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
-
-        self.hcs_controller=HCSController()
         
         # open the camera
         self.camera.set_software_triggered_acquisition()
@@ -115,7 +128,7 @@ class OctopiGUI(QMainWindow):
             item=wellplate_selector.model().item(wpt)
             item.setFlags(item.flags() & ~Qt.ItemIsEnabled) # type: ignore
         wellplate_selector.setCurrentIndex(wellplate_types_str.index(default_well_plate))
-        wellplate_selector.currentIndexChanged.connect(lambda wellplate_type_index:setattr(MUTABLE_MACHINE_CONFIG,"WELLPLATE_FORMAT",WELLPLATE_NAMES[wellplate_type_index]))
+        wellplate_selector.currentIndexChanged.connect(lambda wellplate_type_index:setattr(MUTABLE_MACHINE_CONFIG,"WELLPLATE_FORMAT",tuple(WELLPLATE_FORMATS.keys())[wellplate_type_index]))
  
         wellplate_overview_header=QHBoxLayout()
         wellplate_overview_header.addWidget(QLabel("wellplate overview"))
@@ -228,7 +241,12 @@ class OctopiGUI(QMainWindow):
             x_well,y_well=WELLPLATE_FORMATS[MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT].convert_well_index(well_row,well_column)
             for x_grid_item,y_grid_item in self.multipointController.grid_positions_for_well(x_well,y_well):
                 LIGHT_GREY=(160,)*3
-                self.navigationViewer.draw_fov(x_grid_item,y_grid_item,color=LIGHT_GREY)
+                if self.hcs_controller.fov_exceeds_well_boundary(well_row,well_column,x_grid_item,y_grid_item):
+                    grid_item_color=(255,50,140)
+                else:
+                    grid_item_color=LIGHT_GREY
+
+                self.navigationViewer.draw_fov(x_grid_item,y_grid_item,color=grid_item_color)
                 preview_fov_list.append((x_grid_item,y_grid_item))
 
         self.navigationViewer.preview_fovs=preview_fov_list

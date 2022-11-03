@@ -175,7 +175,7 @@ class MultiPointWidget(QFrame):
         channel_names=[microscope_configuration.name for microscope_configuration in self.configurationManager.configurations]
         af_channel_dropdown.addItems(channel_names)
         af_channel_dropdown.setCurrentIndex(channel_names.index(self.multipointController.autofocus_channel_name))
-        af_channel_dropdown.currentIndexChanged.connect(self.set_autofocusChannel)
+        af_channel_dropdown.currentIndexChanged.connect(lambda index:setattr(MUTABLE_MACHINE_CONFIG,"MULTIPOINT_AUTOFOCUS_CHANNEL",channel_names[index]))
 
         grid_multipoint_acquisition_config=QGridLayout()
         grid_multipoint_acquisition_config.addWidget(self.checkbox_withAutofocus,0,0)
@@ -209,10 +209,6 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
-
-    @TypecheckFunction
-    def set_autofocusChannel(self,new_channel_index:int):
-        self.multipointController.autofocus_channel_name=self.configurationManager.configurations[new_channel_index].name
 
     @TypecheckFunction
     def set_deltaX(self,value:float):

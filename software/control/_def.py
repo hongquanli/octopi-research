@@ -152,7 +152,7 @@ class SoftwareStagePositionLimits:
     X_NEGATIVE:float = 10
     Y_POSITIVE:float = 76
     Y_NEGATIVE:float = 6
-    Z_POSITIVE:float = 6
+    Z_POSITIVE:float = 10
 
 class FocusMeasureOperators(str,Enum):
     """ focus measure operators - GLVA has worked well for darkfield/fluorescence, and LAPE has worked well for brightfield """
@@ -366,7 +366,7 @@ class MutableMachineConfiguration(QObject):
     # things that can change in software
     DEFAULT_TRIGGER_MODE:TriggerMode = TriggerMode.SOFTWARE
     FOCUS_MEASURE_OPERATOR:FocusMeasureOperators = FocusMeasureOperators.LAPE
-    MULTIPOINT_AUTOFOCUS_CHANNEL:str = 'BF LED matrix full'
+    MULTIPOINT_AUTOFOCUS_CHANNEL:str = 'Fluorescence 561 nm Ex'
     MULTIPOINT_BF_SAVING_OPTION:BrightfieldSavingMode = BrightfieldSavingMode.RAW
 
     objective_change:Signal=Signal(str)
@@ -385,7 +385,7 @@ class MutableMachineConfiguration(QObject):
             "MULTIPOINT_AUTOFOCUS_CHANNEL":self.autofocus_channel_change,
             "MULTIPOINT_BF_SAVING_OPTION":self.brightfield_saving_mode_change,
         }[name].emit(value)
-        # no need for super().__setattr__ because TypecheckClass(check_assignment=True) already takes care of that
+        super().__setattr__(name,value)
 
 
 @TypecheckClass

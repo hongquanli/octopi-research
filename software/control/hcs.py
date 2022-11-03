@@ -65,7 +65,7 @@ class HCSController(QObject):
             't':{'d':0.9,'N':1},
         },
         af_channel:Optional[str]=None,
-        plate_type:ClosedSet[int](6,12,24,96,384)=MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT,
+        plate_type:ClosedSet[Optional[int]](None,6,12,24,96,384)=None,
     )->Optional[QThread]:
         # set objective and well plate type from machine config (or.. should be part of imaging configuration..?)
         # set wells to be imaged <- acquire.well_list argument
@@ -74,7 +74,7 @@ class HCSController(QObject):
         # set selection and order of channels to be imaged <- acquire.channels argument
 
         # calculate physical imaging positions on wellplate given plate type and well selection
-        wellplate_format=WELLPLATE_FORMATS[plate_type]
+        wellplate_format=WELLPLATE_FORMATS[plate_type if not plate_type is None else MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT]
 
         # validate well positions (should be on the plate, given selected wellplate type)
         if wellplate_format.number_of_skip>0:
@@ -97,21 +97,19 @@ class HCSController(QObject):
                 if well_column>=(wellplate_format.columns-wellplate_format.number_of_skip):
                     raise ValueError(f"well {well_column=} out of bounds {wellplate_format}")
 
-        well_list_names:List[str]=[wellplate_format.well_name(c[0],c[1]) for c in well_list]
-        well_list_physical_pos:List[Tuple[float,float]]=[wellplate_format.convert_well_index(c[0],c[1]) for c in well_list]
+        well_list_names:List[str]=[wellplate_format.well_name(*c) for c in well_list]
+        well_list_physical_pos:List[Tuple[float,float]]=[wellplate_format.convert_well_index(*c) for c in well_list]
 
         # print well names as debug info
-        for i in well_list_names:
-            print(f"{i}")
-        for i in well_list_physical_pos:
-            print(f"{i}")
+        print("imaging wells: ",", ".join(well_list_names))
 
         # set autofocus parameters
         if af_channel is None:
             self.multipointController.set_af_flag(False)
         else:
             assert af_channel in [c.name for c in self.configurationManager.configurations], f"{af_channel} is not a valid (AF) channel"
-            self.multipointController.autofocus_channel_name=af_channel
+            if af_channel!=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL:
+                MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL=af_channel
             self.multipointController.set_af_flag(True)
 
         # set grid data per well
@@ -124,6 +122,12 @@ class HCSController(QObject):
         self.multipointController.set_deltaZ(grid_data['z']['d'])
         self.multipointController.set_deltat(grid_data['t']['d'])
 
+        for i,(well_row,well_column) in enumerate(well_list):
+            well_x_mm,well_y_mm=well_list_physical_pos[i]
+            for x_grid_item,y_grid_item in self.multipointController.grid_positions_for_well(well_x_mm,well_y_mm):
+                if self.fov_exceeds_well_boundary(well_row,well_column,x_grid_item,y_grid_item):
+                    raise ValueError(f"at least one grid item is outside the bounds of the well! well size is {wellplate_format.well_size_mm}mm")
+
         # set list of imaging channels
         self.multipointController.set_selected_configurations(channels)
 
@@ -133,6 +137,24 @@ class HCSController(QObject):
 
         # start experiment, and return thread that actually does the imaging (thread.finished can be connected to some callback)
         return self.multipointController.run_experiment((well_list_names,well_list_physical_pos))
+
+    @TypecheckFunction
+    def fov_exceeds_well_boundary(self,well_row:int,well_column:int,x_mm:float,y_mm:float)->bool:
+        wellplate_format=WELLPLATE_FORMATS[MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT]
+
+        well_center_x_mm,well_center_y_mm=wellplate_format.convert_well_index(well_row,well_column)
+
+        # assuming wells are square (even though they are round-ish)
+        well_left_boundary=well_center_x_mm-wellplate_format.well_size_mm/2
+        well_right_boundary=well_center_x_mm+wellplate_format.well_size_mm/2
+        assert well_left_boundary<well_right_boundary
+        well_upper_boundary=well_center_y_mm+wellplate_format.well_size_mm/2
+        well_lower_boundary=well_center_y_mm-wellplate_format.well_size_mm/2
+        assert well_lower_boundary<well_upper_boundary
+
+        is_in_bounds=x_mm>=well_left_boundary and x_mm<=well_right_boundary and y_mm<=well_upper_boundary and y_mm>=well_lower_boundary
+
+        return not is_in_bounds
 
     @TypecheckFunction
     def close(self):

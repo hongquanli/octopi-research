@@ -358,6 +358,10 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
+    @property
+    def autofocus_channel_name(self)->str:
+        return MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
+
     #@TypecheckFunction
     def __init__(self,
         camera:camera.Camera,
@@ -393,7 +397,6 @@ class MultiPointController(QObject):
         self.experiment_ID: Optional[str] = None
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
-        self.autofocus_channel_name=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
         self.thread:Optional[QThread]=None
 
         # set some default values to avoid introducing new attributes outside constructor
