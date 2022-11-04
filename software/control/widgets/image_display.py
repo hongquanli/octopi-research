@@ -202,6 +202,12 @@ class ImageArrayDisplayWindow(QMainWindow):
 
         assert num_rows*num_columns>=self.num_image_displays
 
+        # restrict zooming and moving range so that image is always in view  (part 1 of 2)
+        max_state=[[-311.2293371679432, 1211.2293371679432], [-44.55663943395035, 944.5566394339503]] # furthest zoomed out
+        min_state=[[340.21242362722325, 398.2243346574582], [538.2444330186559, 575.9337000574072]] # furthest zoomed in
+        ((max_lowerx,max_upperx),(max_lowery,max_uppery))=max_state
+        ((min_lowerx,min_upperx),(min_lowery,min_uppery))=min_state
+
         for i in range(self.num_image_displays):
             next_graphics_widget = pg.GraphicsLayoutWidget()
             next_graphics_widget.view = next_graphics_widget.addViewBox()
@@ -209,11 +215,31 @@ class ImageArrayDisplayWindow(QMainWindow):
             next_graphics_widget.img = pg.ImageItem(border='w')
             next_graphics_widget.view.addItem(next_graphics_widget.img)
 
+            # restrict zooming and moving (part 2 of 2)
+            next_graphics_widget.view.setLimits(            
+                xMin=max_lowerx,
+                xMax=max_upperx,
+                yMin=max_lowery,
+                yMax=max_uppery,
+
+                minXRange=min_upperx-min_lowerx,
+                maxXRange=max_upperx-max_lowerx,
+                minYRange=min_uppery-min_lowery,
+                maxYRange=max_uppery-max_lowery,
+            )
+
+            # link all views together so that each image view shows the same region
+            if i>0:
+                next_graphics_widget.view.setXLink(self.graphics_widgets[0].view)
+                next_graphics_widget.view.setYLink(self.graphics_widgets[0].view)
+
             next_graphics_widget_wrapper=QVBoxLayout()
             illumination_source_code=list(channel_mappings.keys())[i]
+
             for c in self.configurationManager.configurations:
                 if c.illumination_source==illumination_source_code:
                     channel_name=c.name
+
             next_graphics_widget_wrapper.addWidget(QLabel(channel_name))
             next_graphics_widget_wrapper.addWidget(next_graphics_widget)
 
@@ -226,4 +252,6 @@ class ImageArrayDisplayWindow(QMainWindow):
         self.widget.setLayout(image_display_layout)
 
     def display_image(self,image,channel_index:int):
+        # print(f"{self.graphics_widgets[0].view.getState()['viewRange']=}")
+
         self.graphics_widgets[self.channel_mappings[channel_index]].img.setImage(image,autoLevels=False)

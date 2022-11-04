@@ -278,11 +278,11 @@ class NavigationViewer(QFrame):
         self.graphics_widget.img = pg.ImageItem(border='w')
         self.graphics_widget.view.addItem(self.graphics_widget.img)
         # make sure plate view is always visible, from view.getState()['viewRange']:
-        max_state=[[-70.74301114861895, 1579.743011148619], [-254.9490586181788, 1264.9490586181787]]
-        min_state=[[733.5075292478979, 886.8248563569729], [484.2505774030056, 639.926632621451]]
+        max_state=[[-70.74301114861895, 1579.743011148619], [-254.9490586181788, 1264.9490586181787]] # furthest zoomed out
+        min_state=[[733.5075292478979, 886.8248563569729], [484.2505774030056, 639.926632621451]] # furthest zoomed in
         ((max_lowerx,max_upperx),(max_lowery,max_uppery))=max_state
         ((min_lowerx,min_upperx),(min_lowery,min_uppery))=min_state
-        self.graphics_widget.view.setLimits(            
+        self.graphics_widget.view.setLimits(
             xMin=max_lowerx,
             xMax=max_upperx,
             yMin=max_lowery,
