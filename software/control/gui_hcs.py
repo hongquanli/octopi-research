@@ -7,6 +7,8 @@ os.environ["QT_API"] = "pyqt5"
 from qtpy.QtCore import Qt, QEvent
 from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget
 
+import numpy
+
 # app specific libraries
 import control.widgets as widgets
 import control.camera as camera
@@ -15,6 +17,7 @@ import control.microcontroller as microcontroller
 from control.hcs import HCSController
 from control._def import *
 
+import pyqtgraph as pg
 import pyqtgraph.dockarea as dock
 
 from control.typechecker import TypecheckFunction
@@ -136,12 +139,15 @@ class OctopiGUI(QMainWindow):
         wellplate_overview_header.addWidget(QLabel("change plate type:"))
         wellplate_overview_header.addWidget(wellplate_selector)
 
-        navigationviewer_widget=QVBoxLayout()
-        navigationviewer_widget.addLayout(wellplate_overview_header)
-        navigationviewer_widget.addWidget(self.navigationViewer)
+        self.navigationViewWrapper=QVBoxLayout()
+        self.navigationViewWrapper.addLayout(wellplate_overview_header)
+        self.navigationViewWrapper.addWidget(self.navigationViewer)
+
+        self.histogramWidget=pg.GraphicsLayoutWidget(show=True, title="Basic plotting examples")
+        self.histogramWidget.view=self.histogramWidget.addViewBox()
 
         # layout widgets
-        layout = QVBoxLayout() #layout = QStackedLayout()
+        layout = QVBoxLayout()
         #layout.addWidget(self.cameraSettingWidget)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
@@ -149,7 +155,8 @@ class OctopiGUI(QMainWindow):
             layout.addWidget(self.dacControlWidget)
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
-        layout.addLayout(navigationviewer_widget)
+        layout.addLayout(self.navigationViewWrapper)
+        layout.addWidget(self.histogramWidget)
         layout.addStretch()
         
         # transfer the layout to the central widget
@@ -197,6 +204,7 @@ class OctopiGUI(QMainWindow):
         self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
         self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
+        self.imageDisplay.image_to_display.connect(self.setHistogram)
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
@@ -229,6 +237,35 @@ class OctopiGUI(QMainWindow):
 
         self.multiPointWidget.entry_NX.valueChanged.connect(self.on_well_selection_change)
         self.multiPointWidget.entry_NY.valueChanged.connect(self.on_well_selection_change)
+
+
+    def setHistogram(self,image_data):
+        if image_data.dtype==numpy.uint8:
+            max_value=255
+        elif image_data.dtype==numpy.uint16:
+            max_value=2**16
+        else:
+            raise Exception(f"{image_data.dtype=} unimplemented")
+
+        hist,bins=numpy.histogram(image_data,bins=numpy.linspace(0,max_value,101,dtype=image_data.dtype))
+        hist=hist/hist.max() # normalize to [0;1]
+
+        self.histogramWidget.view.setLimits(
+            xMin=0,
+            xMax=max_value,
+            yMin=0.0,
+            yMax=1.0,
+            minXRange=bins[4],
+            maxXRange=bins[-1],
+            minYRange=1.0,
+            maxYRange=1.0,
+        )
+
+        try:
+            self.histogramWidget.plot_data.clear()
+            self.histogramWidget.plot_data.plot(x=bins[:-1],y=hist)
+        except:
+            self.histogramWidget.plot_data=self.histogramWidget.addPlot(0,0,title="Histogram",x=bins[:-1],y=hist,viewBox=self.histogramWidget.view)
 
     def on_well_selection_change(self):
         # clear display
