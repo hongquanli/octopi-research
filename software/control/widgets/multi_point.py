@@ -1,5 +1,5 @@
 # qt libraries
-from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog
+from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar
 from qtpy.QtGui import QIcon
 
 from control._def import *
@@ -186,11 +186,17 @@ class MultiPointWidget(QFrame):
         grid_line3.addWidget(self.list_configurations)
         grid_line3.addLayout(grid_multipoint_acquisition_config)
 
+        self.progress_bar=QProgressBar()
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(1)
+        self.progress_bar.setValue(0)
+
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
         self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line2,2,0)
         self.grid.addLayout(grid_line3,3,0)
+        self.grid.addWidget(self.progress_bar,4,0)
         self.setLayout(self.grid)
 
         # add and display a timer - to be implemented

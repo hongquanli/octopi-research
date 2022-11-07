@@ -79,7 +79,23 @@ class OctopiGUI(QMainWindow):
                 't':{'d':self.multipointController.deltat,'N':self.multipointController.Nt},
             },
             af_channel=af_channel,
+            set_num_acquisitions_callback=lambda num:self.multiPointWidget.progress_bar.setMaximum(num),
+            on_new_acquisition=self.on_step_completed,
         )
+
+    def on_step_completed(self,step:str):
+        if step=="x": # x (in well)
+            pass
+        elif step=="y": # y (in well)
+            pass
+        elif step=="z": # z (in well)
+            pass
+        elif step=="t": # time
+            pass
+        elif step=="c": # channel
+            # this is the innermost callback
+            # for each one of these, one image is actually taken
+            self.multiPointWidget.progress_bar.setValue(self.multiPointWidget.progress_bar.value()+1)
 
     def abort_experiment(self):
         self.multipointController.request_abort_aquisition()
@@ -154,7 +170,7 @@ class OctopiGUI(QMainWindow):
 
         # add panel to change image settings
         self.imageBrightnessSlider=QSlider(Qt.Horizontal)
-        self.imageBrightnessSlider.setTickPosition(QSlider.TicksBothSides)
+        self.imageBrightnessSlider.setTickPosition(QSlider.TicksBelow)
         brightness_adjust_min=5
         brightness_adjust_max=15
         self.imageBrightnessSlider.setRange(brightness_adjust_min,brightness_adjust_max)
@@ -165,7 +181,7 @@ class OctopiGUI(QMainWindow):
         self.imageBrightnessSlider.value=1.0
 
         self.imageContrastSlider=QSlider(Qt.Horizontal)
-        self.imageContrastSlider.setTickPosition(QSlider.TicksBothSides)
+        self.imageContrastSlider.setTickPosition(QSlider.TicksBelow)
         contrast_adjust_min=5
         contrast_adjust_max=15
         self.imageContrastSlider.setRange(contrast_adjust_min,contrast_adjust_max)

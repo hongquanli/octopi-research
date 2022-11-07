@@ -34,7 +34,11 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    def __init__(self,multiPointController,scan_coordinates:Tuple[List[str],List[Tuple[float,float]]]):
+    def __init__(self,
+        multiPointController,
+        scan_coordinates:Tuple[List[str],List[Tuple[float,float]]],
+        on_new_acquisition:Optional[Callable[[str],None]]
+    ):
         super().__init__()
         self.multiPointController:MultiPointController = multiPointController
 
@@ -67,6 +71,8 @@ class MultiPointWorker(QObject):
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point:int = 0
+
+        self.on_new_acquisition=on_new_acquisition
 
         self.scan_coordinates_name,self.scan_coordinates_mm = scan_coordinates
 
@@ -255,6 +261,9 @@ class MultiPointWorker(QObject):
                                 cv2.imwrite(saving_path,image)
                             QApplication.processEvents()
 
+                            if not self.on_new_acquisition is None:
+                                self.on_new_acquisition('c')
+
                         # add the coordinate of the current location
                         coordinates_pd = pd.concat([
                             coordinates_pd,
@@ -289,6 +298,9 @@ class MultiPointWorker(QObject):
                                 self.wait_till_operation_is_completed()
                                 time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
                                 on_abort_dz_usteps = on_abort_dz_usteps + self.deltaZ_usteps
+
+                        if not self.on_new_acquisition is None:
+                            self.on_new_acquisition('z')
                     
                     if self.NZ > 1:
                         # move z back
@@ -312,6 +324,9 @@ class MultiPointWorker(QObject):
                             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
                             on_abort_dx_usteps = on_abort_dx_usteps + x_scan_direction*self.deltaX_usteps
 
+                    if not self.on_new_acquisition is None:
+                        self.on_new_acquisition('x')
+
                 # instead of move back, reverse scan direction (12/29/2021)
                 x_scan_direction = -x_scan_direction
 
@@ -322,6 +337,9 @@ class MultiPointWorker(QObject):
                         self.wait_till_operation_is_completed()
                         time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
                         on_abort_dy_usteps = on_abort_dy_usteps + self.deltaY_usteps
+
+                if not self.on_new_acquisition is None:
+                    self.on_new_acquisition('y')
 
             # exhaust tqdm iterator
             if num_positions_per_well>1:
@@ -348,6 +366,9 @@ class MultiPointWorker(QObject):
 
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
+
+        if not self.on_new_acquisition is None:
+            self.on_new_acquisition('t')
 
 class MultiPointController(QObject):
 
@@ -483,8 +504,12 @@ class MultiPointController(QObject):
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    @TypecheckFunction
-    def run_experiment(self,well_selection:Tuple[List[str],List[Tuple[float,float]]])->Optional[QThread]:
+    #@TypecheckFunction
+    def run_experiment(self,
+        well_selection:Tuple[List[str],List[Tuple[float,float]]],
+        set_num_acquisitions_callback:Optional[Callable[[int],None]],
+        on_new_acquisition:Optional[Callable[[str],None]]
+    )->Optional[QThread]:
         while not self.thread is None:
             time.sleep(0.05)
 
@@ -509,7 +534,11 @@ class MultiPointController(QObject):
             print("no channels selected - not acquiring anything")
             self._on_acquisition_completed()
         else:
-            print(f"start multipoint with {num_wells} wells, {num_images_per_well} images per well, {num_channels} channels, total={num_wells*num_images_per_well*num_channels} images (AF is {'on' if self.do_autofocus else 'off'})")
+            total_num_acquisitions=num_wells*num_images_per_well*num_channels
+            print(f"start multipoint with {num_wells} wells, {num_images_per_well} images per well, {num_channels} channels, total={total_num_acquisitions} images (AF is {'on' if self.do_autofocus else 'off'})")
+
+            if not set_num_acquisitions_callback is None:
+                set_num_acquisitions_callback(total_num_acquisitions)
         
             # stop live
             if self.liveController.is_live:
@@ -531,7 +560,7 @@ class MultiPointController(QObject):
             # create a QThread object
             self.thread = QThread()
             # create a worker object
-            self.multiPointWorker = MultiPointWorker(self,image_positions)
+            self.multiPointWorker = MultiPointWorker(self,image_positions,on_new_acquisition)
             # move the worker to the thread
             self.multiPointWorker.moveToThread(self.thread)
             # connect signals and slots

@@ -53,7 +53,7 @@ class HCSController(QObject):
 
         self.num_running_experiments=0
 
-    @TypecheckFunction
+    #@TypecheckFunction
     def acquire(self,
         well_list:List[Tuple[int,int]],
         channels:List[str],
@@ -66,6 +66,9 @@ class HCSController(QObject):
         },
         af_channel:Optional[str]=None,
         plate_type:ClosedSet[Optional[int]](None,6,12,24,96,384)=None,
+
+        set_num_acquisitions_callback:Optional[Callable[[int],None]]=None,
+        on_new_acquisition:Optional[Callable[[str],None]]=None,
     )->Optional[QThread]:
         # set objective and well plate type from machine config (or.. should be part of imaging configuration..?)
         # set wells to be imaged <- acquire.well_list argument
@@ -136,7 +139,7 @@ class HCSController(QObject):
         self.multipointController.prepare_folder_for_new_experiment(experiment_ID=experiment_id) # todo change this to a callback (so that each image can be handled in a callback, not as batch or whatever)
 
         # start experiment, and return thread that actually does the imaging (thread.finished can be connected to some callback)
-        return self.multipointController.run_experiment((well_list_names,well_list_physical_pos))
+        return self.multipointController.run_experiment((well_list_names,well_list_physical_pos),set_num_acquisitions_callback,on_new_acquisition)
 
     @TypecheckFunction
     def fov_exceeds_well_boundary(self,well_row:int,well_column:int,x_mm:float,y_mm:float)->bool:
