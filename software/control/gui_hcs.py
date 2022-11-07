@@ -5,7 +5,7 @@ os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
 from qtpy.QtCore import Qt, QEvent
-from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget
+from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider
 
 import numpy
 
@@ -19,6 +19,8 @@ from control._def import *
 
 import pyqtgraph as pg
 import pyqtgraph.dockarea as dock
+
+from PIL import ImageEnhance, Image
 
 from control.typechecker import TypecheckFunction
 
@@ -146,6 +148,51 @@ class OctopiGUI(QMainWindow):
         self.histogramWidget=pg.GraphicsLayoutWidget(show=True, title="Basic plotting examples")
         self.histogramWidget.view=self.histogramWidget.addViewBox()
 
+        self.imageEnhanceWidgetHeader=QHBoxLayout()
+        self.imageEnhanceWidgetHeader.addWidget(QLabel("Brightness"))
+        self.imageEnhanceWidgetHeader.addWidget(QLabel("Contrast"))
+
+        # add panel to change image settings
+        self.imageBrightnessSlider=QSlider(Qt.Horizontal)
+        self.imageBrightnessSlider.setTickPosition(QSlider.TicksBothSides)
+        brightness_adjust_min=5
+        brightness_adjust_max=15
+        self.imageBrightnessSlider.setRange(brightness_adjust_min,brightness_adjust_max)
+        self.imageBrightnessSlider.setSingleStep(1)
+        self.imageBrightnessSlider.setTickInterval(5)
+        self.imageBrightnessSlider.setValue(10)
+        self.imageBrightnessSlider.valueChanged.connect(self.set_brightness)
+        self.imageBrightnessSlider.value=1.0
+
+        self.imageContrastSlider=QSlider(Qt.Horizontal)
+        self.imageContrastSlider.setTickPosition(QSlider.TicksBothSides)
+        contrast_adjust_min=5
+        contrast_adjust_max=15
+        self.imageContrastSlider.setRange(contrast_adjust_min,contrast_adjust_max)
+        self.imageContrastSlider.setSingleStep(1)
+        self.imageContrastSlider.setTickInterval(5)
+        self.imageContrastSlider.setValue(10)
+        self.imageContrastSlider.valueChanged.connect(self.set_contrast)
+        self.imageContrastSlider.value=1.0
+
+        self.imageEnhanceWidget=QHBoxLayout()
+        self.imageEnhanceWidget.addWidget(self.imageBrightnessSlider)
+        self.imageEnhanceWidget.addWidget(self.imageContrastSlider)
+        self.last_raw_image=None
+        self.last_image_data=None
+
+        self.imageEnhanceWidgetFooter=QHBoxLayout()
+        self.imageEnhanceWidgetFooterLeft=QHBoxLayout()
+        self.imageEnhanceWidgetFooterLeft.addWidget(QLabel(f"{brightness_adjust_min/10}"),0,Qt.AlignLeft)
+        self.imageEnhanceWidgetFooterLeft.addWidget(QLabel(f"{self.imageBrightnessSlider.value}"),0,Qt.AlignCenter)
+        self.imageEnhanceWidgetFooterLeft.addWidget(QLabel(f"{brightness_adjust_max/10}"),0,Qt.AlignRight)
+        self.imageEnhanceWidgetFooter.addLayout(self.imageEnhanceWidgetFooterLeft)
+        self.imageEnhanceWidgetFooterRight=QHBoxLayout()
+        self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{contrast_adjust_min/10}"),0,Qt.AlignLeft)
+        self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{self.imageContrastSlider.value}"),0,Qt.AlignCenter)
+        self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{contrast_adjust_max/10}"),0,Qt.AlignRight)
+        self.imageEnhanceWidgetFooter.addLayout(self.imageEnhanceWidgetFooterRight)
+
         # layout widgets
         layout = QVBoxLayout()
         #layout.addWidget(self.cameraSettingWidget)
@@ -157,6 +204,9 @@ class OctopiGUI(QMainWindow):
         layout.addWidget(self.recordTabWidget)
         layout.addLayout(self.navigationViewWrapper)
         layout.addWidget(self.histogramWidget)
+        layout.addLayout(self.imageEnhanceWidgetHeader)
+        layout.addLayout(self.imageEnhanceWidget)
+        layout.addLayout(self.imageEnhanceWidgetFooter)
         layout.addStretch()
         
         # transfer the layout to the central widget
@@ -203,8 +253,7 @@ class OctopiGUI(QMainWindow):
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
         self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-        self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
-        self.imageDisplay.image_to_display.connect(self.setHistogram)
+        self.imageDisplay.image_to_display.connect(self.processLiveImage) # internally calls self.imageDisplayWindow.display_image, among other things
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
@@ -238,34 +287,79 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget.entry_NX.valueChanged.connect(self.on_well_selection_change)
         self.multiPointWidget.entry_NY.valueChanged.connect(self.on_well_selection_change)
 
+    @TypecheckFunction
+    def set_brightness(self,value:int):
+        """ value<1 darkens image, value>1 brightens image """
 
-    def setHistogram(self,image_data):
-        if image_data.dtype==numpy.uint8:
-            max_value=255
-        elif image_data.dtype==numpy.uint16:
-            max_value=2**16
-        else:
-            raise Exception(f"{image_data.dtype=} unimplemented")
+        # convert qslider value to actual factor
+        factor=value/10
+        self.imageBrightnessSlider.value=factor
 
-        hist,bins=numpy.histogram(image_data,bins=numpy.linspace(0,max_value,101,dtype=image_data.dtype))
-        hist=hist/hist.max() # normalize to [0;1]
+        self.processLiveImage()
 
-        self.histogramWidget.view.setLimits(
-            xMin=0,
-            xMax=max_value,
-            yMin=0.0,
-            yMax=1.0,
-            minXRange=bins[4],
-            maxXRange=bins[-1],
-            minYRange=1.0,
-            maxYRange=1.0,
-        )
+    @TypecheckFunction
+    def set_contrast(self,value:int):
+        """ value<1 decreases image contrast, value>1 increases image contrast """
 
-        try:
-            self.histogramWidget.plot_data.clear()
-            self.histogramWidget.plot_data.plot(x=bins[:-1],y=hist)
-        except:
-            self.histogramWidget.plot_data=self.histogramWidget.addPlot(0,0,title="Histogram",x=bins[:-1],y=hist,viewBox=self.histogramWidget.view)
+        # convert qslider value to actal factor
+        factor=value/10
+        self.imageContrastSlider.value=factor
+
+        self.processLiveImage()
+
+    # callback for newly acquired images in live view
+    @TypecheckFunction
+    def processLiveImage(self,image_data:Optional[numpy.ndarray]=None):
+        """ set histogram according to new image. clear internal buffer on request (used by the brightness/contrast adjust functions. acquiring new image clears buffer, setting histogram for adjusted images should not clear buffer) """
+
+        # if there is a new image, save it, and calculate histogram
+        if not image_data is None:
+            # overwrite last image with new image
+            self.last_image_data=image_data
+
+            # calculate histogram from input image
+            if image_data.dtype==numpy.uint8:
+                max_value=255
+            elif image_data.dtype==numpy.uint16:
+                max_value=2**16
+            else:
+                raise Exception(f"{image_data.dtype=} unimplemented")
+
+            hist,bins=numpy.histogram(image_data,bins=numpy.linspace(0,max_value,101,dtype=image_data.dtype))
+            hist=hist/hist.max() # normalize to [0;1]
+
+            self.histogramWidget.view.setLimits(
+                xMin=0,
+                xMax=max_value,
+                yMin=0.0,
+                yMax=1.0,
+                minXRange=bins[4],
+                maxXRange=bins[-1],
+                minYRange=1.0,
+                maxYRange=1.0,
+            )
+
+            try:
+                self.histogramWidget.plot_data.clear()
+                self.histogramWidget.plot_data.plot(x=bins[:-1],y=hist)
+            except:
+                self.histogramWidget.plot_data=self.histogramWidget.addPlot(0,0,title="Histogram",x=bins[:-1],y=hist,viewBox=self.histogramWidget.view)
+                self.histogramWidget.plot_data.hideAxis("left")
+
+        # if there is data to display, apply contrast/brightness settings, then actually display the data
+        if not self.last_image_data is None:
+
+            # convert to uint8 for pillow image enhancement (not sure why uint8 is required..?)
+            brightness_enhancer = ImageEnhance.Brightness(Image.fromarray(numpy.uint8(self.last_image_data)))
+            brightness_enhanced_image=brightness_enhancer.enhance(self.imageBrightnessSlider.value)
+            contrast_enhancer = ImageEnhance.Contrast(brightness_enhanced_image)
+            contrast_enhanced_image=contrast_enhancer.enhance(self.imageContrastSlider.value)
+
+            image_data=numpy.asarray(contrast_enhanced_image) # numpy.array could also be used, but asarray does not copy the image data (read only view)
+            # display newly enhanced image
+            self.imageDisplayWindow.display_image(image_data)
+
+        # if there is neither a new nor an old image, only brightness/contrast settings have been changed but there is nothing to display
 
     def on_well_selection_change(self):
         # clear display
