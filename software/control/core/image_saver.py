@@ -8,7 +8,6 @@ from queue import Queue
 from threading import Thread, Lock
 import time
 import numpy as np
-import cv2
 from datetime import datetime
 import os
 
@@ -58,7 +57,7 @@ class ImageSaver(QObject):
                     # need to use tiff when saving 16 bit images
                     iio.imwrite(saving_path + '.tiff',image)
                 else:
-                    cv2.imwrite(saving_path + '.' + self.image_format.value,image)
+                    iio.imwrite(saving_path + '.' + self.image_format.value,image)
 
                 self.counter = self.counter + 1
                 self.queue.task_done()

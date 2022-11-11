@@ -33,11 +33,11 @@ class MultiPointWorker(QObject):
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
+    signal_new_acquisition=Signal(str)
 
     def __init__(self,
         multiPointController,
-        scan_coordinates:Tuple[List[str],List[Tuple[float,float]]],
-        on_new_acquisition:Optional[Callable[[str],None]]
+        scan_coordinates:Tuple[List[str],List[Tuple[float,float]]]
     ):
         super().__init__()
         self.multiPointController:MultiPointController = multiPointController
@@ -71,8 +71,6 @@ class MultiPointWorker(QObject):
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point:int = 0
-
-        self.on_new_acquisition=on_new_acquisition
 
         self.scan_coordinates_name,self.scan_coordinates_mm = scan_coordinates
 
@@ -261,8 +259,7 @@ class MultiPointWorker(QObject):
                                 cv2.imwrite(saving_path,image)
                             QApplication.processEvents()
 
-                            if not self.on_new_acquisition is None:
-                                self.on_new_acquisition('c')
+                            self.signal_new_acquisition.emit('c')
 
                         # add the coordinate of the current location
                         coordinates_pd = pd.concat([
@@ -299,8 +296,7 @@ class MultiPointWorker(QObject):
                                 time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
                                 on_abort_dz_usteps = on_abort_dz_usteps + self.deltaZ_usteps
 
-                        if not self.on_new_acquisition is None:
-                            self.on_new_acquisition('z')
+                        self.signal_new_acquisition.emit('z')
                     
                     if self.NZ > 1:
                         # move z back
@@ -324,8 +320,7 @@ class MultiPointWorker(QObject):
                             time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
                             on_abort_dx_usteps = on_abort_dx_usteps + x_scan_direction*self.deltaX_usteps
 
-                    if not self.on_new_acquisition is None:
-                        self.on_new_acquisition('x')
+                    self.signal_new_acquisition.emit('x')
 
                 # instead of move back, reverse scan direction (12/29/2021)
                 x_scan_direction = -x_scan_direction
@@ -338,8 +333,7 @@ class MultiPointWorker(QObject):
                         time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
                         on_abort_dy_usteps = on_abort_dy_usteps + self.deltaY_usteps
 
-                if not self.on_new_acquisition is None:
-                    self.on_new_acquisition('y')
+                self.signal_new_acquisition.emit('y')
 
             # exhaust tqdm iterator
             if num_positions_per_well>1:
@@ -367,8 +361,7 @@ class MultiPointWorker(QObject):
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
 
-        if not self.on_new_acquisition is None:
-            self.on_new_acquisition('t')
+        self.signal_new_acquisition.emit('t')
 
 class MultiPointController(QObject):
 
@@ -511,6 +504,7 @@ class MultiPointController(QObject):
         on_new_acquisition:Optional[Callable[[str],None]]
     )->Optional[QThread]:
         while not self.thread is None:
+            print("thread is sleeping in control.core.multi_point (this should not actually happen)")
             time.sleep(0.05)
 
         image_positions=well_selection
@@ -560,11 +554,13 @@ class MultiPointController(QObject):
             # create a QThread object
             self.thread = QThread()
             # create a worker object
-            self.multiPointWorker = MultiPointWorker(self,image_positions,on_new_acquisition)
+            self.multiPointWorker = MultiPointWorker(self,image_positions)
             # move the worker to the thread
             self.multiPointWorker.moveToThread(self.thread)
             # connect signals and slots
             self.thread.started.connect(self.multiPointWorker.run)
+            if not on_new_acquisition is None:
+                self.multiPointWorker.signal_new_acquisition.connect(on_new_acquisition)
             self.multiPointWorker.finished.connect(self._on_acquisition_completed)
             self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
             self.multiPointWorker.finished.connect(self.thread.quit)

@@ -15,12 +15,13 @@ class TriggerMode(str,Enum):
 
 class ImageFormat(str,Enum):
     BMP="bmp"
+    TIFF="tiff"
 
 class Acquisition:
     CROP_WIDTH:int = 3000
     CROP_HEIGHT:int = 3000
     NUMBER_OF_FOVS_PER_AF:int = 3
-    IMAGE_FORMAT:ImageFormat = ImageFormat.BMP
+    IMAGE_FORMAT:ImageFormat = ImageFormat.TIFF
     IMAGE_DISPLAY_SCALING_FACTOR:float = 0.3
     DX:float = 0.9
     DY:float = 0.9
@@ -463,7 +464,7 @@ MACHINE_CONFIG=MachineConfiguration(
     WELLPLATE_OFFSET_Y_mm = 0.0,
 
     # default z
-    DEFAULT_Z_POS_MM = 4.677,
+    DEFAULT_Z_POS_MM = 5.500,
     CONTROLLER_VERSION = ControllerType.TEENSY,
 )
 

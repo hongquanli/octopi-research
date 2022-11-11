@@ -1,8 +1,3 @@
-# set QT_API environment variable
-import os
-
-os.environ["QT_API"] = "pyqt5"
-
 # qt libraries
 from qtpy.QtCore import Qt, QEvent
 from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider
@@ -21,6 +16,7 @@ import pyqtgraph as pg
 import pyqtgraph.dockarea as dock
 
 from PIL import ImageEnhance, Image
+import time
 
 from control.typechecker import TypecheckFunction
 
@@ -79,9 +75,17 @@ class OctopiGUI(QMainWindow):
                 't':{'d':self.multipointController.deltat,'N':self.multipointController.Nt},
             },
             af_channel=af_channel,
-            set_num_acquisitions_callback=lambda num:self.multiPointWidget.progress_bar.setMaximum(num),
+            set_num_acquisitions_callback=self.set_num_acquisitions,
             on_new_acquisition=self.on_step_completed,
         )
+
+    def set_num_acquisitions(self,num:int):
+        self.acquisition_progress=0
+        self.total_num_acquisitions=num
+        self.acquisition_start_time=time.monotonic()
+        self.multiPointWidget.progress_bar.setValue(0)
+        self.multiPointWidget.progress_bar.setMinimum(0)
+        self.multiPointWidget.progress_bar.setMaximum(num)
 
     def on_step_completed(self,step:str):
         if step=="x": # x (in well)
@@ -95,7 +99,13 @@ class OctopiGUI(QMainWindow):
         elif step=="c": # channel
             # this is the innermost callback
             # for each one of these, one image is actually taken
-            self.multiPointWidget.progress_bar.setValue(self.multiPointWidget.progress_bar.value()+1)
+
+            self.acquisition_progress+=1
+            self.multiPointWidget.progress_bar.setValue(self.acquisition_progress)
+
+            time_elapsed_since_start=time.monotonic()-self.acquisition_start_time
+            approx_time_left=time_elapsed_since_start/self.acquisition_progress*(self.total_num_acquisitions-self.acquisition_progress)
+            self.multiPointWidget.progress_bar.setFormat(f"completed {self.acquisition_progress:4}/{self.total_num_acquisitions:4} in {time_elapsed_since_start:8.1f}s (eta: {approx_time_left:8.1f}s)")
 
     def abort_experiment(self):
         self.multipointController.request_abort_aquisition()
@@ -125,7 +135,6 @@ class OctopiGUI(QMainWindow):
 
         # load widgets
         self.imageDisplay           = widgets.ImageDisplay()
-        self.cameraSettingWidget    = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
         self.liveControlWidget      = widgets.LiveControlWidget(self.hcs_controller.streamHandler,self.hcs_controller.liveController,self.hcs_controller.configurationManager,show_display_options=True)
         self.navigationWidget       = widgets.NavigationWidget(self.hcs_controller.navigationController,self.hcs_controller.slidePositionController,widget_configuration=default_well_plate)
         self.dacControlWidget       = widgets.DACControWidget(self.microcontroller)
@@ -209,9 +218,25 @@ class OctopiGUI(QMainWindow):
         self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{contrast_adjust_max/10}"),0,Qt.AlignRight)
         self.imageEnhanceWidgetFooter.addLayout(self.imageEnhanceWidgetFooterRight)
 
+
+        self.image_pixel_format_widgets=QHBoxLayout()
+
+        self.camera_pixel_format_widget=QComboBox()
+        image_formats=['MONO8','MONO12']
+        self.camera.set_pixel_format(image_formats[0])
+        self.camera_pixel_format_widget.addItems(image_formats)
+        self.camera_pixel_format_widget.setCurrentIndex(image_formats.index(self.camera.pixel_format))
+        self.camera_pixel_format_widget.currentIndexChanged.connect(lambda index:self.camera.set_pixel_format(image_formats[index]))
+        self.image_pixel_format_widgets.addWidget(self.camera_pixel_format_widget)
+        self.image_format_widget=QComboBox()
+        self.image_format_widget.addItems([f.value for f in ImageFormat])
+        self.image_format_widget.setCurrentIndex(list(ImageFormat).index(Acquisition.IMAGE_FORMAT))
+        self.image_format_widget.currentIndexChanged.connect(lambda index:setattr(Acquisition,'IMAGE_FORMAT',list(ImageFormat)[index]))
+        self.image_pixel_format_widgets.addWidget(self.image_format_widget)
+
         # layout widgets
         layout = QVBoxLayout()
-        #layout.addWidget(self.cameraSettingWidget)
+        layout.addLayout(self.image_pixel_format_widgets)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if MACHINE_DISPLAY_CONFIG.SHOW_DAC_CONTROL:
@@ -279,8 +304,8 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
-        self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
-        self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+        self.liveControlWidget.signal_newExposureTime.connect(self.camera.set_exposure_time)
+        self.liveControlWidget.signal_newAnalogGain.connect(self.camera.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
 
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -335,13 +360,15 @@ class OctopiGUI(QMainWindow):
 
             # calculate histogram from input image
             if image_data.dtype==numpy.uint8:
-                max_value=255
+                max_value=2**8-1
+            # 12 bit pixel data type is stretched to fit 16 bit range neatly (with the 4 least significant bits always zero)
             elif image_data.dtype==numpy.uint16:
-                max_value=2**16
+                max_value=2**16-1
             else:
                 raise Exception(f"{image_data.dtype=} unimplemented")
 
-            hist,bins=numpy.histogram(image_data,bins=numpy.linspace(0,max_value,101,dtype=image_data.dtype))
+            bins=numpy.linspace(0,max_value,101,dtype=image_data.dtype)
+            hist,bins=numpy.histogram(image_data,bins=bins)
             hist=hist/hist.max() # normalize to [0;1]
 
             self.histogramWidget.view.setLimits(
@@ -363,17 +390,30 @@ class OctopiGUI(QMainWindow):
                 self.histogramWidget.plot_data.hideAxis("left")
 
         # if there is data to display, apply contrast/brightness settings, then actually display the data
+        # also do not actually apply enhancement if brightness and contrast are set to 1.0 (which does not nothing)
         if not self.last_image_data is None:
+            image=self.last_image_data
 
-            # convert to uint8 for pillow image enhancement (not sure why uint8 is required..?)
-            brightness_enhancer = ImageEnhance.Brightness(Image.fromarray(numpy.uint8(self.last_image_data)))
-            brightness_enhanced_image=brightness_enhancer.enhance(self.imageBrightnessSlider.value)
-            contrast_enhancer = ImageEnhance.Contrast(brightness_enhanced_image)
-            contrast_enhanced_image=contrast_enhancer.enhance(self.imageContrastSlider.value)
+            # since integer conversion truncates or whatever instead of scaling, scale manually
+            if image.dtype==numpy.uint16:
+                image=numpy.uint8(image>>(16-8))
 
-            image_data=numpy.asarray(contrast_enhanced_image) # numpy.array could also be used, but asarray does not copy the image data (read only view)
+            if not (self.imageBrightnessSlider.value==1.0 and self.imageContrastSlider.value==1.0):
+                # convert to uint8 for pillow image enhancement (not sure why uint8 is required..?)
+
+                image=Image.fromarray(image)
+                if self.imageBrightnessSlider.value!=1.0:
+                    brightness_enhancer = ImageEnhance.Brightness(image)
+                    image=brightness_enhancer.enhance(self.imageBrightnessSlider.value)
+
+                if self.imageContrastSlider.value!=1.0:
+                    contrast_enhancer = ImageEnhance.Contrast(image)
+                    image=contrast_enhancer.enhance(self.imageContrastSlider.value)
+
+                image=numpy.asarray(image) # numpy.array could also be used, but asarray does not copy the image data (read only view)
+
             # display newly enhanced image
-            self.imageDisplayWindow.display_image(image_data)
+            self.imageDisplayWindow.display_image(image)
 
         # if there is neither a new nor an old image, only brightness/contrast settings have been changed but there is nothing to display
 

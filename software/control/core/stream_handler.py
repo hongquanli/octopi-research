@@ -3,6 +3,7 @@ from qtpy.QtCore import QObject, Signal # type: ignore
 
 import control.utils as utils
 from control._def import *
+from control import camera
 
 import time
 import numpy as np
@@ -71,7 +72,7 @@ class StreamHandler(QObject):
     def set_display_resolution_scaling(self, display_resolution_scaling:int):
         self.display_resolution_scaling = display_resolution_scaling/100
 
-    def on_new_frame(self, camera):
+    def on_new_frame(self, camera:camera.Camera):
 
         if camera.is_live:
 
