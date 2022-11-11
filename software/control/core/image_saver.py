@@ -10,8 +10,10 @@ import time
 import numpy as np
 from datetime import datetime
 import os
+import numpy
 
 import imageio as iio
+import tifffile
 
 from typing import Optional, List, Union, Tuple
 from control.typechecker import TypecheckFunction
@@ -25,7 +27,7 @@ class ImageSaver(QObject):
         QObject.__init__(self)
         self.base_path:str = './'
         self.experiment_ID:str = ''
-        self.image_format:str = image_format
+        self.image_format:ImageFormat = image_format
         self.max_num_image_per_folder:int = 1000
         self.queue:Queue = Queue(10) # max 10 items in the queue
         self.image_lock:Lock = Lock()
@@ -35,6 +37,26 @@ class ImageSaver(QObject):
         self.counter:int = 0
         self.recording_start_time:float = 0.0
         self.recording_time_limit:float = -1.0
+
+    @TypecheckFunction
+    def path_from(base_path:str,experiment_ID:str,folder_ID:str,file_ID:str,frame_ID:str)->str:
+        p=os.path.join(base_path,experiment_ID,str(folder_ID),str(file_ID) + '_' + str(frame_ID))
+        return p
+
+    #@TypecheckFunction
+    def save_image(path:str,image:numpy.ndarray,file_format:ImageFormat):
+        if image.dtype == np.uint16 and file_format != ImageFormat.TIFF_COMPRESSED:
+            file_format=ImageFormat.TIFF
+
+        # need to use tiff when saving 16 bit images
+        if file_format in (ImageFormat.TIFF_COMPRESSED,ImageFormat.TIFF):
+            if file_format==ImageFormat.TIFF_COMPRESSED:
+                tifffile.imwrite(path + '.tiff',image,compression=8) # adobe deflate / zlib compression
+            else:
+                iio.imwrite(path + '.tiff',image)
+        else:
+            assert file_format==ImageFormat.BMP
+            iio.imwrite(path + '.bmp',image)
 
     @TypecheckFunction
     def process_queue(self):
@@ -52,12 +74,14 @@ class ImageSaver(QObject):
                 if file_ID == 0:
                     os.mkdir(os.path.join(self.base_path,self.experiment_ID,str(folder_ID)))
 
-                saving_path = os.path.join(self.base_path,self.experiment_ID,str(folder_ID),str(file_ID) + '_' + str(frame_ID))
-                if image.dtype == np.uint16:
-                    # need to use tiff when saving 16 bit images
-                    iio.imwrite(saving_path + '.tiff',image)
-                else:
-                    iio.imwrite(saving_path + '.' + self.image_format.value,image)
+                saving_path = ImageSaver.path_from(
+                    base_path=self.base_path,
+                    experiment_ID=self.experiment_ID,
+                    folder_ID=str(folder_ID),
+                    file_ID=str(file_ID),
+                    frame_ID=str(frame_ID))
+
+                ImageSaver.save_image(saving_path,image,self.image_format)
 
                 self.counter = self.counter + 1
                 self.queue.task_done()

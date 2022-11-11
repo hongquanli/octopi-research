@@ -13,9 +13,10 @@ class TriggerMode(str,Enum):
     HARDWARE = 'Hardware Trigger'
     CONTINUOUS = 'Continuous Acqusition'
 
-class ImageFormat(str,Enum):
-    BMP="bmp"
-    TIFF="tiff"
+class ImageFormat(Enum):
+    BMP=0
+    TIFF=1
+    TIFF_COMPRESSED=2
 
 class Acquisition:
     CROP_WIDTH:int = 3000
@@ -476,7 +477,7 @@ MUTABLE_MACHINE_CONFIG=MutableMachineConfiguration(
     # multipoint acquisition settings
     MULTIPOINT_AUTOFOCUS_CHANNEL = 'Fluorescence 561 nm Ex',
     MULTIPOINT_BF_SAVING_OPTION = BrightfieldSavingMode.GREEN_ONLY,
-    WELLPLATE_FORMAT = 96,
+    WELLPLATE_FORMAT = 384,
     DEFAULT_OBJECTIVE = '10x (Mitutoyo)',
 )
 

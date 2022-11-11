@@ -1,6 +1,6 @@
 # qt libraries
 from qtpy.QtCore import Qt, QEvent
-from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider
+from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider, QCheckBox
 
 import numpy
 
@@ -19,6 +19,7 @@ from PIL import ImageEnhance, Image
 import time
 
 from control.typechecker import TypecheckFunction
+from typing import Union
 
 class OctopiGUI(QMainWindow):
 
@@ -170,69 +171,8 @@ class OctopiGUI(QMainWindow):
         self.navigationViewWrapper.addLayout(wellplate_overview_header)
         self.navigationViewWrapper.addWidget(self.navigationViewer)
 
-        self.histogramWidget=pg.GraphicsLayoutWidget(show=True, title="Basic plotting examples")
-        self.histogramWidget.view=self.histogramWidget.addViewBox()
-
-        self.imageEnhanceWidgetHeader=QHBoxLayout()
-        self.imageEnhanceWidgetHeader.addWidget(QLabel("Brightness"))
-        self.imageEnhanceWidgetHeader.addWidget(QLabel("Contrast"))
-
-        # add panel to change image settings
-        self.imageBrightnessSlider=QSlider(Qt.Horizontal)
-        self.imageBrightnessSlider.setTickPosition(QSlider.TicksBelow)
-        brightness_adjust_min=5
-        brightness_adjust_max=15
-        self.imageBrightnessSlider.setRange(brightness_adjust_min,brightness_adjust_max)
-        self.imageBrightnessSlider.setSingleStep(1)
-        self.imageBrightnessSlider.setTickInterval(5)
-        self.imageBrightnessSlider.setValue(10)
-        self.imageBrightnessSlider.valueChanged.connect(self.set_brightness)
-        self.imageBrightnessSlider.value=1.0
-
-        self.imageContrastSlider=QSlider(Qt.Horizontal)
-        self.imageContrastSlider.setTickPosition(QSlider.TicksBelow)
-        contrast_adjust_min=5
-        contrast_adjust_max=15
-        self.imageContrastSlider.setRange(contrast_adjust_min,contrast_adjust_max)
-        self.imageContrastSlider.setSingleStep(1)
-        self.imageContrastSlider.setTickInterval(5)
-        self.imageContrastSlider.setValue(10)
-        self.imageContrastSlider.valueChanged.connect(self.set_contrast)
-        self.imageContrastSlider.value=1.0
-
-        self.imageEnhanceWidget=QHBoxLayout()
-        self.imageEnhanceWidget.addWidget(self.imageBrightnessSlider)
-        self.imageEnhanceWidget.addWidget(self.imageContrastSlider)
-        self.last_raw_image=None
-        self.last_image_data=None
-
-        self.imageEnhanceWidgetFooter=QHBoxLayout()
-        self.imageEnhanceWidgetFooterLeft=QHBoxLayout()
-        self.imageEnhanceWidgetFooterLeft.addWidget(QLabel(f"{brightness_adjust_min/10}"),0,Qt.AlignLeft)
-        self.imageEnhanceWidgetFooterLeft.addWidget(QLabel(f"{self.imageBrightnessSlider.value}"),0,Qt.AlignCenter)
-        self.imageEnhanceWidgetFooterLeft.addWidget(QLabel(f"{brightness_adjust_max/10}"),0,Qt.AlignRight)
-        self.imageEnhanceWidgetFooter.addLayout(self.imageEnhanceWidgetFooterLeft)
-        self.imageEnhanceWidgetFooterRight=QHBoxLayout()
-        self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{contrast_adjust_min/10}"),0,Qt.AlignLeft)
-        self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{self.imageContrastSlider.value}"),0,Qt.AlignCenter)
-        self.imageEnhanceWidgetFooterRight.addWidget(QLabel(f"{contrast_adjust_max/10}"),0,Qt.AlignRight)
-        self.imageEnhanceWidgetFooter.addLayout(self.imageEnhanceWidgetFooterRight)
-
-
-        self.image_pixel_format_widgets=QHBoxLayout()
-
-        self.camera_pixel_format_widget=QComboBox()
-        image_formats=['MONO8','MONO12']
-        self.camera.set_pixel_format(image_formats[0])
-        self.camera_pixel_format_widget.addItems(image_formats)
-        self.camera_pixel_format_widget.setCurrentIndex(image_formats.index(self.camera.pixel_format))
-        self.camera_pixel_format_widget.currentIndexChanged.connect(lambda index:self.camera.set_pixel_format(image_formats[index]))
-        self.image_pixel_format_widgets.addWidget(self.camera_pixel_format_widget)
-        self.image_format_widget=QComboBox()
-        self.image_format_widget.addItems([f.value for f in ImageFormat])
-        self.image_format_widget.setCurrentIndex(list(ImageFormat).index(Acquisition.IMAGE_FORMAT))
-        self.image_format_widget.currentIndexChanged.connect(lambda index:setattr(Acquisition,'IMAGE_FORMAT',list(ImageFormat)[index]))
-        self.image_pixel_format_widgets.addWidget(self.image_format_widget)
+        self.add_image_format_options()
+        self.add_image_inspection()
 
         # layout widgets
         layout = QVBoxLayout()
@@ -245,9 +185,7 @@ class OctopiGUI(QMainWindow):
         layout.addWidget(self.recordTabWidget)
         layout.addLayout(self.navigationViewWrapper)
         layout.addWidget(self.histogramWidget)
-        layout.addLayout(self.imageEnhanceWidgetHeader)
         layout.addLayout(self.imageEnhanceWidget)
-        layout.addLayout(self.imageEnhanceWidgetFooter)
         layout.addStretch()
         
         # transfer the layout to the central widget
@@ -328,6 +266,129 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget.entry_NX.valueChanged.connect(self.on_well_selection_change)
         self.multiPointWidget.entry_NY.valueChanged.connect(self.on_well_selection_change)
 
+    def add_image_format_options(self):
+        image_formats=['MONO8','MONO12']
+
+        self.camera_pixel_format_widget=QComboBox()
+        self.camera_pixel_format_widget.addItems(image_formats)
+        self.camera_pixel_format_widget.setCurrentIndex(0) # 8 bit is default (there is a bug where 8 bit is hardware default, but setting it to 8 bit while in this default state produces weird images. so set 8bit as display default, and only actually call the function to change the format when the format is actually changed, i.e. connect to format change signal only after this default is displayed)
+        self.camera_pixel_format_widget.currentIndexChanged.connect(lambda index:self.camera.set_pixel_format(image_formats[index]))
+        
+        self.image_compress_widget=QCheckBox()
+        self.image_compress_widget.stateChanged.connect(self.set_image_compression)
+        self.image_compress_widget.setToolTip("enable image file compression (not supported for bmp)")
+
+        self.image_compress_widget_container=QHBoxLayout()
+        self.image_compress_widget_container.addWidget(QLabel("compression"))
+        self.image_compress_widget_container.addWidget(self.image_compress_widget)
+
+        self.image_format_widget=QComboBox()
+        self.image_format_widget.addItems(["BMP","TIF"])
+        self.image_format_widget.currentIndexChanged.connect(self.set_image_format)
+        self.image_format_widget.setCurrentIndex(list(ImageFormat).index(Acquisition.IMAGE_FORMAT))
+
+        self.image_pixel_format_widgets=QHBoxLayout()
+        self.image_pixel_format_widgets.addWidget(self.camera_pixel_format_widget)
+        self.image_pixel_format_widgets.addWidget(self.image_format_widget)
+        self.image_pixel_format_widgets.addLayout(self.image_compress_widget_container)
+
+    @TypecheckFunction
+    def set_image_format(self,index:int):
+        Acquisition.IMAGE_FORMAT=list(ImageFormat)[index]
+        if Acquisition.IMAGE_FORMAT==ImageFormat.TIFF:
+            self.image_compress_widget.setDisabled(False)
+        else:
+            self.image_compress_widget.setDisabled(True)
+            self.image_compress_widget.setCheckState(False)
+
+    @TypecheckFunction
+    def set_image_compression(self,state:Union[int,bool]):
+        if type(state)==int:
+            state=bool(state)
+
+        if state:
+            if Acquisition.IMAGE_FORMAT==ImageFormat.TIFF:
+                Acquisition.IMAGE_FORMAT=ImageFormat.TIFF_COMPRESSED
+            else:
+                raise Exception("enabled compression even though current image file format does not support compression. this is a bug.")
+        else:
+            if Acquisition.IMAGE_FORMAT==ImageFormat.TIFF_COMPRESSED:
+                Acquisition.IMAGE_FORMAT=ImageFormat.TIFF
+            else:
+                raise Exception("disabled compression while a format that is not compressed tiff was selected. this is a bug.")
+
+    def add_image_inspection(self,
+        brightness_adjust_min:int=5,
+        brightness_adjust_max:int=15,
+
+        contrast_adjust_min:int=5,
+        contrast_adjust_max:int=15,
+
+        histogram_log_display_default:bool=True
+    ):
+        self.histogramWidget=pg.GraphicsLayoutWidget(show=True, title="Basic plotting examples")
+        self.histogramWidget.view=self.histogramWidget.addViewBox()
+
+        # add panel to change image settings
+        self.imageBrightnessSliderContainer=QVBoxLayout()
+        self.imageBrightnessSliderContainer.addWidget(QLabel("Brightness"))
+        self.imageBrightnessSlider=QSlider(Qt.Horizontal)
+        self.imageBrightnessSlider.setTickPosition(QSlider.TicksBelow)
+        self.imageBrightnessSlider.setRange(brightness_adjust_min,brightness_adjust_max)
+        self.imageBrightnessSlider.setSingleStep(1)
+        self.imageBrightnessSlider.setTickInterval(5)
+        self.imageBrightnessSlider.setValue(10)
+        self.imageBrightnessSlider.valueChanged.connect(self.set_brightness)
+        self.imageBrightnessSlider.value=1.0
+        self.imageBrightnessSliderContainer.addWidget(self.imageBrightnessSlider)
+        self.imageBrightnessLabel=QHBoxLayout()
+        self.imageBrightnessLabel.addWidget(QLabel(f"{brightness_adjust_min/10}"),0,Qt.AlignLeft)
+        self.imageBrightnessLabel.addWidget(QLabel(f"{self.imageBrightnessSlider.value}"),0,Qt.AlignCenter)
+        self.imageBrightnessLabel.addWidget(QLabel(f"{brightness_adjust_max/10}"),0,Qt.AlignRight)
+        self.imageBrightnessSliderContainer.addLayout(self.imageBrightnessLabel)
+
+        self.imageContrastSliderContainer=QVBoxLayout()
+        self.imageContrastSliderContainer.addWidget(QLabel("Contrast"))
+        self.imageContrastSlider=QSlider(Qt.Horizontal)
+        self.imageContrastSlider.setTickPosition(QSlider.TicksBelow)
+        self.imageContrastSlider.setRange(contrast_adjust_min,contrast_adjust_max)
+        self.imageContrastSlider.setSingleStep(1)
+        self.imageContrastSlider.setTickInterval(5)
+        self.imageContrastSlider.setValue(10)
+        self.imageContrastSlider.valueChanged.connect(self.set_contrast)
+        self.imageContrastSlider.value=1.0
+        self.imageContrastSliderContainer.addWidget(self.imageContrastSlider)
+        self.imageContrastLabel=QHBoxLayout()
+        self.imageContrastLabel.addWidget(QLabel(f"{contrast_adjust_min/10}"),0,Qt.AlignLeft)
+        self.imageContrastLabel.addWidget(QLabel(f"{self.imageContrastSlider.value}"),0,Qt.AlignCenter)
+        self.imageContrastLabel.addWidget(QLabel(f"{contrast_adjust_max/10}"),0,Qt.AlignRight)
+        self.imageContrastSliderContainer.addLayout(self.imageContrastLabel)
+
+        self.histogramLogScaleContainer=QVBoxLayout()
+        self.histogramLogScaleLabel=QLabel("log")
+        self.histogramLogScaleContainer.addWidget(self.histogramLogScaleLabel)
+        self.histogramLogScaleCheckbox=QCheckBox()
+        self.histogram_log_scale=histogram_log_display_default
+        self.histogramLogScaleCheckbox.setCheckState(self.histogram_log_scale*2) # convert from bool to weird tri-stateable value (i.e. 0,1,2 where 0 is unchecked, 2 is checked, and 1 is in between. if this is set to 1, the button will become to tri-stable)
+        self.histogramLogScaleCheckbox.stateChanged.connect(self.setHistogramLogScale)
+        self.histogramLogScaleCheckbox.setToolTip("calculate histogram with log scale?")
+        self.histogramLogScaleContainer.addWidget(self.histogramLogScaleCheckbox)
+
+        self.imageEnhanceWidget=QHBoxLayout()
+        self.imageEnhanceWidget.addLayout(self.imageBrightnessSliderContainer)
+        self.imageEnhanceWidget.addLayout(self.imageContrastSliderContainer)
+        self.imageEnhanceWidget.addLayout(self.histogramLogScaleContainer)
+        self.last_raw_image=None
+        self.last_image_data=None
+
+    @TypecheckFunction
+    def setHistogramLogScale(self,state:Union[bool,int]):
+        if type(state)==int:
+            state=bool(state)
+
+        self.histogram_log_scale=state
+        self.processLiveImage(calculate_histogram=True)
+
     @TypecheckFunction
     def set_brightness(self,value:int):
         """ value<1 darkens image, value>1 brightens image """
@@ -348,17 +409,22 @@ class OctopiGUI(QMainWindow):
 
         self.processLiveImage()
 
-    # callback for newly acquired images in live view
+    # callback for newly acquired images in live view (that saves last live image and recalculates histogram or image view on request based on last live image)
     @TypecheckFunction
-    def processLiveImage(self,image_data:Optional[numpy.ndarray]=None):
+    def processLiveImage(self,image_data:Optional[numpy.ndarray]=None,calculate_histogram:Optional[bool]=None):
         """ set histogram according to new image. clear internal buffer on request (used by the brightness/contrast adjust functions. acquiring new image clears buffer, setting histogram for adjusted images should not clear buffer) """
 
-        # if there is a new image, save it, and calculate histogram
+        # if there is a new image, save it, and force histogram calculation
         if not image_data is None:
-            # overwrite last image with new image
             self.last_image_data=image_data
+            calculate_histogram=True
 
-            # calculate histogram from input image
+        # calculate histogram
+        if calculate_histogram is None:
+            calculate_histogram=self.histogram_log_scale
+
+        if calculate_histogram and not self.last_image_data is None:
+            image_data=self.last_image_data
             if image_data.dtype==numpy.uint8:
                 max_value=2**8-1
             # 12 bit pixel data type is stretched to fit 16 bit range neatly (with the 4 least significant bits always zero)
@@ -367,8 +433,12 @@ class OctopiGUI(QMainWindow):
             else:
                 raise Exception(f"{image_data.dtype=} unimplemented")
 
-            bins=numpy.linspace(0,max_value,101,dtype=image_data.dtype)
+            bins=numpy.linspace(0,max_value,129,dtype=image_data.dtype)
             hist,bins=numpy.histogram(image_data,bins=bins)
+            hist=hist.astype(numpy.float32)
+            if self.histogram_log_scale:
+                hist_nonzero_mask=hist!=0
+                hist[hist_nonzero_mask]=numpy.log(hist[hist_nonzero_mask])
             hist=hist/hist.max() # normalize to [0;1]
 
             self.histogramWidget.view.setLimits(

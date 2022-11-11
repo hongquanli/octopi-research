@@ -7,19 +7,17 @@ from control._def import *
 
 import os
 import time
-import numpy as np
 import cv2
 from datetime import datetime
 
 import json
 import pandas as pd
-
-import imageio as iio
+import numpy
 
 from typing import Optional, List, Union, Tuple, Callable
 
 import control.camera as camera
-from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager
+from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager, ImageSaver
 #import control.widgets as widgets # not possible because circular import
 from control.typechecker import TypecheckFunction
 
@@ -28,9 +26,9 @@ from tqdm import tqdm
 class MultiPointWorker(QObject):
 
     finished = Signal()
-    image_to_display = Signal(np.ndarray)
-    spectrum_to_display = Signal(np.ndarray)
-    image_to_display_multi = Signal(np.ndarray,int)
+    image_to_display = Signal(numpy.ndarray)
+    spectrum_to_display = Signal(numpy.ndarray)
+    image_to_display_multi = Signal(numpy.ndarray,int)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_new_acquisition=Signal(str)
@@ -235,28 +233,21 @@ class MultiPointWorker(QObject):
                             image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                             self.image_to_display.emit(image_to_display)
                             self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                            if image.dtype == np.uint16:
-                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
-                                if self.camera.is_color:
-                                    if 'BF LED matrix' in config.name:
-                                        if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                        elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
-                                            image = image[:,:,1]
-                                iio.imwrite(saving_path,image)
-                            else:
-                                saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
-                                if self.camera.is_color:
-                                    if 'BF LED matrix' in config.name:
-                                        if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW:
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                        elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
-                                            image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                        elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
-                                            image = image[:,:,1]
-                                    else:
+                                
+                            saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_'))
+                            if self.camera.is_color:
+                                if 'BF LED matrix' in config.name:
+                                    if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW and image.dtype!=numpy.uint16:
                                         image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                cv2.imwrite(saving_path,image)
+                                    elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
+                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                                    elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
+                                        image = image[:,:,1]
+                                else:
+                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+
+                            ImageSaver.save_image(path=saving_path,image=numpy.asarray(image),file_format=Acquisition.IMAGE_FORMAT)
+
                             QApplication.processEvents()
 
                             self.signal_new_acquisition.emit('c')
@@ -366,9 +357,9 @@ class MultiPointWorker(QObject):
 class MultiPointController(QObject):
 
     acquisitionFinished = Signal()
-    image_to_display = Signal(np.ndarray)
-    image_to_display_multi = Signal(np.ndarray,int)
-    spectrum_to_display = Signal(np.ndarray)
+    image_to_display = Signal(numpy.ndarray)
+    image_to_display_multi = Signal(numpy.ndarray,int)
+    spectrum_to_display = Signal(numpy.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
