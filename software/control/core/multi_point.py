@@ -230,7 +230,9 @@ class MultiPointWorker(QObject):
                             image = utils.crop_image(image,self.crop_width,self.crop_height)
                             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                             # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                            image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                            crop_scaled_width=round(self.crop_width*self.display_resolution_scaling)
+                            crop_scaled_height=round(self.crop_height*self.display_resolution_scaling)
+                            image_to_display = utils.crop_image(image,crop_scaled_width, crop_scaled_height)
                             self.image_to_display.emit(image_to_display)
                             self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                                 
@@ -387,11 +389,11 @@ class MultiPointController(QObject):
         self.NY:int = 1
         self.NZ:int = 1
         self.Nt:int = 1
-        self.deltaX = Acquisition.DX
+        self.deltaX = Acquisition.DEFAULT_DX_MM
         self.deltaX_usteps:int = round(self.deltaX/self.mm_per_ustep_X)
-        self.deltaY = Acquisition.DY
+        self.deltaY = Acquisition.DEFAULT_DY_MM
         self.deltaY_usteps:int = round(self.deltaY/self.mm_per_ustep_Y)
-        self.deltaZ = Acquisition.DZ/1000
+        self.deltaZ = Acquisition.DEFAULT_DZ_MM/1000
         self.deltaZ_usteps:int = round(self.deltaZ/self.mm_per_ustep_Z)
         self.deltat:float = 0.0
         self.do_autofocus:bool = False
@@ -453,10 +455,7 @@ class MultiPointController(QObject):
         if type(flag)==bool:
             self.do_autofocus=flag
         else:
-            self.do_autofocus = {
-                0:False,
-                2:True
-            }[flag]
+            self.do_autofocus = bool(flag)
 
     @TypecheckFunction
     def set_crop(self,crop_width:int,crop_height:int):

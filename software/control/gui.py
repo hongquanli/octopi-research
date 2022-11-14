@@ -20,9 +20,6 @@ import pyqtgraph.dockarea as dock
 
 class OctopiGUI(QMainWindow):
 
-	# variables
-	fps_software_trigger = 100
-
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 

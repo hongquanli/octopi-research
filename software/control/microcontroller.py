@@ -661,13 +661,14 @@ class Microcontroller():
         self.new_packet_callback_external = function
 
     @TypecheckFunction
-    def wait_till_operation_is_completed(self, timeout_limit_s:int=5, time_step:float=0.02, timeout_msg:str='Error - microcontroller timeout, the program will exit'):
+    def wait_till_operation_is_completed(self, timeout_limit_s:Optional[int]=5, time_step:float=0.02, timeout_msg:str='Error - microcontroller timeout, the program will exit'):
         timestamp_start = time.time()
         while self.is_busy():
             time.sleep(time_step)
-            if time.time() - timestamp_start > timeout_limit_s:
-                print(timeout_msg)
-                exit()
+            if not timeout_limit_s is None:
+                if time.time() - timestamp_start > timeout_limit_s:
+                    print(timeout_msg)
+                    exit()
 
     # signed_int type is actually int64 (?)
     @TypecheckFunction

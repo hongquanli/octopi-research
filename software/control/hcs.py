@@ -41,7 +41,7 @@ class HCSController(QObject):
 
         self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_configurations.xml')
         self.streamHandler:           core.StreamHandler           = core.StreamHandler(display_resolution_scaling=MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP/100)
-        self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
+        self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager,self.streamHandler.signal_new_frame_received)
         self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
         self.slidePositionController: core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)

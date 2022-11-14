@@ -109,8 +109,8 @@ class PDAFController(QObject):
         self.configurationManager = configurationManager
         self.NZ = 1
         self.Nt = 1
-        self.deltaZ = Acquisition.DZ/1000
-        self.deltaZ_usteps = round((Acquisition.DZ/1000)*Motion.STEPS_PER_MM_Z)
+        self.deltaZ = Acquisition.DEFAULT_DZ_MM/1000
+        self.deltaZ_usteps = round((Acquisition.DEFAULT_DZ_MM/1000)*Motion.STEPS_PER_MM_Z)
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR

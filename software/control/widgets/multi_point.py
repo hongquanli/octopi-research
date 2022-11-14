@@ -50,7 +50,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaX.setMinimum(0) 
         self.entry_deltaX.setMaximum(5) 
         self.entry_deltaX.setSingleStep(0.1)
-        self.entry_deltaX.setValue(Acquisition.DX)
+        self.entry_deltaX.setValue(Acquisition.DEFAULT_DX_MM)
         self.entry_deltaX.setDecimals(3)
         self.entry_deltaX.setKeyboardTracking(False)
 
@@ -65,7 +65,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaY.setMinimum(0) 
         self.entry_deltaY.setMaximum(5) 
         self.entry_deltaY.setSingleStep(0.1)
-        self.entry_deltaY.setValue(Acquisition.DX)
+        self.entry_deltaY.setValue(Acquisition.DEFAULT_DX_MM)
         self.entry_deltaY.setDecimals(3)
         self.entry_deltaY.setKeyboardTracking(False)
         
@@ -80,7 +80,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaZ.setMinimum(0) 
         self.entry_deltaZ.setMaximum(1000) 
         self.entry_deltaZ.setSingleStep(0.2)
-        self.entry_deltaZ.setValue(Acquisition.DZ)
+        self.entry_deltaZ.setValue(Acquisition.DEFAULT_DZ_MM)
         self.entry_deltaZ.setDecimals(3)
         self.entry_deltaZ.setKeyboardTracking(False)
         

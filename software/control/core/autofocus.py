@@ -12,6 +12,7 @@ from typing import Optional, List, Union, Tuple
 
 import control.camera as camera
 from control.core import NavigationController, LiveController
+from control.microcontroller import Microcontroller
 
 class AutofocusWorker(QObject):
 
@@ -23,8 +24,8 @@ class AutofocusWorker(QObject):
         QObject.__init__(self)
         self.autofocusController = autofocusController
 
-        self.camera = self.autofocusController.camera
-        self.microcontroller = self.autofocusController.navigationController.microcontroller
+        self.camera:camera.Camera = self.autofocusController.camera
+        self.microcontroller:Microcontroller = self.autofocusController.navigationController.microcontroller
         self.navigationController = self.autofocusController.navigationController
         self.liveController = self.autofocusController.liveController
 
@@ -40,8 +41,7 @@ class AutofocusWorker(QObject):
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
-        while self.microcontroller.is_busy():
-            time.sleep(MACHINE_CONFIG.SLEEP_TIME_S)
+        self.microcontroller.wait_till_operation_is_completed(timeout_limit_s=None,time_step=MACHINE_CONFIG.SLEEP_TIME_S)
 
     def run_autofocus(self):
         # @@@ to add: increase gain, decrease exposure time

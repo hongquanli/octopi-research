@@ -1,7 +1,5 @@
-import argparse
-import cv2
 import time
-import numpy as np
+import numpy
 
 from control.gxipy import gxiapi
 try:
@@ -42,7 +40,7 @@ class Camera(object):
         self.timestamp = 0
 
         self.image_locked = False
-        self.current_frame = None
+        self.current_frame:Optional[numpy.ndarray] = None
 
         self.callback_is_enabled = False
         self.is_streaming = False
@@ -112,11 +110,13 @@ class Camera(object):
             self.stop_streaming()
         else:
             was_streaming = False
+
         # enable callback
         user_param:Optional[Any] = None
         assert not self.camera is None
         self.camera.register_capture_callback(user_param,self._on_frame_callback)
         self.callback_is_enabled = True
+
         # resume streaming if it was on
         if was_streaming:
             self.start_streaming()
@@ -320,7 +320,7 @@ class Camera(object):
             print('trigger not sent - camera is not streaming')
 
     @TypecheckFunction
-    def read_frame(self)->np.ndarray:
+    def read_frame(self)->numpy.ndarray:
         assert not self.camera is None
         raw_image = self.camera.data_stream[self.device_index].get_image()
         if self.is_color:
@@ -340,23 +340,30 @@ class Camera(object):
         if raw_image is None:
             print("Getting image failed.")
             return
+            
         if raw_image.get_status() != 0:
             print("Got an incomplete frame")
             return
+
         if self.image_locked:
             print('last image is still being processed, a frame is dropped')
             return
+
         if self.is_color:
             rgb_image = raw_image.convert("RGB")
             numpy_image = rgb_image.get_numpy_array()
+
             if self.pixel_format == 'BAYER_RG12':
                 numpy_image = numpy_image << 4
         else:
             numpy_image = raw_image.get_numpy_array()
+
             if self.pixel_format == 'MONO12':
                 numpy_image = numpy_image << 4
+
         if numpy_image is None:
             return
+
         self.current_frame = numpy_image
         self.frame_ID_software = self.frame_ID_software + 1
         self.frame_ID = raw_image.get_frame_id()

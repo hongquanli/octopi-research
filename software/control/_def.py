@@ -19,14 +19,22 @@ class ImageFormat(Enum):
     TIFF_COMPRESSED=2
 
 class Acquisition:
+    """ config stuff for (multi point) image acquisition """
     CROP_WIDTH:int = 3000
+    """ crop width for images after recording from camera sensor """
     CROP_HEIGHT:int = 3000
+    """ crop height for images after recording from camera sensor """
     NUMBER_OF_FOVS_PER_AF:int = 3
     IMAGE_FORMAT:ImageFormat = ImageFormat.TIFF
-    IMAGE_DISPLAY_SCALING_FACTOR:float = 0.3
-    DX:float = 0.9
-    DY:float = 0.9
-    DZ:float = 1.5
+    """ file format used for images saved after multi point image acquisition """
+    IMAGE_DISPLAY_SCALING_FACTOR:ClosedRange[float](0.0,1.0) = 1.0
+    """ this _crops_ the image display for the multi point acquisition """
+    DEFAULT_DX_MM:float = 0.9
+    """ default dx in mm used for multi point image acquisition grid """
+    DEFAULT_DY_MM:float = 0.9
+    """ default dy in mm used for multi point image acquisition grid """
+    DEFAULT_DZ_MM:float = 1.5
+    """ default dz in mm used for multi point image acquisition grid """
 
 class PosUpdate:
     INTERVAL_MS = 25

@@ -23,9 +23,6 @@ from typing import Union
 
 class OctopiGUI(QMainWindow):
 
-    # variables
-    fps_software_trigger = 100
-
     @property
     def configurationManager(self)->core.ConfigurationManager:
         return self.hcs_controller.configurationManager
@@ -136,12 +133,12 @@ class OctopiGUI(QMainWindow):
 
         # load widgets
         self.imageDisplay           = widgets.ImageDisplay()
-        self.liveControlWidget      = widgets.LiveControlWidget(self.hcs_controller.streamHandler,self.hcs_controller.liveController,self.hcs_controller.configurationManager,show_display_options=True)
-        self.navigationWidget       = widgets.NavigationWidget(self.hcs_controller.navigationController,self.hcs_controller.slidePositionController,widget_configuration=default_well_plate)
+        self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
+        self.navigationWidget       = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=default_well_plate)
         self.dacControlWidget       = widgets.DACControWidget(self.microcontroller)
-        self.autofocusWidget        = widgets.AutoFocusWidget(self.hcs_controller.autofocusController)
-        self.recordingControlWidget = widgets.RecordingWidget(self.hcs_controller.streamHandler,self.hcs_controller.imageSaver)
-        self.multiPointWidget       = widgets.MultiPointWidget(self.hcs_controller.multipointController,self.hcs_controller.configurationManager,self.start_experiment,self.abort_experiment)
+        self.autofocusWidget        = widgets.AutoFocusWidget(self.autofocusController)
+        self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
+        self.multiPointWidget       = widgets.MultiPointWidget(self.multipointController,self.configurationManager,self.start_experiment,self.abort_experiment)
         self.navigationViewer       = widgets.NavigationViewer(sample=default_well_plate)
 
         self.recordTabWidget = QTabWidget()
@@ -270,19 +267,24 @@ class OctopiGUI(QMainWindow):
         image_formats=['MONO8','MONO12']
 
         self.camera_pixel_format_widget=QComboBox()
+        self.camera_pixel_format_widget.setToolTip("camera pixel format\n\nMONO8 means monochrome (grey-scale) 8bit\nMONO12 means monochrome 12bit\n\nmore bits can capture more detail (8bit can capture 2^8 intensity values, 12bit can capture 2^12), but also increase file size")
         self.camera_pixel_format_widget.addItems(image_formats)
         self.camera_pixel_format_widget.setCurrentIndex(0) # 8 bit is default (there is a bug where 8 bit is hardware default, but setting it to 8 bit while in this default state produces weird images. so set 8bit as display default, and only actually call the function to change the format when the format is actually changed, i.e. connect to format change signal only after this default is displayed)
         self.camera_pixel_format_widget.currentIndexChanged.connect(lambda index:self.camera.set_pixel_format(image_formats[index]))
         
+        compression_tooltip="enable image file compression (not supported for bmp)"
         self.image_compress_widget=QCheckBox()
         self.image_compress_widget.stateChanged.connect(self.set_image_compression)
-        self.image_compress_widget.setToolTip("enable image file compression (not supported for bmp)")
+        self.image_compress_widget.setToolTip(compression_tooltip)
 
         self.image_compress_widget_container=QHBoxLayout()
-        self.image_compress_widget_container.addWidget(QLabel("compression"))
+        compression_label=QLabel("compression")
+        compression_label.setToolTip(compression_tooltip)
+        self.image_compress_widget_container.addWidget(compression_label)
         self.image_compress_widget_container.addWidget(self.image_compress_widget)
 
         self.image_format_widget=QComboBox()
+        self.image_format_widget.setToolTip("change file format for images acquired with the multi point acquisition function")
         self.image_format_widget.addItems(["BMP","TIF"])
         self.image_format_widget.currentIndexChanged.connect(self.set_image_format)
         self.image_format_widget.setCurrentIndex(list(ImageFormat).index(Acquisition.IMAGE_FORMAT))

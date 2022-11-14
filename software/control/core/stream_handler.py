@@ -25,9 +25,9 @@ class StreamHandler(QObject):
         display_resolution_scaling:float=1.0
     ):
         QObject.__init__(self)
-        self.fps_display = 1
-        self.fps_save = 1
-        self.fps_track = 1
+        self.fps_display:float = 10.0
+        self.fps_save:float = 1.0
+        self.fps_track:float = 1.0
         self.timestamp_last_display = 0
         self.timestamp_last_save = 0
         self.timestamp_last_track = 0
@@ -73,9 +73,8 @@ class StreamHandler(QObject):
         self.display_resolution_scaling = display_resolution_scaling/100
 
     def on_new_frame(self, camera:camera.Camera):
-
+        """ this is registered as callback when the camera has recorded an image """
         if camera.is_live:
-
             camera.image_locked = True
             self.handler_busy = True
             self.signal_new_frame_received.emit() # self.liveController.turn_off_illumination()

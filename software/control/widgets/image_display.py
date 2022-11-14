@@ -180,8 +180,8 @@ class ImageArrayDisplayWindow(QMainWindow):
         self.set_image_displays({
             11:0,
             12:1,
-            13:2,
-            14:3,
+            14:2,
+            13:3,
             15:4,
         },num_rows=2,num_columns=3)
 
@@ -203,8 +203,8 @@ class ImageArrayDisplayWindow(QMainWindow):
         assert num_rows*num_columns>=self.num_image_displays
 
         # restrict zooming and moving range so that image is always in view  (part 1 of 2)
-        max_state=[[-311.2293371679432, 1211.2293371679432], [-44.55663943395035, 944.5566394339503]] # furthest zoomed out
-        min_state=[[340.21242362722325, 398.2243346574582], [538.2444330186559, 575.9337000574072]] # furthest zoomed in
+        max_state=[[-1011.6942184540692, 4011.694218454069], [-147.79939172464378, 3147.799391724644]] # furthest zoomed out
+        min_state=[[1105.2084826209198, 1163.5473663736475], [1401.9018607761034, 1440.1751411998673]] # furthest zoomed in
         ((max_lowerx,max_upperx),(max_lowery,max_uppery))=max_state
         ((min_lowerx,min_upperx),(min_lowery,min_uppery))=min_state
 
@@ -216,7 +216,7 @@ class ImageArrayDisplayWindow(QMainWindow):
             next_graphics_widget.view.addItem(next_graphics_widget.img)
 
             # restrict zooming and moving (part 2 of 2)
-            next_graphics_widget.view.setLimits(            
+            next_graphics_widget.view.setLimits(
                 xMin=max_lowerx,
                 xMax=max_upperx,
                 yMin=max_lowery,
@@ -252,6 +252,6 @@ class ImageArrayDisplayWindow(QMainWindow):
         self.widget.setLayout(image_display_layout)
 
     def display_image(self,image,channel_index:int):
-        # print(f"{self.graphics_widgets[0].view.getState()['viewRange']=}")
+        #print(f"{self.graphics_widgets[0].view.getState()['viewRange']=}")
 
         self.graphics_widgets[self.channel_mappings[channel_index]].img.setImage(image,autoLevels=False)

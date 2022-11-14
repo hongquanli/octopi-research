@@ -2,12 +2,10 @@
 from qtpy.QtCore import Signal, Qt # type: ignore
 from qtpy.QtWidgets import QFrame, QComboBox, QDoubleSpinBox, QPushButton, QSlider, QGridLayout, QLabel, QVBoxLayout
 
-import pyqtgraph as pg
-
-from datetime import datetime
+import time
 
 from control._def import *
-from control.core import Configuration, LiveController, ConfigurationManager
+from control.core import Configuration, LiveController, ConfigurationManager, StreamHandler
 from control.typechecker import TypecheckFunction
 
 from typing import Optional, Union, List, Tuple
@@ -21,8 +19,15 @@ class LiveControlWidget(QFrame):
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
 
+    @property
+    def fps_trigger(self)->float:
+        return self.liveController.fps_trigger
+    @property
+    def fps_display(self)->float:
+        return self.streamHandler.fps_display
+
     def __init__(self, 
-        streamHandler, 
+        streamHandler:StreamHandler, 
         liveController:LiveController,
         configurationManager:ConfigurationManager, 
         show_trigger_options:bool=True, 
@@ -34,10 +39,6 @@ class LiveControlWidget(QFrame):
         self.liveController = liveController
         self.streamHandler = streamHandler
         self.configurationManager = configurationManager
-        self.fps_trigger:float = 10
-        self.fps_display:float = 10
-        self.liveController.set_trigger_fps(self.fps_trigger)
-        self.streamHandler.set_display_fps(self.fps_display)
         
         self.triggerMode = TriggerMode.SOFTWARE
         # note that this references the object in self.configurationManager.configurations
@@ -63,8 +64,8 @@ class LiveControlWidget(QFrame):
 
         # line 1: fps
         self.entry_triggerFPS = QDoubleSpinBox()
-        self.entry_triggerFPS.setMinimum(0.02) 
-        self.entry_triggerFPS.setMaximum(1000) 
+        self.entry_triggerFPS.setMinimum(0.02)
+        self.entry_triggerFPS.setMaximum(1000)
         self.entry_triggerFPS.setSingleStep(1)
         self.entry_triggerFPS.setValue(self.fps_trigger)
 
@@ -78,6 +79,16 @@ class LiveControlWidget(QFrame):
         self.btn_live.setCheckable(True)
         self.btn_live.setChecked(False)
         self.btn_live.setDefault(False)
+        self.btn_live.setToolTip("""
+            start/stop live image view
+
+            acquires a number of images per second (number given by 'Display FPS' setting. should be equal to 'Trigger FPS').
+
+            useful for manual investigation of a plate and/or imaging settings. Note that this can lead to strong photobleaching. Consider using the snapshot button instead (labelled 'snap')
+        """)
+
+        self.btn_snap=QPushButton("snap")
+        self.btn_snap.setToolTip("take single image (minimizes bleaching for manual testing)")
 
         # line 3: exposure time and analog gain associated with the current mode
         self.entry_exposureTime = QDoubleSpinBox()
@@ -134,6 +145,7 @@ class LiveControlWidget(QFrame):
         self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
         self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
         self.btn_live.clicked.connect(self.toggle_live)
+        self.btn_snap.clicked.connect(self.take_snapshot)
         self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
@@ -152,6 +164,7 @@ class LiveControlWidget(QFrame):
         grid_line1.addWidget(QLabel('Imaging Mode'), 0,0)
         grid_line1.addWidget(self.dropdown_modeSelection, 0,1)
         grid_line1.addWidget(self.btn_live, 0,2)
+        grid_line1.addWidget(self.btn_snap, 0,3)
 
         grid_line2 = QGridLayout()
         grid_line2.addWidget(QLabel('Exposure Time (ms)'), 0,0)
@@ -184,13 +197,29 @@ class LiveControlWidget(QFrame):
         self.setLayout(self.grid)
 
     @TypecheckFunction
+    def take_snapshot(self,_pressed:Any=None):
+        """ take a snapshot (more precisely, request a snapshot) """
+        self.liveController.camera.is_live=True
+        self.liveController.on_frame_acquired.connect(self.snap_end)
+        self.liveController.camera.start_streaming()
+        self.liveController.trigger_acquisition()
+
+    @TypecheckFunction
+    def snap_end(self,_discard:Any=None):
+        """ clean up after snapshot was recorded """
+        self.liveController.on_frame_acquired.disconnect(self.snap_end)
+        self.liveController.camera.is_live=False
+
+    @TypecheckFunction
     def toggle_live(self,pressed:bool):
         if pressed:
             self.btn_live.setText(LIVE_BUTTON_RUNNING_TEXT)
             self.liveController.start_live()
+            self.btn_snap.setDisabled(True)
         else:
             self.btn_live.setText(LIVE_BUTTON_IDLE_TEXT)
             self.liveController.stop_live()
+            self.btn_snap.setDisabled(False)
 
     @TypecheckFunction
     def update_camera_settings(self):

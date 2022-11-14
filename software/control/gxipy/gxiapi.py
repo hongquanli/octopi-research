@@ -7,6 +7,8 @@ from control.gxipy.gxwrapper import *
 from control.gxipy.dxwrapper import *
 from control.gxipy.gxidef import *
 
+from control.typechecker import TypecheckFunction
+
 from typing import Optional, Any, Callable
 
 ERROR_SIZE = 1024
@@ -1230,7 +1232,7 @@ class StatusProcessor:
 
 
 class RGBImage:
-    def __init__(self, frame_data):
+    def __init__(self, frame_data:GxFrameData):
         self.frame_data = frame_data
 
         if self.frame_data.image_buf is not None:
@@ -1535,7 +1537,7 @@ class RawImage:
             print('''RawImage.convert: mode="%s", isn't support''' % mode)
             return None
 
-    def get_numpy_array(self):
+    def get_numpy_array(self)->Optional[numpy.ndarray]:
         """
         :brief      Return data as a numpy.Array type with dimension Image.height * Image.width
         :return:    numpy.Array objects
@@ -1557,7 +1559,7 @@ class RawImage:
 
         return image_np
 
-    def get_data(self):
+    def get_data(self)->bytes:
         """
         :brief      get Raw data
         :return:    raw data[string]
@@ -1565,22 +1567,20 @@ class RawImage:
         image_str = string_at(self.__image_array, self.frame_data.image_size)
         return image_str
 
-    def save_raw(self, file_path):
+    @TypecheckFunction
+    def save_raw(self, file_path:str):
         """
         :brief      save raw data
         :param      file_path:      file path
         :return:    None
         """
-        if not isinstance(file_path, str):
-            raise ParameterTypeError("RawImage.save_raw: "
-                                     "Expected file_path type is str, not %s" % type(file_path))
 
         try:
             fp = open(file_path, "wb")
             fp.write(self.__image_array)
             fp.close()
         except Exception as error:
-            raise UnexpectedError("RawImage.save_raw:%s" % error)
+            raise UnexpectedError(f"RawImage.save_raw: {error}")
 
     def get_status(self):
         """
