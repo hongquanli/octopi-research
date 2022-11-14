@@ -304,6 +304,7 @@ class OctopiGUI(QMainWindow):
 			self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
 			self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
 			self.camera_focus.enable_callback()
+			self.camera_focus.start_streaming()
 
 			# widgets
 			self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=False)

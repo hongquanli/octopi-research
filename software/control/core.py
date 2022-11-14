@@ -2444,9 +2444,9 @@ class LaserAutofocusController(QObject):
     def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference):
         # x_reference is relative to the full sensor
         self.pixel_to_um = pixel_to_um
-        self.x_offset = int((x_offset//4)*4)
+        self.x_offset = int((x_offset//8)*8)
         self.y_offset = int((y_offset//2)*2)
-        self.width = int((width//4)*4)
+        self.width = int((width//8)*8)
         self.height = int((height//2)*2)
         self.x_reference = x_reference - self.x_offset # self.x_reference is relative to the cropped region
         self.camera.set_ROI(self.x_offset,self.y_offset,self.width,self.height)
@@ -2458,6 +2458,7 @@ class LaserAutofocusController(QObject):
         # then calculate the convert factor
 
         # set camera to use full sensor
+        self.camera.set_ROI(0,0,None,None) # set offset first
         self.camera.set_ROI(0,0,3088,2064)
         # update camera settings
         self.camera.set_exposure_time(FOCUS_CAMERA_EXPOSURE_TIME_MS)
@@ -2589,7 +2590,7 @@ class LaserAutofocusController(QObject):
             I[I/np.amax(I)<0.1] = 0
             x1 = np.sum(x*I)/np.sum(I)
             y1 = np.sum(y*I)/np.sum(I)
-            return x1,y1
+            return x1,y0-96+y1
 
     def _get_laser_spot_centroid(self):
         # disable camera callback
