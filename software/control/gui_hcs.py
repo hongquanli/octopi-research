@@ -343,6 +343,10 @@ class OctopiGUI(QMainWindow):
 			self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-based Focus")
 
 			# connections
+			self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
+			self.liveControlWidget_focus_camera.signal_newAnalogGain.connect(self.cameraSettingWidget_focus_camera.set_analog_gain)
+			self.liveControlWidget_focus_camera.update_camera_settings()
+
 			self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
 			self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 			self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
