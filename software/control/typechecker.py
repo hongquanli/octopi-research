@@ -1,5 +1,5 @@
 from ast import Assert
-from typing import Union, Optional, List, TypeVar, Generic, Tuple, Any, ClassVar
+from typing import Union, Optional, List, TypeVar, Generic, Tuple, Any, ClassVar, Callable
 NoneType=type(None)
 from dataclasses import Field, field, dataclass, _MISSING_TYPE
 from functools import wraps
@@ -161,8 +161,8 @@ def type_match(et,v,_vt=None):
     return TypeCheckResult(False,msg=f"{v}:{type_name(vt)}!={type_name(et)}")
 
 # decorator that serves as type checker for classes
-def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,create_str:bool=True,check_assignment:bool=True):
-    def inner(t):
+def TypecheckClass(_t:Optional[type]=None,*,check_defaults:bool=True,create_init:bool=True,create_str:bool=True,check_assignment:bool=True):
+    def inner(t:type):
         t_attributes={}
         t_class_attributes={}
 
@@ -336,8 +336,8 @@ def TypecheckClass(_t=None,*,check_defaults:bool=True,create_init:bool=True,crea
     else:
         return inner(_t)
 
-def TypecheckFunction(_f=None,*,check_defaults:bool=True):
-    def inner(f):
+def TypecheckFunction(_f=None,*,check_defaults:bool=True)->Callable:
+    def inner(f:Callable)->Callable:
 
         f_signature=signature(f)
 

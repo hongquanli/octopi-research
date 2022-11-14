@@ -163,7 +163,7 @@ class LiveController(QObject):
     def _set_trigger_fps(self,fps_trigger:float):
         """ set frames per second for trigger """
         self.fps_trigger = fps_trigger
-        print(f"setting trigger interval to {self.timer_trigger_interval_ms} ms")
+        #print(f"setting trigger interval to {self.timer_trigger_interval_ms} ms")
         self.timer_trigger.setInterval(self.timer_trigger_interval_ms)
 
     def _stop_triggerred_acquisition(self):

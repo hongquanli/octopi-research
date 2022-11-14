@@ -1,5 +1,6 @@
 # qt libraries
-from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar, QDesktopWidget
 from qtpy.QtGui import QIcon
 
 from control._def import *
@@ -11,7 +12,7 @@ from control.typechecker import TypecheckFunction
 
 class MultiPointWidget(QFrame):
     def __init__(self,
-        multipointController:MultiPointController, 
+        multipointController:MultiPointController,
         configurationManager:ConfigurationManager,
         start_experiment:Callable[[str,List[str]],None],
         abort_experiment:Callable[[],None],
@@ -238,12 +239,14 @@ class MultiPointWidget(QFrame):
         self.multipointController.set_deltaZ(deltaZ)
 
     @TypecheckFunction
-    def set_saving_dir(self):
-        dialog = QFileDialog()
+    def set_saving_dir(self,_state:Any=None):
+        dialog = QFileDialog(options=QFileDialog.DontUseNativeDialog)
+        dialog.setWindowModality(Qt.ApplicationModal)
         save_dir_base = dialog.getExistingDirectory(None, "Select Folder")
-        self.multipointController.set_base_path(save_dir_base)
-        self.lineEdit_savingDir.setText(save_dir_base)
-        self.base_path_is_set = True
+        if save_dir_base!="":
+            self.multipointController.set_base_path(save_dir_base)
+            self.lineEdit_savingDir.setText(save_dir_base)
+            self.base_path_is_set = True
 
     @TypecheckFunction
     def toggle_acquisition(self,pressed:bool):

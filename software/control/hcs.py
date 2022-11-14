@@ -161,6 +161,9 @@ class HCSController(QObject):
 
     @TypecheckFunction
     def close(self):
+        # make sure the lasers are turned off!
+        self.microcontroller.turn_off_illumination()
+
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
         self.microcontroller.wait_till_operation_is_completed(5, 0.005)
