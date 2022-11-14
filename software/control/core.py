@@ -22,6 +22,8 @@ from threading import Thread, Lock
 import time
 import numpy as np
 import pyqtgraph as pg
+import scipy
+import scipy.signal
 import cv2
 from datetime import datetime
 
@@ -2420,7 +2422,7 @@ class LaserAutofocusController(QObject):
     image_to_display = Signal(np.ndarray)
     signal_displacement_um = Signal(float)
 
-    def __init__(self,microcontroller,camera,liveController,navigationController):
+    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True):
         QObject.__init__(self)
         self.microcontroller = microcontroller
         self.camera = camera
@@ -2434,6 +2436,10 @@ class LaserAutofocusController(QObject):
         self.y_offset = 0
         self.x_width = 3088
         self.y_width = 2064
+
+        self.has_two_interfaces = has_two_interfaces # e.g. air-glass and glass water, set to false when (1) using oil immersion (2) using 1 mm thick slide (3) using metal coated slide or Si wafer
+        self.use_glass_top = use_glass_top
+        self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
 
     def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference):
         # x_reference is relative to the full sensor
@@ -2470,7 +2476,7 @@ class LaserAutofocusController(QObject):
 
         x_offset = x - LASER_AF_CROP_WIDTH/2
         y_offset = y - LASER_AF_CROP_HEIGHT/2
-        print('laser spot location on the full sensor is (' + str(x) + ',' + str(y) + ')')
+        print('laser spot location on the full sensor is (' + str(int(x)) + ',' + str(int(y)) + ')')
 
         # set camera crop
         self.initialize_manual(x_offset, y_offset, LASER_AF_CROP_WIDTH, LASER_AF_CROP_HEIGHT, 1, x)
@@ -2531,14 +2537,59 @@ class LaserAutofocusController(QObject):
         self.signal_displacement_um.emit(0)
 
     def _caculate_centroid(self,image):
-        h,w = image.shape
-        x,y = np.meshgrid(range(w),range(h))
-        I = image.astype(float)
-        I = I - np.amin(I)
-        I[I/np.amax(I)<0.2] = 0
-        x = np.sum(x*I)/np.sum(I)
-        y = np.sum(y*I)/np.sum(I)
-        return x,y
+        if self.has_two_interfaces == False:
+            h,w = image.shape
+            x,y = np.meshgrid(range(w),range(h))
+            I = image.astype(float)
+            I = I - np.amin(I)
+            I[I/np.amax(I)<0.2] = 0
+            x = np.sum(x*I)/np.sum(I)
+            y = np.sum(y*I)/np.sum(I)
+            return x,y
+        else:
+            I = image
+            # get the y position of the spots
+            tmp = np.sum(I,axis=1)
+            y0 = np.argmax(tmp)
+            # crop along the y axis
+            I = I[y0-96:y0+96,:]
+            # signal along x
+            tmp = np.sum(I,axis=0)
+            # find peaks
+            peak_locations,_ = scipy.signal.find_peaks(tmp,distance=100)
+            idx = np.argsort(tmp[peak_locations])
+            peak_0_location = peak_locations[idx[-1]]
+            peak_1_location = peak_locations[idx[-2]] # for air-glass-water, the smaller peak corresponds to the glass-water interface
+            self.spot_spacing_pixels = peak_1_location-peak_0_location
+            '''
+            # find peaks - alternative
+            if self.spot_spacing_pixels is not None:
+                peak_locations,_ = scipy.signal.find_peaks(tmp,distance=100)
+                idx = np.argsort(tmp[peak_locations])
+                peak_0_location = peak_locations[idx[-1]]
+                peak_1_location = peak_locations[idx[-2]] # for air-glass-water, the smaller peak corresponds to the glass-water interface
+                self.spot_spacing_pixels = peak_1_location-peak_0_location
+            else:
+                peak_0_location = np.argmax(tmp)
+                peak_1_location = peak_0_location + self.spot_spacing_pixels
+            '''
+            # choose which surface to use
+            if self.use_glass_top:
+                x1 = peak_1_location
+            else:
+                x1 = peak_0_location
+            # find centroid
+            h,w = I.shape
+            x,y = np.meshgrid(range(w),range(h))
+            I = I[:,max(0,x1-64):min(w-1,x1+64)]
+            x = x[:,max(0,x1-64):min(w-1,x1+64)]
+            y = y[:,max(0,x1-64):min(w-1,x1+64)]
+            I = I.astype(float)
+            I = I - np.amin(I)
+            I[I/np.amax(I)<0.1] = 0
+            x1 = np.sum(x*I)/np.sum(I)
+            y1 = np.sum(y*I)/np.sum(I)
+            return x1,y1
 
     def _get_laser_spot_centroid(self):
         # disable camera callback
@@ -2562,7 +2613,7 @@ class LaserAutofocusController(QObject):
             tmp_x = tmp_x + x
             tmp_y = tmp_y + y
         x = tmp_x/LASER_AF_AVERAGING_N
-        x = tmp_y/LASER_AF_AVERAGING_N
+        y = tmp_y/LASER_AF_AVERAGING_N
         return x,y
 
     def wait_till_operation_is_completed(self):

@@ -358,8 +358,11 @@ FOCUS_CAMERA_EXPOSURE_TIME_MS = 2
 FOCUS_CAMERA_ANALOG_GAIN = 0
 LASER_AF_AVERAGING_N = 1
 LASER_AF_DISPLAY_SPOT_IMAGE = True
-LASER_AF_CROP_WIDTH = 1024
+LASER_AF_CROP_WIDTH = 1536
 LASER_AF_CROP_HEIGHT = 256
+
+HAS_TWO_INTERFACES = True
+USE_GLASS_TOP = True
 
 ##########################################################
 #### start of loading machine specific configurations ####
