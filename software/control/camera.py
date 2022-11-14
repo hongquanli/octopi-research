@@ -341,73 +341,49 @@ class Camera(object):
         # print(self.frameID)
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
-        if offset_x is not None:
-            self.ROI_offset_x = offset_x
-            # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
-            # update the camera setting
-            if self.camera.OffsetX.is_implemented() and self.camera.OffsetX.is_writable():
-                self.camera.OffsetX.set(self.ROI_offset_x)
-            else:
-                print("OffsetX is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
-
-        if offset_y is not None:
-            self.ROI_offset_y = offset_y
-                # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
-            # update the camera setting
-            if self.camera.OffsetY.is_implemented() and self.camera.OffsetY.is_writable():
-                self.camera.OffsetY.set(self.ROI_offset_y)
-            else:
-                print("OffsetX is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
+        
+        # stop streaming if streaming is on
+        if self.is_streaming == True:
+            was_streaming = True
+            self.stop_streaming()
+        else:
+            was_streaming = False
 
         if width is not None:
             self.ROI_width = width
-            # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
             # update the camera setting
             if self.camera.Width.is_implemented() and self.camera.Width.is_writable():
                 self.camera.Width.set(self.ROI_width)
             else:
                 print("OffsetX is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
 
         if height is not None:
             self.ROI_height = height
-            # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
             # update the camera setting
             if self.camera.Height.is_implemented() and self.camera.Height.is_writable():
                 self.camera.Height.set(self.ROI_height)
             else:
                 print("Height is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
+
+        if offset_x is not None:
+            self.ROI_offset_x = offset_x
+            # update the camera setting
+            if self.camera.OffsetX.is_implemented() and self.camera.OffsetX.is_writable():
+                self.camera.OffsetX.set(self.ROI_offset_x)
+            else:
+                print("OffsetX is not implemented or not writable")
+
+        if offset_y is not None:
+            self.ROI_offset_y = offset_y
+            # update the camera setting
+            if self.camera.OffsetY.is_implemented() and self.camera.OffsetY.is_writable():
+                self.camera.OffsetY.set(self.ROI_offset_y)
+            else:
+                print("OffsetX is not implemented or not writable")
+
+        # restart streaming if it was previously on
+        if was_streaming == True:
+            self.start_streaming()
 
     def reset_camera_acquisition_counter(self):
         if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
