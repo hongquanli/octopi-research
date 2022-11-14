@@ -892,9 +892,12 @@ class MultiPointWidget(QFrame):
             self.list_configurations.addItems([microscope_configuration.name])
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
 
-        self.checkbox_withAutofocus = QCheckBox('With AF')
+        self.checkbox_withAutofocus = QCheckBox('Contrast AF')
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
+        self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
@@ -928,9 +931,15 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(QLabel('Nt'), 1,6)
         grid_line2.addWidget(self.entry_Nt, 1,7)
 
+        grid_af = QVBoxLayout()
+        grid_af.addWidget(self.checkbox_withAutofocus)
+        if SUPPORT_LASER_AUTOFOCUS:
+            grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
-        grid_line3.addWidget(self.checkbox_withAutofocus)
+        # grid_line3.addWidget(self.checkbox_withAutofocus)
+        grid_line3.addLayout(grid_af)
         grid_line3.addWidget(self.btn_startAcquisition)
 
         self.grid = QGridLayout()
@@ -953,6 +962,7 @@ class MultiPointWidget(QFrame):
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
+        self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
@@ -1018,6 +1028,7 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.setEnabled(enabled)
         self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
+        self.checkbox_withReflectionAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
@@ -1377,6 +1388,7 @@ class PlateReaderAcquisitionWidget(QFrame):
         self.list_columns.setEnabled(enabled)
         self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
+        self.checkbox_withReflectionAutofocus.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 

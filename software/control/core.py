@@ -1084,6 +1084,7 @@ class MultiPointWorker(QObject):
         self.deltaZ_usteps = self.multiPointController.deltaZ_usteps
         self.dt = self.multiPointController.deltat
         self.do_autofocus = self.multiPointController.do_autofocus
+        self.do_reflection_af= self.multiPointController.do_reflection_af
         self.crop_width = self.multiPointController.crop_width
         self.crop_height = self.multiPointController.crop_height
         self.display_resolution_scaling = self.multiPointController.display_resolution_scaling
@@ -1132,6 +1133,8 @@ class MultiPointWorker(QObject):
         self.navigationController.enable_joystick_button_action = False
 
         self.FOV_counter = 0
+        self.reflection_af_initialized = False
+
         print('multipoint acquisition - time point ' + str(self.time_point+1))
         
         # for each time point, create a new folder
@@ -1186,16 +1189,36 @@ class MultiPointWorker(QObject):
                 # along x
                 for j in range(self.NX):
 
-                    # perform AF only if when not taking z stack or doing z stack from center
-                    if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                    # temporary: replace the above line with the line below to AF every FOV
-                    # if (self.NZ == 1) and (self.do_autofocus):
-                        configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
-                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                        self.signal_current_configuration.emit(config_AF)
-                        self.autofocusController.autofocus()
-                        self.autofocusController.wait_till_autofocus_has_completed()
-                    
+                    # autofocus
+                    if self.do_reflection_af == False:
+                        # perform AF only if when not taking z stack or doing z stack from center
+                        if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                        # temporary: replace the above line with the line below to AF every FOV
+                        # if (self.NZ == 1) and (self.do_autofocus):
+                            configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                            config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                            self.signal_current_configuration.emit(config_AF)
+                            self.autofocusController.autofocus()
+                            self.autofocusController.wait_till_autofocus_has_completed()
+                    else:
+                        # first FOV
+                        if self.reflection_af_initialized==False:
+                            # initialize the reflection AF
+                            self.microscope.laserAutofocusController.initialize_auto()
+                            self.reflection_af_initialized = True
+                            # do contrast AF for the first FOV
+                            if self.do_autofocus and self.FOV_counter==0 and ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) :
+                                configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                                config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                                self.signal_current_configuration.emit(config_AF)
+                                self.autofocusController.autofocus()
+                                self.autofocusController.wait_till_autofocus_has_completed()
+                            # set the current plane as reference
+                            self.microscope.laserAutofocusController.set_reference()
+                        else:
+                            self.microscope.laserAutofocusController.move_to_target(0)
+                            self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+
                     if (self.NZ > 1):
                         # move to bottom of the z stack
                         if Z_STACKING_CONFIG == 'FROM CENTER':
@@ -1402,6 +1425,7 @@ class MultiPointController(QObject):
         self.deltaZ_usteps = round(self.deltaZ/mm_per_ustep_Z)
         self.deltat = 0
         self.do_autofocus = False
+        self.do_reflection_af = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1411,6 +1435,7 @@ class MultiPointController(QObject):
         self.selected_configurations = []
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
+        self.parent = parent
 
     def set_NX(self,N):
         self.NX = N
@@ -1436,6 +1461,8 @@ class MultiPointController(QObject):
         self.deltat = delta
     def set_af_flag(self,flag):
         self.do_autofocus = flag
+    def set_reflection_af_flag(self,flag):
+        self.do_reflection_af = flag
 
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
@@ -1451,7 +1478,7 @@ class MultiPointController(QObject):
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
-        acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus}
+        acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus,'with reflection AF':self.do_reflection_af}
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
@@ -2497,6 +2524,9 @@ class LaserAutofocusController(QObject):
         # calculate the conversion factor
         self.pixel_to_um = 6.0/(x1-x0)
         print('pixel to um conversion factor is ' + str(self.pixel_to_um) + ' um/pixel')
+        # for simulation
+        if x1-x0 == 0:
+            self.pixel_to_um = 0.4
 
         # set reference
         self.x_reference = x1
@@ -2519,8 +2549,8 @@ class LaserAutofocusController(QObject):
         current_displacement_um = self.measure_displacement()
         um_to_move = target_um - current_displacement_um
         # limit the range of movement
-        um_to_move = min(um_to_move,100)
-        um_to_move = max(um_to_move,-100)
+        um_to_move = min(um_to_move,200)
+        um_to_move = max(um_to_move,-200)
         self.navigationController.move_z(um_to_move/1000)
         self.wait_till_operation_is_completed()
         # update the displacement measurement

@@ -360,9 +360,10 @@ LASER_AF_AVERAGING_N = 5
 LASER_AF_DISPLAY_SPOT_IMAGE = True
 LASER_AF_CROP_WIDTH = 1536
 LASER_AF_CROP_HEIGHT = 256
-
 HAS_TWO_INTERFACES = True
 USE_GLASS_TOP = True
+
+MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 
 ##########################################################
 #### start of loading machine specific configurations ####

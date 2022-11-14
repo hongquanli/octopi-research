@@ -94,7 +94,7 @@ class OctopiGUI(QMainWindow):
 		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.scanCoordinates = core.ScanCoordinates()
-		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates)
+		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
