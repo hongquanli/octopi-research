@@ -2522,6 +2522,7 @@ class LaserAutofocusController(QObject):
         um_to_move = min(um_to_move,100)
         um_to_move = max(um_to_move,-100)
         self.navigationController.move_z(um_to_move/1000)
+        self.wait_till_operation_is_completed()
         # update the displacement measurement
         self.measure_displacement()
 
