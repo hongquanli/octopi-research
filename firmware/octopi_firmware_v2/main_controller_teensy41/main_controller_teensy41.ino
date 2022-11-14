@@ -1280,6 +1280,9 @@ void loop() {
         }
         case INITIALIZE:
         {
+          // reset z target position so that z does not move when "current position" for z is set to 0
+          focusPosition = 0;
+          first_packet_from_joystick_panel = true;
           // initilize TMC4361 and TMC2660
           for (int i = 0; i < N_MOTOR; i++)     
             tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
