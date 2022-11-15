@@ -132,13 +132,13 @@ const int pin_PG = 0;
 /************************************ camera trigger and strobe ************************************/
 /***************************************************************************************************/
 static const int TRIGGER_PULSE_LENGTH_us = 50;
-bool trigger_output_level[5] = {LOW,LOW,LOW,LOW,LOW};
-bool control_strobe[5] = {false,false,false,false,false};
-bool strobe_output_level[5] = {LOW,LOW,LOW,LOW,LOW};
-bool strobe_on[5] = {false,false,false,false,false};
-int strobe_delay[5] = {0,0,0,0,0};
-long illumination_on_time[5] = {0,0,0,0,0};
-long timestamp_trigger_rising_edge[5] = {0,0,0,0,0};
+bool trigger_output_level[6] = {HIGH,HIGH,HIGH,HIGH,HIGH,HIGH};
+bool control_strobe[6] = {false,false,false,false,false,false};
+bool strobe_output_level[6] = {LOW,LOW,LOW,LOW,LOW,LOW};
+bool strobe_on[6] = {false,false,false,false,false,false};
+int strobe_delay[6] = {0,0,0,0,0,0};
+long illumination_on_time[6] = {0,0,0,0,0,0};
+long timestamp_trigger_rising_edge[6] = {0,0,0,0,0,0};
 // to do: change the number of channels (5) to a named constant
 
 /***************************************************************************************************/
@@ -518,7 +518,7 @@ void setup() {
   for(int i=0;i<6;i++)
   {
     pinMode(camera_trigger_pins[i], OUTPUT);
-    digitalWrite(camera_trigger_pins[i], LOW);
+    digitalWrite(camera_trigger_pins[i], HIGH);
   }
   
   // enable pins
@@ -1266,9 +1266,9 @@ void loop() {
           int camera_channel = buffer_rx[2] & 0x0f;
           control_strobe[camera_channel] = buffer_rx[2] >> 7;
           illumination_on_time[camera_channel] = uint32_t(buffer_rx[3])*16777216 + uint32_t(buffer_rx[4])*65536 + uint32_t(buffer_rx[5])*256 + uint32_t(buffer_rx[6]);
-          digitalWrite(camera_trigger_pins[camera_channel],HIGH);
+          digitalWrite(camera_trigger_pins[camera_channel],LOW);
           timestamp_trigger_rising_edge[camera_channel] = micros();
-          trigger_output_level[camera_channel] = HIGH;
+          trigger_output_level[camera_channel] = LOW;
           break;
         }
         case SET_PIN_LEVEL:
@@ -1347,13 +1347,13 @@ void loop() {
   }
 
   // camera trigger
-  for(int camera_channel=0;camera_channel<5;camera_channel++)
+  for(int camera_channel=0;camera_channel<6;camera_channel++)
   {
     // end the trigger pulse
-    if(trigger_output_level[camera_channel] == HIGH && (micros()-timestamp_trigger_rising_edge[camera_channel])>= TRIGGER_PULSE_LENGTH_us )
+    if(trigger_output_level[camera_channel] == LOW && (micros()-timestamp_trigger_rising_edge[camera_channel])>= TRIGGER_PULSE_LENGTH_us )
     {
-      digitalWrite(camera_trigger_pins[camera_channel],LOW);
-      trigger_output_level[camera_channel] = LOW;
+      digitalWrite(camera_trigger_pins[camera_channel],HIGH);
+      trigger_output_level[camera_channel] = HIGH;
     }
 
     // strobe pulse
