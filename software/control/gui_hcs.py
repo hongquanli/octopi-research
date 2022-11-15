@@ -293,7 +293,7 @@ class OctopiGUI(QMainWindow):
 
 			# controllers
 			self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
-			self.streamHandler_focus_camera = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
+			self.streamHandler_focus_camera = core.StreamHandler()
 			self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
 			self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
 			self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -324,7 +324,8 @@ class OctopiGUI(QMainWindow):
 			dock_laserfocus_liveController.showTitleBar()
 			dock_laserfocus_liveController.addWidget(self.liveControlWidget_focus_camera)
 			dock_laserfocus_liveController.setStretch(x=100,y=100)
-			dock_laserfocus_liveController.setFixedHeight(self.liveControlWidget_focus_camera.minimumSizeHint().height())
+			# dock_laserfocus_liveController.setFixedHeight(self.liveControlWidget_focus_camera.minimumSizeHint().height())
+			dock_laserfocus_liveController.setFixedWidth(self.liveControlWidget_focus_camera.minimumSizeHint().width())
 
 			dock_waveform = dock.Dock('Displacement Measurement', autoOrientation = False)
 			dock_waveform.showTitleBar()
@@ -340,8 +341,9 @@ class OctopiGUI(QMainWindow):
 			laserfocus_dockArea = dock.DockArea()
 			laserfocus_dockArea.addDock(dock_laserfocus_image_display)
 			laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
-			laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
-			laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
+			if SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS:
+				laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
+				laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
 			# self.imageDisplayWindow_focus.widget
 			self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-based Focus")
