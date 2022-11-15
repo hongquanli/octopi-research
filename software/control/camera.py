@@ -280,7 +280,7 @@ class Camera(object):
 
     def set_hardware_triggered_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
-        self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE0)
+        self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2) # LINE0 requires 7 mA min
         # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
         self.frame_ID_offset_hardware_trigger = None
         self.trigger_mode = TriggerMode.HARDWARE
