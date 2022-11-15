@@ -280,7 +280,7 @@ class Camera(object):
 
     def set_hardware_triggered_acquisition(self):
         self.camera.TriggerMode.set(gx.GxSwitchEntry.ON)
-        self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE2)
+        self.camera.TriggerSource.set(gx.GxTriggerSourceEntry.LINE0)
         # self.camera.TriggerSource.set(gx.GxTriggerActivationEntry.RISING_EDGE)
         self.frame_ID_offset_hardware_trigger = None
         self.trigger_mode = TriggerMode.HARDWARE
@@ -341,7 +341,7 @@ class Camera(object):
         # print(self.frameID)
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
-        
+
         # stop streaming if streaming is on
         if self.is_streaming == True:
             was_streaming = True
