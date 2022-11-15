@@ -1,5 +1,5 @@
 # qt libraries
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QModelIndex
 from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar, QDesktopWidget
 from qtpy.QtGui import QIcon
 
@@ -107,10 +107,11 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.setKeyboardTracking(False)
 
         self.list_configurations = QListWidget()
-        for microscope_configuration in self.configurationManager.configurations:
-            self.list_configurations.addItems([microscope_configuration.name])
+        self.list_configurations.list_channel_names=[mc.name for mc in self.configurationManager.configurations]
+        self.list_configurations.addItems(self.list_configurations.list_channel_names)
         self.list_configurations.setSelectionMode(QAbstractItemView.MultiSelection) # ref: https://doc.qt.io/qt-5/qabstractitemview.html#SelectionMode-enum
         self.list_configurations.setDragDropMode(QAbstractItemView.InternalMove) # allow moving items within list
+        self.list_configurations.model().rowsMoved.connect(self.channel_list_rows_moved)
 
         self.checkbox_withAutofocus = QCheckBox('With AF')
         self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
@@ -200,9 +201,6 @@ class MultiPointWidget(QFrame):
         self.grid.addWidget(self.progress_bar,4,0)
         self.setLayout(self.grid)
 
-        # add and display a timer - to be implemented
-        # self.timer = QTimer()
-
         # connections
         self.entry_deltaX.valueChanged.connect(self.set_deltaX)
         self.entry_deltaY.valueChanged.connect(self.set_deltaY)
@@ -216,6 +214,25 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+
+    def channel_list_rows_moved(self,_parent:QModelIndex,row_range_moved_start:int,row_range_moved_end:int,_destination:QModelIndex,row_index_drop_release:int):
+        # saved items about to be moved
+        dragged=self.list_configurations.list_channel_names[row_range_moved_start:row_range_moved_end+1]
+        dragged_range_len=len(dragged)
+
+        # remove range that is about to be moved
+        ret_list=self.list_configurations.list_channel_names[:row_range_moved_start]
+        ret_list.extend(self.list_configurations.list_channel_names[row_range_moved_end+1:])
+        self.list_configurations.list_channel_names=ret_list
+
+        # insert items at insert index, adjusted for removed range
+        if row_index_drop_release<=row_range_moved_start:
+            insert_index=row_index_drop_release
+        else:
+            insert_index=row_index_drop_release-dragged_range_len
+
+        for i in reversed(range(dragged_range_len)):
+            self.list_configurations.list_channel_names.insert(insert_index,dragged[i])
 
     @TypecheckFunction
     def set_deltaX(self,value:float):
@@ -262,8 +279,12 @@ class MultiPointWidget(QFrame):
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
 
+            # get list of selected channels
+            selected_channel_list:List[str]=[item.text() for item in self.list_configurations.selectedItems()]
+            # 'sort' list according to current order in widget
+            imaging_channel_list=[channel for channel in self.list_configurations.list_channel_names if channel in selected_channel_list]
+
             experiment_data_target_folder:str=self.lineEdit_experimentID.text()
-            imaging_channel_list:List[str]=[item.text() for item in self.list_configurations.selectedItems()]
 
             self.start_experiment(
                 experiment_data_target_folder,
