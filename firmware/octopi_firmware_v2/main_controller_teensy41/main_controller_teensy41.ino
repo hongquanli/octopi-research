@@ -139,7 +139,8 @@ bool strobe_on[6] = {false,false,false,false,false,false};
 int strobe_delay[6] = {0,0,0,0,0,0};
 long illumination_on_time[6] = {0,0,0,0,0,0};
 long timestamp_trigger_rising_edge[6] = {0,0,0,0,0,0};
-// to do: change the number of channels (5) to a named constant
+IntervalTimer strobeTimer;
+static const int strobeTimer_interval_us = 100;
 
 /***************************************************************************************************/
 /******************************************* DAC80508 **********************************************/
@@ -494,6 +495,44 @@ void set_illumination_led_matrix(int source, uint8_t r, uint8_t g, uint8_t b)
     turn_on_illumination(); //update the illumination
 }
 
+void ISR_strobeTimer()
+{
+  for(int camera_channel=0;camera_channel<6;camera_channel++)
+  {
+    // strobe pulse
+    if(control_strobe[camera_channel])
+    {
+      if(illumination_on_time[camera_channel] <= 30000)
+      {
+        // if the illumination on time is smaller than 30 ms, use delayMicroseconds to control the pulse length to avoid pulse length jitter
+        if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
+        {
+          turn_on_illumination();
+          delayMicroseconds(illumination_on_time[camera_channel]);
+          turn_off_illumination();
+          control_strobe[camera_channel] = false;
+        }
+      }
+      else
+      {
+        // start the strobe
+        if( ((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]) && strobe_output_level[camera_channel]==LOW )
+        {
+          turn_on_illumination();
+          strobe_output_level[camera_channel] = HIGH;
+        }
+        // end the strobe
+        if(((micros()-timestamp_trigger_rising_edge[camera_channel])>=strobe_delay[camera_channel]+illumination_on_time[camera_channel]) && strobe_output_level[camera_channel]==HIGH)
+        {
+          turn_off_illumination();
+          strobe_output_level[camera_channel] = LOW;
+          control_strobe[camera_channel] = false;
+        }
+      }
+    }
+  }
+}
+
 /***************************************************************************************************/
 /********************************************* setup ***********************************************/
 /***************************************************************************************************/
@@ -666,6 +705,9 @@ void setup() {
 
   offset_velocity_x = 0;
   offset_velocity_y = 0;
+
+  // strobe timer
+  strobeTimer.begin(ISR_strobeTimer,strobeTimer_interval_us);
 
 }
 
@@ -1356,6 +1398,7 @@ void loop() {
       trigger_output_level[camera_channel] = HIGH;
     }
 
+    /*
     // strobe pulse
     if(control_strobe[camera_channel])
     {
@@ -1387,6 +1430,7 @@ void loop() {
         }
       }      
     }
+    */
   }
 
   // homing - preparing for homing
