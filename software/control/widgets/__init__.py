@@ -11,3 +11,4 @@ from .navigation import NavigationWidget, NavigationViewer
 from .recording import RecordingWidget
 from .well_selection import WellSelectionWidget
 from .image_display import ImageDisplay, ImageDisplayWindow, ImageArrayDisplayWindow
+from .laser_autofocus import LaserAutofocusControlWidget

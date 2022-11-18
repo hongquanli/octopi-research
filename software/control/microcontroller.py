@@ -687,3 +687,16 @@ class Microcontroller():
         if signed >= 256**number_of_bytes/2:
             signed = signed - 256**number_of_bytes
         return signed
+
+    def set_pin_level(self,pin,level):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_PIN_LEVEL
+        cmd[2] = pin
+        cmd[3] = level
+        self.send_command(cmd)
+
+    def turn_on_AF_laser(self):
+        self.set_pin_level(MCU_PINS.AF_LASER,1)
+
+    def turn_off_AF_laser(self):
+        self.set_pin_level(MCU_PINS.AF_LASER,0)

@@ -12,6 +12,18 @@ from typing import Optional, Any
 
 from control.typechecker import TypecheckFunction
 
+def get_sn_by_model(model_name:str)->Optional[Any]:
+    try:
+        device_manager = gx.DeviceManager()
+        device_num, device_info_list = device_manager.update_device_list()
+    except:
+        device_num = 0
+    if device_num > 0:
+        for i in range(device_num):
+            if device_info_list[i]['model_name'] == model_name:
+                return device_info_list[i]['sn']
+    return None # return None if no device with the specified model_name is connected
+
 class Camera(object):
 
     @TypecheckFunction
@@ -66,7 +78,7 @@ class Camera(object):
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
-        self.pixel_format = None # use the default pixel format
+        self.pixel_format = 'MONO8' # use the default pixel format
 
         self.is_live = False # this determines whether a new frame received will be handled in the streamHandler
         # mainly for discarding the last frame received after stop_live() is called, where illumination is being turned off during exposure
@@ -102,40 +114,41 @@ class Camera(object):
     def set_callback(self,function):
         self.new_image_callback_external = function
 
-    @TypecheckFunction
     def enable_callback(self):
-        # stop streaming
-        if self.is_streaming:
-            was_streaming = True
-            self.stop_streaming()
+        if self.callback_is_enabled == False:
+            # stop streaming
+            if self.is_streaming:
+                was_streaming = True
+                self.stop_streaming()
+            else:
+                was_streaming = False
+            # enable callback
+            user_param = None
+            self.camera.register_capture_callback(user_param,self._on_frame_callback)
+            self.callback_is_enabled = True
+            # resume streaming if it was on
+            if was_streaming:
+                self.start_streaming()
+            self.callback_is_enabled = True
         else:
-            was_streaming = False
+            pass
 
-        # enable callback
-        user_param:Optional[Any] = None
-        assert not self.camera is None
-        self.camera.register_capture_callback(user_param,self._on_frame_callback)
-        self.callback_is_enabled = True
-
-        # resume streaming if it was on
-        if was_streaming:
-            self.start_streaming()
-
-    @TypecheckFunction
     def disable_callback(self):
-        # stop streaming
-        if self.is_streaming:
-            was_streaming = True
-            self.stop_streaming()
+        if self.callback_is_enabled == True:
+            # stop streaming
+            if self.is_streaming:
+                was_streaming = True
+                self.stop_streaming()
+            else:
+                was_streaming = False
+            # disable call back
+            self.camera.unregister_capture_callback()
+            self.callback_is_enabled = False
+            # resume streaming if it was on
+            if was_streaming:
+                self.start_streaming()
         else:
-            was_streaming = False
-        # disable call back
-        assert not self.camera is None
-        self.camera.unregister_capture_callback()
-        self.callback_is_enabled = False
-        # resume streaming if it was on
-        if was_streaming:
-            self.start_streaming()
+            pass
 
     @TypecheckFunction
     def open_by_sn(self,sn:str):
@@ -379,74 +392,48 @@ class Camera(object):
     
     @TypecheckFunction
     def set_ROI(self,offset_x:Optional[int]=None,offset_y:Optional[int]=None,width:Optional[int]=None,height:Optional[int]=None):
-        assert not self.camera is None
-        if offset_x is not None:
-            self.ROI_offset_x = offset_x
-            # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
-            # update the camera setting
-            if self.camera.OffsetX.is_implemented() and self.camera.OffsetX.is_writable():
-                self.camera.OffsetX.set(self.ROI_offset_x)
-            else:
-                print("OffsetX is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
-
-        if offset_y is not None:
-            self.ROI_offset_y = offset_y
-                # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
-            # update the camera setting
-            if self.camera.OffsetY.is_implemented() and self.camera.OffsetY.is_writable():
-                self.camera.OffsetY.set(self.ROI_offset_y)
-            else:
-                print("OffsetX is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
+        # stop streaming if streaming is on
+        if self.is_streaming == True:
+            was_streaming = True
+            self.stop_streaming()
+        else:
+            was_streaming = False
 
         if width is not None:
             self.ROI_width = width
-            # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
             # update the camera setting
             if self.camera.Width.is_implemented() and self.camera.Width.is_writable():
                 self.camera.Width.set(self.ROI_width)
             else:
                 print("OffsetX is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
 
         if height is not None:
             self.ROI_height = height
-            # stop streaming if streaming is on
-            if self.is_streaming == True:
-                was_streaming = True
-                self.stop_streaming()
-            else:
-                was_streaming = False
             # update the camera setting
             if self.camera.Height.is_implemented() and self.camera.Height.is_writable():
                 self.camera.Height.set(self.ROI_height)
             else:
                 print("Height is not implemented or not writable")
-            # restart streaming if it was previously on
-            if was_streaming == True:
-                self.start_streaming()
+
+        if offset_x is not None:
+            self.ROI_offset_x = offset_x
+            # update the camera setting
+            if self.camera.OffsetX.is_implemented() and self.camera.OffsetX.is_writable():
+                self.camera.OffsetX.set(self.ROI_offset_x)
+            else:
+                print("OffsetX is not implemented or not writable")
+
+        if offset_y is not None:
+            self.ROI_offset_y = offset_y
+            # update the camera setting
+            if self.camera.OffsetY.is_implemented() and self.camera.OffsetY.is_writable():
+                self.camera.OffsetY.set(self.ROI_offset_y)
+            else:
+                print("OffsetX is not implemented or not writable")
+
+        # restart streaming if it was previously on
+        if was_streaming == True:
+            self.start_streaming()
 
     def reset_camera_acquisition_counter(self):
         assert not self.camera is None

@@ -36,6 +36,7 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir = QPushButton('Browse')
         self.btn_setSavingDir.setDefault(False)
         self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
+        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setReadOnly(True)
@@ -54,6 +55,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaX.setValue(Acquisition.DEFAULT_DX_MM)
         self.entry_deltaX.setDecimals(3)
         self.entry_deltaX.setKeyboardTracking(False)
+        self.entry_deltaX.valueChanged.connect(self.set_deltaX)
 
         self.entry_NX = QSpinBox()
         self.entry_NX.setMinimum(1) 
@@ -61,6 +63,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setSingleStep(1)
         self.entry_NX.setValue(1)
         self.entry_NX.setKeyboardTracking(False)
+        self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
 
         self.entry_deltaY = QDoubleSpinBox()
         self.entry_deltaY.setMinimum(0) 
@@ -69,6 +72,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaY.setValue(Acquisition.DEFAULT_DX_MM)
         self.entry_deltaY.setDecimals(3)
         self.entry_deltaY.setKeyboardTracking(False)
+        self.entry_deltaY.valueChanged.connect(self.set_deltaY)
         
         self.entry_NY = QSpinBox()
         self.entry_NY.setMinimum(1) 
@@ -76,6 +80,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setSingleStep(1)
         self.entry_NY.setValue(1)
         self.entry_NY.setKeyboardTracking(False)
+        self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
 
         self.entry_deltaZ = QDoubleSpinBox()
         self.entry_deltaZ.setMinimum(0) 
@@ -84,6 +89,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaZ.setValue(Acquisition.DEFAULT_DZ_MM)
         self.entry_deltaZ.setDecimals(3)
         self.entry_deltaZ.setKeyboardTracking(False)
+        self.entry_deltaZ.valueChanged.connect(self.set_deltaZ)
         
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
@@ -91,6 +97,7 @@ class MultiPointWidget(QFrame):
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
         self.entry_NZ.setKeyboardTracking(False)
+        self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         
         self.entry_dt = QDoubleSpinBox()
         self.entry_dt.setMinimum(0) 
@@ -98,6 +105,7 @@ class MultiPointWidget(QFrame):
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(0)
         self.entry_dt.setKeyboardTracking(False)
+        self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1) 
@@ -105,6 +113,7 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
         self.entry_Nt.setKeyboardTracking(False)
+        self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
 
         self.list_configurations = QListWidget()
         self.list_configurations.list_channel_names=[mc.name for mc in self.configurationManager.configurations]
@@ -113,13 +122,16 @@ class MultiPointWidget(QFrame):
         self.list_configurations.setDragDropMode(QAbstractItemView.InternalMove) # allow moving items within list
         self.list_configurations.model().rowsMoved.connect(self.channel_list_rows_moved)
 
-        self.checkbox_withAutofocus = QCheckBox('With AF')
+        self.checkbox_withAutofocus = QCheckBox('Software AF')
         self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
         self.checkbox_withAutofocus.setChecked(MACHINE_DISPLAY_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.multipointController.set_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
+        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
 
         # layout
         grid_line0 = QGridLayout()
@@ -202,17 +214,6 @@ class MultiPointWidget(QFrame):
         self.setLayout(self.grid)
 
         # connections
-        self.entry_deltaX.valueChanged.connect(self.set_deltaX)
-        self.entry_deltaY.valueChanged.connect(self.set_deltaY)
-        self.entry_deltaZ.valueChanged.connect(self.set_deltaZ)
-        self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
-        self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
-        self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
-        self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
-        self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
-        self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
-        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
-        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
 
     def channel_list_rows_moved(self,_parent:QModelIndex,row_range_moved_start:int,row_range_moved_end:int,_destination:QModelIndex,row_index_drop_release:int):

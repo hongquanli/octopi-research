@@ -10,3 +10,4 @@ from .navigation import NavigationController
 from .slide_position import SlidePositionController
 from .autofocus import AutoFocusController
 from .multi_point import MultiPointController
+from .laser_autofocus import LaserAutofocusController

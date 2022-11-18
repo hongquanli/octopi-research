@@ -6,7 +6,7 @@ import numpy
 
 # app specific libraries
 import control.widgets as widgets
-import control.camera as camera
+from control.camera import Camera
 import control.core as core
 import control.microcontroller as microcontroller
 from control.hcs import HCSController
@@ -48,8 +48,11 @@ class OctopiGUI(QMainWindow):
     def imageSaver(self)->core.ImageSaver:
         return self.hcs_controller.imageSaver
     @property
-    def camera(self)->camera.Camera:
+    def camera(self)->Camera:
         return self.hcs_controller.camera
+    @property
+    def focus_camera(self)->Camera:
+        return self.hcs_controller.focus_camera
     @property
     def microcontroller(self)->microcontroller.Microcontroller:
         return self.hcs_controller.microcontroller
@@ -122,17 +125,11 @@ class OctopiGUI(QMainWindow):
         self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
         self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
-        # these widgets are used by a controller (which already tells us that there is something very wrong!)
         default_well_plate=WELLPLATE_NAMES[MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT]
-        self.wellSelectionWidget = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
-        
-        # open the camera
-        self.camera.set_software_triggered_acquisition()
-        self.camera.set_callback(self.streamHandler.on_new_frame)
-        self.camera.enable_callback()
 
         # load widgets
         self.imageDisplay           = widgets.ImageDisplay()
+        self.wellSelectionWidget    = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
         self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
         self.navigationWidget       = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=default_well_plate)
         self.dacControlWidget       = widgets.DACControWidget(self.microcontroller)
@@ -151,7 +148,7 @@ class OctopiGUI(QMainWindow):
         wellplate_selector=QComboBox()
         wellplate_types_str=list(WELLPLATE_NAMES.values())
         wellplate_selector.addItems(wellplate_types_str)
-        # disable 6 and 24 well wellplates, because the images displaying them are missing
+        # disable 6 and 24 well wellplates, because images of these plates are missing
         for wpt in [0,2]:
             item=wellplate_selector.model().item(wpt)
             item.setFlags(item.flags() & ~Qt.ItemIsEnabled) # type: ignore
@@ -517,7 +514,6 @@ class OctopiGUI(QMainWindow):
     @TypecheckFunction
     def closeEvent(self, event:QEvent):
         
-        event.accept()
         self.imageSaver.close()
         self.imageDisplay.close()
         if not MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
@@ -526,3 +522,5 @@ class OctopiGUI(QMainWindow):
             self.tabbedImageDisplayWindow.close()
 
         self.hcs_controller.close()
+        
+        event.accept()

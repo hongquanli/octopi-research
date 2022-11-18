@@ -13,6 +13,9 @@ from control.core import ConfigurationManager, Configuration
 
 class LiveController(QObject):
 
+    start_live_signal=Signal()
+    stop_live_signal=Signal()
+
     @property
     def timer_trigger_interval_ms(self)->int:
         """ timer trigger interval in msec"""
@@ -30,6 +33,7 @@ class LiveController(QObject):
         on_frame_acquired:Signal,
         control_illumination:bool=True,
         use_internal_timer_for_hardware_trigger:bool=True,
+        for_displacement_measurement:bool=False
     ):
         QObject.__init__(self)
         self.camera = camera
@@ -42,6 +46,7 @@ class LiveController(QObject):
         self.control_illumination = control_illumination
         self.illumination_on:bool = False
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
+        self.for_displacement_measurement=for_displacement_measurement
 
         self.fps_trigger:float = 10.0
 
@@ -90,7 +95,13 @@ class LiveController(QObject):
         self.camera.is_live = True
         self.camera.start_streaming()
         if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
+            self.camera.enable_callback() # in case it's disabled e.g. by the laser AF controller
             self._start_triggerred_acquisition()
+        # if controlling the laser displacement measurement camera
+        if self.for_displacement_measurement:
+            self.microcontroller.turn_on_AF_laser()
+
+        self.start_live_signal.emit()
 
     def stop_live(self):
         self.stop_requested=True
@@ -100,16 +111,24 @@ class LiveController(QObject):
         if self.is_live:
             self.is_live = False
             self.camera.is_live = False
-            # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint
+            self.camera.stop_streaming()
             if self.trigger_mode == TriggerMode.CONTINUOUS:
                 self.camera.stop_streaming()
                 self.turn_off_illumination()
             if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
                 self._stop_triggerred_acquisition()
 
+            # if controlling the laser displacement measurement camera
+            if self.for_displacement_measurement:
+                self.microcontroller.turn_off_AF_laser()
+
+            self.camera.stop_streaming()
+
             self.stop_requested=False
             self.image_acquisition_in_progress=False
             self.image_acquisition_queued=False
+
+            self.stop_live_signal.emit()
 
     # actually take an image
     def trigger_acquisition(self):

@@ -3,10 +3,11 @@ from qtpy.QtCore import Qt, QThread, QObject
 from qtpy.QtWidgets import QApplication
 
 # app specific libraries
+from control._def import *
 import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
-from control._def import *
+import control.core_displacement_measurement as core_displacement_measurement
 
 from control.typechecker import TypecheckFunction
 
@@ -21,10 +22,19 @@ class HCSController(QObject):
 
         # load objects
         try:
-            self.camera = camera.Camera(rotate_image_angle=MACHINE_CONFIG.ROTATE_IMAGE_ANGLE,flip_image=MACHINE_CONFIG.FLIP_IMAGE)
+            sn_camera_main = camera.get_sn_by_model(MACHINE_CONFIG.MAIN_CAMERA_MODEL)
+            self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=MACHINE_CONFIG.ROTATE_IMAGE_ANGLE,flip_image=MACHINE_CONFIG.FLIP_IMAGE)
             self.camera.open()
         except Exception as e:
-            print('! camera not detected !')
+            print('! imaging camera not detected !')
+            raise e
+
+        try:
+            sn_camera_focus = camera.get_sn_by_model(MACHINE_CONFIG.FOCUS_CAMERA_MODEL)
+            self.focus_camera = camera.Camera(sn=sn_camera_focus)
+            self.focus_camera.open()
+        except Exception as e:
+            print('! laser AF camera not detected !')
             raise e
 
         try:
@@ -35,7 +45,8 @@ class HCSController(QObject):
 
         # reset the MCU
         self.microcontroller.reset()
-        
+        # reinitialize motor drivers and DAC (in particular for V2.1 driver board where PG is not functional)
+        self.microcontroller.initialize_drivers()
         # configure the actuators
         self.microcontroller.configure_actuators()
 
@@ -48,10 +59,30 @@ class HCSController(QObject):
         self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
         self.imageSaver:              core.ImageSaver              = core.ImageSaver()
 
+        # open the camera
+        self.camera.set_software_triggered_acquisition()
+        self.camera.set_callback(self.streamHandler.on_new_frame)
+        self.camera.enable_callback()
+
         if home:
             self.navigationController.home(home_x=MACHINE_CONFIG.HOMING_ENABLED_X,home_y=MACHINE_CONFIG.HOMING_ENABLED_Y,home_z=MACHINE_CONFIG.HOMING_ENABLED_Z)
 
         self.num_running_experiments=0
+
+        LASER_AF_ENABLED=False
+        if LASER_AF_ENABLED:
+            # controllers
+            self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
+            self.streamHandler_focus_camera = core.StreamHandler()
+            self.liveController_focus_camera = core.LiveController(self.focus_camera,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
+            self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
+            self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.focus_camera,self.liveController_focus_camera,self.navigationController,has_two_interfaces=MACHINE_CONFIG.HAS_TWO_INTERFACES,use_glass_top=MACHINE_CONFIG.USE_GLASS_TOP)
+
+            # camera
+            self.focus_camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
+            self.focus_camera.set_callback(self.streamHandler_focus_camera.on_new_frame)
+            self.focus_camera.enable_callback()
+            self.focus_camera.start_streaming()
 
     #@TypecheckFunction
     def acquire(self,
@@ -179,6 +210,7 @@ class HCSController(QObject):
 
         self.liveController.stop_live()
         self.camera.close()
+        self.focus_camera.close()
         self.imageSaver.close()
         self.microcontroller.close()
 

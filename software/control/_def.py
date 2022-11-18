@@ -49,33 +49,52 @@ class Microcontroller2Def:
     CMD_LENGTH = 8
     N_BYTES_POS = 4
 
-USE_SEPARATE_MCU_FOR_DAC:bool = False
+USE_SEPARATE_MCU_FOR_DAC = False
 
-class CMD_SET: # enum
-    MOVE_X:int = 0
-    MOVE_Y:int = 1
-    MOVE_Z:int = 2
-    MOVE_THETA:int = 3
-    HOME_OR_ZERO:int = 5
-    TURN_ON_ILLUMINATION:int = 10
-    TURN_OFF_ILLUMINATION:int = 11
-    SET_ILLUMINATION:int = 12
-    SET_ILLUMINATION_LED_MATRIX:int = 13
-    ACK_JOYSTICK_BUTTON_PRESSED:int = 14
-    ANALOG_WRITE_ONBOARD_DAC:int = 15
-    MOVETO_X:int = 6
-    MOVETO_Y:int = 7
-    MOVETO_Z:int = 8
-    SET_LIM:int = 9
-    SET_LIM_SWITCH_POLARITY:int = 20
-    CONFIGURE_STEPPER_DRIVER:int = 21
-    SET_MAX_VELOCITY_ACCELERATION:int = 22
-    SET_LEAD_SCREW_PITCH:int = 23
-    SET_OFFSET_VELOCITY:int = 24
-    SEND_HARDWARE_TRIGGER:int = 30
-    SET_STROBE_DELAY:int = 31
-    INITIALIZE:int = 254
-    RESET:int = 255
+class MCU_PINS:
+    PWM1 = 5
+    PWM2 = 4
+    PWM3 = 22
+    PWM4 = 3
+    PWM5 = 23
+    PWM6 = 2
+    PWM7 = 1
+    PWM9 = 6
+    PWM10 = 7
+    PWM11 = 8
+    PWM12 = 9
+    PWM13 = 10
+    PWM14 = 15
+    PWM15 = 24
+    PWM16 = 25
+    AF_LASER = 15
+
+class CMD_SET:
+    MOVE_X = 0
+    MOVE_Y = 1
+    MOVE_Z = 2
+    MOVE_THETA = 3
+    HOME_OR_ZERO = 5
+    TURN_ON_ILLUMINATION = 10
+    TURN_OFF_ILLUMINATION = 11
+    SET_ILLUMINATION = 12
+    SET_ILLUMINATION_LED_MATRIX = 13
+    ACK_JOYSTICK_BUTTON_PRESSED = 14
+    ANALOG_WRITE_ONBOARD_DAC = 15
+    MOVETO_X = 6
+    MOVETO_Y = 7
+    MOVETO_Z = 8
+    SET_LIM = 9
+    SET_LIM_SWITCH_POLARITY = 20
+    CONFIGURE_STEPPER_DRIVER = 21
+    SET_MAX_VELOCITY_ACCELERATION = 22
+    SET_LEAD_SCREW_PITCH = 23
+    SET_OFFSET_VELOCITY = 24
+    SEND_HARDWARE_TRIGGER = 30
+    SET_STROBE_DELAY = 31
+    SET_PIN_LEVEL = 41
+    INITIALIZE = 254
+    RESET = 255
 
 class CMD_SET2: # enum
     ANALOG_WRITE_DAC8050X:int = 0
@@ -365,6 +384,21 @@ class MachineConfiguration:
     WELLPLATE_OFFSET_Y_mm:float = 0.0 # y offset adjustment for using different plates
 
     CONTROLLER_VERSION:ControllerType = ControllerType.TEENSY
+
+    MAIN_CAMERA_MODEL:str="MER2-1220-32U3M"
+    FOCUS_CAMERA_MODEL:str="MER2-630-60U3M"
+
+    FOCUS_CAMERA_EXPOSURE_TIME_MS:float = 2.0
+    FOCUS_CAMERA_ANALOG_GAIN:float = 0.0
+    LASER_AF_AVERAGING_N:int = 5
+    LASER_AF_DISPLAY_SPOT_IMAGE:bool = True
+    LASER_AF_CROP_WIDTH:int = 1536
+    LASER_AF_CROP_HEIGHT:int = 256
+    HAS_TWO_INTERFACES:bool = True
+    USE_GLASS_TOP:bool = True
+    SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS:bool = False
+
+    MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = False
 
 
 @TypecheckClass(check_assignment=True)

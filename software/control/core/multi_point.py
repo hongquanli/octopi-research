@@ -59,6 +59,7 @@ class MultiPointWorker(QObject):
         self.deltaZ_usteps = self.multiPointController.deltaZ_usteps
         self.dt = self.multiPointController.deltat
         self.do_autofocus = self.multiPointController.do_autofocus
+        self.do_reflection_af= self.multiPointController.do_reflection_af
         self.crop_width = self.multiPointController.crop_width
         self.crop_height = self.multiPointController.crop_height
         self.display_resolution_scaling = self.multiPointController.display_resolution_scaling
@@ -119,6 +120,8 @@ class MultiPointWorker(QObject):
         self.navigationController.enable_joystick_button_action = False
 
         self.FOV_counter = 0
+        self.reflection_af_initialized = False
+
         print('multipoint acquisition - time point ' + str(self.time_point+1))
         
         # for each time point, create a new folder
@@ -171,17 +174,36 @@ class MultiPointWorker(QObject):
                 # along x
                 for j in range(self.NX):
 
-                    # perform AF only if when not taking z stack or doing z stack from center
-                    if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                    # temporary: replace the above line with the line below to AF every FOV
-                    # if (self.NZ == 1) and (self.do_autofocus):
-                        configuration_name_AF = self.multiPointController.autofocus_channel_name
-                        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                        self.signal_current_configuration.emit(config_AF)
-                        self.camera.start_streaming() # work around a bug, explained in MultiPointController.run_experiment
-                        self.autofocusController.autofocus()
-                        self.autofocusController.wait_till_autofocus_has_completed()
-                    
+                    # autofocus
+                    if self.do_reflection_af == False:
+                        # perform AF only if when not taking z stack or doing z stack from center
+                        if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+                        # temporary: replace the above line with the line below to AF every FOV
+                        # if (self.NZ == 1) and (self.do_autofocus):
+                            configuration_name_AF = MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
+                            config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                            self.signal_current_configuration.emit(config_AF)
+                            self.autofocusController.autofocus()
+                            self.autofocusController.wait_till_autofocus_has_completed()
+                    else:
+                        # first FOV
+                        if self.reflection_af_initialized==False:
+                            # initialize the reflection AF
+                            self.microscope.laserAutofocusController.initialize_auto()
+                            self.reflection_af_initialized = True
+                            # do contrast AF for the first FOV
+                            if self.do_autofocus and self.FOV_counter==0 and ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) :
+                                configuration_name_AF = MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
+                                config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+                                self.signal_current_configuration.emit(config_AF)
+                                self.autofocusController.autofocus()
+                                self.autofocusController.wait_till_autofocus_has_completed()
+                            # set the current plane as reference
+                            self.microscope.laserAutofocusController.set_reference()
+                        else:
+                            self.microscope.laserAutofocusController.move_to_target(0)
+                            self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+
                     if (self.NZ > 1):
                         # move to bottom of the z stack
                         if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
@@ -358,6 +380,7 @@ class MultiPointWorker(QObject):
 
 class MultiPointController(QObject):
 
+    acquisitionStarted = Signal()
     acquisitionFinished = Signal()
     image_to_display = Signal(numpy.ndarray)
     image_to_display_multi = Signal(numpy.ndarray,int)
@@ -365,17 +388,14 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
 
-    @property
-    def autofocus_channel_name(self)->str:
-        return MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
-
     #@TypecheckFunction
     def __init__(self,
         camera:camera.Camera,
         navigationController:NavigationController,
         liveController:LiveController,
         autofocusController:AutoFocusController,
-        configurationManager:ConfigurationManager
+        configurationManager:ConfigurationManager,
+        parent:Optional[Any]=None,
     ):
         QObject.__init__(self)
 
@@ -385,32 +405,50 @@ class MultiPointController(QObject):
         self.liveController = liveController
         self.autofocusController = autofocusController
         self.configurationManager = configurationManager
+
         self.NX:int = 1
         self.NY:int = 1
         self.NZ:int = 1
         self.Nt:int = 1
         self.deltaX = Acquisition.DEFAULT_DX_MM
-        self.deltaX_usteps:int = round(self.deltaX/self.mm_per_ustep_X)
         self.deltaY = Acquisition.DEFAULT_DY_MM
-        self.deltaY_usteps:int = round(self.deltaY/self.mm_per_ustep_Y)
         self.deltaZ = Acquisition.DEFAULT_DZ_MM/1000
-        self.deltaZ_usteps:int = round(self.deltaZ/self.mm_per_ustep_Z)
         self.deltat:float = 0.0
+
         self.do_autofocus:bool = False
+        self.do_reflection_af = False
+
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
+        
         self.counter:int = 0
         self.experiment_ID: Optional[str] = None
         self.base_path:Optional[str]  = None
         self.selected_configurations = []
         self.thread:Optional[QThread]=None
+        self.parent = parent
 
         # set some default values to avoid introducing new attributes outside constructor
         self.abort_acqusition_requested = False
         self.configuration_before_running_multipoint:Optional[Configuration] = None
         self.liveController_was_live_before_multipoint = False
         self.camera_callback_was_enabled_before_multipoint = False
+
+
+    @property
+    def autofocus_channel_name(self)->str:
+        return MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
+
+    @property
+    def deltaX_usteps(self)->int:
+        return round(self.deltaX/self.mm_per_ustep_X)
+    @property
+    def deltaY_usteps(self)->int:
+        return round(self.deltaY/self.mm_per_ustep_Y)
+    @property
+    def deltaZ_usteps(self)->int:
+        return round(self.deltaZ/self.mm_per_ustep_Z)
 
     @property
     def mm_per_ustep_X(self):
@@ -438,15 +476,12 @@ class MultiPointController(QObject):
     @TypecheckFunction
     def set_deltaX(self,delta:float):
         self.deltaX = delta
-        self.deltaX_usteps = round(delta/self.mm_per_ustep_X)
     @TypecheckFunction
     def set_deltaY(self,delta:float):
         self.deltaY = delta
-        self.deltaY_usteps = round(delta/self.mm_per_ustep_Y)
     @TypecheckFunction
     def set_deltaZ(self,delta_um:float):
         self.deltaZ = delta_um/1000
-        self.deltaZ_usteps = round((delta_um/1000)/self.mm_per_ustep_Z)
     @TypecheckFunction
     def set_deltat(self,delta:float):
         self.deltat = delta
@@ -456,6 +491,12 @@ class MultiPointController(QObject):
             self.do_autofocus=flag
         else:
             self.do_autofocus = bool(flag)
+
+    def set_reflection_af_flag(self,flag:Union[int,bool]):
+        if type(flag)==int:
+            self.do_reflection_af = bool(flag)
+        else:
+            self.do_reflection_af = flag
 
     @TypecheckFunction
     def set_crop(self,crop_width:int,crop_height:int):
@@ -476,7 +517,7 @@ class MultiPointController(QObject):
         assert not self.base_path is None
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
-        acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus}
+        acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus,'with reflection AF':self.do_reflection_af}
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
@@ -527,10 +568,10 @@ class MultiPointController(QObject):
             # stop live
             if self.liveController.is_live:
                 self.liveController_was_live_before_multipoint = True
-                self.liveController.stop_live() # @@@ to do: also uncheck the live button
+                self.liveController.stop_live()
 
-            # LiveController.start_live enables this, but LiveController.stop_live does not disable, and a comment there explains that this (turning streaming off) causes issues
-            # with af in multipoint (the issue is a crash because the camera does not send a picture).
+            self.start_acquisition.emit()
+
             # if the live button was not pressed before multipoint acquisition is started, camera is not yet streaming, therefore crash -> start streaming when multipoint starts
             self.camera.start_streaming()
 
@@ -561,6 +602,7 @@ class MultiPointController(QObject):
             self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
             self.thread.finished.connect(self.thread.quit)
             self.thread.finished.connect(lambda:setattr(self,'thread',None))
+            self.thread.finished.connect(lambda:self.camera.stop_streaming())
             
             self.thread.start()
 
