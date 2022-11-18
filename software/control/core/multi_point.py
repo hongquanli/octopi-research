@@ -62,7 +62,6 @@ class MultiPointWorker(QObject):
         self.do_reflection_af= self.multiPointController.do_reflection_af
         self.crop_width = self.multiPointController.crop_width
         self.crop_height = self.multiPointController.crop_height
-        self.display_resolution_scaling = self.multiPointController.display_resolution_scaling
         self.counter = self.multiPointController.counter
         self.experiment_ID = self.multiPointController.experiment_ID
         self.base_path = self.multiPointController.base_path
@@ -251,10 +250,8 @@ class MultiPointWorker(QObject):
                             # process the image -  @@@ to move to camera
                             image = utils.crop_image(image,self.crop_width,self.crop_height)
                             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                            # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                            crop_scaled_width=round(self.crop_width*self.display_resolution_scaling)
-                            crop_scaled_height=round(self.crop_height*self.display_resolution_scaling)
-                            image_to_display = utils.crop_image(image,crop_scaled_width, crop_scaled_height)
+                            # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width), round(self.crop_height)),cv2.INTER_LINEAR))
+                            image_to_display = utils.crop_image(image,self.crop_width, self.crop_height)
                             self.image_to_display.emit(image_to_display)
                             self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                                 
@@ -420,7 +417,6 @@ class MultiPointController(QObject):
 
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
-        self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
         
         self.counter:int = 0
         self.experiment_ID: Optional[str] = None
@@ -570,7 +566,7 @@ class MultiPointController(QObject):
                 self.liveController_was_live_before_multipoint = True
                 self.liveController.stop_live()
 
-            self.start_acquisition.emit()
+            self.acquisitionStarted.emit()
 
             # if the live button was not pressed before multipoint acquisition is started, camera is not yet streaming, therefore crash -> start streaming when multipoint starts
             self.camera.start_streaming()

@@ -30,7 +30,7 @@ class LiveController(QObject):
         camera:camera.Camera,
         microcontroller:microcontroller.Microcontroller,
         configurationManager:ConfigurationManager,
-        on_frame_acquired:Signal,
+        on_frame_acquired:Optional[Signal],
         control_illumination:bool=True,
         use_internal_timer_for_hardware_trigger:bool=True,
         for_displacement_measurement:bool=False
@@ -60,8 +60,6 @@ class LiveController(QObject):
         self.counter:int = 0
         self.timestamp_last:int = 0
 
-        self.display_resolution_scaling = MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP/100
-
         self.image_acquisition_in_progress:bool=False
         self.image_acquisition_queued:bool=False
         self.time_image_requested=time.time()
@@ -88,7 +86,8 @@ class LiveController(QObject):
 
     def start_live(self):
         if self.image_acquisition_in_progress:
-            self.on_frame_acquired.connect(self.start_live)
+            if self.on_frame_acquired:
+                self.on_frame_acquired.connect(self.start_live)
             return
 
         self.is_live = True
@@ -153,16 +152,18 @@ class LiveController(QObject):
 
             self.camera.send_trigger()
 
-            self.on_frame_acquired.connect(self.end_acquisition)
+            if self.on_frame_acquired:
+                self.on_frame_acquired.connect(self.end_acquisition)
 
         elif self.trigger_mode == TriggerMode.HARDWARE:
             self.trigger_ID = self.trigger_ID + 1
             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
 
     def end_acquisition(self):
-        self.on_frame_acquired.disconnect(self.end_acquisition)
+        if self.on_frame_acquired:
+            self.on_frame_acquired.disconnect(self.end_acquisition)
 
-        imaging_time=time.time()-self.time_image_requested
+        #imaging_time=time.time()-self.time_image_requested
         #print(f"real imaging time: {imaging_time*1000:6.3f} ms") # this shows a 40ms delay vs exposure time. why?
 
         if self.trigger_mode == TriggerMode.SOFTWARE:

@@ -17,23 +17,16 @@ LIVE_BUTTON_RUNNING_TEXT="Stop Live"
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
-    signal_autoLevelSetting = Signal(bool)
 
     @property
     def fps_trigger(self)->float:
         return self.liveController.fps_trigger
-    @property
-    def fps_display(self)->float:
-        return self.streamHandler.fps_display
 
     def __init__(self, 
         streamHandler:StreamHandler, 
         liveController:LiveController,
         configurationManager:ConfigurationManager, 
-        show_trigger_options:bool=True, 
-        show_display_options:bool=True, 
-        show_autolevel:bool = False, 
-        autolevel:bool=False
+        show_trigger_options:bool=True
     ):
         super().__init__()
         self.liveController = liveController
@@ -44,7 +37,7 @@ class LiveControlWidget(QFrame):
         # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration:Configuration = self.configurationManager.configurations[0]
 
-        self.add_components(show_trigger_options,show_display_options,show_autolevel,autolevel)
+        self.add_components(show_trigger_options)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
@@ -52,10 +45,7 @@ class LiveControlWidget(QFrame):
 
     @TypecheckFunction
     def add_components(self,
-        show_trigger_options:bool,
-        show_display_options:bool,
-        show_autolevel:bool,
-        autolevel:bool
+        show_trigger_options:bool
     ):
         # line 0: trigger mode
         self.triggerMode = None
@@ -82,7 +72,7 @@ class LiveControlWidget(QFrame):
         self.btn_live.setToolTip("""
             start/stop live image view
 
-            acquires a number of images per second (number given by 'Display FPS' setting. should be equal to 'Trigger FPS').
+            displays each image that is recorded by the camera
 
             useful for manual investigation of a plate and/or imaging settings. Note that this can lead to strong photobleaching. Consider using the snapshot button instead (labelled 'snap')
         """)
@@ -117,31 +107,9 @@ class LiveControlWidget(QFrame):
         self.entry_illuminationIntensity.setMaximum(100)
         self.entry_illuminationIntensity.setSingleStep(0.1)
         self.entry_illuminationIntensity.setValue(100)
-
-        # line 4: display fps and resolution scaling
-        self.entry_displayFPS = QDoubleSpinBox()
-        self.entry_displayFPS.setMinimum(1) 
-        self.entry_displayFPS.setMaximum(240) 
-        self.entry_displayFPS.setSingleStep(1)
-        self.entry_displayFPS.setValue(self.fps_display)
-
-        self.slider_resolutionScaling = QSlider(Qt.Horizontal)
-        self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
-        self.slider_resolutionScaling.setMinimum(10)
-        self.slider_resolutionScaling.setMaximum(100)
-        self.slider_resolutionScaling.setValue(MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP)
-        self.slider_resolutionScaling.setSingleStep(10)
-
-        # autolevel
-        self.btn_autolevel = QPushButton('Autolevel')
-        self.btn_autolevel.setCheckable(True)
-        self.btn_autolevel.setChecked(autolevel)
         
         # connections
         self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
-        self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
-        self.slider_resolutionScaling.valueChanged.connect(self.streamHandler.set_display_resolution_scaling)
-        self.slider_resolutionScaling.valueChanged.connect(self.liveController.set_display_resolution_scaling)
         self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
         self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
         self.btn_live.clicked.connect(self.toggle_live)
@@ -151,7 +119,6 @@ class LiveControlWidget(QFrame):
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
         self.entry_illuminationIntensity.valueChanged.connect(lambda v:self.slider_illuminationIntensity.setValue(int(v))) # slider does not take float values
         self.slider_illuminationIntensity.valueChanged.connect(lambda v:self.entry_illuminationIntensity.setValue(float(v))) # doublespinbox does not take ints
-        self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
         # layout
         grid_line0 = QGridLayout()
@@ -167,9 +134,18 @@ class LiveControlWidget(QFrame):
         grid_line1.addWidget(self.btn_snap, 0,3)
 
         grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('Exposure Time (ms)'), 0,0)
+
+        exposure_time_label=QLabel('Exposure Time (ms)')
+        exposure_time_tooltip="exposure time is the time the camera sensor records an image. Higher exposure time means more time to record light emitted from a sample, which also increases bleaching (the light source is activate as long as the camera sensor records the light)"
+        exposure_time_label.setToolTip(exposure_time_tooltip)
+        self.entry_exposureTime.setToolTip(exposure_time_tooltip)
+        grid_line2.addWidget(exposure_time_label, 0,0)
         grid_line2.addWidget(self.entry_exposureTime, 0,1)
-        grid_line2.addWidget(QLabel('Analog Gain'), 0,2)
+        analog_gain_label=QLabel('Analog Gain')
+        analog_gain_tooltip="analog gain increases the camera sensor sensitiviy. Higher gain will make the image look brighter so that a lower exposure time can be used, but also introduces more noise."
+        analog_gain_label.setToolTip(analog_gain_tooltip)
+        self.entry_analogGain.setToolTip(analog_gain_tooltip)
+        grid_line2.addWidget(analog_gain_label, 0,2)
         grid_line2.addWidget(self.entry_analogGain, 0,3)
 
         grid_line4 = QGridLayout()
@@ -177,22 +153,12 @@ class LiveControlWidget(QFrame):
         grid_line4.addWidget(self.slider_illuminationIntensity, 0,1)
         grid_line4.addWidget(self.entry_illuminationIntensity, 0,2)
 
-        grid_line3 = QGridLayout()
-        grid_line3.addWidget(QLabel('Display FPS'), 0,0)
-        grid_line3.addWidget(self.entry_displayFPS, 0,1)
-        grid_line3.addWidget(QLabel('Display Resolution'), 0,2)
-        grid_line3.addWidget(self.slider_resolutionScaling,0,3)
-        if show_autolevel:
-            grid_line3.addWidget(self.btn_autolevel,0,4)
-
         self.grid = QVBoxLayout()
         if show_trigger_options:
             self.grid.addLayout(grid_line0)
         self.grid.addLayout(grid_line1)
         self.grid.addLayout(grid_line2)
         self.grid.addLayout(grid_line4)
-        if show_display_options:
-            self.grid.addLayout(grid_line3)
         self.grid.addStretch()
         self.setLayout(self.grid)
 

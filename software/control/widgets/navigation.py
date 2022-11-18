@@ -5,15 +5,11 @@ from control._def import *
 
 from typing import Optional, Union, List, Tuple
 
-from control.core import SlidePositionController
-
 class NavigationWidget(QFrame):
-    def __init__(self, navigationController, slidePositionController:Optional[SlidePositionController]=None, widget_configuration:str = 'full', *args, **kwargs):
+    def __init__(self, navigationController, widget_configuration:str = 'full', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.navigationController = navigationController
-        self.slidePositionController = slidePositionController
         self.widget_configuration = widget_configuration
-        self.slide_position = None
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -80,8 +76,6 @@ class NavigationWidget(QFrame):
         self.btn_home_Z.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_Z)
         self.btn_zero_Z = QPushButton('Zero Z')
         self.btn_zero_Z.setDefault(False)
-
-        self.btn_load_slide = QPushButton('To Slide Loading Position')
         
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('X (mm)'), 0,0)
@@ -112,10 +106,6 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_X, 0,0)
             grid_line3.addWidget(self.btn_home_Y, 0,1)
             grid_line3.addWidget(self.btn_home_Z, 0,2)
-        elif self.widget_configuration == 'malaria':
-            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == WELLPLATE_NAMES[384]:
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
@@ -147,9 +137,6 @@ class NavigationWidget(QFrame):
         self.btn_zero_X.clicked.connect(self.zero_x)
         self.btn_zero_Y.clicked.connect(self.zero_y)
         self.btn_zero_Z.clicked.connect(self.zero_z)
-
-        self.btn_load_slide.clicked.connect(self.switch_position)
-        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
         
     def move_x_forward(self):
         self.navigationController.move_x(self.entry_dX.value())
@@ -222,35 +209,6 @@ class NavigationWidget(QFrame):
     def zero_z(self):
         self.navigationController.zero_z()
 
-    def slot_slide_loading_position_reached(self):
-        self.slide_position = 'loading'
-        self.btn_load_slide.setStyleSheet("background-color: #C2FFC2");
-        self.btn_load_slide.setText('To Slide Scanning Position')
-        self.btn_moveX_forward.setEnabled(False)
-        self.btn_moveX_backward.setEnabled(False)
-        self.btn_moveY_forward.setEnabled(False)
-        self.btn_moveY_backward.setEnabled(False)
-        self.btn_moveZ_forward.setEnabled(False)
-        self.btn_moveZ_backward.setEnabled(False)
-
-    def slot_slide_scanning_position_reached(self):
-        self.slide_position = 'scanning'
-        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
-        self.btn_load_slide.setText('To Slide Loading Position')
-        self.btn_moveX_forward.setEnabled(True)
-        self.btn_moveX_backward.setEnabled(True)
-        self.btn_moveY_forward.setEnabled(True)
-        self.btn_moveY_backward.setEnabled(True)
-        self.btn_moveZ_forward.setEnabled(True)
-        self.btn_moveZ_backward.setEnabled(True)
-
-    def switch_position(self):
-        assert not self.slidePositionController is None
-        if self.slide_position != 'loading':
-            self.slidePositionController.move_to_slide_loading_position()
-        else:
-            self.slidePositionController.move_to_slide_scanning_position()
-
 import pyqtgraph as pg
 import numpy as np
 import cv2
@@ -264,7 +222,7 @@ class Color(tuple,Enum):
 
 class NavigationViewer(QFrame):
 
-    def __init__(self, sample:str = 'glass slide', invertX:bool = False, *args, **kwargs):
+    def __init__(self, sample:str, invertX:bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -283,13 +241,13 @@ class NavigationViewer(QFrame):
         ((max_lowerx,max_upperx),(max_lowery,max_uppery))=max_state
         ((min_lowerx,min_upperx),(min_lowery,min_uppery))=min_state
         self.graphics_widget.view.setLimits(
-            xMin=max_lowerx,
-            xMax=max_upperx,
+            #xMin=max_lowerx,
+            #xMax=max_upperx,
             yMin=max_lowery,
             yMax=max_uppery,
 
             minXRange=min_upperx-min_lowerx,
-            maxXRange=max_upperx-max_lowerx,
+            #maxXRange=max_upperx-max_lowerx,
             minYRange=min_uppery-min_lowery,
             maxYRange=max_uppery-max_lowery,
         )
@@ -322,7 +280,6 @@ class NavigationViewer(QFrame):
             new_wellplate_type=wellplate_type
 
         wellplate_type_image={
-            'glass slide'        : 'images/slide carrier_828x662.png',
             WELLPLATE_NAMES[384] : 'images/384 well plate_1509x1010.png',
             WELLPLATE_NAMES[96]  : 'images/96 well plate_1509x1010.png',
             WELLPLATE_NAMES[24]  : 'images/24 well plate_1509x1010.png',
@@ -343,19 +300,14 @@ class NavigationViewer(QFrame):
         self.sample = new_wellplate_type
  
         camera_pixel_size_um=MachineConfiguration.CAMERA_PIXEL_SIZE_UM[MACHINE_CONFIG.CAMERA_SENSOR]
-        if new_wellplate_type == 'glass slide':
-            self.origin_bottom_left_x = 200
-            self.origin_bottom_left_y = 120
-            self.mm_per_pixel = 0.1453
-            self.fov_size_mm = 3000*camera_pixel_size_um/(50/9)/1000
-        else:
-            self.location_update_threshold_mm = 0.05
-            WELLPLATE_IMAGE_LENGTH_IN_PIXELS=1509 # images in path(software/images) are 1509x1010
-            WELLPLATE_384_LENGTH_IN_MM=127.8 # from https://www.thermofisher.com/document-connect/document-connect.html?url=https://assets.thermofisher.com/TFS-Assets%2FLSG%2Fmanuals%2Fcms_042831.pdf
-            self.mm_per_pixel = WELLPLATE_384_LENGTH_IN_MM/WELLPLATE_IMAGE_LENGTH_IN_PIXELS # 0.084665 was the hardcoded value, which is closer to this number as calculated from the width of the plate at 85.5mm/1010px=0.0846535
-            self.fov_size_mm = 3000*camera_pixel_size_um/(50/10)/1000 # '50/10' = tube_lens_mm/objective_magnification ?
-            self.origin_bottom_left_x = MACHINE_CONFIG.X_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
-            self.origin_bottom_left_y = MACHINE_CONFIG.Y_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
+        
+        self.location_update_threshold_mm = 0.05
+        WELLPLATE_IMAGE_LENGTH_IN_PIXELS=1509 # images in path(software/images) are 1509x1010
+        WELLPLATE_384_LENGTH_IN_MM=127.8 # from https://www.thermofisher.com/document-connect/document-connect.html?url=https://assets.thermofisher.com/TFS-Assets%2FLSG%2Fmanuals%2Fcms_042831.pdf
+        self.mm_per_pixel = WELLPLATE_384_LENGTH_IN_MM/WELLPLATE_IMAGE_LENGTH_IN_PIXELS # 0.084665 was the hardcoded value, which is closer to this number as calculated from the width of the plate at 85.5mm/1010px=0.0846535
+        self.fov_size_mm = 3000*camera_pixel_size_um/(50/10)/1000 # '50/10' = tube_lens_mm/objective_magnification ?
+        self.origin_bottom_left_x = MACHINE_CONFIG.X_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
+        self.origin_bottom_left_y = MACHINE_CONFIG.Y_ORIGIN_384_WELLPLATE_PIXEL - (MACHINE_CONFIG.Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
  
         self.clear_imaged_positions()
  
@@ -376,26 +328,15 @@ class NavigationViewer(QFrame):
 
     @TypecheckFunction
     def coord_to_bb(self,x_mm:float,y_mm:float)->Tuple[Tuple[int,int],Tuple[int,int]]:
-        if self.sample == 'glass slide':
-            topleft_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)
-            topleft_y:int=round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+        topleft_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)
+        topleft_y:int=round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
 
-            top_left = (topleft_x,topleft_y)
+        top_left = (topleft_x,topleft_y)
 
-            bottomright_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)
-            bottomright_y:int=round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
-            
-            bottom_right = (bottomright_x, bottomright_y)
-        else:
-            topleft_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)
-            topleft_y:int=round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+        bottomright_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)
+        bottomright_y:int=round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
 
-            top_left = (topleft_x,topleft_y)
-
-            bottomright_x:int=round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)
-            bottomright_y:int=round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
-
-            bottom_right = (bottomright_x,bottomright_y)
+        bottom_right = (bottomright_x,bottomright_y)
 
         return top_left,bottom_right
 

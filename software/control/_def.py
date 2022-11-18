@@ -192,13 +192,6 @@ class ControllerType(str,Enum):
     DUE='Arduino Due'
     TEENSY='Teensy'
 
-@TypecheckClass(create_init=True)
-class SlidePosition:
-    LOADING_X_MM:float = 30.0
-    LOADING_Y_MM:float = 55.0
-    SCANNING_X_MM:float = 3.0
-    SCANNING_Y_MM:float = 3.0
-
 class BrightfieldSavingMode(str,Enum):
     RAW='Raw'
     RGB2GRAY='RGB2GRAY'
@@ -354,16 +347,6 @@ class MachineConfiguration:
 
     AF:AutofocusConfig=AutofocusConfig()
 
-    SLIDE_POSITION:SlidePosition=SlidePosition(
-        LOADING_X_MM = 30.0,
-        LOADING_Y_MM = 55.0,
-        SCANNING_X_MM = 3.0,
-        SCANNING_Y_MM = 3.0,
-    )
-
-    SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S:float = 10.0
-    SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:bool = False
-
     SOFTWARE_POS_LIMIT:SoftwareStagePositionLimits=SoftwareStagePositionLimits()
 
     ENABLE_STROBE_OUTPUT:bool = False
@@ -436,13 +419,9 @@ class MutableMachineConfiguration(QObject):
 class MachineDisplayConfiguration:
     """ display settings """
     DEFAULT_SAVING_PATH:str = str(Path.home()/"Downloads")
-    SHOW_AUTOLEVEL_BTN:bool = False
-    AUTOLEVEL_DEFAULT_SETTING:bool = False
     DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
     MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
     SHOW_DAC_CONTROL:bool = False
-    # set to False if use separate windows for display and control
-    SINGLE_WINDOW:bool = True
 
 
 MACHINE_CONFIG=MachineConfiguration(

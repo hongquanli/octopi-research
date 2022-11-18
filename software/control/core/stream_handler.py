@@ -22,10 +22,8 @@ class StreamHandler(QObject):
     def __init__(self,
         crop_width:int=Acquisition.CROP_WIDTH,
         crop_height:int=Acquisition.CROP_HEIGHT,
-        display_resolution_scaling:float=1.0
     ):
         QObject.__init__(self)
-        self.fps_display:float = 10.0
         self.fps_save:float = 1.0
         self.fps_track:float = 1.0
         self.timestamp_last_display = 0
@@ -34,7 +32,6 @@ class StreamHandler(QObject):
 
         self.crop_width = crop_width
         self.crop_height = crop_height
-        self.display_resolution_scaling = display_resolution_scaling
 
         self.save_image_flag = False
         self.track_flag = False
@@ -57,9 +54,6 @@ class StreamHandler(QObject):
     def stop_tracking(self):
         self.tracking_flag = False
 
-    def set_display_fps(self,fps):
-        self.fps_display = fps
-
     def set_save_fps(self,fps):
         self.fps_save = fps
 
@@ -67,10 +61,6 @@ class StreamHandler(QObject):
     def set_crop(self,crop_width:int,crop_height:int):
         self.crop_width = crop_width
         self.crop_height = crop_height
-
-    @TypecheckFunction
-    def set_display_resolution_scaling(self, display_resolution_scaling:int):
-        self.display_resolution_scaling = display_resolution_scaling/100
 
     def on_new_frame(self, camera:camera.Camera):
         """ this is registered as callback when the camera has recorded an image """
@@ -80,14 +70,16 @@ class StreamHandler(QObject):
             self.signal_new_frame_received.emit() # self.liveController.turn_off_illumination()
 
             # measure real fps
-            timestamp_now = round(time.time())
-            if timestamp_now == self.timestamp_last:
-                self.counter = self.counter+1
-            else:
-                self.timestamp_last = timestamp_now
-                self.fps_real = self.counter
-                self.counter = 0
-                # print('real camera fps is ' + str(self.fps_real))
+            MEASURE_REAL_FPS=False
+            if MEASURE_REAL_FPS:
+                timestamp_now = round(time.time())
+                if timestamp_now == self.timestamp_last:
+                    self.counter += 1
+                else:
+                    self.timestamp_last = timestamp_now
+                    self.fps_real = self.counter
+                    self.counter = 0
+                    print('real camera fps is ' + str(self.fps_real))
 
             # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
             # # rotate and flip - eventually these should be done in the camera
@@ -105,10 +97,11 @@ class StreamHandler(QObject):
 
             # send image to display
             time_now = time.time()
-            if time_now-self.timestamp_last_display >= 1/self.fps_display:
-                # self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                self.image_to_display.emit(utils.crop_image(image_cropped,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)))
-                self.timestamp_last_display = time_now
+
+            # there was an fps limit here at some point, but each image that was recorded after an image acquisition got triggered should also be displayed
+            # self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width), round(self.crop_height)),cv2.INTER_LINEAR))
+            self.image_to_display.emit(utils.crop_image(image_cropped,round(self.crop_width), round(self.crop_height)))
+            self.timestamp_last_display = time_now
 
             # send image to write
             if self.save_image_flag and time_now-self.timestamp_last_save >= 1/self.fps_save:
@@ -116,13 +109,6 @@ class StreamHandler(QObject):
                     image_cropped = cv2.cvtColor(image_cropped,cv2.COLOR_RGB2BGR)
                 self.packet_image_to_write.emit(image_cropped,camera.frame_ID,camera.timestamp)
                 self.timestamp_last_save = time_now
-
-            # send image to track
-            if self.track_flag and time_now-self.timestamp_last_track >= 1/self.fps_track:
-                # track is a blocking operation - it needs to be
-                # @@@ will cropping before emitting the signal lead to speedup?
-                self.packet_image_for_tracking.emit(image_cropped,camera.frame_ID,camera.timestamp)
-                self.timestamp_last_track = time_now
 
             self.handler_busy = False
             camera.image_locked = False

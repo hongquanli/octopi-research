@@ -60,14 +60,13 @@ class ImageDisplay(QObject):
 
 class ImageDisplayWindow(QMainWindow):
 
-    def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
+    def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False):
         super().__init__()
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
         self.widget = QWidget()
         self.show_LUT = show_LUT
-        self.autoLevels = autoLevels
 
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
@@ -88,7 +87,6 @@ class ImageDisplayWindow(QMainWindow):
             self.graphics_widget.view.ui.menuBtn.hide()
             # self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
             # self.LUTWidget.autoHistogramRange()
-            # self.graphics_widget.view.autolevels()
         else:
             self.graphics_widget.img = pg.ImageItem(border='w')
             self.graphics_widget.view.addItem(self.graphics_widget.img)
@@ -131,7 +129,7 @@ class ImageDisplayWindow(QMainWindow):
         self.setFixedSize(width,height)
 
     def display_image(self,image):
-        self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+        self.graphics_widget.img.setImage(image)
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
@@ -158,10 +156,6 @@ class ImageDisplayWindow(QMainWindow):
         xmin = max(0, self.roi_pos[0])
         ymin = max(0, self.roi_pos[1])
         return np.array([xmin, ymin, width, height])
-
-    def set_autolevel(self,enabled):
-        self.autoLevels = enabled
-        print('set autolevel to ' + str(enabled))
 
 
 class ImageArrayDisplayWindow(QMainWindow):

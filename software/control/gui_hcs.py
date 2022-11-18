@@ -1,6 +1,6 @@
 # qt libraries
 from qtpy.QtCore import Qt, QEvent
-from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider, QCheckBox
+from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider, QCheckBox, QWidget
 
 import numpy
 
@@ -11,6 +11,7 @@ import control.core as core
 import control.microcontroller as microcontroller
 from control.hcs import HCSController
 from control._def import *
+import control.core_displacement_measurement as core_displacement_measurement
 
 import pyqtgraph as pg
 import pyqtgraph.dockarea as dock
@@ -36,9 +37,6 @@ class OctopiGUI(QMainWindow):
     def navigationController(self)->core.NavigationController:
         return self.hcs_controller.navigationController
     @property
-    def slidePositionController(self)->core.SlidePositionController:
-        return self.hcs_controller.slidePositionController
-    @property
     def autofocusController(self)->core.AutoFocusController:
         return self.hcs_controller.autofocusController
     @property
@@ -56,6 +54,21 @@ class OctopiGUI(QMainWindow):
     @property
     def microcontroller(self)->microcontroller.Microcontroller:
         return self.hcs_controller.microcontroller
+    @property
+    def configurationManager_focus_camera(self)->core.ConfigurationManager:
+        return self.hcs_controller.configurationManager_focus_camera
+    @property
+    def streamHandler_focus_camera(self)->core.StreamHandler:
+        return self.hcs_controller.streamHandler_focus_camera
+    @property
+    def liveController_focus_camera(self)->core.LiveController:
+        return self.hcs_controller.liveController_focus_camera
+    @property
+    def displacementMeasurementController(self)->core_displacement_measurement.DisplacementMeasurementController:
+        return self.hcs_controller.displacementMeasurementController
+    @property
+    def laserAutofocusController(self)->core.LaserAutofocusController:
+        return self.hcs_controller.laserAutofocusController
 
     @TypecheckFunction
     def start_experiment(self,experiment_data_target_folder:str,imaging_channel_list:List[str]):
@@ -116,6 +129,9 @@ class OctopiGUI(QMainWindow):
 
         self.hcs_controller=HCSController()
 
+        self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
+        self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
+
         # load window
         self.imageDisplayWindow = widgets.ImageDisplayWindow(draw_crosshairs=True)
         self.imageArrayDisplayWindow = widgets.ImageArrayDisplayWindow(self.configurationManager,window_title="HCS microscope control")
@@ -129,18 +145,37 @@ class OctopiGUI(QMainWindow):
 
         # load widgets
         self.imageDisplay           = widgets.ImageDisplay()
+        self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
         self.wellSelectionWidget    = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
-        self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
-        self.navigationWidget       = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=default_well_plate)
-        self.dacControlWidget       = widgets.DACControWidget(self.microcontroller)
+        self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
+        self.navigationWidget       = widgets.NavigationWidget(self.navigationController,widget_configuration=default_well_plate)
+        self.dacControlWidget       = widgets.DACControWidget(self.microcontroller) # currently unused
         self.autofocusWidget        = widgets.AutoFocusWidget(self.autofocusController)
-        self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
+        self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver) # currently unused
         self.multiPointWidget       = widgets.MultiPointWidget(self.multipointController,self.configurationManager,self.start_experiment,self.abort_experiment)
         self.navigationViewer       = widgets.NavigationViewer(sample=default_well_plate)
 
+        self.add_image_format_options()
+        self.add_image_inspection()
+
+        liveWidget_layout=QVBoxLayout()
+        liveWidget_layout.addWidget(self.navigationWidget)
+        liveWidget_layout.addWidget(widgets.as_dock(self.autofocusWidget,"Software AF",True))
+        # laser AF widgets
+        ADD_LASER_AF_WIDGETS=True
+        if ADD_LASER_AF_WIDGETS:
+            self.laserAutofocusControlWidget=widgets.as_dock(
+                widgets.LaserAutofocusControlWidget(self.laserAutofocusController),
+                title="Laser AF",minimize_height=True
+            )
+            liveWidget_layout.addWidget(self.laserAutofocusControlWidget)
+        liveWidget_layout.addWidget(widgets.as_dock(self.histogramWidget,"Histogram"))
+        liveWidget_layout.addLayout(self.imageEnhanceWidget)
+        self.liveWidget=widgets.as_widget(liveWidget_layout)
+
         self.recordTabWidget = QTabWidget()
-        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+        self.recordTabWidget.addTab(self.liveWidget, "Live Investigation")
 
         clear_history_button=QPushButton("clear history")
         clear_history_button.clicked.connect(self.navigationViewer.clear_imaged_positions)
@@ -165,67 +200,83 @@ class OctopiGUI(QMainWindow):
         self.navigationViewWrapper.addLayout(wellplate_overview_header)
         self.navigationViewWrapper.addWidget(self.navigationViewer)
 
-        self.add_image_format_options()
-        self.add_image_inspection()
+        self.multiPointWidget.grid.addWidget(self.wellSelectionWidget,5,0)
+        self.multiPointWidget.grid.addLayout(self.navigationViewWrapper,6,0)
 
         # layout widgets
         layout = QVBoxLayout()
         layout.addLayout(self.image_pixel_format_widgets)
         layout.addWidget(self.liveControlWidget)
-        layout.addWidget(self.navigationWidget)
         if MACHINE_DISPLAY_CONFIG.SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
-        layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
-        layout.addLayout(self.navigationViewWrapper)
-        layout.addWidget(self.histogramWidget)
-        layout.addLayout(self.imageEnhanceWidget)
         layout.addStretch()
         
         # transfer the layout to the central widget
-        self.centralWidget:QWidget = QWidget()
-        self.centralWidget.setLayout(layout)
-        self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
+        self.centralWidget:QWidget = widgets.as_widget(layout)
         
-        if MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
-            dock_display = dock.Dock('Image Display', autoOrientation = False)
-            dock_display.showTitleBar()
-            dock_display.addWidget(self.imageDisplayTabs)
-            dock_display.setStretch(x=100,y=100)
-            dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
-            dock_wellSelection.showTitleBar()
-            dock_wellSelection.addWidget(self.wellSelectionWidget)
-            dock_wellSelection.setFixedHeight(dock_wellSelection.minimumSizeHint().height())
-            dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
-            # dock_controlPanel.showTitleBar()
-            dock_controlPanel.addWidget(self.centralWidget)
-            dock_controlPanel.setStretch(x=1,y=None)
-            dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
-            main_dockArea = dock.DockArea()
-            main_dockArea.addDock(dock_display)
-            main_dockArea.addDock(dock_wellSelection,'bottom')
-            main_dockArea.addDock(dock_controlPanel,'right')
-            self.setCentralWidget(main_dockArea)
-            desktopWidget = QDesktopWidget()
-            height_min = int(0.9*desktopWidget.height())
-            width_min = int(0.96*desktopWidget.width())
-            self.setMinimumSize(width_min,height_min)
-        else:
-            self.setCentralWidget(self.centralWidget)
-            self.tabbedImageDisplayWindow = QMainWindow()
-            self.tabbedImageDisplayWindow.setCentralWidget(self.imageDisplayTabs)
-            self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
-            self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
-            desktopWidget = QDesktopWidget()
-            width = int(0.96*desktopWidget.height())
-            height = width
-            self.tabbedImageDisplayWindow.setFixedSize(width,height)
-            self.tabbedImageDisplayWindow.show()
+        desktopWidget = QDesktopWidget()
+        width_min = int(0.96*desktopWidget.width())
+        height_min = int(0.9*desktopWidget.height())
+        
+        dock_display = dock.Dock('Image Display', autoOrientation = False)
+        dock_display.showTitleBar()
+        dock_display.addWidget(self.imageDisplayTabs)
+        dock_display.setStretch(x=100,y=100)
+
+        dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
+        # dock_controlPanel.showTitleBar()
+        dock_controlPanel.addWidget(self.centralWidget)
+        dock_controlPanel.setStretch(x=1,y=None)
+        dock_controlPanel.setFixedWidth(width_min*0.25)
+
+        main_dockArea = dock.DockArea()
+        main_dockArea.addDock(dock_display)
+        main_dockArea.addDock(dock_controlPanel,'right')
+
+        self.setCentralWidget(main_dockArea)
+        self.setMinimumSize(width_min,height_min)
+
+        ADD_LASER_AF_IMAGE_VIEW=True
+        if ADD_LASER_AF_IMAGE_VIEW:
+            self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.focus_camera,include_gain_exposure_time=False)
+            self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera)
+            self.imageDisplayWindow_focus = widgets.ImageDisplayWindow(draw_crosshairs=True)
+
+            dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
+            dock_laserfocus_image_display.showTitleBar()
+            dock_laserfocus_image_display.addWidget(self.imageDisplayWindow_focus.widget)
+            dock_laserfocus_image_display.setStretch(x=100,y=100)
+
+            dock_laserfocus_liveController = dock.Dock('Focus Camera Controller', autoOrientation = False)
+            dock_laserfocus_liveController.showTitleBar()
+            dock_laserfocus_liveController.addWidget(self.liveControlWidget_focus_camera)
+            dock_laserfocus_liveController.setStretch(x=100,y=100)
+            # dock_laserfocus_liveController.setFixedHeight(self.liveControlWidget_focus_camera.minimumSizeHint().height())
+            dock_laserfocus_liveController.setFixedWidth(self.liveControlWidget_focus_camera.minimumSizeHint().width())
+
+            laserfocus_dockArea = dock.DockArea()
+            laserfocus_dockArea.addDock(dock_laserfocus_image_display)
+            laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
+
+            # connections
+            self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
+            self.liveControlWidget_focus_camera.signal_newAnalogGain.connect(self.cameraSettingWidget_focus_camera.set_analog_gain)
+            self.liveControlWidget_focus_camera.update_camera_settings()
+
+            self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
+            self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+            self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
+            self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget_focus_camera.set_analog_gain)
+            self.liveControlWidget.update_camera_settings()
+
+            self.streamHandler_focus_camera.image_to_display.connect(self.displacementMeasurementController.update_measurement)
+            self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+
+            # self.imageDisplayWindow_focus.widget
+            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-based Focus")
 
         # make connections
-        self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
-        self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
-        self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
         self.imageDisplay.image_to_display.connect(self.processLiveImage) # internally calls self.imageDisplayWindow.display_image, among other things
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
@@ -239,12 +290,6 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.signal_newExposureTime.connect(self.camera.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.camera.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
-
-        self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
-        self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
-        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
-        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
-        self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
 
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
@@ -419,9 +464,6 @@ class OctopiGUI(QMainWindow):
             calculate_histogram=True
 
         # calculate histogram
-        if calculate_histogram is None:
-            calculate_histogram=self.histogram_log_scale
-
         if calculate_histogram and not self.last_image_data is None:
             image_data=self.last_image_data
             if image_data.dtype==numpy.uint8:
@@ -516,10 +558,6 @@ class OctopiGUI(QMainWindow):
         
         self.imageSaver.close()
         self.imageDisplay.close()
-        if not MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
-            self.imageDisplayWindow.close()
-            self.imageArrayDisplayWindow.close()
-            self.tabbedImageDisplayWindow.close()
 
         self.hcs_controller.close()
         

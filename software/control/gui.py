@@ -24,7 +24,7 @@ class OctopiGUI(QMainWindow):
 		super().__init__(*args, **kwargs)
 
 		# load window
-		self.imageDisplayWindow = widgets.ImageDisplayWindow(draw_crosshairs=True,autoLevels=MACHINE_DISPLAY_CONFIG.AUTOLEVEL_DEFAULT_SETTING)
+		self.imageDisplayWindow = widgets.ImageDisplayWindow(draw_crosshairs=True)
 		self.imageArrayDisplayWindow = widgets.ImageArrayDisplayWindow()
 
 		# image display windows
@@ -53,7 +53,7 @@ class OctopiGUI(QMainWindow):
 		self.microcontroller.configure_actuators()
 			
 		self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
-		self.streamHandler = core.StreamHandler(display_resolution_scaling=MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP/100)
+		self.streamHandler = core.StreamHandler()
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
@@ -70,11 +70,7 @@ class OctopiGUI(QMainWindow):
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(
-			self.streamHandler,self.liveController,self.configurationManager,
-			show_trigger_options=True,show_display_options=True,
-			show_autolevel=MACHINE_DISPLAY_CONFIG.SHOW_AUTOLEVEL_BTN,
-			autolevel=MACHINE_DISPLAY_CONFIG.AUTOLEVEL_DEFAULT_SETTING)
+		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
@@ -97,42 +93,27 @@ class OctopiGUI(QMainWindow):
 		layout.addStretch()
 		
 		# transfer the layout to the central widget
-		self.centralWidget:QWidget = QWidget()
-		self.centralWidget.setLayout(layout)
-		# self.centralWidget.setFixedSize(self.centralWidget.minimumSize())
-		# self.centralWidget.setFixedWidth(self.centralWidget.minimumWidth())
-		# self.centralWidget.setMaximumWidth(self.centralWidget.minimumWidth())
+		self.centralWidget:QWidget = widgets.as_widget(layout)
+		
 		self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
 		
-		if MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
-			dock_display = dock.Dock('Image Display', autoOrientation = False)
-			dock_display.showTitleBar()
-			dock_display.addWidget(self.imageDisplayTabs)
-			dock_display.setStretch(x=100,y=None)
-			dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
-			# dock_controlPanel.showTitleBar()
-			dock_controlPanel.addWidget(self.centralWidget)
-			dock_controlPanel.setStretch(x=1,y=None)
-			dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
-			main_dockArea = dock.DockArea()
-			main_dockArea.addDock(dock_display)
-			main_dockArea.addDock(dock_controlPanel,'right')
-			self.setCentralWidget(main_dockArea)
-			desktopWidget = QDesktopWidget()
-			height_min = int(0.9*desktopWidget.height())
-			width_min = int(0.96*desktopWidget.width())
-			self.setMinimumSize(width_min,height_min)
-		else:
-			self.setCentralWidget(self.centralWidget)
-			self.tabbedImageDisplayWindow = QMainWindow()
-			self.tabbedImageDisplayWindow.setCentralWidget(self.imageDisplayTabs)
-			self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint) # type: ignore
-			self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint) # type: ignore
-			desktopWidget = QDesktopWidget()
-			width = int(0.96*desktopWidget.height())
-			height = width
-			self.tabbedImageDisplayWindow.setFixedSize(width,height)
-			self.tabbedImageDisplayWindow.show()
+		dock_display = dock.Dock('Image Display', autoOrientation = False)
+		dock_display.showTitleBar()
+		dock_display.addWidget(self.imageDisplayTabs)
+		dock_display.setStretch(x=100,y=None)
+		dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
+		# dock_controlPanel.showTitleBar()
+		dock_controlPanel.addWidget(self.centralWidget)
+		dock_controlPanel.setStretch(x=1,y=None)
+		dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
+		main_dockArea = dock.DockArea()
+		main_dockArea.addDock(dock_display)
+		main_dockArea.addDock(dock_controlPanel,'right')
+		self.setCentralWidget(main_dockArea)
+		desktopWidget = QDesktopWidget()
+		height_min = int(0.9*desktopWidget.height())
+		width_min = int(0.96*desktopWidget.width())
+		self.setMinimumSize(width_min,height_min)
 
 		# make connections
 		self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
@@ -150,7 +131,6 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
-		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
 	@TypecheckFunction
 	def closeEvent(self, event:QEvent):
@@ -161,8 +141,4 @@ class OctopiGUI(QMainWindow):
 		self.camera.close()
 		self.imageSaver.close()
 		self.imageDisplay.close()
-		if not MACHINE_DISPLAY_CONFIG.SINGLE_WINDOW:
-			self.imageDisplayWindow.close()
-			self.imageArrayDisplayWindow.close()
-			self.tabbedImageDisplayWindow.close()
 		self.microcontroller.close()

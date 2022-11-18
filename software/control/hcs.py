@@ -51,10 +51,9 @@ class HCSController(QObject):
         self.microcontroller.configure_actuators()
 
         self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_configurations.xml')
-        self.streamHandler:           core.StreamHandler           = core.StreamHandler(display_resolution_scaling=MACHINE_DISPLAY_CONFIG.DEFAULT_DISPLAY_CROP/100)
+        self.streamHandler:           core.StreamHandler           = core.StreamHandler()
         self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager,self.streamHandler.signal_new_frame_received)
         self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
-        self.slidePositionController: core.SlidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
         self.imageSaver:              core.ImageSaver              = core.ImageSaver()
@@ -69,12 +68,12 @@ class HCSController(QObject):
 
         self.num_running_experiments=0
 
-        LASER_AF_ENABLED=False
+        LASER_AF_ENABLED=True
         if LASER_AF_ENABLED:
             # controllers
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
             self.streamHandler_focus_camera = core.StreamHandler()
-            self.liveController_focus_camera = core.LiveController(self.focus_camera,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
+            self.liveController_focus_camera = core.LiveController(self.focus_camera,self.microcontroller,self.configurationManager_focus_camera,on_frame_acquired=None,control_illumination=False,for_displacement_measurement=True)
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.focus_camera,self.liveController_focus_camera,self.navigationController,has_two_interfaces=MACHINE_CONFIG.HAS_TWO_INTERFACES,use_glass_top=MACHINE_CONFIG.USE_GLASS_TOP)
 
