@@ -403,14 +403,14 @@ class MultiPointController(QObject):
         self.autofocusController = autofocusController
         self.configurationManager = configurationManager
 
-        self.NX:int = 1
-        self.NY:int = 1
-        self.NZ:int = 1
-        self.Nt:int = 1
-        self.deltaX = Acquisition.DEFAULT_DX_MM
-        self.deltaY = Acquisition.DEFAULT_DY_MM
-        self.deltaZ = Acquisition.DEFAULT_DZ_MM/1000
-        self.deltat:float = 0.0
+        self.NX:int = DefaultMultiPointGrid.DEFAULT_Nx
+        self.NY:int = DefaultMultiPointGrid.DEFAULT_Ny
+        self.NZ:int = DefaultMultiPointGrid.DEFAULT_Nz
+        self.Nt:int = DefaultMultiPointGrid.DEFAULT_Nt
+        self.deltaX:float = DefaultMultiPointGrid.DEFAULT_DX_MM
+        self.deltaY:float = DefaultMultiPointGrid.DEFAULT_DY_MM
+        self.deltaZ:float = DefaultMultiPointGrid.DEFAULT_DZ_MM/1000
+        self.deltat:float = DefaultMultiPointGrid.DEFAULT_DT_S
 
         self.do_autofocus:bool = False
         self.do_reflection_af = False

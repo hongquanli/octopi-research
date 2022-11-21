@@ -76,6 +76,11 @@ cp configurations/configuration_HCS_v2.txt configuration.txt
 # install camera driver
 cd ~/Downloads/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.1911.9122
 echo -e "\ny\nEn\n" | sudo ./Galaxy_camera.run
+cd ~/Downloads/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux_Python_1.0.1905.9081/api
+python3 setup.py build
+sudo python3 setup.py install
+
+cd
 
 # set up bash commands to run installed software
 echo '

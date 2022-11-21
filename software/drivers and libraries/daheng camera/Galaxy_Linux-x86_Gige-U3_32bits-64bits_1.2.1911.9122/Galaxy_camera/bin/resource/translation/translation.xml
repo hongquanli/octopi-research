@@ -1,0 +1,3565 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--version: 2.0.1905.9211-->
+<root>
+    <entry name="InterfaceName">
+        <DateType name="IEnumeration">GetEnumFeature</DateType>
+        <DateType name="IBoolean">GetBoolFeature</DateType>
+        <DateType name="IFloat">GetFloatFeature</DateType>
+        <DateType name="IString">GetStringFeature</DateType>
+        <DateType name="IInteger">GetIntFeature</DateType>
+    </entry>
+    <entry name="C_InterfaceName_Set">
+        <DateType name="IEnumeration">GXSetEnum</DateType>
+        <DateType name="IBoolean">GXSetBool</DateType>
+        <DateType name="IFloat">GXSetFloat</DateType>
+        <DateType name="IString">GXSetString</DateType>
+        <DateType name="IInteger">GXSetInt</DateType>
+    </entry>
+    <entry name="C_InterfaceName_Get">
+        <DateType name="IEnumeration">GXGetEnum</DateType>
+        <DateType name="IBoolean">GXGetBool</DateType>
+        <DateType name="IFloat">GXGetFloat</DateType>
+        <DateType name="IString">GXGetString</DateType>
+        <DateType name="IInteger">GXGetInt</DateType>
+    </entry>
+    <entry name="Favorites">
+        <feature_name>Favorites</feature_name>
+        <simplified_Chinese>收藏夹</simplified_Chinese>
+        <description_EN>This category contains a list of features selected by the user.</description_EN>
+        <description_CN>该组节点包含用户添加的特征属性列表。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="Remote Device">
+        <feature_name>Remote Device</feature_name>
+        <simplified_Chinese>设备配置信息</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="Local Device">
+        <feature_name>Local Device</feature_name>
+        <simplified_Chinese>本地配置信息</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="Stream">
+        <feature_name>Stream</feature_name>
+        <simplified_Chinese>流配置信息</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="GevLinkSpeed">
+        <feature_name>GevLinkSpeed</feature_name>
+        <simplified_Chinese>连接速度</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the connection speed in Mbps for the selected network interface.</description_EN>
+        <description_CN>只读项，显示选择网络接口的连接速度（以Mbps为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_GEV_LINK_SPEED</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceInformation">
+        <feature_name>DeviceInformation</feature_name>
+        <simplified_Chinese>设备信息</simplified_Chinese>
+        <description_EN>This category includes items that used to describe the device.</description_EN>
+        <description_CN>包含用于描述设备信息的参数。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="DeviceVendorName">
+        <feature_name>DeviceVendorName</feature_name>
+        <simplified_Chinese>厂商名称</simplified_Chinese>
+        <description_EN>This is a read only element. It is a text description that indicates the name of the device's vendor.</description_EN>
+        <description_CN>只读项，显示设备厂商的名称。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_DEVICE_VENDOR_NAME</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceModelName">
+        <feature_name>DeviceModelName</feature_name>
+        <simplified_Chinese>设备型号</simplified_Chinese>
+        <description_EN>This is a read only element. It is a text description that indicates the model name of the device.</description_EN>
+        <description_CN>只读项，显示设备型号。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_DEVICE_MODEL_NAME</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceFirmwareVersion">
+        <feature_name>DeviceFirmwareVersion</feature_name>
+        <simplified_Chinese>设备固件版本</simplified_Chinese>
+        <description_EN>This is a read only element. It is a string that indicates the version of the device's firmware and software.</description_EN>
+        <description_CN>只读项，显示设备的固件版本号。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_DEVICE_FIRMWARE_VERSION</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceVersion">
+        <feature_name>DeviceVersion</feature_name>
+        <simplified_Chinese>设备版本</simplified_Chinese>
+        <description_EN>This is a read only element. It is a string that indicates the version of the device.</description_EN>
+        <description_CN>只读项，显示设备版本号。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_DEVICE_VERSION</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceID">
+        <feature_name>DeviceID</feature_name>
+        <simplified_Chinese>设备标识</simplified_Chinese>
+        <description_EN>Interface wide unique identifier of the selected device.</description_EN>
+        <description_CN>选定设备接口的唯一标识符。</description_CN>
+        <type>IString</type>
+    </entry>
+
+    <entry name="DeviceSerialNumber">
+        <feature_name>DeviceSerialNumber</feature_name>
+        <simplified_Chinese>设备序列号</simplified_Chinese>
+        <description_EN>This is a read only element. It is a string that provides a unique identifier for the device such as a serial number or a GUID.</description_EN>
+        <description_CN>只读项，以序列号或者GUID的形式为设备提供唯一标识符。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_DEVICE_SERIAL_NUMBER</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceHardwareVersion">
+        <feature_name>DeviceHardwareVersion</feature_name>
+        <simplified_Chinese>设备硬件版本</simplified_Chinese>
+        <description_EN>This is a read only element. It is a string that indicates the version of the device's Hardware.</description_EN>
+        <description_CN>只读项，显示设备的硬件版本号。</description_CN>
+        <type>IString</type>
+    </entry>
+
+    <entry name="FactorySettingVersion">
+        <feature_name>FactorySettingVersion</feature_name>
+        <simplified_Chinese>出厂参数版本</simplified_Chinese>
+        <description_EN>This is a read only element. It is a string that indicates the version of the device's Factory Setting.</description_EN>
+        <description_CN>只读项，显示设备的出厂版本号。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_FACTORY_SETTING_VERSION</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceUserID">
+        <feature_name>DeviceUserID</feature_name>
+        <simplified_Chinese>用户自定义名称</simplified_Chinese>
+        <description_EN>This is a read/write element. It is a user programmable string.</description_EN>
+        <description_CN>该项可读可写，用户可以自己设定设备名称。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_DEVICE_USERID</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceType">
+        <feature_name>DeviceType</feature_name>
+        <simplified_Chinese>设备类型</simplified_Chinese>
+        <description_EN>Identifies the transport layer technology of the device.</description_EN>
+        <description_CN>显示设备传输层技术类型。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+
+    <entry name="DeviceDisplayName">
+        <feature_name>DeviceDisplayName</feature_name>
+        <simplified_Chinese>设备显示名称</simplified_Chinese>
+        <description_EN>User readable name of the device.</description_EN>
+        <description_CN>用户读取的设备名称。</description_CN>
+        <type>IString</type>
+    </entry>
+
+    <entry name="DeviceAccessStatus">
+        <feature_name>DeviceAccessStatus</feature_name>
+        <simplified_Chinese>设备权限状态</simplified_Chinese>
+        <description_EN>The access status the GenTL Producer has on the device.</description_EN>
+        <description_CN>GenTL生产商在设备上的访问状态。</description_CN>
+        <type>IEnumeration</type>
+		<C_Fun_Code></C_Fun_Code>
+        <C_Enum_Entry>GX_ACCESS_STATUS</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ACCESS_STATUS_UNKNOWN</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ACCESS_STATUS_READWRITE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_ACCESS_STATUS_READONLY</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_ACCESS_STATUS_NOACCESS</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="DeviceChunkDataFormat">
+        <feature_name>DeviceChunkDataFormat</feature_name>
+        <simplified_Chinese>设备帧信息格式</simplified_Chinese>
+        <description_EN>Chunk data format used by the device.</description_EN>
+        <description_CN>设备使用的帧信息格式。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+
+    <entry name="DeviceEventDataFormat">
+        <feature_name>DeviceEventDataFormat</feature_name>
+        <simplified_Chinese>设备事件数据格式</simplified_Chinese>
+        <description_EN>Enumeration,informing about the event data format used by the device.</description_EN>
+        <description_CN>描述设备使用的事件数据格式信息。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+
+    <entry name="GevDeviceIPAddress">
+        <feature_name>GevDeviceIPAddress</feature_name>
+        <simplified_Chinese>设备IP地址</simplified_Chinese>
+        <description_EN>Current IP address of the GVCP interface of the selected device.</description_EN>
+        <description_CN>所选设备GVCP接口的当前IP地址。</description_CN>
+        <type>IInteger</type>
+    </entry>
+
+    <entry name="GevDeviceSubnetMask">
+        <feature_name>GevDeviceSubnetMask</feature_name>
+        <simplified_Chinese>设备子网掩码</simplified_Chinese>
+        <description_EN>Current subnet of the GVCP interface of the selected device.</description_EN>
+        <description_CN>所选设备GVCP接口的当前子网掩码。</description_CN>
+        <type>IInteger</type>
+    </entry>
+
+    <entry name="GevDeviceMACAddress">
+        <feature_name>GevDeviceMACAddress</feature_name>
+        <simplified_Chinese>设备MAC地址</simplified_Chinese>
+        <description_EN>48-bit MAC address of the GVCP interface of the selected device.</description_EN>
+        <description_CN>所选择设备的GVCP接口的48位MAC地址。</description_CN>
+        <type>IInteger</type>
+    </entry>
+
+    <entry name="GevDeviceGateway">
+        <feature_name>GevDeviceGateway</feature_name>
+        <simplified_Chinese>设备网关</simplified_Chinese>
+        <description_EN>Current gateway of the GVCP interface of the selected device.</description_EN>
+        <description_CN>所选择设备的GVCP接口的当前网关。</description_CN>
+        <type>IInteger</type>
+    </entry>
+
+    <entry name="GevEventsNumInList">
+        <feature_name>GevEventsNumInList</feature_name>
+        <simplified_Chinese>链表中的事件个数</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+		<type></type>
+    </entry>
+
+    <entry name="DeviceLinkSelector">
+        <feature_name>DeviceLinkSelector</feature_name>
+        <simplified_Chinese>设备链路选择</simplified_Chinese>
+        <description_EN>Selects which Link of the device to control.</description_EN>
+        <description_CN>选择控制的设备链路。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_DEVICE_LINK_SELECTOR</C_Fun_Code>
+    </entry>
+
+    <entry name="DeviceLinkThroughputLimitMode">
+        <feature_name>DeviceLinkThroughputLimitMode</feature_name>
+        <simplified_Chinese>设备带宽限制模式</simplified_Chinese>
+        <description_EN>Controls if the DeviceLinkThroughputLimit is active.</description_EN>
+        <description_CN>控制设备带宽限制模式是否激活。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_DEVICE_LINK_THROUGHPUT_LIMIT_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_DEVICE_LINK_THROUGHPUT_LIMIT_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_DEVICE_LINK_THROUGHPUT_LIMIT_MODE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_DEVICE_LINK_THROUGHPUT_LIMIT_MODE_ON</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>DeviceLinkSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="DeviceLinkThroughputLimit">
+        <feature_name>DeviceLinkThroughputLimit</feature_name>
+        <simplified_Chinese>设备链路带宽限制</simplified_Chinese>
+        <description_EN>Limits the maximum bandwidth of the data that will be streamed out by the device on the selected Link. </description_EN>
+        <description_CN>限制设备在选择链路上流式向外传输数据的的最大带宽。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_DEVICE_LINK_THROUGHPUT_LIMIT</C_Fun_Code>
+        <Pre_Related_Name>DeviceLinkSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="DeviceLinkCurrentThroughput">
+        <feature_name>DeviceLinkCurrentThroughput</feature_name>
+        <simplified_Chinese>当前设备采集带宽</simplified_Chinese>
+        <description_EN>Limits the maximum bandwidth of the data that will be streamed out by the device on the selected Link. </description_EN>
+        <description_CN>限制设备在选择链路上流式向外传输数据的的最大带宽。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_DEVICE_LINK_CURRENT_THROUGHPUT</C_Fun_Code>
+        <Pre_Related_Name>DeviceLinkSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="ImageFormatControl">
+        <feature_name>ImageFormatControl</feature_name>
+        <simplified_Chinese>图像格式控制</simplified_Chinese>
+        <description_EN>This category includes items that used to control the size of the acquired image and the format of the transferred pixel data.</description_EN>
+        <description_CN>该组包含用于控制采集图像的大小和传输像素数据的格式的参数。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="ImageFormat">
+        <feature_name>ImageFormat</feature_name>
+        <simplified_Chinese>图像格式</simplified_Chinese>
+		<description_EN>This category includes items that used to control the size of the acquired image and the format of the transferred pixel data.</description_EN>
+		<description_CN>该组包含用于控制采集图像的大小和传输像素数据的格式的参数。</description_CN>
+		<type>ICategory</type>
+    </entry>
+
+    <entry name="SensorWidth">
+        <feature_name>SensorWidth</feature_name>
+        <simplified_Chinese>传感器宽度</simplified_Chinese>
+        <description_EN>This is a read only element. It is an integer that indicates the actual width of the camera's sensor in pixels.</description_EN>
+        <description_CN>只读项，以像素为单位显示相机传感器的实际宽度。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_SENSOR_WIDTH</C_Fun_Code>
+    </entry>
+
+    <entry name="SensorHeight">
+        <feature_name>SensorHeight</feature_name>
+        <simplified_Chinese>传感器高度</simplified_Chinese>
+        <description_EN>This is a read only element. It is an integer that indicates the actual height of the camera's sensor in pixels.</description_EN>
+        <description_CN>只读项，以像素为单位显示相机传感器的实际高度。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_SENSOR_HEIGHT</C_Fun_Code>
+    </entry>
+
+    <entry name="WidthMax">
+        <feature_name>WidthMax</feature_name>
+        <simplified_Chinese>最大宽度</simplified_Chinese>
+        <description_EN>This is a read only element. It is an integer that indicates maximum allowed width of the image in pixels taking into account any function that may limit the allowed width.</description_EN>
+        <description_CN>只读项，显示图像允许的最大宽度（以像素为单位）。该值考虑了可能限制最大宽度的所有功能。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_WIDTH_MAX</C_Fun_Code>
+    </entry>
+
+    <entry name="HeightMax">
+        <feature_name>HeightMax</feature_name>
+        <simplified_Chinese>最大高度</simplified_Chinese>
+        <description_EN>This is a read only element. It is an integer that indicates maximum allowed height of the image in pixels taking into account any function that may limit the allowed height.</description_EN>
+        <description_CN>只读项，显示图像允许的最大高度（以像素为单位）。该值考虑了可能限制最大高度的所有功能。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_HEIGHT_MAX</C_Fun_Code>
+    </entry>
+
+    <entry name="OffsetX">
+        <feature_name>OffsetX</feature_name>
+        <simplified_Chinese>水平偏移</simplified_Chinese>
+        <description_EN>This value sets the X offset (left offset) for the area of interest in pixels, i.e., the distance in pixels between the left side of the sensor and the left side of the image area.</description_EN>
+        <description_CN>该值以像素为单位设置感兴趣区域的X偏移（左偏移），即传感器左侧和图像区域左侧之间的距离（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_OFFSET_X</C_Fun_Code>
+        <Pre_Related_Name>RegionSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="OffsetY">
+        <feature_name>OffsetY</feature_name>
+        <simplified_Chinese>垂直偏移</simplified_Chinese>
+        <description_EN>This value sets the Y offset (top offset) for the area of interest, i.e., the distance in pixels between the top of the sensor and the top of the image area.</description_EN>
+        <description_CN>该值设置感兴趣区域的Y偏移（顶部偏移），即传感器顶部和图像区域顶部之间的距离（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_OFFSET_Y</C_Fun_Code>
+        <Pre_Related_Name>RegionSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="Width">
+        <feature_name>Width</feature_name>
+        <simplified_Chinese>图像宽度</simplified_Chinese>
+        <description_EN>This value sets the width of the area of interest in pixels.</description_EN>
+        <description_CN>该值设置感兴趣区域的宽度（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_WIDTH</C_Fun_Code>
+        <Pre_Related_Name>RegionSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="Height">
+        <feature_name>Height</feature_name>
+        <simplified_Chinese>图像高度</simplified_Chinese>
+        <description_EN>This value sets the height of the area of interest in pixels.</description_EN>
+        <description_CN>该值设置感兴趣区域的高度（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_HEIGHT</C_Fun_Code>
+        <Pre_Related_Name>RegionSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="CenterWidth">
+        <feature_name>CenterWidth</feature_name>
+        <simplified_Chinese>窗口宽度</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_CENTER_WIDTH</C_Fun_Code>
+    </entry>
+
+    <entry name="CenterHeight">
+        <feature_name>CenterHeight</feature_name>
+        <simplified_Chinese>窗口高度</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_CENTER_HEIGHT</C_Fun_Code>
+    </entry>
+
+    <entry name="BinningHorizontal">
+        <feature_name>BinningHorizontal</feature_name>
+        <simplified_Chinese>水平像素Binning</simplified_Chinese>
+        <description_EN>Setting the number of binned adjacent horizontal pixels. Their charges will be summed and reported out of the camera as a single pixel.</description_EN>
+        <description_CN>设置合并相邻水平像素的数目。它们的电荷将被汇总并通过相机报告为单个像素。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_BINNING_HORIZONTAL</C_Fun_Code>
+    </entry>
+
+    <entry name="BinningVertical">
+        <feature_name>BinningVertical</feature_name>
+        <simplified_Chinese>垂直像素Binning</simplified_Chinese>
+        <description_EN>Number of adjacent vertical pixels to be summed. Their charges will be summed and reported out of the camera as a single pixel.</description_EN>
+        <description_CN>需要求和的相邻垂直像素数量。它们的电荷将被汇总并通过相机报告为单个像素。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_BINNING_VERTICAL</C_Fun_Code>
+    </entry>
+
+    <entry name="DecimationHorizontal">
+        <feature_name>DecimationHorizontal</feature_name>
+        <simplified_Chinese>水平像素抽样</simplified_Chinese>
+        <description_EN>Horizontal decimation factor. It specifies the extent of horizontal sub-sampling of the acquired frame, i.e. it defines how many pixel columns are left out of transmission. This has the net effect of reducing the horizontal resolution (width) of the image by the specified decimation factor. A value of 1 indicates that the camera performs no horizontal decimation.</description_EN>
+        <description_CN>水平像素抽样系数。该值指定了所采集帧的水平子采样的范围，即，它定义了有多少像素列没有传输。这将使图像的水平分辨率（宽度）减小指定的抽样因子。如果值为1表示相机不执行水平采样。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_DECIMATION_HORIZONTAL</C_Fun_Code>
+    </entry>
+
+    <entry name="DecimationVertical">
+        <feature_name>DecimationVertical</feature_name>
+        <simplified_Chinese>垂直像素抽样</simplified_Chinese>
+        <description_EN>Vertical decimation factor. It specifies the extent of vertical sub-sampling of the acquired frame, i.e. it defines how many rows are left out of transmission. This has the net effect of reducing the vertical resolution (height) of the image by the specified decimation factor. A value of 1 indicates that the camera performs no vertical decimation.</description_EN>
+        <description_CN>垂直像素抽样系数。该值指定了所采集帧的垂直子采样的范围，即，它定义了有多少像素行没有传输。这将使图像的垂直分辨率（高度）减小指定的抽样因子。如果值为1表示相机不执行垂直采样。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_DECIMATION_VERTICAL</C_Fun_Code>
+    </entry>
+
+    <entry name="PixelSize">
+        <feature_name>PixelSize</feature_name>
+        <simplified_Chinese>像素位深</simplified_Chinese>
+        <description_EN>This is a read only feature. This enumeration provides a list of values that indicate the depth of the pixel values in the acquired images in bits per pixel. This value will always be coherent with the pixel format setting.</description_EN>
+        <description_CN>只读项。该枚举项设置图像中的像素值的深度（以位/像素为单位）。该值将始终与像素格式设置一致。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_PIXEL_SIZE</C_Fun_Code>
+        <C_Enum_Entry>GX_PIXEL_SIZE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>8</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP8</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>10</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>12</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>16</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP16</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>24</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP24</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>30</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP30</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>32</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP32</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP36</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>48</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP48</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>64</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_SIZE_BPP64</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="PixelColorFilter">
+        <feature_name>PixelColorFilter</feature_name>
+        <simplified_Chinese>Bayer格式</simplified_Chinese>
+        <description_EN>This is a read only feature. This enumeration provides a list of values that indicate the alignment of the camera's Bayer filter to the pixels in the acquired images.</description_EN>
+        <description_CN>只读项，该枚举项设置相机Bayer滤波器和采集图像像素的调整格式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_PIXEL_COLOR_FILTER</C_Fun_Code>
+        <C_Enum_Entry>GX_PIXEL_COLOR_FILTER_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_FILTER_NONE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_FILTER_BAYER_RG</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_FILTER_BAYER_GB</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_FILTER_BAYER_GR</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_FILTER_BAYER_BG</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="PixelFormat">
+        <feature_name>PixelFormat</feature_name>
+        <simplified_Chinese>像素格式</simplified_Chinese>
+        <description_EN>This enumeration sets the format of the pixel data transmitted for acquired images.</description_EN>
+        <description_CN>该枚举项设置获取的图像传输的像素数据的格式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_PIXEL_FORMAT</C_Fun_Code>
+        <C_Enum_Entry>GX_PIXEL_FORMAT_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_UNDEFINED</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17301505</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_MONO8</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17301506</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_MONO8_SIGNED</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825795</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_MONO10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825797</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_MONO12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825829</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_MONO14</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825799</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_MONO16</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17301512</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GR8</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17301513</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_RG8</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17301514</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GB8</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17301515</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_BG8</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825804</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GR10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825805</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_RG10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825806</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GB10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825807</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_BG10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825808</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GR12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825809</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_RG12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825810</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GB12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825811</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_BG12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825838</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GR16</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825839</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_RG16</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825840</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_GB16</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>17825841</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_BAYER_BG16</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>35127329</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_RGB8_PLANAR</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36700194</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_RGB10_PLANAR</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36700195</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_RGB12_PLANAR</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36700196</C_Enum_Name>
+            <C_Enum_Value>GX_PIXEL_FORMAT_RGB16_PLANAR</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="ReverseX">
+        <feature_name>ReverseX</feature_name>
+        <simplified_Chinese>水平翻转</simplified_Chinese>
+        <description_EN>This feature is used to flip horizontally the image sent by the device. The ROI is applied after the flipping.</description_EN>
+        <description_CN>该功能用于水平翻转设备发送的图像。翻转后启用ROI。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_REVERSE_X</C_Fun_Code>
+    </entry>
+
+    <entry name="ReverseY">
+        <feature_name>ReverseY</feature_name>
+        <simplified_Chinese>垂直翻转</simplified_Chinese>
+        <description_EN>This feature is used to flip vertically the image sent by the device. The ROI is applied after the flipping.</description_EN>
+        <description_CN>该功能用于垂直翻转设备发送的图像。翻转后启用ROI。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_REVERSE_Y</C_Fun_Code>
+    </entry>
+
+    <entry name="RegionSendMode">
+        <feature_name>RegionSendMode</feature_name>
+        <simplified_Chinese>ROI输出模式</simplified_Chinese>
+        <description_EN>Region Send Mode Selector.</description_EN>
+        <description_CN>选择ROI输出模式。</description_CN>
+		<type>IEnumeration</type>
+		<C_Fun_Code>GX_ENUM_REGION_SEND_MODE</C_Fun_Code>
+		<C_Enum_Entry>GX_REGION_SEND_MODE</C_Enum_Entry>
+		<Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SEND_SINGLE_ROI_MODE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SEND_MULTI_ROI_MODE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="RegionMode">
+        <feature_name>RegionMode</feature_name>
+        <simplified_Chinese>区域开关</simplified_Chinese>
+        <description_EN>Controls if the selected Region of interest is active and streaming.</description_EN>
+        <description_CN>控制所选感兴趣区域是否处于活动状态并进行流式处理。</description_CN>
+        <type>IEnumeration</type>
+		<C_Fun_Code>GX_ENUM_REGION_MODE</C_Fun_Code>
+		<C_Enum_Entry>GX_REGION_MODE</C_Enum_Entry>
+        <Pre_Related_Name>RegionSelector</Pre_Related_Name>
+		<Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_MODE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_MODE_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="RegionSelector">
+        <feature_name>RegionSelector</feature_name>
+        <simplified_Chinese>区域选择</simplified_Chinese>
+        <description_EN>Selects the Region of interest to control.The RegionSelector feature allows devices that are able to extract multiple regions out of an image, to configure the features of those individual regions independently.</description_EN>
+        <description_CN>选择要控制的感兴趣区域。该功能允许能够从图像中提取多个区域的设备独立配置这些单个区域。</description_CN>
+        <type>IEnumeration</type>
+		<C_Fun_Code>GX_ENUM_RREGION_SELECTOR</C_Fun_Code>
+		<C_Enum_Entry>GX_REGION_SELECTOR_ENTRY</C_Enum_Entry>
+        <Pre_Related_Name>RegionSendMode</Pre_Related_Name>
+		<Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION0</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION1</C_Enum_Value>
+		</Possible_Val>
+		<Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION2</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION3</C_Enum_Value>
+		</Possible_Val>
+		<Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION4</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>5</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION5</C_Enum_Value>
+		</Possible_Val>
+		<Possible_Val>
+            <C_Enum_Name>6</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION6</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>7</C_Enum_Name>
+            <C_Enum_Value>GX_REGION_SELECTOR_REGION7</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="TestPatternGeneratorSelector">
+        <feature_name>TestPatternGeneratorSelector</feature_name>
+        <simplified_Chinese>测试图源选择</simplified_Chinese>
+        <description_EN>Selects which test pattern generator is controlled by the TestPattern feature.</description_EN>
+        <description_CN>选择由测试模式功能控制的测试模式生成器。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TEST_PATTERN_GENERATOR_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_TEST_PATTERN_GENERATOR_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_TEST_PATTERN_GENERATOR_SELECTOR_SENSOR</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TEST_PATTERN_GENERATOR_SELECTOR_REGION0</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="TestPattern">
+        <feature_name>TestPattern</feature_name>
+        <simplified_Chinese>测试图</simplified_Chinese>
+        <description_EN>This enumeration provides a list of the available test images. Selecting a test image from the list will enable the test image.</description_EN>
+        <description_CN>该枚举提供可用于测试的图像列表。从列表中选择测试图像将启用测试图像功能。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TEST_PATTERN</C_Fun_Code>
+        <C_Enum_Entry>GX_TEST_PATTERN_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TEST_PATTERN_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TEST_PATTERN_GRAY_FRAME_RAMP_MOVING</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TEST_PATTERN_SLANT_LINE_MOVING</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TEST_PATTERN_VERTICAL_LINE_MOVING</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>6</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TEST_PATTERN_SLANT_LINE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="TransportLayer">
+        <feature_name>TransportLayer</feature_name>
+        <simplified_Chinese>传输层</simplified_Chinese>
+		<description_EN>This category includes items that used to control the Transport layer.</description_EN>
+		<description_CN>该组包含用于控制传输层配置的项目。</description_CN>
+		<type>ICategory</type>
+    </entry>
+
+    <entry name="BinningHorizontalMode">
+        <feature_name>BinningHorizontalMode</feature_name>
+        <simplified_Chinese>水平像素Binning模式</simplified_Chinese>
+        <description_EN>This enumeration sets the binning horizontal mode.</description_EN>
+        <description_CN>该枚举项设置水平合并模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_BINNING_HORIZONTAL_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_BINNING_HORIZONTAL_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_BINNING_HORIZONTAL_MODE_SUM</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_BINNING_HORIZONTAL_MODE_AVERAGE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="BinningVerticalMode">
+        <feature_name>BinningVerticalMode</feature_name>
+        <simplified_Chinese>垂直像素Binning模式</simplified_Chinese>
+        <description_EN>This enumeration sets the binning vertical mode.</description_EN>
+        <description_CN>该枚举项设置垂直合并模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_BINNING_VERTICAL_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_BINNING_VERTICAL_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_BINNING_VERTICAL_MODE_SUM</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_BINNING_VERTICAL_MODE_AVERAGE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="AcquisitionControl">
+        <feature_name>AcquisitionControl</feature_name>
+        <simplified_Chinese>采集控制</simplified_Chinese>
+        <description_EN>This category includes items that used to set the image acquisition parameters and to start and stop acquisition.</description_EN>
+        <description_CN>该组包含用于设置图像采集参数和开采和停采的项。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="AcquisitionTrigger">
+        <feature_name>AcquisitionTrigger</feature_name>
+        <simplified_Chinese>采集控制</simplified_Chinese>
+		<description_EN>This category includes items that used to set the image acquisition parameters and to start and stop acquisition.</description_EN>
+		<description_CN>该组包含用于设置图像采集参数和开采和停采的项目。</description_CN>
+		<type>ICategory</type>
+    </entry>
+
+    <entry name="AcquisitionMode">
+        <feature_name>AcquisitionMode</feature_name>
+        <simplified_Chinese>采集模式</simplified_Chinese>
+        <description_EN>Used by application software to set the mode of acquisition. This feature indicates how image are sequenced out of the camera (continuously, single shot, multi-shot,...).</description_EN>
+        <description_CN>用于设置采集模式。此功能指示图像从相机采出的顺序（连续、单次拍摄、多次拍摄…）。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_ACQUISITION_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_ACQUISITION_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ACQ_MODE_SINGLE_FRAME</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ACQ_MODE_MULITI_FRAME</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_ACQ_MODE_CONTINUOUS</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="AcquisitionStart">
+        <feature_name>AcquisitionStart</feature_name>
+        <simplified_Chinese>开始采集</simplified_Chinese>
+        <description_EN>This command starts the acquisition of images. If the camera is set for single frame acquisition, it will start acquisition of one frame. If the camera is set for continuous frame acquisition, it will start continuous acquisition of frames.</description_EN>
+        <description_CN>此命令启动图像采集。如果相机设置为单帧采集，它将开始采集一帧。如果相机设置为连续帧采集，它将开始连续帧采集。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_ACQUISITION_START</C_Fun_Code>
+    </entry>
+
+    <entry name="AcquisitionStop">
+        <feature_name>AcquisitionStop</feature_name>
+        <simplified_Chinese>停止采集</simplified_Chinese>
+        <description_EN>If the camera is set for continuous image acquisition and acquisition has been started, this command stops the acquisition of images.</description_EN>
+        <description_CN>如果相机设置为连续图像采集，且采集已启动，则此命令将停止图像采集。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_ACQUISITION_STOP</C_Fun_Code>
+    </entry>
+
+    <entry name="AcquisitionAbort">
+        <feature_name>AcquisitionAbort</feature_name>
+        <simplified_Chinese>终止采集</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+		<type></type>
+    </entry>
+
+    <entry name="AcquisitionSpeedLevel">
+        <feature_name>AcquisitionSpeedLevel</feature_name>
+        <simplified_Chinese>采集速度级别</simplified_Chinese>
+        <description_EN>Setting the speed level of acquiring image. The bigger the value, the greater the frame rate; The smaller the value, the smaller the frame rate.</description_EN>
+        <description_CN>设置获取图像的速度级别。值越大，帧速率越大；值越小，帧速率越小。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_ACQUISITION_SPEED_LEVEL</C_Fun_Code>
+    </entry>
+
+    <entry name="AcquisitionFrameCount">
+        <feature_name>AcquisitionFrameCount</feature_name>
+        <simplified_Chinese>多帧采集帧数</simplified_Chinese>
+        <description_EN>This value sets the number of frames acquired in the multiframe acquisition mode.</description_EN>
+        <description_CN>该值设置在多帧采集模式下采集的帧数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_ACQUISITION_FRAME_COUNT</C_Fun_Code>
+    </entry>
+
+
+    <entry name="TriggerSelector">
+        <feature_name>TriggerSelector</feature_name>
+        <simplified_Chinese>触发类型选择</simplified_Chinese>
+        <description_EN>This enumeration selects the trigger type to configure. Once a trigger type has been selected, all changes to the trigger settings will be applied to the selected trigger.</description_EN>
+        <description_CN>此枚举选择要配置的触发器类型。选择触发器类型后，对触发器设置的所有更改都将应用于所选触发器。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRIGGER_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_TRIGGER_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TRIGGER_SELECTOR_FRAME_START</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TRIGGER_SELECTOR_FRAME_BURST_START</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="TriggerMode">
+        <feature_name>TriggerMode</feature_name>
+        <simplified_Chinese>触发模式</simplified_Chinese>
+        <description_EN>This enumeration sets the trigger mode for the selected trigger.</description_EN>
+        <description_CN>此枚举设置所选触发器的触发器模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRIGGER_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_TRIGGER_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_MODE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_MODE_ON</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>TriggerSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="TriggerSource">
+        <feature_name>TriggerSource</feature_name>
+        <simplified_Chinese>触发源</simplified_Chinese>
+        <description_EN>This enumeration sets the signal source for the selected trigger.</description_EN>
+        <description_CN>此枚举设置所选触发器的信号源。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRIGGER_SOURCE</C_Fun_Code>
+        <C_Enum_Entry>GX_TRIGGER_SOURCE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SOURCE_SOFTWARE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SOURCE_LINE0</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SOURCE_LINE1</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SOURCE_LINE2</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SOURCE_LINE3</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>TriggerSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="TriggerSoftware">
+        <feature_name>TriggerSoftware</feature_name>
+        <simplified_Chinese>软触发</simplified_Chinese>
+        <description_EN>This command generates a software trigger signal.</description_EN>
+        <description_CN>此命令生成软触发信号。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_TRIGGER_SOFTWARE</C_Fun_Code>
+    </entry>
+
+    <entry name="TriggerActivation">
+        <feature_name>TriggerActivation</feature_name>
+        <simplified_Chinese>触发极性</simplified_Chinese>
+        <description_EN>This enumeration sets the signal transition needed to activate the selected trigger.</description_EN>
+        <description_CN>此枚举设置激活所选触发器所需的信号转换形式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRIGGER_ACTIVATION</C_Fun_Code>
+        <C_Enum_Entry>GX_TRIGGER_ACTIVATION_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_ACTIVATION_FALLINGEDGE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_ACTIVATION_RISINGEDGE</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>TriggerSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="TriggerDelay">
+        <feature_name>TriggerDelay</feature_name>
+        <simplified_Chinese>触发延迟</simplified_Chinese>
+        <description_EN>This float value sets the trigger delay in microseconds to apply after the trigger reception before effectively activating it.</description_EN>
+        <description_CN>此浮点值设置触发延迟时间（以微秒为单位）。应用在触发接收后有效激活前。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_TRIGGER_DELAY</C_Fun_Code>
+        <Pre_Related_Name>TriggerSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="TriggerSwitch">
+        <feature_name>TriggerSwitch</feature_name>
+        <simplified_Chinese>外触发开关</simplified_Chinese>
+        <description_EN>Control external trigger signal is valid. When using external trigger, first set the trigger mode to on, and then set trigger switch to on.</description_EN>
+        <description_CN>控制外触发信号有效。使用外触发器时，首先将触发器模式设置为“开”，然后将触发器开关设置为“开”。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRIGGER_SWITCH</C_Fun_Code>
+        <C_Enum_Entry>GX_TRIGGER_SWITCH_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SWITCH_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TRIGGER_SWITCH_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="TriggerFilterRaisingEdge">
+        <feature_name>TriggerFilterRaisingEdge</feature_name>
+        <simplified_Chinese>上升沿触发滤波</simplified_Chinese>
+        <description_EN>Raisingedge signal pulse width is smaller than this value is invalid.</description_EN>
+        <description_CN>上升沿信号脉冲宽度小于此值无效。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_TRIGGER_FILTER_RAISING</C_Fun_Code>
+        <Pre_Related_Name>TriggerSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="TriggerFilterFallingEdge">
+        <feature_name>TriggerFilterFallingEdge</feature_name>
+        <simplified_Chinese>下降沿触发滤波</simplified_Chinese>
+        <description_EN>Fallingedge signal pulse width is smaller than this value is invalid.</description_EN>
+        <description_CN>下降沿信号脉冲宽度小于此值无效。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_TRIGGER_FILTER_FALLING</C_Fun_Code>
+        <Pre_Related_Name>RegionSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="ExposureMode">
+        <feature_name>ExposureMode</feature_name>
+        <simplified_Chinese>曝光模式</simplified_Chinese>
+        <description_EN>This enumeration sets the exposure mode.</description_EN>
+        <description_CN>设置曝光模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_EXPOSURE_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_EXPOSURE_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_EXPOSURE_MODE_TIMED</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_EXPOSURE_MODE_TRIGGERWIDTH</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="ExposureAuto">
+        <feature_name>ExposureAuto</feature_name>
+        <simplified_Chinese>自动曝光</simplified_Chinese>
+        <description_EN>The exposure auto function automatically adjusts the Auto Exposure Time parameter value within set limits, until a target average gray value for the pixel data is reached.</description_EN>
+        <description_CN>该功能会在设定的范围内自动调整“自动曝光时间”参数值，直到达到像素数据的目标平均灰度值。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_EXPOSURE_AUTO</C_Fun_Code>
+        <C_Enum_Entry>GX_EXPOSURE_AUTO_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_EXPOSURE_AUTO_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_EXPOSURE_AUTO_CONTINUOUS</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_EXPOSURE_AUTO_ONCE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="AcquisitionBurstFrameCount">
+        <feature_name>AcquisitionBurstFrameCount</feature_name>
+        <simplified_Chinese>高速连拍帧数</simplified_Chinese>
+        <description_EN>This int value sets the number of frames to acquire for each FrameBurstStart trigger.</description_EN>
+        <description_CN>该值为每个“帧高速连拍开始”触发器设置要获取的帧数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_ACQUISITION_BURST_FRAME_COUNT</C_Fun_Code>
+    </entry>
+
+    <entry name="AcquisitionStatusSelector">
+        <feature_name>AcquisitionStatusSelector</feature_name>
+        <simplified_Chinese>采集状态选择</simplified_Chinese>
+        <description_EN>Sets the acquisition status to be checked. Once a status has been set, the status can be checked by reading the AcquisitionStatus parameter value.</description_EN>
+        <description_CN>设置要检查的采集状态。设置状态后，可以通过读取“采集状态”参数值来检查状态。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_ACQUISITION_STATUS_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_ACQUISITION_STATUS_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ACQUISITION_STATUS_SELECTOR_ACQUISITION_TRIGGER_WAIT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ACQUISITION_STATUS_SELECTOR_FRAME_TRIGGER_WAIT</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="AcquisitionStatus">
+        <feature_name>AcquisitionStatus</feature_name>
+        <simplified_Chinese>采集状态</simplified_Chinese>
+        <description_EN>Indicates the status (true or false) of the currently selected acquisition signal. The acquisition signal can be selected using AcquisitionStatusSelector.</description_EN>
+        <description_CN>指示当前所选采集信号的状态（真或假）。可使用“采集状态选择”选择采集信号。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_ACQUISITION_STATUS</C_Fun_Code>
+        <Pre_Related_Name>AcquisitionStatusSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="ExposureDelay">
+        <feature_name>ExposureDelay</feature_name>
+        <simplified_Chinese>曝光延迟</simplified_Chinese>
+        <description_EN>This float value sets the ExposureDelay time.</description_EN>
+        <description_CN>设置曝光延迟时间。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_EXPOSURE_DELAY</C_Fun_Code>
+    </entry>
+
+    <entry name="FrameStart">
+        <feature_name>FrameStart</feature_name>
+        <simplified_Chinese>帧开始</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+		<type></type>
+    </entry>
+
+    <entry name="FrameBurstStart">
+        <feature_name>FrameBurstStart</feature_name>
+        <simplified_Chinese>帧高速连拍开始</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+		<type></type>
+    </entry>
+
+    <entry name="DigitalIOControl">
+        <feature_name>DigitalIOControl</feature_name>
+        <simplified_Chinese>数字IO控制</simplified_Chinese>
+        <description_EN>This category includes items that used to control the operation of the camera's digital I/O lines.</description_EN>
+        <description_CN>该组包含用于控制相机数字I/O引脚操作的参数。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="DigitalIO">
+        <feature_name>DigitalIO</feature_name>
+        <simplified_Chinese>数字IO</simplified_Chinese>
+		<description_EN>This category includes items that used to control the operation of the camera's digital I/O lines.</description_EN>
+		<description_CN>该组包含用于控制相机数字I/O引脚操作的参数。</description_CN>
+		<type>ICategory</type>
+    </entry>
+
+    <entry name="LineSelector">
+        <feature_name>LineSelector</feature_name>
+        <simplified_Chinese>引脚选择</simplified_Chinese>
+        <description_EN>This enumeration selects the I/O line to configure. Once a line has been selected, all changes to the line settings will be applied to the selected line.</description_EN>
+        <description_CN>此枚举选择要配置的I/O引脚。选定引脚后，对引脚设置所做的所有更改都将应用于选定的引脚。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_LINE_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_LINE_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SELECTOR_LINE0</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SELECTOR_LINE1</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SELECTOR_LINE2</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SELECTOR_LINE3</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="LineMode">
+        <feature_name>LineMode</feature_name>
+        <simplified_Chinese>引脚方向</simplified_Chinese>
+        <description_EN>This feature controls whether the physical Line is used to Input or Output a signal. When a Line supports input and output mode, the default state is Input to avoid possible electrical contention. Line Mode can take any of the following values: Input: The selected physical line is used to input an electrical signal. Output: The selected physical line is used to output an electrical signal.</description_EN>
+        <description_CN>该功能控制物理引脚用于输入还是输出信号。当引脚支持输入和输出模式时，默认状态为输入，以避免可能的竞争与冒险。引脚模式可以采用以下任何值：输入：所选物理引脚用于输入电信号。输出：选定的物理引脚用于输出电信号。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_LINE_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_LINE_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_MODE_INPUT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_MODE_OUTPUT</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>LineSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="LineInverter">
+        <feature_name>LineInverter</feature_name>
+        <simplified_Chinese>引脚电平反转</simplified_Chinese>
+        <description_EN>This boolean value enables the signal inverter function for the selected input or output line.</description_EN>
+        <description_CN>该值使能所选输入或输出引脚的信号反转功能。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_LINE_INVERTER</C_Fun_Code>
+        <Pre_Related_Name>LineSelector</Pre_Related_Name>
+    </entry>
+    <entry name="LineSource">
+        <feature_name>LineSource</feature_name>
+        <simplified_Chinese>引脚输出源</simplified_Chinese>
+        <description_EN>This enumeration selects the internally generated camera signal (source signal) for the selected line when the selected line is an output. </description_EN>
+        <description_CN>当选定引脚是输出时，此枚举为选定引脚选择内部生成的相机信号（源信号）。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_LINE_SOURCE</C_Fun_Code>
+        <C_Enum_Entry>GX_LINE_SOURCE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_STROBE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_USEROUTPUT0</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_USEROUTPUT1</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_USEROUTPUT2</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>5</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_EXPOSURE_ACTIVE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>6</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_FRAME_TRIGGER_WAIT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>7</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_ACQUISITION_TRIGGER_WAIT</C_Enum_Value>
+        </Possible_Val>
+		<Possible_Val>
+            <C_Enum_Name>8</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LINE_SOURCE_TIMER1_ACTIVE</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>LineSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="LineStatus">
+        <feature_name>LineStatus</feature_name>
+        <simplified_Chinese>引脚状态</simplified_Chinese>
+        <description_EN>This boolean value indicates the current logical state for the selected line at the time of polling.</description_EN>
+        <description_CN>此布尔值表示轮询时所选引脚的当前逻辑状态。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_LINE_STATUS</C_Fun_Code>
+        <Pre_Related_Name>LineSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="LineStatusAll">
+        <feature_name>LineStatusAll</feature_name>
+        <simplified_Chinese>所有引脚的状态</simplified_Chinese>
+        <description_EN>This int value selects the line status all chunk for enabling.</description_EN>
+        <description_CN>该值选择可用引脚的所有引脚状态。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_LINE_STATUS_ALL</C_Fun_Code>
+        <Pre_Related_Name>LineSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="UserOutputSelector">
+        <feature_name>UserOutputSelector</feature_name>
+        <simplified_Chinese>用户自定义输出选择</simplified_Chinese>
+        <description_EN>This enumeration selects the user settable output signal to configure. Once a user settable output signal has been selected, all changes to the user settable output signal settings will be applied to the selected user settable output signal.</description_EN>
+        <description_CN>该枚举项选择要配置的用户可设置输出信号。一旦选择了用户可设置输出信号，对用户可设置输出信号设置所做的所有更改都将应用于所选的用户可设置输出信号。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_USER_OUTPUT_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_USER_OUTPUT_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_USER_OUTPUT_SELECTOR_OUTPUT0</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_USER_OUTPUT_SELECTOR_OUTPUT1</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_USER_OUTPUT_SELECTOR_OUTPUT2</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="UserOutputValue">
+        <feature_name>UserOutputValue</feature_name>
+        <simplified_Chinese>用户自定义输出值</simplified_Chinese>
+        <description_EN>This boolean value sets the state of the selected user settable output signal.</description_EN>
+        <description_CN>该值设置所选用户可设置输出信号的状态。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_USER_OUTPUT_VALUE</C_Fun_Code>
+        <Pre_Related_Name>UserOutputSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="UserOutputMode">
+        <feature_name>UserOutputMode</feature_name>
+        <simplified_Chinese>用户IO输出模式</simplified_Chinese>
+        <description_EN>Output signal can be used for different purposes, flash or a user-defined constant level.</description_EN>
+        <description_CN>输出信号可用于不同的目的，闪光模式或用户定义的恒定电平。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_USER_OUTPUT_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_USER_OUTPUT_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_USER_OUTPUT_MODE_STROBE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_USER_OUTPUT_MODE_USERDEFINED</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="StrobeSwitch">
+        <feature_name>StrobeSwitch</feature_name>
+        <simplified_Chinese>闪光灯开关</simplified_Chinese>
+        <description_EN>Set the flash light switch.</description_EN>
+        <description_CN>设置闪光灯开关。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_STROBE_SWITCH</C_Fun_Code>
+        <C_Enum_Entry>GX_STROBE_SWITCH_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_STROBE_SWITCH_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_STROBE_SWITCH_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="EventControl">
+        <feature_name>EventControl</feature_name>
+        <simplified_Chinese>事件控制</simplified_Chinese>
+        <description_EN>This category includes items that control event generation by the camera.</description_EN>
+        <description_CN>该组包含控制相机事件生成的项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventSelector">
+        <feature_name>EventSelector</feature_name>
+        <simplified_Chinese>事件源选择</simplified_Chinese>
+        <description_EN>This enumeration selects the type of event for enabling.</description_EN>
+        <description_CN>该枚举项选择要启用的事件类型。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_EVENT_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_EVENT_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_SELECTOR_EXPOSUREEND</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36864</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_SELECTOR_BLOCK_DISCARD</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36865</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_SELECTOR_EVENT_OVERRUN</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36866</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_SELECTOR_FRAMESTART_OVERTRIGGER</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36867</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_SELECTOR_BLOCK_NOT_EMPTY</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>36868</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_SELECTOR_INTERNAL_ERROR</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="EventNotification">
+        <feature_name>EventNotification</feature_name>
+        <simplified_Chinese>事件使能</simplified_Chinese>
+        <description_EN>This enumeration sets the notification type that will be sent to the host application for the selected event.</description_EN>
+        <description_CN>该枚举项设置将为所选事件发送到主应用程序的通知类型。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_EVENT_NOTIFICATION</C_Fun_Code>
+        <C_Enum_Entry>GX_EVENT_NOTIFICATION_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_NOTIFICATION_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_EVENT_NOTIFICATION_ON</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>EventSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="EventExposureEndData">
+        <feature_name>EventExposureEndData</feature_name>
+        <simplified_Chinese>曝光结束事件</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventExposureEnd">
+        <feature_name>EventExposureEnd</feature_name>
+        <simplified_Chinese>曝光结束事件ID</simplified_Chinese>
+        <description_EN>This int value indicates the Event ID for an exposure end event.</description_EN>
+        <description_CN>该值显示曝光结束事件的事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_EXPOSUREEND</C_Fun_Code>
+    </entry>
+
+    <entry name="EventExposureEndTimestamp">
+        <feature_name>EventExposureEndTimestamp</feature_name>
+        <simplified_Chinese>曝光结束事件时间戳</simplified_Chinese>
+        <description_EN>This int value indicates the time stamp for an exposure end event.</description_EN>
+        <description_CN>该值显示曝光结束事件的时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_EXPOSUREEND_TIMESTAMP</C_Fun_Code>
+    </entry>
+
+    <entry name="EventExposureEndFrameID">
+        <feature_name>EventExposureEndFrameID</feature_name>
+        <simplified_Chinese>曝光结束事件帧ID</simplified_Chinese>
+        <description_EN>This int value indicates the frame ID for an exposure end event.</description_EN>
+        <description_CN>该值显示曝光结束事件的事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_EXPOSUREEND_FRAMEID</C_Fun_Code>
+    </entry>
+
+    <entry name="EventBlockDiscardData">
+        <feature_name>EventBlockDiscardData</feature_name>
+        <simplified_Chinese>图像帧数据丢弃事件</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventBlockDiscard">
+        <feature_name>EventBlockDiscard</feature_name>
+        <simplified_Chinese>数据块丢失事件ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the BlockDiscard event ID.</description_EN>
+        <description_CN>该值指示数据块丢失事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_BLOCK_DISCARD</C_Fun_Code>
+    </entry>
+
+    <entry name="EventBlockDiscardTimestamp">
+        <feature_name>EventBlockDiscardTimestamp</feature_name>
+        <simplified_Chinese>数据块丢失事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp for the BlockDiscard event.</description_EN>
+        <description_CN>显示数据块丢失事件时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_BLOCK_DISCARD_TIMESTAMP</C_Fun_Code>
+    </entry>
+
+    <entry name="EventOverrunData">
+        <feature_name>EventOverrunData</feature_name>
+        <simplified_Chinese>事件队列溢出事件</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventOverrun">
+        <feature_name>EventOverrun</feature_name>
+        <simplified_Chinese>事件队列溢出事件ID</simplified_Chinese>
+        <description_EN>This int value indicates the EventOverrun event ID.</description_EN>
+        <description_CN>该值显示事件队列溢出事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_OVERRUN</C_Fun_Code>
+    </entry>
+
+    <entry name="EventOverrunTimestamp">
+        <feature_name>EventOverrunTimestamp</feature_name>
+        <simplified_Chinese>事件队列溢出事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp of the EventOverrun event.</description_EN>
+        <description_CN>该值显示事件队列溢出事件时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_OVERRUN_TIMESTAMP</C_Fun_Code>
+    </entry>
+
+    <entry name="EventFrameStartOvertriggerData">
+        <feature_name>EventFrameStartOvertriggerData</feature_name>
+        <simplified_Chinese>触发信号溢出事件</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventFrameStartOvertrigger">
+        <feature_name>EventFrameStartOvertrigger</feature_name>
+        <simplified_Chinese>触发信号被屏蔽事件ID</simplified_Chinese>
+        <description_EN>This int value indicates the FrameStartOvertrigger event ID.</description_EN>
+        <description_CN>该值显示触发信号被屏蔽事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMESTART_OVERTRIGGER</C_Fun_Code>
+    </entry>
+
+    <entry name="EventFrameStartOvertriggerTimestamp">
+        <feature_name>EventFrameStartOvertriggerTimestamp</feature_name>
+        <simplified_Chinese>触发信号被屏蔽事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp of the FrameStartOvertrigger event.</description_EN>
+        <description_CN>该值显示触发信号被屏蔽事件时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMESTART_OVERTRIGGER_TIMESTAMP</C_Fun_Code>
+    </entry>
+
+    <entry name="EventBlockNotEmptyData">
+        <feature_name>EventBlockNotEmptyData</feature_name>
+        <simplified_Chinese>图像帧存不为空事件</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventBlockNotEmpty">
+        <feature_name>EventBlockNotEmpty</feature_name>
+        <simplified_Chinese>帧存不为空事件ID</simplified_Chinese>
+        <description_EN>This int value indicates the BlockNotEmpty event.</description_EN>
+        <description_CN>该值显示帧存不为空事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_BLOCK_NOT_EMPTY</C_Fun_Code>
+    </entry>
+
+    <entry name="EventBlockNotEmptyTimestamp">
+        <feature_name>EventBlockNotEmptyTimestamp</feature_name>
+        <simplified_Chinese>帧存不为空事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp of the BlockNotEmpty event.</description_EN>
+        <description_CN>显示帧存不为空事件时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_BLOCK_NOT_EMPTY_TIMESTAMP</C_Fun_Code>
+    </entry>
+
+    <entry name="EventInternalErrorData">
+        <feature_name>EventInternalErrorData</feature_name>
+        <simplified_Chinese>内部错误事件</simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="EventInternalError">
+        <feature_name>EventInternalError</feature_name>
+        <simplified_Chinese>内部错误事件ID</simplified_Chinese>
+        <description_EN>This int value indicates the InternalError event.</description_EN>
+        <description_CN>该值显示内部错误事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_INTERNAL_ERROR</C_Fun_Code>
+    </entry>
+
+    <entry name="EventInternalErrorTimestamp">
+        <feature_name>EventInternalErrorTimestamp</feature_name>
+        <simplified_Chinese>内部错误事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp of the InternalError event.</description_EN>
+        <description_CN>显示内部错误事件时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_INTERNAL_ERROR_TIMESTAMP</C_Fun_Code>
+    </entry>
+
+    <entry name="AnalogControls">
+        <feature_name>AnalogControls</feature_name>
+        <simplified_Chinese>模拟控制</simplified_Chinese>
+        <description_EN>This category includes items that used to control the analog characteristics of the video signal.</description_EN>
+        <description_CN>该组包含用于控制视频信号模拟特性的项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="AnalogControl">
+        <feature_name>AnalogControl</feature_name>
+        <simplified_Chinese>模拟控制</simplified_Chinese>
+        <description_EN>This category includes items that used to control the analog characteristics of the video signal.</description_EN>
+        <description_CN>该组包含用于控制视频信号模拟特性的项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+
+    <entry name="GainAuto">
+        <feature_name>GainAuto</feature_name>
+        <simplified_Chinese>自动增益</simplified_Chinese>
+        <description_EN>The gain auto function automatically adjusts the Auto Gain parameter value within set limits, until a target average gray value for the pixel data is reached.</description_EN>
+        <description_CN>增益自动功能自动调整设定范围内的自动增益参数值，直到达到像素数据的目标平均灰度值。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_GAIN_AUTO</C_Fun_Code>
+        <C_Enum_Entry>GX_GAIN_AUTO_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_AUTO_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_AUTO_CONTINUOUS</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_AUTO_ONCE</C_Enum_Value>
+        </Possible_Val>
+        <Pre_Related_Name>GainSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="GainSelector">
+        <feature_name>GainSelector</feature_name>
+        <simplified_Chinese>增益通道选择</simplified_Chinese>
+        <description_EN>This enumeration selects the gain control to configure. Once a gain control has been selected, all changes to the gain settings will be applied to the selected control.</description_EN>
+        <description_CN>该枚举项选择要配置的增益控制。一旦选择增益控制，对增益设置的所有更改将应用于所选控制。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_GAIN_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_GAIN_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_SELECTOR_ALL</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_SELECTOR_RED</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_SELECTOR_GREEN</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_GAIN_SELECTOR_BLUE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="BlackLevelAuto">
+        <feature_name>BlackLevelAuto</feature_name>
+        <simplified_Chinese>自动黑电平</simplified_Chinese>
+        <description_EN>This function controls the mode for automatic black level adjustment.</description_EN>
+        <description_CN>该功能控制自动黑电平调节模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_BLACKLEVEL_AUTO</C_Fun_Code>
+        <C_Enum_Entry>GX_BLACKLEVEL_AUTO_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_AUTO_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_AUTO_CONTINUOUS</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_AUTO_ONCE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="BlackLevelSelector">
+        <feature_name>BlackLevelSelector</feature_name>
+        <simplified_Chinese>黑电平通道选择</simplified_Chinese>
+        <description_EN>This enumeration selects the black level control to configure. Once a black level control has been selected, all changes to the black level settings will be applied to the selected control.</description_EN>
+        <description_CN>该枚举项选择要配置的黑电平通道。一旦选择了某一黑电平通道，对黑电平通道所做的所有更改都将应用于所选控制。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_BLACKLEVEL_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_BLACKLEVEL_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_SELECTOR_ALL</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_SELECTOR_RED</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_SELECTOR_GREEN</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_BLACKLEVEL_SELECTOR_BLUE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="BlackLevel">
+        <feature_name>BlackLevel</feature_name>
+        <simplified_Chinese>黑电平</simplified_Chinese>
+        <description_EN>This value sets the selected black level control as an float.</description_EN>
+        <description_CN>此值将选定的黑电平通道控制设置为浮点值。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_BLACKLEVEL</C_Fun_Code>
+        <Pre_Related_Name>BlackLevelSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="BalanceWhiteAuto">
+        <feature_name>BalanceWhiteAuto</feature_name>
+        <simplified_Chinese>自动白平衡</simplified_Chinese>
+        <description_EN>The automatic white balance is a two-step process: First, the Balance Ratio parameter values for red, green, and blue are each set to 1.0. Then, assuming a 'grey world' model, the Balance Ratio Abs parameter values are adjusted such that the average gray values for the 'red' and 'blue' pixels match the average gray value for the 'green' pixels.</description_EN>
+        <description_CN>自动白平衡是一个两步过程：首先，红色、绿色和蓝色的平衡比参数值均设置为1.0。然后，假设一个“灰度世界”模型，调节白平衡因子绝对值，使“红色”和“蓝色”像素的平均灰度值与“绿色”像素的平均灰度值匹配。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_BALANCE_WHITE_AUTO</C_Fun_Code>
+        <C_Enum_Entry>GX_BALANCE_WHITE_AUTO_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_BALANCE_WHITE_AUTO_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_BALANCE_WHITE_AUTO_CONTINUOUS</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_BALANCE_WHITE_AUTO_ONCE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="BalanceRatioSelector">
+        <feature_name>BalanceRatioSelector</feature_name>
+        <simplified_Chinese>白平衡通道选择</simplified_Chinese>
+        <description_EN>This enumeration selects a balance ratio control to configuration. Once a balance ratio control has been selected, all changes to the balance ratio settings will be applied to the selected control.</description_EN>
+        <description_CN>该枚举项选择平衡通道控制进行配置。一旦选择了白平衡通道，对白平衡通道设置所做的所有更改都将应用于所选控制。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_BALANCE_RATIO_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_BALANCE_RATIO_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_BALANCE_RATIO_SELECTOR_RED</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_BALANCE_RATIO_SELECTOR_GREEN</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_BALANCE_RATIO_SELECTOR_BLUE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+
+    <entry name="BalanceRatio">
+        <feature_name>BalanceRatio</feature_name>
+        <simplified_Chinese>白平衡系数</simplified_Chinese>
+        <description_EN>This value sets the selected balance ratio control as a float value.</description_EN>
+        <description_CN>该值以浮点值的形式设置白平衡系数。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_BALANCE_RATIO</C_Fun_Code>
+        <Pre_Related_Name>BalanceRatioSelector</Pre_Related_Name>
+    </entry>
+
+    <entry name="ColorCorrect">
+        <feature_name>ColorCorrect</feature_name>
+        <simplified_Chinese>颜色校正</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COLOR_CORRECT</C_Fun_Code>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_CORRECT_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_CORRECT_ON</C_Enum_Value>
+        </Possible_Val>
+		
+    </entry>
+
+    <entry name="DeadPixelCorrect">
+        <feature_name>DeadPixelCorrect</feature_name>
+        <simplified_Chinese>坏点校正</simplified_Chinese>
+        <description_EN>The deadpixel correct function can eliminate dead pixels in the image.</description_EN>
+        <description_CN>坏点校正功能可以消除图像中的坏点。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_DEAD_PIXEL_CORRECT</C_Fun_Code>
+        <C_Enum_Entry>GX_DEAD_PIXEL_CORRECT_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_DEAD_PIXEL_CORRECT_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_DEAD_PIXEL_CORRECT_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+	
+    <entry name="FixedPatternNoiseCorrectMode">
+        <feature_name>FixedPatternNoiseCorrectMode</feature_name>
+        <simplified_Chinese>模板噪声校正</simplified_Chinese>
+        <description_EN>Controls if the FixedPatternNoise is active.</description_EN>
+        <description_CN>控制模板噪声矫正是否激活。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_FIXED_PATTERN_NOISE_CORRECT_MODE</C_Fun_Code>
+		<C_Enum_Entry>GX_FIXED_PATTERN_NOISE_CORRECT_MODE</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_FIXEDPATTERNNOISECORRECT_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_FIXEDPATTERNNOISECORRECT_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+	
+    <entry name="AutoGainValueMin">
+        <feature_name>AutoGainValueMin</feature_name>
+        <simplified_Chinese>自动增益最小值</simplified_Chinese>
+        <description_EN>Setting up automatic gain range of minimum. When the gain is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最小自动增益范围。当增益设置为自动模式时，此功能工作。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AUTO_GAIN_VALUEMIN</C_Fun_Code>
+    </entry>
+    <entry name="AutoGainMin">
+        <feature_name>AutoGainMin</feature_name>
+        <simplified_Chinese>自动增益最小值</simplified_Chinese>
+        <description_EN>Setting up automatic gain range of minimum. When the gain is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最小自动增益范围。当增益设置为自动模式时，此功能工作。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_AUTO_GAIN_MIN</C_Fun_Code>
+    </entry>
+    <entry name="AutoGainValueMax">
+        <feature_name>AutoGainValueMax</feature_name>
+        <simplified_Chinese>自动增益最大值</simplified_Chinese>
+        <description_EN>Setting up automatic gain range of maximum. When the gain is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最大自动增益范围。当增益设置为自动模式时，此功能工作。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AUTO_GAIN_VALUEMAX</C_Fun_Code>
+    </entry>
+    <entry name="AutoGainMax">
+        <feature_name>AutoGainMax</feature_name>
+        <simplified_Chinese>自动增益最大值</simplified_Chinese>
+        <description_EN>Setting up automatic gain range of maximum. When the gain is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最大自动增益范围。当增益设置为自动模式时，此功能工作。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_AUTO_GAIN_MAX</C_Fun_Code>
+    </entry>
+    <entry name="AutoShutterValueMin">
+        <feature_name>AutoShutterValueMin</feature_name>
+        <simplified_Chinese>自动曝光最小值</simplified_Chinese>
+        <description_EN>Setting up automatic shutter range of minimum. When the shutter is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最小自动快门范围。当快门设置为自动模式时，此功能工作。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AUTO_SHUTTER_VALUEMIN</C_Fun_Code>
+    </entry>
+    <entry name="AutoExposureTimeMin">
+        <feature_name>AutoExposureTimeMin</feature_name>
+        <simplified_Chinese>自动曝光最小值</simplified_Chinese>
+        <description_EN>Setting up automatic exposure range of minimum. When the exposure is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最小自动曝光范围。当曝光设置为自动模式时，此功能工作。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_AUTO_EXPOSURE_TIME_MIN</C_Fun_Code>
+    </entry>
+    <entry name="AutoShutterValueMax">
+        <feature_name>AutoShutterValueMax</feature_name>
+        <simplified_Chinese>自动曝光最大值</simplified_Chinese>
+        <description_EN>Setting up automatic shutter range of maximum. When the shutter is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最大自动曝光范围。当曝光设置为自动模式时，此功能工作。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AUTO_SHUTTER_VALUEMAX</C_Fun_Code>
+    </entry>
+    <entry name="AutoExposureTimeMax">
+        <feature_name>AutoExposureTimeMax</feature_name>
+        <simplified_Chinese>自动曝光最大值</simplified_Chinese>
+        <description_EN>Setting up automatic exposure range of maximum. When the exposure is set to auto mode, this function works.</description_EN>
+        <description_CN>设置最大自动曝光范围。当曝光设置为自动模式时，此功能工作。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_AUTO_EXPOSURE_TIME_MAX</C_Fun_Code>
+    </entry>
+    <entry name="ExpectedGrayValue">
+        <feature_name>ExpectedGrayValue</feature_name>
+        <simplified_Chinese>期望灰度值</simplified_Chinese>
+        <description_EN>This parameter is auto exposure and auto gain control of a benchmark parameter.</description_EN>
+        <description_CN>此参数是基准参数的自动曝光和自动增益控制。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_GRAY_VALUE</C_Fun_Code>
+    </entry>
+    <entry name="Gain">
+        <feature_name>Gain</feature_name>
+        <simplified_Chinese>增益</simplified_Chinese>
+        <description_EN>The value is an float value that sets the selected gain control in units specific to the camera.</description_EN>
+        <description_CN>该值是一个浮点值，以特定于相机的单位设置选定的增益控制。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_GAIN</C_Fun_Code>
+        <Pre_Related_Name>GainSelector</Pre_Related_Name>
+    </entry>
+    <entry name="ExposureTime">
+        <feature_name>ExposureTime</feature_name>
+        <simplified_Chinese>曝光时间</simplified_Chinese>
+        <description_EN>This controls the duration where the photosensitive cells are exposed to light.</description_EN>
+        <description_CN>这控制了光敏单元暴露在光下的持续时间。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_EXPOSURE_TIME</C_Fun_Code>
+    </entry>
+    <entry name="ImageGrayRaiseSwitch">
+        <feature_name>ImageGrayRaiseSwitch</feature_name>
+        <simplified_Chinese>图像灰度拉伸开关</simplified_Chinese>
+        <description_EN>Control ImageGrayRaise is valid.</description_EN>
+        <description_CN>控制图像灰度拉伸开关是否有效。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_IMAGE_GRAY_RAISE_SWITCH</C_Fun_Code>
+        <C_Enum_Entry>GX_IMAGE_GRAY_RAISE_SWITCH_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_IMAGE_GRAY_RAISE_SWITCH_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_IMAGE_GRAY_RAISE_SWITCH_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="AWBLampHouse">
+        <feature_name>AWBLampHouse</feature_name>
+        <simplified_Chinese>自动白平衡光源</simplified_Chinese>
+        <description_EN>Refers to the AWB working environment.</description_EN>
+        <description_CN>指定AWB工作环境。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_AWB_LAMP_HOUSE</C_Fun_Code>
+        <C_Enum_Entry>GX_AWB_LAMP_HOUSE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_ADAPTIVE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_D65</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_FLUORESCENCE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_INCANDESCENT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_D75</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>5</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_D50</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>6</C_Enum_Name>
+            <C_Enum_Value>GX_AWB_LAMP_HOUSE_U30</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="AALightEnvironment">
+        <feature_name>AALightEnvironment</feature_name>
+        <simplified_Chinese>2A光照环境</simplified_Chinese>
+        <description_EN>Refers to the camera working environment, can be divided into natural light, 50 Hz alternating current, 60 Hz alternating current. Automatic function according to the external light conditions better for accommodation.</description_EN>
+        <description_CN>指定相机的工作环境，可分为自然光，50赫兹交流电，60赫兹交流电。 自动功能可根据外部光线条件更好地适应环境。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_AA_LIGHT_ENVIRONMENT</C_Fun_Code>
+        <C_Enum_Entry>GX_AA_LIGHT_ENVIRMENT_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_AA_LIGHT_ENVIRMENT_NATURELIGHT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_AA_LIGHT_ENVIRMENT_AC50HZ</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_AA_LIGHT_ENVIRMENT_AC60HZ</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="AAROIX">
+        <feature_name>AAROIX</feature_name>
+        <simplified_Chinese>自动调节感兴趣区域X坐标</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type/>
+    </entry>
+    <entry name="AAROIOffsetX">
+        <feature_name>AAROIOffsetX</feature_name>
+        <simplified_Chinese>自动调节感兴趣区域X坐标</simplified_Chinese>
+        <description_EN>This value sets the X offset (left offset) for the rect of interest in pixels for 2A, i.e., the distance in pixels between the left side of the image area and the left side of the AAROI.</description_EN>
+        <description_CN>该值以像素为单位为2A设置感兴趣的区域的X偏移（左偏移），即图像区域左侧和AAROI左侧之间的距离（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AAROI_OFFSETX</C_Fun_Code>
+    </entry>
+    <entry name="AAROIY">
+        <feature_name>AAROIY</feature_name>
+        <simplified_Chinese>自动调节感兴趣区域Y坐标</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type/>
+    </entry>
+    <entry name="AAROIOffsetY">
+        <feature_name>AAROIOffsetY</feature_name>
+        <simplified_Chinese>自动调节感兴趣区域Y坐标</simplified_Chinese>
+        <description_EN>This value sets the Y offset (top offset) for the rect of interest for 2A, i.e., the distance in pixels between the top of the image area and the top of the AAROI.</description_EN>
+        <description_CN>该值以像素为单位为2A设置感兴趣的区域的Y偏移（顶部偏移），即图像区域顶部和AAROI顶部之间的距离（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AAROI_OFFSETY</C_Fun_Code>
+    </entry>
+    <entry name="AAROIWidth">
+        <feature_name>AAROIWidth</feature_name>
+        <simplified_Chinese>自动调节感兴趣区域宽度</simplified_Chinese>
+        <description_EN>This value sets the width of the rect of interest in pixels for 2A.</description_EN>
+        <description_CN>该值以像素为单位为2A设置感兴趣的区域的宽度。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AAROI_WIDTH</C_Fun_Code>
+    </entry>
+    <entry name="AAROIHeight">
+        <feature_name>AAROIHeight</feature_name>
+        <simplified_Chinese>自动调节感兴趣区域高度</simplified_Chinese>
+        <description_EN>This value sets the height of the rect of interest in pixels for 2A.</description_EN>
+        <description_CN>该值以像素为单位为2A设置感兴趣的区域的高度。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AAROI_HEIGHT</C_Fun_Code>
+    </entry>
+    <entry name="AWBROIOffsetX">
+        <feature_name>AWBROIOffsetX</feature_name>
+        <simplified_Chinese>自动白平衡感兴趣区域X坐标</simplified_Chinese>
+        <description_EN>This value sets the X offset (left offset) for the rect of interest in pixels for Auto WhiteBalance.</description_EN>
+        <description_CN>该值以像素为单位设置自动白平衡感兴趣矩形的Y偏移量（顶部偏移量）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AWBROI_OFFSETX</C_Fun_Code>
+    </entry>
+    <entry name="AWBROIOffsetY">
+        <feature_name>AWBROIOffsetY</feature_name>
+        <simplified_Chinese>自动白平衡感兴趣区域Y坐标</simplified_Chinese>
+        <description_EN>This value sets the Y offset (top offset) for the rect of interest in pixels for Auto WhiteBalance.</description_EN>
+        <description_CN>该值以像素为单位设置自动白平衡感兴趣矩形的Y偏移量（顶部偏移量）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AWBROI_OFFSETY</C_Fun_Code>
+    </entry>
+    <entry name="AWBROIWidth">
+        <feature_name>AWBROIWidth</feature_name>
+        <simplified_Chinese>自动白平衡感兴趣区域宽度</simplified_Chinese>
+        <description_EN>This value sets the width of the rect of interest in pixels for Auto WhiteBalance.</description_EN>
+        <description_CN>该值设置自动白平衡感兴趣矩形的宽度（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AWBROI_WIDTH</C_Fun_Code>
+    </entry>
+    <entry name="AWBROIHeight">
+        <feature_name>AWBROIHeight</feature_name>
+        <simplified_Chinese>自动白平衡感兴趣区域高度</simplified_Chinese>
+        <description_EN>This value sets the height of the rect of interest in pixels for Auto WhiteBalance.</description_EN>
+        <description_CN>该值设置自动白平衡感兴趣矩形的高度（以像素为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_AWBROI_HEIGHT</C_Fun_Code>
+    </entry>
+    <entry name="GammaEnable">
+        <feature_name>GammaEnable</feature_name>
+        <simplified_Chinese>Gamma使能</simplified_Chinese>
+        <description_EN>Enables gamma correction.</description_EN>
+        <description_CN>使能gamma矫正功能。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_GAMMA_ENABLE</C_Fun_Code>
+    </entry>
+    <entry name="GammaMode">
+        <feature_name>GammaMode</feature_name>
+        <simplified_Chinese>Gamma模式</simplified_Chinese>
+        <description_EN>Sets the type of gamma to apply.</description_EN>
+        <description_CN>设置gamma应用模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_GAMMA_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_GAMMA_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_GAMMA_SELECTOR_SRGB</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_GAMMA_SELECTOR_USER</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="Gamma">
+        <feature_name>Gamma</feature_name>
+        <simplified_Chinese>Gamma</simplified_Chinese>
+        <description_EN>Gamma correction value. Gamma correction lets you modify the brightness of the pixel values to account for a non-linearity in the human perception of brightness.</description_EN>
+        <description_CN>伽玛校正值。Gamma校正通过修改像素值的亮度以符合人类对亮度的非线性感知。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_GAMMA</C_Fun_Code>
+    </entry>
+    <entry name="DigitalShift">
+        <feature_name>DigitalShift</feature_name>
+        <simplified_Chinese>数字移位</simplified_Chinese>
+        <description_EN>This int value set the DigitalShift value.</description_EN>
+        <description_CN>设置数字移位值。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_DIGITAL_SHIFT</C_Fun_Code>
+    </entry>
+    <entry name="LUTControl">
+        <feature_name>LUTControl</feature_name>
+        <simplified_Chinese>查找表控制</simplified_Chinese>
+        <description_EN>This category includes items used to control the operation of the camera's lookup table (LUT).</description_EN>
+        <description_CN>该组包含用于控制相机的查找表操作的项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="LUTSelector">
+        <feature_name>LUTSelector</feature_name>
+        <simplified_Chinese>查找表选择</simplified_Chinese>
+        <description_EN>This enumeration the lookup table (LUT) to configure. Once a LUT has been selected, all changes to the LUT settings will be applied to the selected LUT.</description_EN>
+        <description_CN>该值选择需要配置的查找表（LUT）。一旦选择了某个LUT，对LUT设置的所有更改都将应用于所选的LUT。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_LUT_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_LUT_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_LUT_SELECTOR_LUMINANCE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="LUTValueAll">
+        <feature_name>LUTValueAll</feature_name>
+        <simplified_Chinese>查找表内容</simplified_Chinese>
+        <description_EN>Accesses the entire content of the selected LUT in one chunk access.</description_EN>
+        <description_CN>在一次访问中访问所选LUT的全部内容。</description_CN>
+        <type/>
+        <C_Fun_Code>GX_BUFFER_LUT_VALUEALL</C_Fun_Code>
+        <Pre_Related_Name>LUTSelector</Pre_Related_Name>
+    </entry>
+    <entry name="LUTEnable">
+        <feature_name>LUTEnable</feature_name>
+        <simplified_Chinese>查找表使能</simplified_Chinese>
+        <description_EN>This value enables the selected lookup table (LUT).</description_EN>
+        <description_CN>设置选中LUT的使能状态。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_LUT_ENABLE</C_Fun_Code>
+    </entry>
+    <entry name="LUTIndex">
+        <feature_name>LUTIndex</feature_name>
+        <simplified_Chinese>查找表索引</simplified_Chinese>
+        <description_EN>Index of the LUT element to access.</description_EN>
+        <description_CN>所访问LUT元素的索引值。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_LUT_INDEX</C_Fun_Code>
+    </entry>
+    <entry name="LUTValue">
+        <feature_name>LUTValue</feature_name>
+        <simplified_Chinese>查找表值</simplified_Chinese>
+        <description_EN>Value of the LUT element at the LUT index position.</description_EN>
+        <description_CN>在LUT索引位置元素的值。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_LUT_VALUE</C_Fun_Code>
+    </entry>
+    <entry name="TransportLayerControl">
+        <feature_name>TransportLayerControl</feature_name>
+        <simplified_Chinese>传输配置</simplified_Chinese>
+        <description_EN>This category includes items that used to control the Transport layer.</description_EN>
+        <description_CN>该组包含用于控制传输层配置的项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="PayloadSize">
+        <feature_name>PayloadSize</feature_name>
+        <simplified_Chinese>数据大小</simplified_Chinese>
+        <description_EN>Size of images, in bytes, for the current format and size.</description_EN>
+        <description_CN>当前格式和大小的图像大小（以字节为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_PAYLOAD_SIZE</C_Fun_Code>
+    </entry>
+    <entry name="GevVersionMajor">
+        <feature_name>GevVersionMajor</feature_name>
+        <simplified_Chinese>千兆网协议主版本号</simplified_Chinese>
+        <description_EN>Major version of the specification.</description_EN>
+        <description_CN>规范中的主版本号。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevVersionMinor">
+        <feature_name>GevVersionMinor</feature_name>
+        <simplified_Chinese>千兆网协议次版本号</simplified_Chinese>
+        <description_EN>Minor version of the specification.</description_EN>
+        <description_CN>规范中的次版本号。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevDeviceModeIsBigEndian">
+        <feature_name>GevDeviceModeIsBigEndian</feature_name>
+        <simplified_Chinese>设备大小端</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the endianess of the bootstrap registers. True = big endian.</description_EN>
+        <description_CN>只读项，它指示引导寄存器的大小端模式。true =大端模式。</description_CN>
+        <type>IBoolean</type>
+    </entry>
+    <entry name="GevDeviceModeCharacterSet">
+        <feature_name>GevDeviceModeCharacterSet</feature_name>
+        <simplified_Chinese>设备字符集</simplified_Chinese>
+        <description_EN>This is a read only element. Its value indicates the character set.</description_EN>
+        <description_CN>只读项，该值表示字符集。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+    <entry name="GevMACAddress">
+        <feature_name>GevMACAddress</feature_name>
+        <simplified_Chinese>设备MAC</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the MAC address for the selected network interface.</description_EN>
+        <description_CN>只读项，表示所选网络接口的MAC地址。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevSupportedOptionSelector">
+        <feature_name>GevSupportedOptionSelector</feature_name>
+        <simplified_Chinese>千兆网可选功能项选择</simplified_Chinese>
+        <description_EN>Select the GEV option to interrogate for existing support.</description_EN>
+        <description_CN>选择GEV选项查询现有支持。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+    <entry name="GevSupportedOption">
+        <feature_name>GevSupportedOption</feature_name>
+        <simplified_Chinese>千兆网可选功能项</simplified_Chinese>
+        <description_EN>Indicates whether the function  in GevSupportedOptionSelector is supported.</description_EN>
+        <description_CN>指示是否支持千兆网可选功能项选择中的功能。</description_CN>
+        <type>IBoolean</type>
+    </entry>
+    <entry name="GevCurrentIPConfigurationLLA">
+        <feature_name>GevCurrentIPConfigurationLLA</feature_name>
+        <simplified_Chinese>LLA方式配置IP</simplified_Chinese>
+        <description_EN>Controls whether the link Local Address IP configuration scheme is activated on the given logical link.</description_EN>
+        <description_CN>控制是否在给定逻辑链路上激活链路本地地址IP配置方案。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_GEV_CURRENT_IPCONFIGURATION_LLA</C_Fun_Code>
+    </entry>
+    <entry name="GevCurrentIPConfigurationDHCP">
+        <feature_name>GevCurrentIPConfigurationDHCP</feature_name>
+        <simplified_Chinese>DHCP方式配置IP</simplified_Chinese>
+        <description_EN>Controls whether the DHCP IP configuration scheme is activated on the given logical link.</description_EN>
+        <description_CN>控制是否在给定的逻辑链路上激活DHCP IP配置方案。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_GEV_CURRENT_IPCONFIGURATION_DHCP</C_Fun_Code>
+    </entry>
+    <entry name="GevCurrentIPConfigurationPersistentIP">
+        <feature_name>GevCurrentIPConfigurationPersistentIP</feature_name>
+        <simplified_Chinese>永久IP方式配置IP</simplified_Chinese>
+        <description_EN>Controls whether the PersistentIP configuration scheme is activated on the given logical link.</description_EN>
+        <description_CN>控制是否在给定的逻辑链接上激活PersistentIP配置方案。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_GEV_CURRENT_IPCONFIGURATION_PERSISTENTIP</C_Fun_Code>
+    </entry>
+    <entry name="GevCurrentIPAddress">
+        <feature_name>GevCurrentIPAddress</feature_name>
+        <simplified_Chinese>当前IP地址</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the current IP address for the selected network interface.</description_EN>
+        <description_CN>只读项，指示所选网络接口的当前IP地址。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevCurrentSubnetMask">
+        <feature_name>GevCurrentSubnetMask</feature_name>
+        <simplified_Chinese>当前子网掩码</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the current subnet mask for the selected network interface.</description_EN>
+        <description_CN>只读项，指示所选网络接口的当前子网掩码。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevCurrentDefaultGateway">
+        <feature_name>GevCurrentDefaultGateway</feature_name>
+        <simplified_Chinese>当前默认网关</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the current default gateway for the selected network interface.</description_EN>
+        <description_CN>只读项，指示所选网络接口的当前默认网关。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevIPConfigurationStatus">
+        <feature_name>GevIPConfigurationStatus</feature_name>
+        <simplified_Chinese>IP配置方式状态</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type/>
+    </entry>
+    <entry name="GevFirstURL">
+        <feature_name>GevFirstURL</feature_name>
+        <simplified_Chinese>第一个XML地址</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the first URL to the XML device description file.</description_EN>
+        <description_CN>只读项，指示XML设备描述文件的第一个URL。</description_CN>
+        <type>IString</type>
+    </entry>
+    <entry name="GevSecondURL">
+        <feature_name>GevSecondURL</feature_name>
+        <simplified_Chinese>第二个XML地址</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the second URL to the XML device description file.</description_EN>
+        <description_CN>只读项，指示XML设备描述文件的第二个URL。</description_CN>
+        <type>IString</type>
+    </entry>
+    <entry name="GevPersistentIPAddress">
+        <feature_name>GevPersistentIPAddress</feature_name>
+        <simplified_Chinese>永久IP地址</simplified_Chinese>
+        <description_EN>This value sets the fixed IP address for the selected network interface (if fixed IP addressing is supported by the device and enabled).</description_EN>
+        <description_CN>此值设置所选网络接口的固定IP地址（如果设备支持并启用了固定IP地址）。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevPersistentSubnetMask">
+        <feature_name>GevPersistentSubnetMask</feature_name>
+        <simplified_Chinese>永久子网掩码</simplified_Chinese>
+        <description_EN>This value sets the fixed subnet mask for the selected network interface (if fixed IP addressing is supported by the device and enabled).</description_EN>
+        <description_CN>此值设置所选网络接口的固定子网掩码（如果设备支持固定IP地址并已启用）。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevPersistentDefaultGateway">
+        <feature_name>GevPersistentDefaultGateway</feature_name>
+        <simplified_Chinese>永久默认网关</simplified_Chinese>
+        <description_EN>This value sets the fixed default gateway for the selected network interface (if fixed IP addressing is supported by the device and enabled).</description_EN>
+        <description_CN>此值设置所选网络接口的固定默认网关（如果设备支持固定IP地址并已启用）。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevMessageChannelCount">
+        <feature_name>GevMessageChannelCount</feature_name>
+        <simplified_Chinese>消息通道数</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the number of message channels supported by the device.</description_EN>
+        <description_CN>只读项，指示设备支持的消息通道数。</description_CN>。
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevStreamChannelCount">
+        <feature_name>GevStreamChannelCount</feature_name>
+        <simplified_Chinese>流通道数</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the number of stream channels supported by the device.</description_EN>
+        <description_CN>只读项，指示设备支持的流通道数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="GevHeartbeatTimeout">
+        <feature_name>GevHeartbeatTimeout</feature_name>
+        <simplified_Chinese>心跳超时时间</simplified_Chinese>
+        <description_EN>This value sets the heartbeat timeout in milliseconds.</description_EN>
+        <description_CN>该值设置心跳超时时间（以毫秒为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_GEV_HEARTBEAT_TIMEOUT</C_Fun_Code>
+    </entry>
+    <entry name="GevTimestampTickFrequency">
+        <feature_name>GevTimestampTickFrequency</feature_name>
+        <simplified_Chinese>时间戳时钟频率</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the number of timestamp clock ticks in 1 second.</description_EN>
+        <description_CN>只读项，显示时间戳时钟频率。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="TimestampTickFrequency">
+        <feature_name>TimestampTickFrequency</feature_name>
+        <simplified_Chinese>时间戳频率</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the number of timestamp clock ticks in 1 second.</description_EN>
+        <description_CN>只读项，显示时间戳时钟频率。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_TIMESTAMP_TICK_FREQUENCY</C_Fun_Code>
+    </entry>
+    <entry name="GevSCPSPacketSize">
+        <feature_name>GevSCPSPacketSize</feature_name>
+        <simplified_Chinese>流通道包长</simplified_Chinese>
+        <description_EN>This value sets the packet size in bytes for the selected stream channel. Excludes data leader and data trailer. (The last packet may be smaller because the packet size is not necessarily a multiple of the block size for the stream channel.)</description_EN>
+        <description_CN>此值设置所选流通道的数据包大小（以字节为单位）。不包括数据前导和数据尾。（由于数据包大小不一定是流通道数据块大小的倍数，最后一个数据包可能更小。）</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_GEV_PACKETSIZE</C_Fun_Code>
+    </entry>
+    <entry name="GevSCPD">
+        <feature_name>GevSCPD</feature_name>
+        <simplified_Chinese>流通道包间隔</simplified_Chinese>
+        <description_EN>This value sets a delay between the transmission of each packet for the selected stream channel. The delay is measured in ticks.</description_EN>
+        <description_CN>该值设置所选流通道的每个数据包传输之间的延迟。延迟以滴答为单位进行测量。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_GEV_PACKETDELAY</C_Fun_Code>
+    </entry>
+    <entry name="GevNumberOfInterfaces">
+        <feature_name>GevNumberOfInterfaces</feature_name>
+        <simplified_Chinese>设备网络接口数</simplified_Chinese>
+        <description_EN>This is a read only element. It indicates the number of network interfaces on the device.</description_EN>
+        <description_CN>只读项，指示设备上的网络接口数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="EstimatedBandwidth">
+        <feature_name>EstimatedBandwidth</feature_name>
+        <simplified_Chinese>预估带宽</simplified_Chinese>
+        <description_EN>EstimatedBandwidth.</description_EN>
+        <description_CN>预估带宽。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_ESTIMATED_BANDWIDTH</C_Fun_Code>
+    </entry>
+    <entry name="GevSCDA">
+        <feature_name>GevSCDA</feature_name>
+        <simplified_Chinese>流通道目的IP地址</simplified_Chinese>
+        <description_EN>Stream channel destination IPv4 address for the selected stream channel. The destination can be a unicast or a multicast.</description_EN>
+        <description_CN>所选流通道的流通道IPv4地址。目标可以是单播或多播。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="U3VTest">
+        <feature_name>U3VTest</feature_name>
+        <simplified_Chinese>U3V测试</simplified_Chinese>
+        <description_EN>This category includes items that U3V test.</description_EN>
+        <description_CN>该组包含U3V测试项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="DeviceReset">
+        <feature_name>DeviceReset</feature_name>
+        <simplified_Chinese>设备复位</simplified_Chinese>
+        <description_EN>This command immediately resets and reboots the device.</description_EN>
+        <description_CN>此命令立即重置并重新启动设备。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_DEVICE_RESET</C_Fun_Code>
+    </entry>
+    <entry name="TestPendingAck">
+        <feature_name>TestPendingAck</feature_name>
+        <simplified_Chinese>Pending命令测试</simplified_Chinese>
+        <description_EN>Test Pending Ack.</description_EN>
+        <description_CN>测试Pending命令。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="EventTestControl">
+        <feature_name>EventTestControl</feature_name>
+        <simplified_Chinese>测试事件控制</simplified_Chinese>
+        <description_EN>This category includes items that U3V Event test.</description_EN>
+        <description_CN>该组包含U3V事件测试项目。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="EventTest">
+        <feature_name>EventTest</feature_name>
+        <simplified_Chinese>测试事件ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the Event ID for an event test event.</description_EN>
+        <description_CN>该值指示事件测试事件的事件ID。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="EventTestTimestamp">
+        <feature_name>EventTestTimestamp</feature_name>
+        <simplified_Chinese>测试事件时间戳</simplified_Chinese>
+        <description_EN>This enumeration value indicates the time stamp for an event test.</description_EN>
+        <description_CN>该值指示事件测试的时间戳。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="TriggerEventTest">
+        <feature_name>TriggerEventTest</feature_name>
+        <simplified_Chinese>测试事件触发</simplified_Chinese>
+        <description_EN>Trigger Event Test.</description_EN>
+        <description_CN>触发事件测试。</description_CN>
+        <type>ICommand</type>
+    </entry>
+    <entry name="TransferControl">
+        <feature_name>TransferControl</feature_name>
+        <simplified_Chinese>传输控制</simplified_Chinese>
+        <description_EN>The Transfer Control Model section describes the features related to the transfer of data by the device. It describes the basic Transfer Mode and the typical behavior of the device when sending data to the outside.</description_EN>
+        <description_CN>传输控制模型部分描述了与设备传输数据相关的功能。它描述了设备向外部发送数据时的基本传输模式和典型行为。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="TransferControlMode">
+        <feature_name>TransferControlMode</feature_name>
+        <simplified_Chinese>传输控制模式</simplified_Chinese>
+        <description_EN>Selects the control method for the transfers.</description_EN>
+        <description_CN>选择传输的控制方法。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRANSFER_CONTROL_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_TRANSFER_CONTROL_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TRANSFER_CONTROL_MODE_BASIC</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TRANSFER_CONTROL_MODE_USERCONTROLED</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="TransferOperationMode">
+        <feature_name>TransferOperationMode</feature_name>
+        <simplified_Chinese>传输操作模式</simplified_Chinese>
+        <description_EN>Selects the operation method for the transfers.</description_EN>
+        <description_CN>选择传输的操作方法。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TRANSFER_OPERATION_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_TRANSFER_OPERATION_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_TRANSFER_OPERATION_MODE_MULTIBLOCK</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="TransferBlockCount">
+        <feature_name>TransferBlockCount</feature_name>
+        <simplified_Chinese>传输帧数</simplified_Chinese>
+        <description_EN>Specifies the number of data Blocks that the device should stream before stopping.</description_EN>
+        <description_CN>指定设备停止前应该流式处理的数据块数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_TRANSFER_BLOCK_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="TransferStart">
+        <feature_name>TransferStart</feature_name>
+        <simplified_Chinese>开始传输</simplified_Chinese>
+        <description_EN>Starts the streaming of data blocks out of the device.</description_EN>
+        <description_CN>开始从设备中流式获取数据块。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_TRANSFER_START</C_Fun_Code>
+    </entry>
+    <entry name="FrameBufferControl">
+        <feature_name>FrameBufferControl</feature_name>
+        <simplified_Chinese>帧存控制</simplified_Chinese>
+        <description_EN>This category includes items that used to control the Frame Buffer Control features.</description_EN>
+        <description_CN>该组包含用于控制帧缓冲区控制功能的项。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="FrameBufferOverwriteActive">
+        <feature_name>FrameBufferOverwriteActive</feature_name>
+        <simplified_Chinese>帧存覆盖使能</simplified_Chinese>
+        <description_EN>FrameBufferOverwriteActive.</description_EN>
+        <description_CN>帧存覆盖使能。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_FRAMESTORE_COVER_ACTIVE</C_Fun_Code>
+    </entry>
+    <entry name="UserSetControl">
+        <feature_name>UserSetControl</feature_name>
+        <simplified_Chinese>用户参数组控制</simplified_Chinese>
+        <description_EN>This category includes items that control the configuration sets feature that is used to save sets of parameters in the camera.</description_EN>
+        <description_CN>该组包含控制配置参数组功能的项，该功能用于在相机中保存参数组。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="UserSetSelector">
+        <feature_name>UserSetSelector</feature_name>
+        <simplified_Chinese>参数组选择</simplified_Chinese>
+        <description_EN>This enumeration selects the configuration set to load, save or configure. Possible values for the User Set Selector are: Default: Selects a configuration set that contains factory settings. User Set 1: Selects the first user set. When the Default configuration set is selected and loaded using User Set Load, the device must be in default factory settings state and must make sure the mandatory continuous acquisition use case works directly. Default User Set is read-only and cannot be modified. </description_EN>
+        <description_CN>该枚举项选择要加载、保存或配置的配置组。用户组选择的可能值为：默认：选择包含出厂设置的配置组参数。用户组1：选择第一个用户组。当选择并使用用户设置加载默认参数组时，设备必须处于默认出厂设置状态，并且必须确保强制连续采集情况直接工作。默认用户集是只读的，不能修改。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_USER_SET_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_USER_SET_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_USER_SET_SELECTOR_DEFAULT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_USER_SET_SELECTOR_USERSET0</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="UserSetLoad">
+        <feature_name>UserSetLoad</feature_name>
+        <simplified_Chinese>加载参数组</simplified_Chinese>
+        <description_EN>This command loads the selected configuration set from the non-volatile memory in the camera to the volatile memory and makes the selected set the active configuration set. Once the selected set is loaded, the parameters in the selected set will control the camera.</description_EN>
+        <description_CN>该命令将所选配置组从相机中的非易失性内存加载到易失性内存，并使所选组成为活动配置组。加载选定组后，选定组中的参数将控制相机。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_USER_SET_LOAD</C_Fun_Code>
+    </entry>
+    <entry name="UserSetSave">
+        <feature_name>UserSetSave</feature_name>
+        <simplified_Chinese>保存参数组</simplified_Chinese>
+        <description_EN>This command copies the parameters in the current active configuration set into the selected user set in the camera's non-volatile memory.</description_EN>
+        <description_CN>该命令将当前活动配置组中的参数复制到相机非易失性内存中选定的用户组。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_USER_SET_SAVE</C_Fun_Code>
+    </entry>
+    <entry name="UserSetDefault">
+        <feature_name>UserSetDefault</feature_name>
+        <simplified_Chinese>启动参数组</simplified_Chinese>
+        <description_EN>This enumeration sets the configuration set to be used as the default startup set. The configuration set that has been selected as the default startup set will be loaded as the active set whenever the camera is powered on or reset.</description_EN>
+        <description_CN>该枚举将配置组设置为用作默认启动组。每当相机通电或重置时，已选择作为默认启动组的配置组将加载为活动组。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_USER_SET_DEFAULT</C_Fun_Code>
+        <C_Enum_Entry>GX_USER_SET_DEFAULT_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_USER_SET_DEFAULT_DEFAULT</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_USER_SET_DEFAULT_USERSET0</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="ChunkDataControl">
+        <feature_name>ChunkDataControl</feature_name>
+        <simplified_Chinese>帧信息控制</simplified_Chinese>
+        <description_EN>This category includes items that used to control the chunk data features.</description_EN>
+        <description_CN>该组包含用于控制帧信息功能的项。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="ChunkModeActive">
+        <feature_name>ChunkModeActive</feature_name>
+        <simplified_Chinese>帧信息使能</simplified_Chinese>
+        <description_EN>This boolean value enables the camera's chunk mode.</description_EN>
+        <description_CN>该值设置帧信息的使能状态。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_CHUNKMODE_ACTIVE</C_Fun_Code>
+    </entry>
+    <entry name="ChunkSelector">
+        <feature_name>ChunkSelector</feature_name>
+        <simplified_Chinese>帧信息项选择</simplified_Chinese>
+        <description_EN>Selects which Chunk to enable or control.</description_EN>
+        <description_CN>选择使能或控制的帧信息。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_CHUNK_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_CHUNK_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_CHUNK_SELECTOR_CHUNK_FRAME_ID</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_CHUNK_SELECTOR_CHUNK_TIME_STAMP</C_Enum_Value>
+        </Possible_Val>
+		<Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_CHUNK_SELECTOR_CHUNK_COUNTER_VALUE</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="ChunkEnable">
+        <feature_name>ChunkEnable</feature_name>
+        <simplified_Chinese>单项帧信息使能</simplified_Chinese>
+        <description_EN>This boolean value enables the inclusion of the selected Chunk data in the payload of the image.</description_EN>
+        <description_CN>使能图像数据中包含选定的帧信息。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_CHUNK_ENABLE</C_Fun_Code>
+    </entry>
+    <entry name="ChunkFrameInterval">
+        <feature_name>ChunkFrameInterval</feature_name>
+        <simplified_Chinese>帧间隔</simplified_Chinese>
+        <description_EN>ChunkFrameInterval.</description_EN>
+        <description_CN>帧间隔。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="ChunkFrameID">
+        <feature_name>ChunkFrameID</feature_name>
+        <simplified_Chinese>帧号</simplified_Chinese>
+        <description_EN>ChunkFrameID.</description_EN>
+        <description_CN>帧号。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="ChunkTimestamp">
+        <feature_name>ChunkTimestamp</feature_name>
+        <simplified_Chinese>时间戳</simplified_Chinese>
+        <description_EN>Returns the Timestamp of the image included in the payload at the time of the FrameStart internal event.</description_EN>
+        <description_CN>返回帧开始内部事件发生时有效数据中包含的图像的时间戳。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="CustomFeature">
+        <feature_name>CustomFeature</feature_name>
+        <simplified_Chinese>厂商自定义功能</simplified_Chinese>
+        <description_EN>This category includes items that used to control the User Defined features.</description_EN>
+        <description_CN>该功能包含用于控制用户自定义功能的项。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="ADCLevel">
+        <feature_name>ADCLevel</feature_name>
+        <simplified_Chinese>AD转换级别</simplified_Chinese>
+        <description_EN>When the pixel size is not 8bits, this function can be used to choose 8bits form 10bits or 12bit for show image.</description_EN>
+        <description_CN>当像素大小不是8位时，该功能可以用于选择显示图像的位数：8位、10位或12位。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_ADC_LEVEL</C_Fun_Code>
+    </entry>
+    <entry name="HBlanking">
+        <feature_name>HBlanking</feature_name>
+        <simplified_Chinese>水平消隐</simplified_Chinese>
+        <description_EN>Between line and line of the return process is referred to as horizontal blanking.</description_EN>
+        <description_CN>在将光信号转换为电信号的扫描过程中，扫描至行末后返回至下一行起始位置过程称为水平消隐。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_H_BLANKING</C_Fun_Code>
+    </entry>
+    <entry name="VBlanking">
+        <feature_name>VBlanking</feature_name>
+        <simplified_Chinese>垂直消隐</simplified_Chinese>
+        <description_EN>After scanning a frame, from the bottom right hand corner to return to the image of the upper left corner, start a new frame scanning, the time interval, called vertical blanking.</description_EN>
+        <description_CN>扫描点扫描完一帧后，要从图像的右下角返回到图像的左上角，开始新一帧的扫描，这一时间间隔，叫做垂直消隐。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_V_BLANKING</C_Fun_Code>
+    </entry>
+    <entry name="ColorCorrectionParam">
+        <feature_name>ColorCorrectionParam</feature_name>
+        <simplified_Chinese>颜色校正系数</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_COLOR_CORRECTION_PARAM</C_Fun_Code>
+    </entry>
+    <entry name="SharpnessMode">
+        <feature_name>SharpnessMode</feature_name>
+        <simplified_Chinese>锐化模式</simplified_Chinese>
+        <description_EN>Control whether the sharpness feature is enablecd. </description_EN>
+        <description_CN>控制锐化功能是否开启。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_SHARPNESS_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_SHARPNESS_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_SHARPNESS_MODE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_SHARPNESS_MODE_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="Sharpness">
+        <feature_name>Sharpness</feature_name>
+        <simplified_Chinese>锐度</simplified_Chinese>
+        <description_EN>Sharpness value.</description_EN>
+        <description_CN>锐度值。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_SHARPNESS</C_Fun_Code>
+    </entry>
+    <entry name="DeviceControl">
+        <feature_name>DeviceControl</feature_name>
+        <simplified_Chinese>设备控制</simplified_Chinese>
+        <description_EN>Category for device information and control.Contains the features related to the device and its sensor.</description_EN>
+        <description_CN>设备信息和控制组。包含与设备及其传感器相关的功能。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="DeviceEndianessMechanism">
+        <feature_name>DeviceEndianessMechanism</feature_name>
+        <simplified_Chinese>设备大小端模式</simplified_Chinese>
+        <description_EN>Identifies the endianess handling mode.</description_EN>
+        <description_CN>标识大小端处理模式。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+    <entry name="DeviceCommandTimeout">
+        <feature_name>DeviceCommandTimeout</feature_name>
+        <simplified_Chinese>命令超时</simplified_Chinese>
+        <description_EN>Controls the current device command timeout in milliseconds.</description_EN>
+        <description_CN>控制当前设备命令超时时间（以毫秒为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DEV_INT_COMMAND_TIMEOUT</C_Fun_Code>
+    </entry>
+    <entry name="DeviceCommandRetryCount">
+        <feature_name>DeviceCommandRetryCount</feature_name>
+        <simplified_Chinese>命令重试次数</simplified_Chinese>
+        <description_EN>Controls the current device command retry count.</description_EN>
+        <description_CN>控制当前设备命令重试次数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DEV_INT_COMMAND_RETRY_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="TimestampLatch">
+        <feature_name>TimestampLatch</feature_name>
+        <simplified_Chinese>时间戳锁存</simplified_Chinese>
+        <description_EN>This command latches the current timestamp value of the device.</description_EN>
+        <description_CN>该命令锁存设备的当前时间戳值。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_TIMESTAMP_LATCH</C_Fun_Code>
+    </entry>
+    <entry name="TimestampReset">
+        <feature_name>TimestampReset</feature_name>
+        <simplified_Chinese>重置时间戳</simplified_Chinese>
+        <description_EN>This command resets the timestamp value for the device.</description_EN>
+        <description_CN>该命令重置设备的时间戳值。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_TIMESTAMP_RESET</C_Fun_Code>
+    </entry>
+    <entry name="TimestampLatchReset">
+        <feature_name>TimestampLatchReset</feature_name>
+        <simplified_Chinese>重置时间戳锁存</simplified_Chinese>
+        <description_EN>This command resets the timestamp control latch.</description_EN>
+        <description_CN>该命令重置时间戳锁存。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_TIMESTAMP_LATCH_RESET</C_Fun_Code>
+    </entry>
+    <entry name="TimestampLatchValue">
+        <feature_name>TimestampLatchValue</feature_name>
+        <simplified_Chinese>时间戳锁存值</simplified_Chinese>
+        <description_EN>Latched value of the timestamp. (The timestamp must first be latched using the Timestamp Control Latch command.)</description_EN>
+        <description_CN>时间戳锁存值。（该时间戳必须是时间戳锁存命令第一次锁存的值。）</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_TIMESTAMP_LATCH_VALUE</C_Fun_Code>
+    </entry>
+    <entry name="StreamEnumeration">
+        <feature_name>StreamEnumeration</feature_name>
+        <simplified_Chinese>流枚举控制</simplified_Chinese>
+        <description_EN>This category includes items that used to describe the StreamEnumeration.</description_EN>
+        <description_CN>该组包含用于描述流枚举控制的项。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StreamSelector">
+        <feature_name>StreamSelector</feature_name>
+        <simplified_Chinese>选择流通道</simplified_Chinese>
+        <description_EN>Selector for the different stream channels.</description_EN>
+        <description_CN>选择不同的流通道。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="StreamCount">
+        <feature_name>StreamCount</feature_name>
+        <simplified_Chinese>流通道个数</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type/>
+    </entry>
+    <entry name="StreamID">
+        <feature_name>StreamID</feature_name>
+        <simplified_Chinese>流通道标识</simplified_Chinese>
+        <description_EN>Device unique ID for the stream, e.g. a GUID.</description_EN>
+        <description_CN>设备流通道的唯一标识符，如GUID。</description_CN>
+        <type>IString</type>
+        <Pre_Related_Name>StreamSelector</Pre_Related_Name>
+    </entry>
+    <entry name="StreamInformation">
+        <feature_name>StreamInformation</feature_name>
+        <simplified_Chinese>流信息</simplified_Chinese>
+        <description_EN>Category that contains all Stream Information features of the Data Stream module.</description_EN>
+        <description_CN>该组包含数据流模块的所有流信息功能。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StreamType">
+        <feature_name>StreamType</feature_name>
+        <simplified_Chinese>流类型</simplified_Chinese>
+        <description_EN>Identifies the transport layer technology of the stream.</description_EN>
+        <description_CN>标识数据流的传输层技术类型。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+    <entry name="BufferHandlingControl">
+        <feature_name>BufferHandlingControl</feature_name>
+        <simplified_Chinese>buffer处理控制</simplified_Chinese>
+        <description_EN>Contains all features of the Data Stream module that control the used buffers.</description_EN>
+        <description_CN>包含控制已用buffer的数据流模块所有功能。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StreamAnnouncedBufferCount">
+        <feature_name>StreamAnnouncedBufferCount</feature_name>
+        <simplified_Chinese>声明的Buffer个数</simplified_Chinese>
+        <description_EN>Number of announced (known) buffers on this stream.</description_EN>
+        <description_CN>该数据流中声明的Buffer个数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_ANNOUNCED_BUFFER_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="Settings">
+        <feature_name>Settings</feature_name>
+        <simplified_Chinese>设置</simplified_Chinese>
+        <description_EN>Grabbing Settings.</description_EN>
+        <description_CN>抓取设置。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StreamBufferHandlingMode">
+        <feature_name>StreamBufferHandlingMode</feature_name>
+        <simplified_Chinese>Buffer处理模式</simplified_Chinese>
+        <description_EN>Available buffer handling modes of this Data Stream.</description_EN>
+        <description_CN>数据流中可用的Buffer处理模式。</description_CN>
+        <type>IEnumeration</type>
+    </entry>
+    <entry name="StreamAnnounceBufferMinimum">
+        <feature_name>StreamAnnounceBufferMinimum</feature_name>
+        <simplified_Chinese>声明Buffer最小个数</simplified_Chinese>
+        <description_EN>Minimal number of buffers to announce to enable selected buffer handling mode.</description_EN>
+        <description_CN>声明使能选定Buffer处理模式的Buffer最小个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="Statistic">
+        <feature_name>Statistic</feature_name>
+        <simplified_Chinese>统计数据</simplified_Chinese>
+        <description_EN>Statistic Data.</description_EN>
+        <description_CN>统计数据。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StreamDeliveredFrameCount">
+        <feature_name>StreamDeliveredFrameCount</feature_name>
+        <simplified_Chinese>接收帧个数</simplified_Chinese>
+        <description_EN>Total number of delivered frames since last acquisition start.</description_EN>
+        <description_CN>自上次采集开始以来已传送的帧总数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_DELIVERED_FRAME_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamLostFrameCount">
+        <feature_name>StreamLostFrameCount</feature_name>
+        <simplified_Chinese>buffer不足导致的丢帧个数</simplified_Chinese>
+        <description_EN>Number of lost frames due to queue underrun.This number is initialized with zero at the time the stream is opened and incremented every time the data could not be acquired because there was no buffer in the input buffer pool.</description_EN>
+        <description_CN>由于队列欠载的丢帧个数。该值在流打开时初始化为零，在每次由于输入buffer池中没有buffer而无法获取数据时递增。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_LOST_FRAME_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamIncompleteFrameCount">
+        <feature_name>StreamIncompleteFrameCount</feature_name>
+        <simplified_Chinese>接收的残帧个数</simplified_Chinese>
+        <description_EN>Number of incomplete frames due to lost packets.</description_EN>
+        <description_CN>丢包引起的残帧个数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_INCOMPLETE_FRAME_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamMissingBlockIDCount">
+        <feature_name>StreamMissingBlockIDCount</feature_name>
+        <simplified_Chinese>BlockID丢失个数</simplified_Chinese>
+        <description_EN>Number of missing block ID.</description_EN>
+        <description_CN>BlockID丢失个数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_MISSING_BLOCKID_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamDeliveredPacketCount">
+        <feature_name>StreamDeliveredPacketCount</feature_name>
+        <simplified_Chinese>接收到的包数</simplified_Chinese>
+        <description_EN>Number of delivered packets since last acquisition start.</description_EN>
+        <description_CN>自从上次采集开始接收到的包数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_DELIVERED_PACKET_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamResendPacketCount">
+        <feature_name>StreamResendPacketCount</feature_name>
+        <simplified_Chinese>重传包个数</simplified_Chinese>
+        <description_EN>Number of resend packets since last acquisition start.</description_EN>
+        <description_CN>自从上次采集开始重传包个数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_RESEND_PACKET_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamRescuedPacketCount">
+        <feature_name>StreamRescuedPacketCount</feature_name>
+        <simplified_Chinese>重传成功包个数</simplified_Chinese>
+        <description_EN>Number of resend successfully packets since last acquisition start.</description_EN>
+        <description_CN>自上次采集开始重传成功包个数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_RESCUED_PACKED_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamResendCommandCount">
+        <feature_name>StreamResendCommandCount</feature_name>
+        <simplified_Chinese>重传命令次数</simplified_Chinese>
+        <description_EN>Number of resend command since last acquisition start.</description_EN>
+        <description_CN>自从上次采集开始重传命令次数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_RESEND_COMMAND_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamUnexpectedPacketCount">
+        <feature_name>StreamUnexpectedPacketCount</feature_name>
+        <simplified_Chinese>异常包个数</simplified_Chinese>
+        <description_EN>Number of Unexpected Packet.</description_EN>
+        <description_CN>异常包个数。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_UNEXPECTED_PACKED_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="StreamInputBufferCount">
+        <feature_name>StreamInputBufferCount</feature_name>
+        <simplified_Chinese>接收队列Buffer个数</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>IInteger</type>
+    </entry>
+    <entry name="StreamOutputBufferCount">
+        <feature_name>StreamOutputBufferCount</feature_name>
+        <simplified_Chinese>交付队列Buffer个数</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>IInteger</type>
+    </entry>
+    <entry name="Information">
+        <feature_name>Information</feature_name>
+        <simplified_Chinese>信息</simplified_Chinese>
+        <description_EN>Grabbing Information.</description_EN>
+        <description_CN>抓取信息。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StreamIsGrabbing">
+        <feature_name>StreamIsGrabbing</feature_name>
+        <simplified_Chinese>是否正在采集</simplified_Chinese>
+        <description_EN>Flag indicating whether the acquisition engine is started or not.</description_EN>
+        <description_CN>指示采集是否启动的标志。</description_CN>
+        <type>IBoolean</type>
+    </entry>
+    <entry name="StreamChunkCountMaximum">
+        <feature_name>StreamChunkCountMaximum</feature_name>
+        <simplified_Chinese>流的块数据个数</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>IInteger</type>
+    </entry>
+    <entry name="StreamBufferAlignment">
+        <feature_name>StreamBufferAlignment</feature_name>
+        <simplified_Chinese>对齐字节数</simplified_Chinese>
+        <description_EN>Alignment size in bytes of the buffer passed to DSAnnounceBuffer.</description_EN>
+        <description_CN>传递给DSAnnounceBuffer的缓冲区的对齐字节数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="ResendMode">
+        <feature_name>ResendMode</feature_name>
+        <simplified_Chinese>重传模式</simplified_Chinese>
+        <description_EN>Resend mode,Possible values are: Off: Disables resend;On: Enable resend.</description_EN>
+        <description_CN>重传模式。可能值为：Off：不重传；On：重传。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_DS_ENUM_RESEND_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_DS_RESEND_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_DS_RESEND_MODE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_DS_RESEND_MODE_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="MaxPacketCountInOneBlock">
+        <feature_name>MaxPacketCountInOneBlock</feature_name>
+        <simplified_Chinese>数据块最大重传包数</simplified_Chinese>
+        <description_EN>Maximum number of packets in a block that can be missing and requested to resend. A value of zero indicates that there is no limit to the number of missing packets in a block.</description_EN>
+        <description_CN>数据块中可能丢失并请求重传的最大数据包数。值为零表示对块中丢失的数据包数量没有限制。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_MAX_PACKET_COUNT_IN_ONE_BLOCK</C_Fun_Code>
+    </entry>
+    <entry name="MaxPacketCountInOneCommand">
+        <feature_name>MaxPacketCountInOneCommand</feature_name>
+        <simplified_Chinese>一次重传命令最大包含的包数</simplified_Chinese>
+        <description_EN>This parameter defines the maximum number of packets that can be requested in one resend command. A value of zero indicates that there is no limit to the number of packets in one resend command.</description_EN>
+        <description_CN>该参数定义了一次重传命令中可以请求的最大数据包数。值为零表示在一次重传命令中不限制数据包的数量。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_MAX_PACKET_COUNT_IN_ONE_COMMAND</C_Fun_Code>
+    </entry>
+    <entry name="ResendTimeout">
+        <feature_name>ResendTimeout</feature_name>
+        <simplified_Chinese>重传超时时间</simplified_Chinese>
+        <description_EN>Controls resend timeout in milliseconds.</description_EN>
+        <description_CN>控制重传超时时间（以毫秒为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_RESEND_TIMEOUT</C_Fun_Code>
+    </entry>
+    <entry name="MaxWaitPacketCount">
+        <feature_name>MaxWaitPacketCount</feature_name>
+        <simplified_Chinese>最大等待包数</simplified_Chinese>
+        <description_EN>The maximum number of packets that arrive from the next block before forces the data receiver to stop waiting for packets from current block.A value of zero indicates that there is no limit to the number of packets that arrive from the next block.</description_EN>
+        <description_CN>在强制数据接收器停止等待来自当前块的数据包之前从下一个块到达的最大数据包数。值为零表示对从下一个块到达的数据包数没有限制。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_MAX_WAIT_PACKET_COUNT</C_Fun_Code>
+    </entry>
+    <entry name="BlockTimeout">
+        <feature_name>BlockTimeout</feature_name>
+        <simplified_Chinese>数据块超时时间</simplified_Chinese>
+        <description_EN>Maximum time in milliseconds to receive all packets of an individual frame.</description_EN>
+        <description_CN>接收单个帧的所有数据包的最长时间（毫秒）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_BLOCK_TIMEOUT</C_Fun_Code>
+    </entry>
+    <entry name="PacketTimeout">
+        <feature_name>PacketTimeout</feature_name>
+        <simplified_Chinese>包超时时间</simplified_Chinese>
+        <description_EN>This parameter defines how long (in milliseconds) the driver will wait for the next expected packet before it sends a resend request to the camera.</description_EN>
+        <description_CN>该参数定义驱动程序在向相机发送重新发送请求之前等待下一个预期数据包的时间（毫秒）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_PACKET_TIMEOUT</C_Fun_Code>
+    </entry>
+    <entry name="StreamTransferSize">
+        <feature_name>StreamTransferSize</feature_name>
+        <simplified_Chinese>传输数据块大小</simplified_Chinese>
+        <description_EN>the size of regular payload bulk transfers.</description_EN>
+        <description_CN>传输数据块大小。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_STREAM_TRANSFER_SIZE</C_Fun_Code>
+    </entry>
+    <entry name="StreamTransferNumberUrb">
+        <feature_name>StreamTransferNumberUrb</feature_name>
+        <simplified_Chinese>传输数据块数量</simplified_Chinese>
+        <description_EN>The maximum number of usb requests queued to the usb bus.</description_EN>
+        <description_CN>常规数据块批量传输的大小。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_STREAM_TRANSFER_NUMBER_URB</C_Fun_Code>
+    </entry>
+    <entry name="BandwidthReserve">
+        <feature_name>BandwidthReserve</feature_name>
+        <simplified_Chinese>预留带宽</simplified_Chinese>
+        <description_EN>Sets the percentage of the Ethernet bandwidth assigned to the camera to be held in reserve. The reserve is used for packet resends and control data transmissions.</description_EN>
+        <description_CN>设置分配给相机的以太网带宽保留的百分比。保留用于数据包重新发送和控制数据传输。</description_CN>
+        <type>IInteger</type>
+        <Pre_Related_Name>GevSCPD</Pre_Related_Name>
+    </entry>
+    <entry name="StreamUnexpectedPacketDetail">
+        <feature_name>StreamUnexpectedPacketDetail</feature_name>
+        <simplified_Chinese>异常包统计细分</simplified_Chinese>
+        <description_EN>Stream unexpected packet detail.</description_EN>
+        <description_CN>异常包统计细分。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="StatusUnavailablePacketCount">
+        <feature_name>StatusUnavailablePacketCount</feature_name>
+        <simplified_Chinese>状态不可用包个数</simplified_Chinese>
+        <description_EN>Number of unexpected packet due to packet status unavailable.</description_EN>
+        <description_CN>状态不可用时异常包个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="SizeToolSmallPacketCount">
+        <feature_name>SizeToolSmallPacketCount</feature_name>
+        <simplified_Chinese>长度过小的包个数</simplified_Chinese>
+        <description_EN>Number of unexpected packet due to size of the packet is less than the standard packet.</description_EN>
+        <description_CN>由于数据包小于标准数据包产生的异常包个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="InvalidHeader1PacketCount">
+        <feature_name>InvalidHeader1PacketCount</feature_name>
+        <simplified_Chinese>包头信息无效1包个数</simplified_Chinese>
+        <description_EN>Number of unexpected packet due to the type of the packet is leader, but the Id of packet is not 0.</description_EN>
+        <description_CN>由于数据包的类型为leader但ID不为0而导致的异常包个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="InvalidHeader2PacketCount">
+        <feature_name>InvalidHeader2PacketCount</feature_name>
+        <simplified_Chinese>包头信息无效2包个数</simplified_Chinese>
+        <description_EN>Number of unexpected packet due to the type of the packet is not leader, but the Id of packet is 0.</description_EN>
+        <description_CN>由于数据包的类型不为leader但ID为0而导致的异常包个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="BlockIDOutOfDatePacketCount">
+        <feature_name>BlockIDOutOfDatePacketCount</feature_name>
+        <simplified_Chinese>BlockID过期的包个数</simplified_Chinese>
+        <description_EN>Number of unexpected packet due to the BlockID of the packet has Delivered to User.In other words,the packet comes too late.</description_EN>
+        <description_CN>由于数据包的BlockID已传给用户而导致的异常包数。也就是数据包过期。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="DuplicatePacketcount">
+        <feature_name>DuplicatePacketcount</feature_name>
+        <simplified_Chinese>重复包个数</simplified_Chinese>
+        <description_EN>Number of unexpected packet due to duplicate packet.</description_EN>
+        <description_CN>由于重复包产生的异常包个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="NoBufferLostPacketCount">
+        <feature_name>NoBufferLostPacketCount</feature_name>
+        <simplified_Chinese>缺少Buffer导致丢包个数</simplified_Chinese>
+        <description_EN>Number of lost packet due to buffer queue underrun.</description_EN>
+        <description_CN>由于Buffer队列欠载产生的丢包个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="StreamDataOverRunFrameCount">
+        <feature_name>StreamDataOverRunFrameCount</feature_name>
+        <simplified_Chinese>OverRun个数</simplified_Chinese>
+        <description_EN>Number of Device is unable to send all data.</description_EN>
+        <description_CN>设备无法传输所有数据的个数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="StreamDataSkipFrameCount">
+        <feature_name>StreamDataSkipFrameCount</feature_name>
+        <simplified_Chinese>Skip个数</simplified_Chinese>
+        <description_EN>Number of Transfers that are larger than the device requires.</description_EN>
+        <description_CN>大于设备要求的传输数。</description_CN>
+        <type>IInteger</type>
+    </entry>
+    <entry name="MaxNumQueueBuffer">
+        <feature_name>MaxNumQueueBuffer</feature_name>
+        <simplified_Chinese>采集队列最大Buffer个数</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_MAX_NUM_QUEUE_BUFFER</C_Fun_Code>
+    </entry>
+    <entry name="AcquisitionFrameRateMode">
+        <feature_name>AcquisitionFrameRateMode</feature_name>
+        <simplified_Chinese>采集帧率调节模式</simplified_Chinese>
+        <description_EN>Controls if the acquisitionFrameRate is active.</description_EN>
+        <description_CN>控制采集帧率是否激活。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_ACQUISITION_FRAME_RATE_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_ACQUISITION_FRAME_RATE_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ACQUISITION_FRAME_RATE_MODE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ACQUISITION_FRAME_RATE_MODE_ON</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="AcquisitionFrameRate">
+        <feature_name>AcquisitionFrameRate</feature_name>
+        <simplified_Chinese>采集帧率</simplified_Chinese>
+        <description_EN>Controls the acquisition rate (in Hertz) at which the frames are captured.</description_EN>
+        <description_CN>控制采集帧的采集速率（以赫兹为单位）。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_ACQUISITION_FRAME_RATE</C_Fun_Code>
+    </entry>
+    <entry name="CurrentAcquisitionFrameRate">
+        <feature_name>CurrentAcquisitionFrameRate</feature_name>
+        <simplified_Chinese>当前采集帧率</simplified_Chinese>
+        <description_EN>Indicates the maximum allowed frame acquisition rate.</description_EN>
+        <description_CN>显示最大允许的采集帧率。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_CURRENT_ACQUISITION_FRAME_RATE</C_Fun_Code>
+        <Pre_Related_Name>ExposureAuto</Pre_Related_Name>
+    </entry>
+    <entry name="ColorTransformationControl">
+        <feature_name>ColorTransformationControl</feature_name>
+        <simplified_Chinese>颜色转换控制</simplified_Chinese>
+        <description_EN/>
+        <description_CN/>
+        <type/>
+    </entry>
+    <entry name="ColorTransformationMode">
+        <feature_name>ColorTransformationMode</feature_name>
+        <simplified_Chinese>颜色转换模式</simplified_Chinese>
+        <description_EN>Sets the type of color transformation to be performed.</description_EN>
+        <description_CN>设置颜色转换执行模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COLOR_TRANSFORMATION_MODE</C_Fun_Code>
+        <C_Enum_Entry>GX_COLOR_TRANSFORMATION_MODE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_SELECTOR_RGB_TO_RGB</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_SELECTOR_USER</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="ColorTransformationEnable">
+        <feature_name>ColorTransformationEnable</feature_name>
+        <simplified_Chinese>颜色转换使能</simplified_Chinese>
+        <description_EN>Enables color transformation.</description_EN>
+        <description_CN>使能颜色转换。</description_CN>
+        <type>IBoolean</type>
+        <C_Fun_Code>GX_BOOL_COLOR_TRANSFORMATION_ENABLE</C_Fun_Code>
+    </entry>
+    <entry name="ColorTransformationValueSelector">
+        <feature_name>ColorTransformationValueSelector</feature_name>
+        <simplified_Chinese>颜色转换矩阵元素选择</simplified_Chinese>
+        <description_EN>Sets the element to be entered in the color transformation matrix for custom color transformation. Note: Depending on the camera model, some elements in the color transformation matrix may be preset and can not be changed.</description_EN>
+        <description_CN>为自定义颜色转换设置输入颜色转换矩阵中的元素。注：根据摄像机型号，颜色变换矩阵中的某些元素可能是预设的，不能更改。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COLOR_TRANSFORMATION_VALUE_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN00</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN01</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN02</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN10</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN11</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>5</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN12</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>6</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN20</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>7</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN21</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>8</C_Enum_Name>
+            <C_Enum_Value>GX_COLOR_TRANSFORMATION_VALUE_SELECTOR_GAIN22</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+    <entry name="ColorTransformationValue">
+        <feature_name>ColorTransformationValue</feature_name>
+        <simplified_Chinese>颜色转换矩阵元素</simplified_Chinese>
+        <description_EN>Transformation value for the selected element in the color transformation matrix.</description_EN>
+        <description_CN>颜色转换矩阵中选定元素的转换值。</description_CN>
+        <type>IFloat</type>
+        <Pre_Related_Name>ColorTransformationValueSelector</Pre_Related_Name>
+    </entry>
+	
+	<entry name="CounterAndTimerControl">
+        <feature_name>CounterAndTimerControl</feature_name>
+        <simplified_Chinese>计数器和计时器控制</simplified_Chinese>
+        <description_EN>This category contains the Counter and Timer control features.</description_EN>
+        <description_CN>该组包含计数器和计时器控件功能。</description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="TimerSelector">
+        <feature_name>TimerSelector</feature_name>
+        <simplified_Chinese>计时器选择</simplified_Chinese>
+        <description_EN>Selects which Timer to configure.</description_EN>
+        <description_CN>选择要配置的计时器。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TIMER_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_TIMER_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TIMER_SELECTOR_TIMER1</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+	<entry name="TimerDuration">
+        <feature_name>TimerDuration</feature_name>
+        <simplified_Chinese>计时器持续时间</simplified_Chinese>
+        <description_EN>Sets the duration (in microseconds) of the Timer pulse.</description_EN>
+        <description_CN>设置计时器脉冲的持续时间（以微秒为单位）。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_TIMER_DURATION</C_Fun_Code>
+    </entry>
+	<entry name="TimerDelay">
+        <feature_name>TimerDelay</feature_name>
+        <simplified_Chinese>计时器延迟时间</simplified_Chinese>
+        <description_EN>Sets the duration (in microseconds) of the delay to apply at the reception of a trigger before starting the Timer.</description_EN>
+        <description_CN>设置在启动计时器前接收触发器时应用的延迟持续时间（以微秒为单位）。</description_CN>
+        <type>IFloat</type>
+        <C_Fun_Code>GX_FLOAT_TIMER_DELAY</C_Fun_Code>
+    </entry>
+	<entry name="TimerTriggerSource">
+        <feature_name>TimerTriggerSource</feature_name>
+        <simplified_Chinese>计时器触发源</simplified_Chinese>
+        <description_EN>Selects the source of the trigger to start the Timer.</description_EN>
+        <description_CN>选择启动计时器的触发源。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_TIMER_TRIGGER_SOURCE</C_Fun_Code>
+        <C_Enum_Entry>GX_TIMER_TRIGGER_SOURCE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_TIMER_TRIGGER_SOURCE_EXPOSURE_START</C_Enum_Value>
+        </Possible_Val>
+    </entry>
+	<entry name="CounterSelector">
+        <feature_name>CounterSelector</feature_name>
+        <simplified_Chinese>计数器选择</simplified_Chinese>
+        <description_EN>Selects which Counter to configure.</description_EN>
+        <description_CN>选择要配置的计数器。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COUNTER_SELECTOR</C_Fun_Code>
+        <C_Enum_Entry>GX_COUNTER_SELECTOR_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_SELECTOR_COUNTER1</C_Enum_Value>
+        </Possible_Val>
+    </entry>	
+	<entry name="CounterEventSource">
+        <feature_name>CounterEventSource</feature_name>
+        <simplified_Chinese>计数器事件触发源</simplified_Chinese>
+        <description_EN>Select the events that will be the source to increment the Counter.</description_EN>
+        <description_CN>选择递增计数器触发源的事件。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COUNTER_EVENT_SOURCE</C_Fun_Code>
+        <C_Enum_Entry>GX_COUNTER_EVENT_SOURCE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_EVENT_SOURCE_FRAME_START</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_EVENT_SOURCE_FRAME_TRIGGER</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_EVENT_SOURCE_ACQUISITION_TRIGGER</C_Enum_Value>
+        </Possible_Val>		
+    </entry>
+	<entry name="CounterResetSource">
+        <feature_name>CounterResetSource</feature_name>
+        <simplified_Chinese>计数器复位源</simplified_Chinese>
+        <description_EN>Selects the signals that will be the source to reset the Counter.</description_EN>
+        <description_CN>选择将作为计数器重置源的信号。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COUNTER_RESET_SOURCE</C_Fun_Code>
+        <C_Enum_Entry>GX_COUNTER_RESET_SOURCE_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_SOURCE_OFF</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_SOURCE_SOFTWARE</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>2</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_SOURCE_LINE0</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>3</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_SOURCE_LINE1</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>4</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_SOURCE_LINE2</C_Enum_Value>
+        </Possible_Val>
+        <Possible_Val>
+            <C_Enum_Name>5</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_SOURCE_LINE3</C_Enum_Value>
+        </Possible_Val>		
+    </entry>
+	<entry name="CounterResetActivation">
+        <feature_name>CounterResetActivation</feature_name>
+        <simplified_Chinese>计数器复位信号极性</simplified_Chinese>
+        <description_EN>Selects the Activation mode of the Counter Reset Source signal.</description_EN>
+        <description_CN>选择计数器重置源信号的激活模式。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_COUNTER_RESET_ACTIVATION</C_Fun_Code>
+        <C_Enum_Entry>GX_COUNTER_RESET_ACTIVATION_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_COUNTER_RESET_ACTIVATION_RISING_EDGE</C_Enum_Value>
+        </Possible_Val>	
+    </entry>
+    <entry name="CounterReset">
+        <feature_name>CounterReset</feature_name>
+        <simplified_Chinese>计数器复位</simplified_Chinese>
+        <description_EN>This command generates a software reset of the selected Counter.</description_EN>
+        <description_CN>该命令生成选定计数器的软件重置命令。</description_CN>
+        <type>ICommand</type>
+        <C_Fun_Code>GX_COMMAND_COUNTER_RESET</C_Fun_Code>
+    </entry>
+	
+	
+	<entry name="RemoveParameterLimitControl">
+        <feature_name>RemoveParameterLimitControl</feature_name>
+        <simplified_Chinese>取消参数范围限制控制</simplified_Chinese>
+        <description_EN>This category includes items that used to Remove parameter range restrictions features.</description_EN>
+        <description_CN>该组包括用于删除参数范围限制功能的项。</description_CN>
+        <type>ICategory</type>
+    </entry>
+	<entry name="RemoveParameterLimit">
+        <feature_name>RemoveParameterLimit</feature_name>
+        <simplified_Chinese>取消参数范围限制</simplified_Chinese>
+        <description_EN>Removes the limit of the specific parameter value ranges.</description_EN>
+        <description_CN>删除特定参数值范围的限制。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_REMOVE_PARAMETER_LIMIT</C_Fun_Code>
+        <C_Enum_Entry>GX_REMOVE_PARAMETER_LIMIT_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_REMOVE_PARAMETER_LIMIT_OFF</C_Enum_Value>
+        </Possible_Val>	
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_REMOVE_PARAMETER_LIMIT_ON</C_Enum_Value>
+        </Possible_Val>			
+    </entry>
+
+    <entry name="UserPassword">
+        <feature_name>UserPassword</feature_name>
+        <simplified_Chinese>用户密码</simplified_Chinese>
+        <description_EN>UserPassword.</description_EN>
+        <description_CN>用户密码。</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_USER_PASSWORD</C_Fun_Code>
+    </entry>
+    <entry name="VerifyPassword">
+        <feature_name>VerifyPassword</feature_name>
+        <simplified_Chinese>校验用户密码</simplified_Chinese>
+        <description_EN>VerifyPassword</description_EN>
+        <description_CN>校验用户密码</description_CN>
+        <type>IString</type>
+        <C_Fun_Code>GX_STRING_VERIFY_PASSWORD</C_Fun_Code>
+    </entry>	
+
+	<entry name="ShadingCorrection">
+        <feature_name>ShadingCorrection</feature_name>
+        <simplified_Chinese>阴影校正开关</simplified_Chinese>
+        <description_EN>Enables the Shading Correction.</description_EN>
+        <description_CN>启用阴影校正。</description_CN>
+        <type>IEnumeration</type>
+        <C_Fun_Code>GX_ENUM_SHADING_CORRECTION</C_Fun_Code>
+        <C_Enum_Entry>GX_SHADING_CORRECTION_ENTRY</C_Enum_Entry>
+        <Possible_Val>
+            <C_Enum_Name>0</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_SHADING_CORRECTION_OFF</C_Enum_Value>
+        </Possible_Val>	
+        <Possible_Val>
+            <C_Enum_Name>1</C_Enum_Name>
+            <C_Enum_Value>GX_ENUM_SHADING_CORRECTION_ON</C_Enum_Value>
+        </Possible_Val>			
+    </entry>
+
+    <entry name="EventFrameBurstStartOvertrigger">
+        <feature_name>EventFrameBurstStartOvertrigger</feature_name>
+        <simplified_Chinese>多帧触发屏蔽事件ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameBurstStartOvertrigger event ID.</description_EN>
+        <description_CN>此枚举值表示多帧触发屏蔽事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER</C_Fun_Code>
+    </entry>
+    <entry name="EventFrameBurstStartOvertriggerFrameID">
+        <feature_name>EventFrameBurstStartOvertriggerFrameID</feature_name>
+        <simplified_Chinese>多帧触发屏蔽事件帧ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameBurstStartOvertrigger event Frame ID.</description_EN>
+        <description_CN>此枚举值表示多帧触发屏蔽事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER_FRAMEID</C_Fun_Code>
+    </entry>
+    <entry name="EventFrameBurstStartOvertriggerTimestamp">
+        <feature_name>EventFrameBurstStartOvertriggerTimestamp</feature_name>
+        <simplified_Chinese>多帧触发屏蔽事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp for the FrameBurstStartOvertrigger event.</description_EN>
+        <description_CN>表示多帧触发屏蔽事件的时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER_TIMESTAMP</C_Fun_Code>
+    </entry>	
+    <entry name="EventFrameStartWait">
+        <feature_name>EventFrameStartWait</feature_name>
+        <simplified_Chinese>帧等待事件ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameStartWait event ID.</description_EN>
+        <description_CN>此枚举值表示帧等待事件ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMESTART_WAIT</C_Fun_Code>
+    </entry>
+    <entry name="EventFrameStartWaitTimestamp">
+        <feature_name>EventFrameStartWaitTimestamp</feature_name>
+        <simplified_Chinese>帧等待事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp of the FrameStartWait event.</description_EN>
+        <description_CN>表示帧等待事件的时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMESTART_WAIT_TIMESTAMP</C_Fun_Code>
+    </entry>
+    <entry name="EventBlockDiscardFrameID">
+        <feature_name>EventBlockDiscardFrameID</feature_name>
+        <simplified_Chinese>数据块丢失事件帧ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the BlockDiscard event Frame ID.</description_EN>
+        <description_CN>此枚举值表示数据块丢失事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_BLOCK_DISCARD_FRAMEID</C_Fun_Code>
+    </entry>
+    <entry name="EventFrameStartOvertriggerFrameID">
+        <feature_name>EventFrameStartOvertriggerFrameID</feature_name>
+        <simplified_Chinese>触发信号被屏蔽事件帧ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameStartOvertrigger event Frame ID.</description_EN>
+        <description_CN>此枚举值表示触发信号被屏蔽事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMESTART_OVERTRIGGER_FRAMEID</C_Fun_Code>
+    </entry>
+    <entry name="EventBlockNotEmptyFrameID">
+        <feature_name>EventBlockNotEmptyFrameID</feature_name>
+        <simplified_Chinese>帧存不为空事件帧ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the BlockNotEmpty event Frame ID.</description_EN>
+        <description_CN>此枚举值表示帧存不为空事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_BLOCK_NOT_EMPTY_FRAMEID</C_Fun_Code>
+    </entry>
+    <entry name="EventFrameStartWaitFrameID">
+        <feature_name>EventFrameStartWaitFrameID</feature_name>
+        <simplified_Chinese>帧等待事件帧ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameStartWait event Frame ID.</description_EN>
+        <description_CN>此枚举值表示帧等待事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMESTART_WAIT_FRAMEID</C_Fun_Code>
+    </entry>	
+    <entry name="EventFrameBurstStartWaitFrameID">
+        <feature_name>EventFrameBurstStartWaitFrameID</feature_name>
+        <simplified_Chinese>多帧等待事件帧ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameBurstStartWait event Frame ID.</description_EN>
+        <description_CN>此枚举值指示多帧等待事件帧ID。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMEBURSTSTART_WAIT_FRAMEID</C_Fun_Code>
+    </entry>	
+
+	<entry name="EventFrameBurstStartWait">
+        <feature_name>EventFrameBurstStartWait</feature_name>
+        <simplified_Chinese>多帧等待事件ID</simplified_Chinese>
+        <description_EN>This enumeration value indicates the FrameBurstStartWait event ID.</description_EN>
+        <description_CN>此枚举值显示多帧等待事件的ID。</description_CN>
+        <type>IInteger</type>1
+        <C_Fun_Code>GX_INT_EVENT_FRAMEBURSTSTART_WAIT</C_Fun_Code>
+    </entry>
+	<entry name="EventFrameBurstStartWaitTimestamp">
+        <feature_name>EventFrameBurstStartWaitTimestamp</feature_name>
+        <simplified_Chinese>多帧等待事件时间戳</simplified_Chinese>
+        <description_EN>Indicates the time stamp of the FrameBurstStartWait event.</description_EN>
+        <description_CN>显示多帧等待事件的时间戳。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_INT_EVENT_FRAMEBURSTSTART_WAIT_TIMESTAMP</C_Fun_Code>
+    </entry>
+    <entry name="EventFrameBurstStartOvertriggerData">
+        <feature_name>EventFrameBurstStartOvertriggerData</feature_name>
+        <simplified_Chinese></simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="EventFrameStartWaitData">
+        <feature_name>EventFrameStartWaitData</feature_name>
+        <simplified_Chinese></simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>
+    <entry name="EventFrameBurstStartWaitData">
+        <feature_name>EventFrameBurstStartWaitData</feature_name>
+        <simplified_Chinese></simplified_Chinese>
+		<description_EN></description_EN>
+		<description_CN></description_CN>
+        <type>ICategory</type>
+    </entry>	
+    <entry name="SocketBufferSize">
+        <feature_name>SocketBufferSize</feature_name>
+        <simplified_Chinese>套接字缓冲区大小</simplified_Chinese>
+        <description_EN>Socket buffer size in kilobytes.</description_EN>
+        <description_CN>套接字缓冲区大小（以千字节为单位）。</description_CN>
+        <type>IInteger</type>
+        <C_Fun_Code>GX_DS_INT_SOCKET_BUFFER_SIZE</C_Fun_Code>
+    </entry>
+	
+	
+</root>

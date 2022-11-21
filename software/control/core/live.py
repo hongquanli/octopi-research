@@ -30,11 +30,15 @@ class LiveController(QObject):
         camera:camera.Camera,
         microcontroller:microcontroller.Microcontroller,
         configurationManager:ConfigurationManager,
-        on_frame_acquired:Optional[Signal],
+        on_frame_acquired:Signal,
         control_illumination:bool=True,
         use_internal_timer_for_hardware_trigger:bool=True,
         for_displacement_measurement:bool=False
     ):
+        """
+        'on_frame_acquired' argument should be signal from a streamhandler that is emitted upon completed frame acquisition
+        """
+
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
@@ -86,8 +90,7 @@ class LiveController(QObject):
 
     def start_live(self):
         if self.image_acquisition_in_progress:
-            if self.on_frame_acquired:
-                self.on_frame_acquired.connect(self.start_live)
+            self.on_frame_acquired.connect(self.start_live)
             return
 
         self.is_live = True
@@ -95,7 +98,7 @@ class LiveController(QObject):
         self.camera.start_streaming()
         if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
             self.camera.enable_callback() # in case it's disabled e.g. by the laser AF controller
-            self._start_triggerred_acquisition()
+            self._start_triggered_acquisition()
         # if controlling the laser displacement measurement camera
         if self.for_displacement_measurement:
             self.microcontroller.turn_on_AF_laser()
@@ -115,7 +118,7 @@ class LiveController(QObject):
                 self.camera.stop_streaming()
                 self.turn_off_illumination()
             if self.trigger_mode == TriggerMode.SOFTWARE or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
-                self._stop_triggerred_acquisition()
+                self._stop_triggered_acquisition()
 
             # if controlling the laser displacement measurement camera
             if self.for_displacement_measurement:
@@ -146,38 +149,40 @@ class LiveController(QObject):
         self.time_image_requested=time.time()
         #print(f"taking an image (img id: {self.trigger_ID:9} )")
         if self.trigger_mode == TriggerMode.SOFTWARE:
-            self.turn_on_illumination()
+            if not self.for_displacement_measurement:
+                self.turn_on_illumination()
 
             self.trigger_ID = self.trigger_ID + 1
 
             self.camera.send_trigger()
 
-            if self.on_frame_acquired:
-                self.on_frame_acquired.connect(self.end_acquisition)
+            self.on_frame_acquired.connect(self.end_acquisition)
 
         elif self.trigger_mode == TriggerMode.HARDWARE:
             self.trigger_ID = self.trigger_ID + 1
             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
 
     def end_acquisition(self):
-        if self.on_frame_acquired:
-            self.on_frame_acquired.disconnect(self.end_acquisition)
+        self.on_frame_acquired.disconnect(self.end_acquisition)
 
         #imaging_time=time.time()-self.time_image_requested
         #print(f"real imaging time: {imaging_time*1000:6.3f} ms") # this shows a 40ms delay vs exposure time. why?
 
         if self.trigger_mode == TriggerMode.SOFTWARE:
-            self.turn_off_illumination()
+            if not self.for_displacement_measurement:
+                self.turn_off_illumination()
 
         self.image_acquisition_in_progress=False
         self.image_acquisition_queued=False
-        if self.image_acquisition_queued and not self.stop_requested:
-            self.trigger_acquisition()
 
         if self.stop_requested:
             self.stop_live()
+            return
 
-    def _start_triggerred_acquisition(self):
+        if self.image_acquisition_queued:
+            self.trigger_acquisition()
+
+    def _start_triggered_acquisition(self):
         self.timer_trigger.start()
 
     def _set_trigger_fps(self,fps_trigger:float):
@@ -186,32 +191,32 @@ class LiveController(QObject):
         #print(f"setting trigger interval to {self.timer_trigger_interval_ms} ms")
         self.timer_trigger.setInterval(self.timer_trigger_interval_ms)
 
-    def _stop_triggerred_acquisition(self):
+    def _stop_triggered_acquisition(self):
         self.timer_trigger.stop()
 
     # trigger mode and settings
     def set_trigger_mode(self,mode:str):
         if mode == TriggerMode.SOFTWARE:
             if self.is_live and ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
-                self._stop_triggerred_acquisition()
+                self._stop_triggered_acquisition()
 
             self.camera.set_software_triggered_acquisition()
             if self.is_live:
-                self._start_triggerred_acquisition()
+                self._start_triggered_acquisition()
 
         elif mode == TriggerMode.HARDWARE:
             if self.trigger_mode == TriggerMode.SOFTWARE and self.is_live:
-                self._stop_triggerred_acquisition()
+                self._stop_triggered_acquisition()
 
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
             self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
-                self._start_triggerred_acquisition()
+                self._start_triggered_acquisition()
 
         elif mode == TriggerMode.CONTINUOUS: 
             if ( self.trigger_mode == TriggerMode.SOFTWARE ) or ( self.trigger_mode == TriggerMode.HARDWARE and self.use_internal_timer_for_hardware_trigger ):
-                self._stop_triggerred_acquisition()
+                self._stop_triggered_acquisition()
 
             self.camera.set_continuous_acquisition()
         else:

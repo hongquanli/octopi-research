@@ -20,6 +20,7 @@ class ImageFormat(Enum):
 
 class Acquisition:
     """ config stuff for (multi point) image acquisition """
+    
     CROP_WIDTH:int = 3000
     """ crop width for images after recording from camera sensor """
     CROP_HEIGHT:int = 3000
@@ -29,12 +30,19 @@ class Acquisition:
     """ file format used for images saved after multi point image acquisition """
     IMAGE_DISPLAY_SCALING_FACTOR:ClosedRange[float](0.0,1.0) = 1.0
     """ this _crops_ the image display for the multi point acquisition """
+
+class DefaultMultiPointGrid:
+    """ multi point grid defaults """
+
+    DEFAULT_Nx:int = 1
+    DEFAULT_Ny:int = 1
+    DEFAULT_Nz:int = 1
+    DEFAULT_Nt:int = 1
+
     DEFAULT_DX_MM:float = 0.9
-    """ default dx in mm used for multi point image acquisition grid """
     DEFAULT_DY_MM:float = 0.9
-    """ default dy in mm used for multi point image acquisition grid """
-    DEFAULT_DZ_MM:float = 1.5
-    """ default dz in mm used for multi point image acquisition grid """
+    DEFAULT_DZ_MM:float = 1.5e3
+    DEFAULT_DT_S:float = 1.0
 
 class PosUpdate:
     INTERVAL_MS = 25

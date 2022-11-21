@@ -1,4 +1,3 @@
 .DS_Store
-*.pyc 
-*.xml
+*.pyc
 .mypy_cache

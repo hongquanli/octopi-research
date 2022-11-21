@@ -27,7 +27,13 @@ def get_sn_by_model(model_name:str)->Optional[Any]:
 class Camera(object):
 
     @TypecheckFunction
-    def __init__(self,sn:Optional[str]=None,is_global_shutter:bool=False,rotate_image_angle:Optional[int]=None,flip_image:Optional[str]=None):
+    def __init__(self,
+        sn:Optional[str]=None,
+        is_global_shutter:bool=False,
+        rotate_image_angle:int=0,
+        flip_image:Optional[str]=None,
+        used_for_laser_autofocus:bool=False
+    ):
 
         # many to be purged
         self.sn = sn
@@ -78,10 +84,12 @@ class Camera(object):
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
-        self.pixel_format = 'MONO8' # use the default pixel format
+        self.pixel_format='MONO8'
 
         self.is_live = False # this determines whether a new frame received will be handled in the streamHandler
         # mainly for discarding the last frame received after stop_live() is called, where illumination is being turned off during exposure
+
+        self.used_for_laser_autofocus:bool=used_for_laser_autofocus
 
     @TypecheckFunction
     def open(self,index:int=0):
@@ -110,6 +118,9 @@ class Camera(object):
 
         # turn off device link throughput limit
         self.camera.DeviceLinkThroughputLimitMode.set(gx.GxSwitchEntry.OFF)
+
+        if False and not self.used_for_laser_autofocus:
+            self.set_pixel_format(self.pixel_format)
 
     def set_callback(self,function):
         self.new_image_callback_external = function
