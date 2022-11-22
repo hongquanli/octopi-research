@@ -40,9 +40,6 @@ class AutofocusWorker(QObject):
         self.run_autofocus()
         self.finished.emit()
 
-    def wait_till_operation_is_completed(self):
-        self.microcontroller.wait_till_operation_is_completed(timeout_limit_s=None,time_step=MACHINE_CONFIG.SLEEP_TIME_S)
-
     def run_autofocus(self):
         # @@@ to add: increase gain, decrease exposure time
         # @@@ can move the execution into a thread - done 08/21/2021
@@ -56,21 +53,17 @@ class AutofocusWorker(QObject):
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         # can be moved to the firmware
         _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-z_af_offset_usteps)
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-        self.wait_till_operation_is_completed()
+        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-z_af_offset_usteps,wait_for_completion={})
+        self.navigationController.move_z_usteps(_usteps_to_clear_backlash,wait_for_completion={})
 
         steps_moved = 0
         for i in range(self.N):
-            self.navigationController.move_z_usteps(self.deltaZ_usteps)
-            self.wait_till_operation_is_completed()
+            self.navigationController.move_z_usteps(self.deltaZ_usteps,wait_for_completion={})
             steps_moved = steps_moved + 1
 
             # trigger acquisition (including turning on the illumination)
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_on_illumination()
-                self.wait_till_operation_is_completed()
                 self.camera.send_trigger()
 
             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
@@ -94,22 +87,21 @@ class AutofocusWorker(QObject):
             if focus_measure < focus_measure_max*MACHINE_CONFIG.AF.STOP_THRESHOLD:
                 break
 
+        # determine the in-focus position
+        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+
         # move to the starting location
         # self.navigationController.move_z_usteps(-steps_moved*self.deltaZ_usteps) # combine with the back and forth maneuver below
         # self.wait_till_operation_is_completed()
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
-        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-steps_moved*self.deltaZ_usteps)
-
-        # determine the in-focus position
-        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(_usteps_to_clear_backlash+(idx_in_focus+1)*self.deltaZ_usteps)
-        self.wait_till_operation_is_completed()
+        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-steps_moved*self.deltaZ_usteps,wait_for_completion={})
+        self.navigationController.move_z_usteps(_usteps_to_clear_backlash+(idx_in_focus+1)*self.deltaZ_usteps,wait_for_completion={})
 
         # move to the calculated in-focus position
         # self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
         # self.wait_till_operation_is_completed() # combine with the movement above
+
         if idx_in_focus == 0:
             print('moved to the bottom end of the AF range (this is not good)')
 

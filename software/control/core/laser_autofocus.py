@@ -65,43 +65,40 @@ class LaserAutofocusController(QObject):
         # set camera to use full sensor
         self.camera.set_ROI(0,0,None,None) # set offset first
         self.camera.set_ROI(0,0,3088,2064)
+
         # update camera settings
         self.camera.set_exposure_time(MACHINE_CONFIG.FOCUS_CAMERA_EXPOSURE_TIME_MS)
         self.camera.set_analog_gain(MACHINE_CONFIG.FOCUS_CAMERA_ANALOG_GAIN)
         
         # turn on the laser
-        self.microcontroller.turn_on_AF_laser()
-        self.wait_till_operation_is_completed()
+        self.microcontroller.turn_on_AF_laser(completion={})
 
         # get laser spot location
         x,y = self._get_laser_spot_centroid()
 
         # turn off the laser
-        self.microcontroller.turn_off_AF_laser()
-        self.wait_till_operation_is_completed()
+        self.microcontroller.turn_off_AF_laser(completion={})
 
         x_offset = x - MACHINE_CONFIG.LASER_AF_CROP_WIDTH/2
         y_offset = y - MACHINE_CONFIG.LASER_AF_CROP_HEIGHT/2
         print('laser spot location on the full sensor is (' + str(int(x)) + ',' + str(int(y)) + ')')
 
         # set camera crop
-        self.initialize_manual(x_offset, y_offset, MACHINE_CONFIG.LASER_AF_CROP_WIDTH, MACHINE_CONFIG.LASER_AF_CROP_HEIGHT, 1, x)
+        self.initialize_manual(x_offset, y_offset, MACHINE_CONFIG.LASER_AF_CROP_WIDTH, MACHINE_CONFIG.LASER_AF_CROP_HEIGHT, 1.0, x)
 
         # move z
-        self.navigationController.move_z(-0.018)
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_z(0.012)
-        self.wait_till_operation_is_completed()
-        time.sleep(0.02)
+        self.navigationController.move_z(-0.018,{})
+        self.navigationController.move_z(0.012,{},True)
+
         x0,y0 = self._get_laser_spot_centroid()
-        self.navigationController.move_z(0.006)
-        self.wait_till_operation_is_completed()
-        time.sleep(0.02)
+
+        self.navigationController.move_z(0.006,{},True)
+
         x1,y1 = self._get_laser_spot_centroid()
 
         # calculate the conversion factor
         self.pixel_to_um = 6.0/(x1-x0)
-        print('pixel to um conversion factor is ' + str(self.pixel_to_um) + ' um/pixel')
+        print(f'pixel to um conversion factor is {self.pixel_to_um:.3f} um/pixel')
         # for simulation
         if x1-x0 == 0:
             self.pixel_to_um = 0.4
@@ -112,37 +109,39 @@ class LaserAutofocusController(QObject):
     def measure_displacement(self):
         # turn on the laser
         self.microcontroller.turn_on_AF_laser()
-        self.wait_till_operation_is_completed()
+
         # get laser spot location
         x,y = self._get_laser_spot_centroid()
+
         # turn off the laser
-        self.microcontroller.turn_off_AF_laser()
-        self.wait_till_operation_is_completed()
+        self.microcontroller.turn_off_AF_laser(completion={})
+
         # calculate displacement
         displacement_um = (x - self.x_reference)*self.pixel_to_um
         self.signal_displacement_um.emit(displacement_um)
+
         return displacement_um
 
     def move_to_target(self,target_um):
         current_displacement_um = self.measure_displacement()
         um_to_move = target_um - current_displacement_um
+
         # limit the range of movement
         um_to_move = min(um_to_move,200)
         um_to_move = max(um_to_move,-200)
-        self.navigationController.move_z(um_to_move/1000)
-        self.wait_till_operation_is_completed()
+
+        self.navigationController.move_z(um_to_move/1000,wait_for_completion={})
+
         # update the displacement measurement
         self.measure_displacement()
 
     def set_reference(self):
         # turn on the laser
-        self.microcontroller.turn_on_AF_laser()
-        self.wait_till_operation_is_completed()
+        self.microcontroller.turn_on_AF_laser(completion={})
         # get laser spot location
         x,y = self._get_laser_spot_centroid()
         # turn off the laser
-        self.microcontroller.turn_off_AF_laser()
-        self.wait_till_operation_is_completed()
+        self.microcontroller.turn_off_AF_laser(completion={})
         self.x_reference = x
         self.signal_displacement_um.emit(0)
 
@@ -204,6 +203,7 @@ class LaserAutofocusController(QObject):
     def _get_laser_spot_centroid(self):
         # disable camera callback
         self.camera.disable_callback()
+
         tmp_x = 0
         tmp_y = 0
         for i in range(MACHINE_CONFIG.LASER_AF_AVERAGING_N):
@@ -214,22 +214,23 @@ class LaserAutofocusController(QObject):
                 # self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                 raise Exception("unimplemented") # to edit
 
-            time.sleep(MACHINE_CONFIG.FOCUS_CAMERA_EXPOSURE_TIME_MS)
+            time.sleep(MACHINE_CONFIG.FOCUS_CAMERA_EXPOSURE_TIME_MS + 70e-3) # this is a super bad solution. should be signal based!
             
             # read camera frame
             image = self.camera.read_frame()
+
             # optionally display the image
             if MACHINE_CONFIG.LASER_AF_DISPLAY_SPOT_IMAGE:
                 self.image_to_display.emit(image)
+
             # calculate centroid
             x,y = self._caculate_centroid(image)
-            tmp_x = tmp_x + x
-            tmp_y = tmp_y + y
+
+            tmp_x += x
+            tmp_y += y
+
         x = tmp_x/MACHINE_CONFIG.LASER_AF_AVERAGING_N
         y = tmp_y/MACHINE_CONFIG.LASER_AF_AVERAGING_N
-        return x,y
 
-    def wait_till_operation_is_completed(self):
-        while self.microcontroller.is_busy():
-            time.sleep(MACHINE_CONFIG.SLEEP_TIME_S)
+        return x,y
   

@@ -168,12 +168,16 @@ class LiveControlWidget(QFrame):
         self.liveController.camera.is_live=True
         self.liveController.on_frame_acquired.connect(self.snap_end)
         self.liveController.camera.start_streaming()
+        if self.liveController.for_displacement_measurement:
+            self.liveController.microcontroller.turn_on_AF_laser()
         self.liveController.trigger_acquisition()
 
     @TypecheckFunction
     def snap_end(self,_discard:Any=None):
         """ clean up after snapshot was recorded """
         self.liveController.on_frame_acquired.disconnect(self.snap_end)
+        if self.liveController.for_displacement_measurement:
+            self.liveController.microcontroller.turn_off_AF_laser()
         self.liveController.camera.is_live=False
 
     @TypecheckFunction

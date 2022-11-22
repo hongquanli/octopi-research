@@ -661,7 +661,10 @@ class Microcontroller():
         self.new_packet_callback_external = function
 
     @TypecheckFunction
-    def wait_till_operation_is_completed(self, timeout_limit_s:Optional[int]=5, time_step:float=0.02, timeout_msg:str='Error - microcontroller timeout, the program will exit'):
+    def wait_till_operation_is_completed(self, timeout_limit_s:Optional[int]=5, time_step:Optional[float]=None, timeout_msg:str='Error - microcontroller timeout, the program will exit'):
+        if time_step is None:
+            time_step=MACHINE_CONFIG.SLEEP_TIME_S
+
         timestamp_start = time.time()
         while self.is_busy():
             time.sleep(time_step)
@@ -695,8 +698,12 @@ class Microcontroller():
         cmd[3] = level
         self.send_command(cmd)
 
-    def turn_on_AF_laser(self):
+    def turn_on_AF_laser(self,completion:Optional[Any]=None):
         self.set_pin_level(MCU_PINS.AF_LASER,1)
+        if not completion is None:
+            self.wait_till_operation_is_completed(**completion)
 
-    def turn_off_AF_laser(self):
+    def turn_off_AF_laser(self,completion:Optional[Any]=None):
         self.set_pin_level(MCU_PINS.AF_LASER,0)
+        if not completion is None:
+            self.wait_till_operation_is_completed(**completion)

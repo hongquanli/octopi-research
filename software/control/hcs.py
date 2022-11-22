@@ -197,17 +197,11 @@ class HCSController(QObject):
         self.microcontroller.turn_off_illumination()
 
         # move the objective to a defined position upon exit
-        self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
-        self.microcontroller.wait_till_operation_is_completed(5, 0.005)
+        self.navigationController.move_x(0.1,{'timeout_limit_s':5, 'time_step':0.005}) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
+        self.navigationController.move_x_to(30.0,{'timeout_limit_s':5, 'time_step':0.005})
 
-        self.navigationController.move_x_to(30.0)
-        self.microcontroller.wait_till_operation_is_completed(5, 0.005)
-
-        self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
-        self.microcontroller.wait_till_operation_is_completed(5, 0.005)
-
-        self.navigationController.move_y_to(30.0)
-        self.microcontroller.wait_till_operation_is_completed(5, 0.005)
+        self.navigationController.move_y(0.1,{'timeout_limit_s':5, 'time_step':0.005}) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
+        self.navigationController.move_y_to(30.0,{'timeout_limit_s':5, 'time_step':0.005})
 
         self.liveController.stop_live()
         self.camera.close()

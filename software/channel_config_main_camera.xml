@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <modes>
-  <mode ID="5" Name="Fluorescence 405 nm Ex" ExposureTime="3.0" AnalogGain="10" IlluminationSource="11" IlluminationIntensity="100" CameraSN=""/>
-  <mode ID="12" Name="Fluorescence 730 nm Ex" ExposureTime="50" AnalogGain="10" IlluminationSource="15" IlluminationIntensity="100" CameraSN=""/>
-  <mode ID="7" Name="Fluorescence 638 nm Ex" ExposureTime="100" AnalogGain="10" IlluminationSource="13" IlluminationIntensity="100" CameraSN=""/>
-  <mode ID="8" Name="Fluorescence 561 nm Ex" ExposureTime="100" AnalogGain="10" IlluminationSource="14" IlluminationIntensity="100" CameraSN=""/>
-  <mode ID="6" Name="Fluorescence 488 nm Ex" ExposureTime="100" AnalogGain="10" IlluminationSource="12" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="5" Name="Fluorescence 405 nm Ex" ExposureTime="5.0" AnalogGain="1.0" IlluminationSource="11" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="12" Name="Fluorescence 730 nm Ex" ExposureTime="200.0" AnalogGain="10.0" IlluminationSource="15" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="7" Name="Fluorescence 638 nm Ex" ExposureTime="50.0" AnalogGain="5.0" IlluminationSource="13" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="8" Name="Fluorescence 561 nm Ex" ExposureTime="75.0" AnalogGain="5.0" IlluminationSource="14" IlluminationIntensity="100" CameraSN=""/>
+  <mode ID="6" Name="Fluorescence 488 nm Ex" ExposureTime="75.0" AnalogGain="5.0" IlluminationSource="12" IlluminationIntensity="100" CameraSN=""/>
 </modes>

@@ -109,10 +109,6 @@ class MultiPointWorker(QObject):
         self.finished.emit()
         print("finished multipoint acquisition")
 
-    def wait_till_operation_is_completed(self):
-        while self.microcontroller.is_busy():
-            time.sleep(MACHINE_CONFIG.SLEEP_TIME_S)
-
     def run_single_time_point(self):
 
         # disable joystick button action
@@ -140,12 +136,8 @@ class MultiPointWorker(QObject):
             base_y=coordinate_mm[1]-self.deltaY*(self.NY-1)/2
 
             # move to the specified coordinate
-            self.navigationController.move_x_to(base_x)
-            self.wait_till_operation_is_completed()
-            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
-            self.navigationController.move_y_to(base_y)
-            self.wait_till_operation_is_completed()
-            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
+            self.navigationController.move_x_to(base_x,wait_for_completion={},wait_for_stabilization=True)
+            self.navigationController.move_y_to(base_y,wait_for_completion={},wait_for_stabilization=True)
             # add '_' to the coordinate name
             coordinate_name = coordinate_name + '_'
 
@@ -207,15 +199,10 @@ class MultiPointWorker(QObject):
                         # move to bottom of the z stack
                         if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
                             base_z=-self.deltaZ_usteps*round((self.NZ-1)/2)
-                            self.navigationController.move_z_usteps(base_z)
-                            self.wait_till_operation_is_completed()
-                            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
+                            self.navigationController.move_z_usteps(base_z,wait_for_completion={},wait_for_stabilization=True)
                         # maneuver for achiving uniform step size and repeatability when using open-loop control
-                        self.navigationController.move_z_usteps(-160)
-                        self.wait_till_operation_is_completed()
-                        self.navigationController.move_z_usteps(160)
-                        self.wait_till_operation_is_completed()
-                        time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
+                        self.navigationController.move_z_usteps(-160,wait_for_completion={})
+                        self.navigationController.move_z_usteps(160,wait_for_completion={},wait_for_stabilization=True)
 
                     # z-stack
                     for k in range(self.NZ):
@@ -233,11 +220,11 @@ class MultiPointWorker(QObject):
 
                             # update the current configuration
                             self.signal_current_configuration.emit(config)
-                            self.wait_till_operation_is_completed()
+                            self.microcontroller.wait_till_operation_is_completed()
+
                             # trigger acquisition (including turning on the illumination)
                             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                 self.liveController.turn_on_illumination()
-                                self.wait_till_operation_is_completed()
                                 self.camera.send_trigger()
                             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                 self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
@@ -288,12 +275,9 @@ class MultiPointWorker(QObject):
                         # check if the acquisition should be aborted
                         if self.multiPointController.abort_acqusition_requested:
                             self.liveController.turn_off_illumination()
-                            self.navigationController.move_x_usteps(-on_abort_dx_usteps)
-                            self.wait_till_operation_is_completed()
-                            self.navigationController.move_y_usteps(-on_abort_dy_usteps)
-                            self.wait_till_operation_is_completed()
-                            self.navigationController.move_z_usteps(-on_abort_dz_usteps)
-                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_x_usteps(-on_abort_dx_usteps,wait_for_completion={})
+                            self.navigationController.move_y_usteps(-on_abort_dy_usteps,wait_for_completion={})
+                            self.navigationController.move_z_usteps(-on_abort_dz_usteps,wait_for_completion={})
 
                             coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
                             self.navigationController.enable_joystick_button_action = True
@@ -303,9 +287,7 @@ class MultiPointWorker(QObject):
                         if self.NZ > 1:
                             # move z
                             if k < self.NZ - 1:
-                                self.navigationController.move_z_usteps(self.deltaZ_usteps)
-                                self.wait_till_operation_is_completed()
-                                time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
+                                self.navigationController.move_z_usteps(self.deltaZ_usteps,wait_for_completion={},wait_for_stabilization=True)
                                 on_abort_dz_usteps = on_abort_dz_usteps + self.deltaZ_usteps
 
                         self.signal_new_acquisition.emit('z')
@@ -313,13 +295,15 @@ class MultiPointWorker(QObject):
                     if self.NZ > 1:
                         # move z back
                         if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
-                            self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
-                            self.wait_till_operation_is_completed()
-                            on_abort_dz_usteps = on_abort_dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
+                            latest_offset=-self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
+                            on_abort_dz_usteps += latest_offset
+
+                            self.navigationController.move_z_usteps(latest_offset,wait_for_completion={})
                         else:
-                            self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
-                            self.wait_till_operation_is_completed()
-                            on_abort_dz_usteps = on_abort_dz_usteps - self.deltaZ_usteps*(self.NZ-1)
+                            latest_offset=-self.deltaZ_usteps*(self.NZ-1)
+                            on_abort_dz_usteps += latest_offset
+
+                            self.navigationController.move_z_usteps(latest_offset,wait_for_completion={})
 
                     # update FOV counter
                     self.FOV_counter = self.FOV_counter + 1
@@ -327,9 +311,7 @@ class MultiPointWorker(QObject):
                     if self.NX > 1:
                         # move x
                         if j < self.NX - 1:
-                            self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps)
-                            self.wait_till_operation_is_completed()
-                            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
+                            self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps,wait_for_completion={},wait_for_stabilization=True)
                             on_abort_dx_usteps = on_abort_dx_usteps + x_scan_direction*self.deltaX_usteps
 
                     self.signal_new_acquisition.emit('x')
@@ -340,9 +322,7 @@ class MultiPointWorker(QObject):
                 if self.NY > 1:
                     # move y
                     if i < self.NY - 1:
-                        self.navigationController.move_y_usteps(self.deltaY_usteps)
-                        self.wait_till_operation_is_completed()
-                        time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
+                        self.navigationController.move_y_usteps(self.deltaY_usteps,wait_for_completion={},wait_for_stabilization=True)
                         on_abort_dy_usteps = on_abort_dy_usteps + self.deltaY_usteps
 
                 self.signal_new_acquisition.emit('y')
@@ -355,20 +335,16 @@ class MultiPointWorker(QObject):
                 # only move to the start position if there's only one region in the scan
                 if self.NY > 1:
                     # move y back
-                    self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
-                    self.wait_till_operation_is_completed()
-                    time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
+                    self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1),wait_for_completion={},wait_for_stabilization=True)
                     on_abort_dy_usteps = on_abort_dy_usteps - self.deltaY_usteps*(self.NY-1)
 
                 # move x back at the end of the scan
                 if x_scan_direction == -1:
-                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-                    self.wait_till_operation_is_completed()
-                    time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
+                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1),wait_for_completion={},wait_for_stabilization=True)
 
                 # move z back
                 self.navigationController.microcontroller.move_z_to_usteps(z_pos)
-                self.wait_till_operation_is_completed()
+                self.navigationController.microcontroller.wait_till_operation_is_completed()
 
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True

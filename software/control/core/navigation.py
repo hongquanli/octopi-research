@@ -7,7 +7,7 @@ from control._def import *
 import numpy as np
 import pyqtgraph as pg
 import cv2
-
+import time
 import math
 
 from typing import Optional, List, Union, Tuple
@@ -69,39 +69,75 @@ class NavigationController(QObject):
         return MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)
 
     @TypecheckFunction
-    def move_x(self,x_mm:float):
+    def move_x(self,x_mm:float,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
         self.microcontroller.move_x_usteps(int(x_mm/self.screw_x_micro))
 
     @TypecheckFunction
-    def move_y(self,y_mm:float):
+    def move_y(self,y_mm:float,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
         self.microcontroller.move_y_usteps(int(y_mm/self.screw_y_micro))
 
     @TypecheckFunction
-    def move_z(self,z_mm:float):
+    def move_z(self,z_mm:float,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
         self.microcontroller.move_z_usteps(int(z_mm/self.screw_z_micro))
 
     @TypecheckFunction
-    def move_x_to(self,x_mm:float):
+    def move_x_to(self,x_mm:float,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
         self.microcontroller.move_x_to_usteps(int(x_mm/self.screw_x_micro))
 
     @TypecheckFunction
-    def move_y_to(self,y_mm:float):
+    def move_y_to(self,y_mm:float,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
         self.microcontroller.move_y_to_usteps(int(y_mm/self.screw_y_micro))
 
     @TypecheckFunction
-    def move_z_to(self,z_mm:float):
+    def move_z_to(self,z_mm:float,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
         self.microcontroller.move_z_to_usteps(int(z_mm/self.screw_z_micro))
 
     @TypecheckFunction
-    def move_x_usteps(self,usteps:int):
+    def move_x_usteps(self,usteps:int,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_X/1000)
         self.microcontroller.move_x_usteps(usteps)
 
     @TypecheckFunction
-    def move_y_usteps(self,usteps:int):
+    def move_y_usteps(self,usteps:int,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Y/1000)
         self.microcontroller.move_y_usteps(usteps)
 
     @TypecheckFunction
-    def move_z_usteps(self,usteps:int):
+    def move_z_usteps(self,usteps:int,wait_for_completion:Optional[Any]=None,wait_for_stabilization:bool=False):
+        if not wait_for_completion is None:
+            self.microcontroller.wait_till_operation_is_completed(**wait_for_completion)
+        if wait_for_stabilization:
+            time.sleep(MACHINE_CONFIG.SCAN_STABILIZATION_TIME_MS_Z/1000)
         self.microcontroller.move_z_usteps(usteps)
 
     @TypecheckFunction
