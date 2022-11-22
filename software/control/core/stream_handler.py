@@ -42,6 +42,8 @@ class StreamHandler(QObject):
         self.counter = 0
         self.fps_real = 0
 
+        self.last_image=None
+
     def start_recording(self):
         self.save_image_flag = True
 
@@ -95,12 +97,14 @@ class StreamHandler(QObject):
             # @@@ to move to camera 
             image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
 
+            self.last_image=utils.crop_image(image_cropped,round(self.crop_width), round(self.crop_height))
+
             # send image to display
             time_now = time.time()
 
             # there was an fps limit here at some point, but each image that was recorded after an image acquisition got triggered should also be displayed
             # self.image_to_display.emit(cv2.resize(image_cropped,(round(self.crop_width), round(self.crop_height)),cv2.INTER_LINEAR))
-            self.image_to_display.emit(utils.crop_image(image_cropped,round(self.crop_width), round(self.crop_height)))
+            self.image_to_display.emit(self.last_image)
             self.timestamp_last_display = time_now
 
             # send image to write

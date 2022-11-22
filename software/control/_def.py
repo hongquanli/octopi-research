@@ -494,7 +494,7 @@ MACHINE_CONFIG=MachineConfiguration(
     WELLPLATE_OFFSET_Y_mm = 0.0,
 
     # default z
-    DEFAULT_Z_POS_MM = 5.500,
+    DEFAULT_Z_POS_MM = 1.550,
     CONTROLLER_VERSION = ControllerType.TEENSY,
 )
 

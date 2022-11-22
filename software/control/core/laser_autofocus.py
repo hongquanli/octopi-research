@@ -2,7 +2,8 @@ import os
 os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
-from qtpy.QtCore import QObject, Signal
+from qtpy.QtCore import QObject, Signal, QMutex, QEventLoop
+from qtpy.QtWidgets import QApplication
 
 from control._def import *
 
@@ -14,6 +15,8 @@ import scipy.signal
 import control.microcontroller as microcontroller
 import control.camera as camera
 from control.core import LiveController,NavigationController
+
+import matplotlib.pyplot as plt
 
 class LaserAutofocusController(QObject):
 
@@ -69,15 +72,9 @@ class LaserAutofocusController(QObject):
         # update camera settings
         self.camera.set_exposure_time(MACHINE_CONFIG.FOCUS_CAMERA_EXPOSURE_TIME_MS)
         self.camera.set_analog_gain(MACHINE_CONFIG.FOCUS_CAMERA_ANALOG_GAIN)
-        
-        # turn on the laser
-        self.microcontroller.turn_on_AF_laser(completion={})
 
         # get laser spot location
         x,y = self._get_laser_spot_centroid()
-
-        # turn off the laser
-        self.microcontroller.turn_off_AF_laser(completion={})
 
         x_offset = x - MACHINE_CONFIG.LASER_AF_CROP_WIDTH/2
         y_offset = y - MACHINE_CONFIG.LASER_AF_CROP_HEIGHT/2
@@ -105,6 +102,8 @@ class LaserAutofocusController(QObject):
 
         # set reference
         self.x_reference = x1
+
+        print("laser AF initialization done")
 
     def measure_displacement(self):
         # turn on the laser
@@ -201,23 +200,42 @@ class LaserAutofocusController(QObject):
             return x1,y0-96+y1
 
     def _get_laser_spot_centroid(self):
-        # disable camera callback
-        self.camera.disable_callback()
-
         tmp_x = 0
         tmp_y = 0
-        for i in range(MACHINE_CONFIG.LASER_AF_AVERAGING_N):
-            # send camera trigger
-            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:            
-                self.camera.send_trigger()
-            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                # self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-                raise Exception("unimplemented") # to edit
 
-            time.sleep(MACHINE_CONFIG.FOCUS_CAMERA_EXPOSURE_TIME_MS + 70e-3) # this is a super bad solution. should be signal based!
-            
-            # read camera frame
-            image = self.camera.read_frame()
+        for i in range(MACHINE_CONFIG.LASER_AF_AVERAGING_N):
+            DEBUG_THIS_STUFF=False
+
+            # try acquiring camera image until one arrives (can sometimes miss an image for some reason)
+            image=None
+            current_counter=0
+            while image is None:
+                if DEBUG_THIS_STUFF:
+                    print(f"{current_counter=}")
+                    current_counter+=1
+
+                # from https://stackoverflow.com/questions/31358646/qt5-how-to-wait-for-a-signal-in-a-thread
+                imaging_done_event_loop=QEventLoop()
+                def quiteventloop():
+                    imaging_done_event_loop.quit()
+                self.liveController.stream_handler.signal_new_frame_received.connect(quiteventloop)
+
+                # enable processing of incoming camera images, turn on autofocus laser, request image
+                self.liveController.camera.is_live=True
+                self.liveController.camera.start_streaming()
+                self.microcontroller.turn_on_AF_laser(completion={})
+                self.liveController.trigger_acquisition()
+
+                # await image arrival
+                imaging_done_event_loop.exec()
+
+                # turn off processing of incoming camera images, turn off autofocus laser
+                self.liveController.stream_handler.signal_new_frame_received.disconnect(quiteventloop)
+                self.liveController.camera.stop_streaming()
+                self.liveController.camera.is_live=False
+                self.microcontroller.turn_off_AF_laser(completion={})
+
+                image = self.liveController.stream_handler.last_image
 
             # optionally display the image
             if MACHINE_CONFIG.LASER_AF_DISPLAY_SPOT_IMAGE:
@@ -225,6 +243,14 @@ class LaserAutofocusController(QObject):
 
             # calculate centroid
             x,y = self._caculate_centroid(image)
+
+            if DEBUG_THIS_STUFF:
+                print(f"{x = } {(MACHINE_CONFIG.LASER_AF_CROP_WIDTH/2) = }")
+                print(f"{y = } {(MACHINE_CONFIG.LASER_AF_CROP_HEIGHT/2) = }")
+
+                plt.imshow(image,cmap="gist_gray")
+                plt.scatter([x],[y],marker="x",c="green")
+                plt.show()
 
             tmp_x += x
             tmp_y += y

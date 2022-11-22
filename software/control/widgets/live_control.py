@@ -166,7 +166,7 @@ class LiveControlWidget(QFrame):
     def take_snapshot(self,_pressed:Any=None):
         """ take a snapshot (more precisely, request a snapshot) """
         self.liveController.camera.is_live=True
-        self.liveController.on_frame_acquired.connect(self.snap_end)
+        self.liveController.stream_handler.signal_new_frame_received.connect(self.snap_end)
         self.liveController.camera.start_streaming()
         if self.liveController.for_displacement_measurement:
             self.liveController.microcontroller.turn_on_AF_laser()
@@ -175,7 +175,7 @@ class LiveControlWidget(QFrame):
     @TypecheckFunction
     def snap_end(self,_discard:Any=None):
         """ clean up after snapshot was recorded """
-        self.liveController.on_frame_acquired.disconnect(self.snap_end)
+        self.liveController.stream_handler.signal_new_frame_received.disconnect(self.snap_end)
         if self.liveController.for_displacement_measurement:
             self.liveController.microcontroller.turn_off_AF_laser()
         self.liveController.camera.is_live=False

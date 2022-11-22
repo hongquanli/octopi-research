@@ -9,7 +9,7 @@ from typing import Optional, List, Union, Tuple
 
 import control.microcontroller as microcontroller
 import control.camera as camera
-from control.core import ConfigurationManager, Configuration
+from control.core import ConfigurationManager, Configuration, StreamHandler
 
 class LiveController(QObject):
 
@@ -30,20 +30,17 @@ class LiveController(QObject):
         camera:camera.Camera,
         microcontroller:microcontroller.Microcontroller,
         configurationManager:ConfigurationManager,
-        on_frame_acquired:Signal,
+        stream_handler:StreamHandler,
         control_illumination:bool=True,
         use_internal_timer_for_hardware_trigger:bool=True,
         for_displacement_measurement:bool=False
     ):
-        """
-        'on_frame_acquired' argument should be signal from a streamhandler that is emitted upon completed frame acquisition
-        """
 
         QObject.__init__(self)
         self.camera = camera
         self.microcontroller = microcontroller
         self.configurationManager:ConfigurationManager = configurationManager
-        self.on_frame_acquired=on_frame_acquired
+        self.stream_handler=stream_handler
         self.currentConfiguration:Optional[Configuration] = None
         self.trigger_mode:TriggerMode = TriggerMode.SOFTWARE
         self.is_live:bool = False
@@ -90,7 +87,7 @@ class LiveController(QObject):
 
     def start_live(self):
         if self.image_acquisition_in_progress:
-            self.on_frame_acquired.connect(self.start_live)
+            self.stream_handler.signal_new_frame_received.connect(self.start_live)
             return
 
         self.is_live = True
@@ -145,6 +142,7 @@ class LiveController(QObject):
             self.image_acquisition_queued=True
             return
 
+        self.trigger_ID = self.trigger_ID + 1
         self.image_acquisition_in_progress=True
         self.time_image_requested=time.time()
         #print(f"taking an image (img id: {self.trigger_ID:9} )")
@@ -152,18 +150,15 @@ class LiveController(QObject):
             if not self.for_displacement_measurement:
                 self.turn_on_illumination()
 
-            self.trigger_ID = self.trigger_ID + 1
-
             self.camera.send_trigger()
 
-            self.on_frame_acquired.connect(self.end_acquisition)
-
         elif self.trigger_mode == TriggerMode.HARDWARE:
-            self.trigger_ID = self.trigger_ID + 1
             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
 
+        self.stream_handler.signal_new_frame_received.connect(self.end_acquisition)
+
     def end_acquisition(self):
-        self.on_frame_acquired.disconnect(self.end_acquisition)
+        self.stream_handler.signal_new_frame_received.disconnect(self.end_acquisition)
 
         #imaging_time=time.time()-self.time_image_requested
         #print(f"real imaging time: {imaging_time*1000:6.3f} ms") # this shows a 40ms delay vs exposure time. why?

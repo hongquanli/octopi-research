@@ -52,7 +52,7 @@ class HCSController(QObject):
 
         self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_config_main_camera.xml')
         self.streamHandler:           core.StreamHandler           = core.StreamHandler()
-        self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager,on_frame_acquired=self.streamHandler.signal_new_frame_received)
+        self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager,stream_handler=self.streamHandler)
 
         self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
         self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
@@ -74,7 +74,7 @@ class HCSController(QObject):
             # controllers
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./channel_config_focus_camera.xml')
             self.streamHandler_focus_camera = core.StreamHandler()
-            self.liveController_focus_camera = core.LiveController(self.focus_camera,self.microcontroller,self.configurationManager_focus_camera,on_frame_acquired=self.streamHandler_focus_camera.signal_new_frame_received,control_illumination=False,for_displacement_measurement=True)
+            self.liveController_focus_camera = core.LiveController(self.focus_camera,self.microcontroller,self.configurationManager_focus_camera,stream_handler=self.streamHandler_focus_camera,control_illumination=False,for_displacement_measurement=True)
 
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.focus_camera,self.liveController_focus_camera,self.navigationController,has_two_interfaces=MACHINE_CONFIG.HAS_TWO_INTERFACES,use_glass_top=MACHINE_CONFIG.USE_GLASS_TOP)
