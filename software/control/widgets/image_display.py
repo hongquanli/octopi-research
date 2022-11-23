@@ -129,7 +129,7 @@ class ImageDisplayWindow(QMainWindow):
         self.setFixedSize(width,height)
 
     def display_image(self,image):
-        self.graphics_widget.img.setImage(image)
+        self.graphics_widget.img.setImage(image,autoLevels=False)
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
