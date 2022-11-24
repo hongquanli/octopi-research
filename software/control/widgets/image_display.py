@@ -118,7 +118,7 @@ class ImageDisplayWindow(QMainWindow):
         if self.show_LUT:
             layout.addWidget(self.graphics_widget.view, 0, 0) 
         else:
-            layout.addWidget(self.graphics_widget, 0, 0) 
+            layout.addWidget(self.graphics_widget, 0, 0)
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
 
@@ -129,7 +129,8 @@ class ImageDisplayWindow(QMainWindow):
         self.setFixedSize(width,height)
 
     def display_image(self,image):
-        self.graphics_widget.img.setImage(image,autoLevels=False)
+        """ display image in the respective widget """
+        self.graphics_widget.img.setImage(image,autoLevels=False) # disable automatically scaling the image pixel values (scale so that the lowest pixel value is pure black, and the highest value if pure white)
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()

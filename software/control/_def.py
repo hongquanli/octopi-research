@@ -381,13 +381,15 @@ class MachineConfiguration:
 
     FOCUS_CAMERA_EXPOSURE_TIME_MS:float = 2.0
     FOCUS_CAMERA_ANALOG_GAIN:float = 0.0
-    LASER_AF_AVERAGING_N:int = 5
-    LASER_AF_DISPLAY_SPOT_IMAGE:bool = True
+    LASER_AF_AVERAGING_N_PRECISE:int = 5
+    LASER_AF_AVERAGING_N_FAST:int = 2
+    LASER_AF_DISPLAY_SPOT_IMAGE:bool = False # display laser af image every time when displacement is measured (even in multi point acquisition mode)
     LASER_AF_CROP_WIDTH:int = 1536
     LASER_AF_CROP_HEIGHT:int = 256
     HAS_TWO_INTERFACES:bool = True
     USE_GLASS_TOP:bool = True
     SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS:bool = False
+    LASER_AUTOFOCUS_TARGET_MOVE_REPEAT_THRESHOLD_UM:float = 0.3 # when moving to target, if absolute measured displacement after movement is larger than this value, repeat move to target (repeat max once) - note that the usual um/pixel value is 0.4
 
     MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = False
 
@@ -428,7 +430,8 @@ class MachineDisplayConfiguration:
     """ display settings """
     DEFAULT_SAVING_PATH:str = str(Path.home()/"Downloads")
     DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
-    MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
+    MULTIPOINT_SOFTWARE_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = False
+    MULTIPOINT_LASER_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
     SHOW_DAC_CONTROL:bool = False
 
 
@@ -499,7 +502,6 @@ MACHINE_CONFIG=MachineConfiguration(
 )
 
 MACHINE_DISPLAY_CONFIG=MachineDisplayConfiguration(
-    MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True,
 )
 
 MUTABLE_MACHINE_CONFIG=MutableMachineConfiguration(

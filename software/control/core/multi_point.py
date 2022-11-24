@@ -17,7 +17,7 @@ import numpy
 from typing import Optional, List, Union, Tuple, Callable
 
 import control.camera as camera
-from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager, ImageSaver
+from control.core import Configuration, NavigationController, LiveController, AutoFocusController, ConfigurationManager, ImageSaver #, LaserAutofocusController
 #import control.widgets as widgets # not possible because circular import
 from control.typechecker import TypecheckFunction
 
@@ -46,6 +46,7 @@ class MultiPointWorker(QObject):
         self.navigationController = self.multiPointController.navigationController
         self.liveController = self.multiPointController.liveController
         self.autofocusController = self.multiPointController.autofocusController
+        self.laserAutofocusController = self.multiPointController.laserAutofocusController
         self.configurationManager = self.multiPointController.configurationManager
         self.NX = self.multiPointController.NX
         self.NY = self.multiPointController.NY
@@ -66,6 +67,8 @@ class MultiPointWorker(QObject):
         self.experiment_ID = self.multiPointController.experiment_ID
         self.base_path = self.multiPointController.base_path
         self.selected_configurations = self.multiPointController.selected_configurations
+
+        self.reflection_af_initialized = self.multiPointController.laserAutofocusController.is_initialized and not self.multiPointController.laserAutofocusController.x_reference is None
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point:int = 0
@@ -115,7 +118,6 @@ class MultiPointWorker(QObject):
         self.navigationController.enable_joystick_button_action = False
 
         self.FOV_counter = 0
-        self.reflection_af_initialized = False
 
         print('multipoint acquisition - time point ' + str(self.time_point+1))
         
@@ -180,8 +182,7 @@ class MultiPointWorker(QObject):
                         # first FOV
                         if self.reflection_af_initialized==False:
                             # initialize the reflection AF
-                            self.microscope.laserAutofocusController.initialize_auto()
-                            self.reflection_af_initialized = True
+                            self.laserAutofocusController.initialize_auto()
                             # do contrast AF for the first FOV
                             if self.do_autofocus and self.FOV_counter==0 and ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) :
                                 configuration_name_AF = MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
@@ -190,10 +191,10 @@ class MultiPointWorker(QObject):
                                 self.autofocusController.autofocus()
                                 self.autofocusController.wait_till_autofocus_has_completed()
                             # set the current plane as reference
-                            self.microscope.laserAutofocusController.set_reference()
+                            self.laserAutofocusController.set_reference()
+                            self.reflection_af_initialized = True
                         else:
-                            self.microscope.laserAutofocusController.move_to_target(0)
-                            self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+                            self.laserAutofocusController.move_to_target(0)
 
                     if (self.NZ > 1):
                         # move to bottom of the z stack
@@ -367,6 +368,7 @@ class MultiPointController(QObject):
         navigationController:NavigationController,
         liveController:LiveController,
         autofocusController:AutoFocusController,
+        laserAutofocusController,#:LaserAutofocusController,
         configurationManager:ConfigurationManager,
         parent:Optional[Any]=None,
     ):
@@ -377,6 +379,7 @@ class MultiPointController(QObject):
         self.navigationController = navigationController
         self.liveController = liveController
         self.autofocusController = autofocusController
+        self.laserAutofocusController = laserAutofocusController
         self.configurationManager = configurationManager
 
         self.NX:int = DefaultMultiPointGrid.DEFAULT_Nx
@@ -389,7 +392,7 @@ class MultiPointController(QObject):
         self.deltat:float = DefaultMultiPointGrid.DEFAULT_DT_S
 
         self.do_autofocus:bool = False
-        self.do_reflection_af = False
+        self.do_reflection_af:bool = True
 
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
@@ -406,7 +409,6 @@ class MultiPointController(QObject):
         self.configuration_before_running_multipoint:Optional[Configuration] = None
         self.liveController_was_live_before_multipoint = False
         self.camera_callback_was_enabled_before_multipoint = False
-
 
     @property
     def autofocus_channel_name(self)->str:
@@ -457,18 +459,19 @@ class MultiPointController(QObject):
     @TypecheckFunction
     def set_deltat(self,delta:float):
         self.deltat = delta
+
     @TypecheckFunction
-    def set_af_flag(self,flag:Union[int,bool]):
+    def set_software_af_flag(self,flag:Union[int,bool]):
         if type(flag)==bool:
             self.do_autofocus=flag
         else:
-            self.do_autofocus = bool(flag)
-
-    def set_reflection_af_flag(self,flag:Union[int,bool]):
-        if type(flag)==int:
-            self.do_reflection_af = bool(flag)
+            self.do_autofocus = bool(flag)            
+    @TypecheckFunction
+    def set_laser_af_flag(self,flag:Union[int,bool]):
+        if type(flag)==bool:
+            self.do_reflection_af=flag
         else:
-            self.do_reflection_af = flag
+            self.do_reflection_af = bool(flag)
 
     @TypecheckFunction
     def set_crop(self,crop_width:int,crop_height:int):

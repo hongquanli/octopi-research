@@ -56,18 +56,6 @@ class HCSController(QObject):
 
         self.navigationController:    core.NavigationController    = core.NavigationController(self.microcontroller)
         self.autofocusController:     core.AutoFocusController     = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-        self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
-        self.imageSaver:              core.ImageSaver              = core.ImageSaver()
-
-        # open the camera
-        self.camera.set_software_triggered_acquisition()
-        self.camera.set_callback(self.streamHandler.on_new_frame)
-        self.camera.enable_callback()
-
-        if home:
-            self.navigationController.home(home_x=MACHINE_CONFIG.HOMING_ENABLED_X,home_y=MACHINE_CONFIG.HOMING_ENABLED_Y,home_z=MACHINE_CONFIG.HOMING_ENABLED_Z)
-
-        self.num_running_experiments=0
 
         LASER_AF_ENABLED=True
         if LASER_AF_ENABLED:
@@ -84,6 +72,19 @@ class HCSController(QObject):
             self.focus_camera.set_callback(self.streamHandler_focus_camera.on_new_frame)
             self.focus_camera.enable_callback()
             self.focus_camera.start_streaming()
+
+        self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.laserAutofocusController, self.configurationManager)
+        self.imageSaver:              core.ImageSaver              = core.ImageSaver()
+
+        # open the camera
+        self.camera.set_software_triggered_acquisition()
+        self.camera.set_callback(self.streamHandler.on_new_frame)
+        self.camera.enable_callback()
+
+        if home:
+            self.navigationController.home(home_x=MACHINE_CONFIG.HOMING_ENABLED_X,home_y=MACHINE_CONFIG.HOMING_ENABLED_Y,home_z=MACHINE_CONFIG.HOMING_ENABLED_Z)
+
+        self.num_running_experiments=0
 
     #@TypecheckFunction
     def acquire(self,
@@ -140,12 +141,12 @@ class HCSController(QObject):
 
         # set autofocus parameters
         if af_channel is None:
-            self.multipointController.set_af_flag(False)
+            self.multipointController.set_software_af_flag(False)
         else:
             assert af_channel in [c.name for c in self.configurationManager.configurations], f"{af_channel} is not a valid (AF) channel"
             if af_channel!=MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL:
                 MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL=af_channel
-            self.multipointController.set_af_flag(True)
+            self.multipointController.set_software_af_flag(True)
 
         # set grid data per well
         self.multipointController.set_NX(grid_data['x']['N'])

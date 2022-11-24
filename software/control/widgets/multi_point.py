@@ -1,9 +1,17 @@
 # qt libraries
-from qtpy.QtCore import Qt, QModelIndex
-from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar, QDesktopWidget
+from qtpy.QtCore import Qt, QModelIndex, QSize
+from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, \
+    QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, \
+    QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar, QDesktopWidget, \
+    QWidget, QTableWidget, QSizePolicy, QTableWidgetItem
 from qtpy.QtGui import QIcon
 
 from control._def import *
+
+def as_widget(layout)->QWidget:
+    w=QWidget()
+    w.setLayout(layout)
+    return w
 
 from typing import Optional, Union, List, Tuple, Callable
 
@@ -15,10 +23,9 @@ class MultiPointWidget(QFrame):
         multipointController:MultiPointController,
         configurationManager:ConfigurationManager,
         start_experiment:Callable[[str,List[str]],None],
-        abort_experiment:Callable[[],None],
-        *args, **kwargs
+        abort_experiment:Callable[[],None]
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__()
         
         self.multipointController = multipointController
         self.configurationManager = configurationManager
@@ -33,81 +40,85 @@ class MultiPointWidget(QFrame):
     @TypecheckFunction
     def add_components(self):
 
-        self.btn_setSavingDir = QPushButton('Browse')
-        self.btn_setSavingDir.setDefault(False)
-        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
-        
-        self.lineEdit_savingDir = QLineEdit()
-        self.lineEdit_savingDir.setReadOnly(True)
-        self.lineEdit_savingDir.setText('Choose a base saving directory')
+        if True: # add image saving options (path where to save)
+            self.btn_setSavingDir = QPushButton('Browse')
+            self.btn_setSavingDir.setDefault(False)
+            self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
+            self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
+            
+            self.lineEdit_savingDir = QLineEdit()
+            self.lineEdit_savingDir.setReadOnly(True)
+            self.lineEdit_savingDir.setText('Choose a base saving directory')
 
-        self.lineEdit_savingDir.setText(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
-        self.multipointController.set_base_path(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
-        self.base_path_is_set = True
+            self.lineEdit_savingDir.setText(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
+            self.multipointController.set_base_path(MACHINE_DISPLAY_CONFIG.DEFAULT_SAVING_PATH)
+            self.base_path_is_set = True
 
-        self.lineEdit_experimentID = QLineEdit()
+            self.lineEdit_experimentID = QLineEdit()
 
-        self.entry_deltaX = QDoubleSpinBox()
-        self.entry_deltaX.setMinimum(0) 
-        self.entry_deltaX.setMaximum(5) 
-        self.entry_deltaX.setSingleStep(0.1)
-        self.entry_deltaX.setValue(self.multipointController.deltaX)
-        self.entry_deltaX.setDecimals(3)
-        self.entry_deltaX.setKeyboardTracking(False)
-        self.entry_deltaX.valueChanged.connect(self.set_deltaX)
+        if True: # add imaging grid configuration options
+            self.entry_deltaX = QDoubleSpinBox()
+            self.entry_deltaX.setMinimum(0) 
+            self.entry_deltaX.setMaximum(5) 
+            self.entry_deltaX.setSingleStep(0.1)
+            self.entry_deltaX.setValue(self.multipointController.deltaX)
+            self.entry_deltaX.setDecimals(3)
+            self.entry_deltaX.setKeyboardTracking(False)
+            self.entry_deltaX.valueChanged.connect(self.set_deltaX)
 
-        self.entry_NX = QSpinBox()
-        self.entry_NX.setMinimum(1)
-        self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(self.multipointController.NX)
-        self.entry_NX.setKeyboardTracking(False)
-        self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
+            self.entry_NX = QSpinBox()
+            self.entry_NX.setMinimum(1)
+            self.entry_NX.setSingleStep(1)
+            self.entry_NX.setValue(self.multipointController.NX)
+            self.entry_NX.setKeyboardTracking(False)
+            self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
+            self.entry_NX.valueChanged.connect(lambda v:self.grid_changed("x",v))
 
-        self.entry_deltaY = QDoubleSpinBox()
-        self.entry_deltaY.setMinimum(0)
-        self.entry_deltaY.setSingleStep(0.1)
-        self.entry_deltaY.setValue(self.multipointController.deltaY)
-        self.entry_deltaY.setDecimals(3)
-        self.entry_deltaY.setKeyboardTracking(False)
-        self.entry_deltaY.valueChanged.connect(self.set_deltaY)
-        
-        self.entry_NY = QSpinBox()
-        self.entry_NY.setMinimum(1)
-        self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(self.multipointController.NY)
-        self.entry_NY.setKeyboardTracking(False)
-        self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
+            self.entry_deltaY = QDoubleSpinBox()
+            self.entry_deltaY.setMinimum(0)
+            self.entry_deltaY.setSingleStep(0.1)
+            self.entry_deltaY.setValue(self.multipointController.deltaY)
+            self.entry_deltaY.setDecimals(3)
+            self.entry_deltaY.setKeyboardTracking(False)
+            self.entry_deltaY.valueChanged.connect(self.set_deltaY)
+            
+            self.entry_NY = QSpinBox()
+            self.entry_NY.setMinimum(1)
+            self.entry_NY.setSingleStep(1)
+            self.entry_NY.setValue(self.multipointController.NY)
+            self.entry_NY.setKeyboardTracking(False)
+            self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
+            self.entry_NY.valueChanged.connect(lambda v:self.grid_changed("y",v))
 
-        self.entry_deltaZ = QDoubleSpinBox()
-        self.entry_deltaZ.setMinimum(0)
-        self.entry_deltaZ.setSingleStep(0.2)
-        self.entry_deltaZ.setValue(self.multipointController.deltaZ)
-        self.entry_deltaZ.setDecimals(3)
-        self.entry_deltaZ.setKeyboardTracking(False)
-        self.entry_deltaZ.valueChanged.connect(self.set_deltaZ)
-        
-        self.entry_NZ = QSpinBox()
-        self.entry_NZ.setMinimum(1)
-        self.entry_NZ.setSingleStep(1)
-        self.entry_NZ.setValue(self.multipointController.NZ)
-        self.entry_NZ.setKeyboardTracking(False)
-        self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
-        
-        self.entry_dt = QDoubleSpinBox()
-        self.entry_dt.setMinimum(0)
-        self.entry_dt.setSingleStep(1)
-        self.entry_dt.setValue(self.multipointController.deltat)
-        self.entry_dt.setDecimals(3)
-        self.entry_dt.setKeyboardTracking(False)
-        self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
+            self.entry_deltaZ = QDoubleSpinBox()
+            self.entry_deltaZ.setMinimum(0)
+            self.entry_deltaZ.setSingleStep(0.2)
+            self.entry_deltaZ.setValue(self.multipointController.deltaZ)
+            self.entry_deltaZ.setDecimals(3)
+            self.entry_deltaZ.setKeyboardTracking(False)
+            self.entry_deltaZ.valueChanged.connect(self.set_deltaZ)
+            
+            self.entry_NZ = QSpinBox()
+            self.entry_NZ.setMinimum(1)
+            self.entry_NZ.setSingleStep(1)
+            self.entry_NZ.setValue(self.multipointController.NZ)
+            self.entry_NZ.setKeyboardTracking(False)
+            self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
+            
+            self.entry_dt = QDoubleSpinBox()
+            self.entry_dt.setMinimum(0)
+            self.entry_dt.setSingleStep(1)
+            self.entry_dt.setValue(self.multipointController.deltat)
+            self.entry_dt.setDecimals(3)
+            self.entry_dt.setKeyboardTracking(False)
+            self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
 
-        self.entry_Nt = QSpinBox()
-        self.entry_Nt.setMinimum(1)
-        self.entry_Nt.setSingleStep(1)
-        self.entry_Nt.setValue(self.multipointController.Nt)
-        self.entry_Nt.setKeyboardTracking(False)
-        self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
+            self.entry_Nt = QSpinBox()
+            self.entry_Nt.setMinimum(1)
+            self.entry_Nt.setSingleStep(1)
+            self.entry_Nt.setValue(self.multipointController.Nt)
+            self.entry_Nt.setKeyboardTracking(False)
+            self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
 
         self.list_configurations = QListWidget()
         self.list_configurations.list_channel_names=[mc.name for mc in self.configurationManager.configurations]
@@ -116,16 +127,37 @@ class MultiPointWidget(QFrame):
         self.list_configurations.setDragDropMode(QAbstractItemView.InternalMove) # allow moving items within list
         self.list_configurations.model().rowsMoved.connect(self.channel_list_rows_moved)
 
-        self.checkbox_withAutofocus = QCheckBox('Software AF')
-        self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
-        self.checkbox_withAutofocus.setChecked(MACHINE_DISPLAY_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
-        self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
-        self.multipointController.set_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        if True: # add autofocus related stuff
+            self.checkbox_withAutofocus = QCheckBox('Software AF')
+            self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
+            self.checkbox_withAutofocus.setChecked(MACHINE_DISPLAY_CONFIG.MULTIPOINT_SOFTWARE_AUTOFOCUS_ENABLE_BY_DEFAULT)
+            self.checkbox_withAutofocus.stateChanged.connect(self.set_software_af_flag)
 
-        self.btn_startAcquisition = QPushButton('Start Acquisition')
-        self.btn_startAcquisition.setCheckable(True)
-        self.btn_startAcquisition.setChecked(False)
-        self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+            af_channel_dropdown=QComboBox()
+            af_channel_dropdown.setToolTip("set channel that will be used for autofocus measurements")
+            channel_names=[microscope_configuration.name for microscope_configuration in self.configurationManager.configurations]
+            af_channel_dropdown.addItems(channel_names)
+            af_channel_dropdown.setCurrentIndex(channel_names.index(self.multipointController.autofocus_channel_name))
+            af_channel_dropdown.currentIndexChanged.connect(lambda index:setattr(MUTABLE_MACHINE_CONFIG,"MULTIPOINT_AUTOFOCUS_CHANNEL",channel_names[index]))
+            self.af_channel_dropdown=af_channel_dropdown
+            
+            self.set_software_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_SOFTWARE_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
+            self.checkbox_laserAutofocs = QCheckBox('Laser AF')
+            self.checkbox_laserAutofocs.setChecked(MACHINE_DISPLAY_CONFIG.MULTIPOINT_LASER_AUTOFOCUS_ENABLE_BY_DEFAULT)
+            self.checkbox_laserAutofocs.stateChanged.connect(self.multipointController.set_laser_af_flag)
+            self.multipointController.set_laser_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_LASER_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
+            self.btn_startAcquisition = QPushButton('Start Acquisition')
+            self.btn_startAcquisition.setCheckable(True)
+            self.btn_startAcquisition.setChecked(False)
+            self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
+
+            grid_multipoint_acquisition_config=QGridLayout()
+            grid_multipoint_acquisition_config.addWidget(self.checkbox_withAutofocus,0,0)
+            grid_multipoint_acquisition_config.addWidget(self.af_channel_dropdown,1,0)
+            grid_multipoint_acquisition_config.addWidget(self.checkbox_laserAutofocs,2,0)
+            grid_multipoint_acquisition_config.addWidget(self.btn_startAcquisition,3,0)
 
         # layout
         grid_line0 = QGridLayout()
@@ -178,17 +210,16 @@ class MultiPointWidget(QFrame):
         grid_line2.addWidget(qtlabel_Nt, 3,2)
         grid_line2.addWidget(self.entry_Nt, 3,3)
 
-        af_channel_dropdown=QComboBox()
-        af_channel_dropdown.setToolTip("set channel that will be used for autofocus measurements")
-        channel_names=[microscope_configuration.name for microscope_configuration in self.configurationManager.configurations]
-        af_channel_dropdown.addItems(channel_names)
-        af_channel_dropdown.setCurrentIndex(channel_names.index(self.multipointController.autofocus_channel_name))
-        af_channel_dropdown.currentIndexChanged.connect(lambda index:setattr(MUTABLE_MACHINE_CONFIG,"MULTIPOINT_AUTOFOCUS_CHANNEL",channel_names[index]))
-
-        grid_multipoint_acquisition_config=QGridLayout()
-        grid_multipoint_acquisition_config.addWidget(self.checkbox_withAutofocus,0,0)
-        grid_multipoint_acquisition_config.addWidget(af_channel_dropdown,1,0)
-        grid_multipoint_acquisition_config.addWidget(self.btn_startAcquisition,2,0)
+        self.well_grid_selector=QTableWidget()
+        self.well_grid_selector.horizontalHeader().hide()
+        self.well_grid_selector.verticalHeader().hide()
+        self.well_grid_selector.horizontalHeader().setMinimumSectionSize(0)
+        self.well_grid_selector.verticalHeader().setMinimumSectionSize(0)
+        self.grid_changed("x",self.multipointController.NX)
+        self.grid_changed("y",self.multipointController.NY)
+ 
+        self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
+        grid_line2.addWidget(self.well_grid_selector,0,4,4,1)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -209,6 +240,44 @@ class MultiPointWidget(QFrame):
 
         # connections
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+
+    def set_software_af_flag(self,flag:Union[int,bool]):
+        flag=bool(flag)
+        self.af_channel_dropdown.setDisabled(flag)
+        self.multipointController.set_software_af_flag(flag)
+
+    def grid_changed(self,dimension:str,new_value:int):
+        if dimension=="x":
+            self.well_grid_selector.setColumnCount(new_value)
+        elif dimension=="y":
+            self.well_grid_selector.setRowCount(new_value)
+        elif dimension=="z":
+            pass
+        elif dimension=="t":
+            pass
+        else:
+            raise Exception()
+
+        size=QDesktopWidget().width()*0.06
+        nx=self.multipointController.NX
+        ny=self.multipointController.NY
+
+        self.well_grid_selector.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
+        self.well_grid_selector.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
+        self.well_grid_selector.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
+        self.well_grid_selector.setFixedSize(size,size)
+        self.well_grid_selector.horizontalHeader().setDefaultSectionSize(size//ny)
+        self.well_grid_selector.verticalHeader().setDefaultSectionSize(size//nx)
+
+        for x in range(0,nx):
+            for y in range(0,ny):
+                grid_item=QTableWidgetItem()
+                grid_item.setSizeHint(QSize(grid_item.sizeHint().width(), size//nx))
+                grid_item.setSizeHint(QSize(grid_item.sizeHint().height(), size//ny))
+                self.well_grid_selector.setItem(y,x,grid_item)
+
+        self.well_grid_selector.resizeColumnsToContents()
+        self.well_grid_selector.resizeRowsToContents()
 
     def channel_list_rows_moved(self,_parent:QModelIndex,row_range_moved_start:int,row_range_moved_end:int,_destination:QModelIndex,row_index_drop_release:int):
         # saved items about to be moved

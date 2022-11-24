@@ -38,7 +38,7 @@ class LaserAutofocusController(QObject):
         self.navigationController = navigationController
 
         self.is_initialized = False
-        self.x_reference = 0.0
+        self.x_reference = None
         self.pixel_to_um:float = 1.0
         self.x_offset:int = 0
         self.y_offset:int = 0
@@ -78,7 +78,7 @@ class LaserAutofocusController(QObject):
 
         x_offset = x - MACHINE_CONFIG.LASER_AF_CROP_WIDTH/2
         y_offset = y - MACHINE_CONFIG.LASER_AF_CROP_HEIGHT/2
-        print('laser spot location on the full sensor is (' + str(int(x)) + ',' + str(int(y)) + ')')
+        #print('laser spot location on the full sensor is (' + str(int(x)) + ',' + str(int(y)) + ')')
 
         # set camera crop
         self.initialize_manual(x_offset, y_offset, MACHINE_CONFIG.LASER_AF_CROP_WIDTH, MACHINE_CONFIG.LASER_AF_CROP_HEIGHT, 1.0, x)
@@ -95,7 +95,7 @@ class LaserAutofocusController(QObject):
 
         # calculate the conversion factor
         self.pixel_to_um = 6.0/(x1-x0)
-        print(f'pixel to um conversion factor is {self.pixel_to_um:.3f} um/pixel')
+        #print(f'pixel to um conversion factor is {self.pixel_to_um:.3f} um/pixel')
         # for simulation
         if x1-x0 == 0:
             self.pixel_to_um = 0.4
@@ -106,11 +106,13 @@ class LaserAutofocusController(QObject):
         print("laser AF initialization done")
 
     def measure_displacement(self):
+        assert self.is_initialized and not self.x_reference is None
+
         # turn on the laser
         self.microcontroller.turn_on_AF_laser()
 
         # get laser spot location
-        x,y = self._get_laser_spot_centroid()
+        x,y = self._get_laser_spot_centroid(num_images=MACHINE_CONFIG.LASER_AF_AVERAGING_N_FAST)
 
         # turn off the laser
         self.microcontroller.turn_off_AF_laser(completion={})
@@ -121,9 +123,15 @@ class LaserAutofocusController(QObject):
 
         return displacement_um
 
-    def move_to_target(self,target_um):
+    def move_to_target(self,target_um:float,currently_repeating:bool=False):
         current_displacement_um = self.measure_displacement()
+
         um_to_move = target_um - current_displacement_um
+        if np.abs(um_to_move)<MACHINE_CONFIG.LASER_AUTOFOCUS_TARGET_MOVE_REPEAT_THRESHOLD_UM:
+            return
+
+        if currently_repeating:
+            print(f"repeating laser af 'movement to target' (off by {um_to_move} after first move)")
 
         # limit the range of movement
         um_to_move = min(um_to_move,200)
@@ -131,20 +139,95 @@ class LaserAutofocusController(QObject):
 
         self.navigationController.move_z(um_to_move/1000,wait_for_completion={})
 
-        # update the displacement measurement
-        self.measure_displacement()
+        if not currently_repeating:
+            self.move_to_target(target_um,currently_repeating=True)
 
     def set_reference(self):
-        # turn on the laser
+        assert self.is_initialized
+
         self.microcontroller.turn_on_AF_laser(completion={})
-        # get laser spot location
         x,y = self._get_laser_spot_centroid()
-        # turn off the laser
         self.microcontroller.turn_off_AF_laser(completion={})
         self.x_reference = x
         self.signal_displacement_um.emit(0)
 
-    def _caculate_centroid(self,image):
+    def _get_laser_spot_centroid(self,num_images:Optional[int]=None):
+        """
+            get position of laser dot on camera sensor to calculated displacement from
+
+            num_images is number of images that are taken to calculate the average dot position from (eliminates some noise). defaults to a large number for higher precision.
+        """
+
+        if self.camera.callback_is_enabled:
+            callback_was_enabled=True
+            self.camera.disable_callback()
+        else:
+            callback_was_enabled=False
+
+        tmp_x = 0
+        tmp_y = 0
+
+        start_time=time.time()
+        imaging_times=[]
+
+        if num_images is None:
+            num_images=MACHINE_CONFIG.LASER_AF_AVERAGING_N_PRECISE
+
+        for i in range(num_images):
+            DEBUG_THIS_STUFF=False
+
+            # try acquiring camera image until one arrives (can sometimes miss an image for some reason)
+            image=None
+            current_counter=0
+            take_image_start_time=time.time()
+            while image is None:
+                if DEBUG_THIS_STUFF:
+                    print(f"{current_counter=}")
+                    current_counter+=1
+
+                self.microcontroller.turn_on_AF_laser(completion={})
+
+                # take image
+                self.liveController.trigger_acquisition()
+                self.liveController.end_acquisition() # callback disabled -> do this manually
+                image = self.camera.read_frame()
+
+                self.microcontroller.turn_off_AF_laser(completion={})
+
+            imaging_times.append(time.time()-take_image_start_time)
+
+            # optionally display the image
+            if MACHINE_CONFIG.LASER_AF_DISPLAY_SPOT_IMAGE:
+                self.image_to_display.emit(image)
+
+            # calculate centroid
+            x,y = self._calculate_centroid(image)
+
+            if DEBUG_THIS_STUFF and False:
+                print(f"{x = } {(MACHINE_CONFIG.LASER_AF_CROP_WIDTH/2) = }")
+                print(f"{y = } {(MACHINE_CONFIG.LASER_AF_CROP_HEIGHT/2) = }")
+
+                plt.imshow(image,cmap="gist_gray")
+                plt.scatter([x],[y],marker="x",c="green")
+                plt.show()
+
+            tmp_x += x
+            tmp_y += y
+
+        if DEBUG_THIS_STUFF:
+            imaging_times_str=", ".join([f"{i:.3f}" for i in imaging_times])
+            print(f"calculated centroid in {(time.time()-start_time):.3f}s ({imaging_times_str})")
+
+        if callback_was_enabled:
+            self.camera.enable_callback()
+
+        x = tmp_x/num_images
+        y = tmp_y/num_images
+
+
+        return x,y
+
+    def _calculate_centroid(self,image):
         if self.has_two_interfaces == False:
             h,w = image.shape
             x,y = np.meshgrid(range(w),range(h))
@@ -166,8 +249,14 @@ class LaserAutofocusController(QObject):
             # find peaks
             peak_locations,_ = scipy.signal.find_peaks(tmp,distance=100)
             idx = np.argsort(tmp[peak_locations])
-            peak_0_location = peak_locations[idx[-1]]
-            peak_1_location = peak_locations[idx[-2]] # for air-glass-water, the smaller peak corresponds to the glass-water interface
+            try:
+                peak_0_location = peak_locations[idx[-1]]
+            except IndexError:
+                raise Exception("did not find first peak in laser AF image. this is a bug.")
+            try:
+                peak_1_location = peak_locations[idx[-2]] # for air-glass-water, the smaller peak corresponds to the glass-water interface
+            except IndexError:
+                raise Exception("did not find second peak in laser AF image. this is a bug.")
             self.spot_spacing_pixels = peak_1_location-peak_0_location
             '''
             # find peaks - alternative
@@ -199,64 +288,4 @@ class LaserAutofocusController(QObject):
             y1 = np.sum(y*I)/np.sum(I)
             return x1,y0-96+y1
 
-    def _get_laser_spot_centroid(self):
-        tmp_x = 0
-        tmp_y = 0
-
-        for i in range(MACHINE_CONFIG.LASER_AF_AVERAGING_N):
-            DEBUG_THIS_STUFF=False
-
-            # try acquiring camera image until one arrives (can sometimes miss an image for some reason)
-            image=None
-            current_counter=0
-            while image is None:
-                if DEBUG_THIS_STUFF:
-                    print(f"{current_counter=}")
-                    current_counter+=1
-
-                # from https://stackoverflow.com/questions/31358646/qt5-how-to-wait-for-a-signal-in-a-thread
-                imaging_done_event_loop=QEventLoop()
-                def quiteventloop():
-                    imaging_done_event_loop.quit()
-                self.liveController.stream_handler.signal_new_frame_received.connect(quiteventloop)
-
-                # enable processing of incoming camera images, turn on autofocus laser, request image
-                self.liveController.camera.is_live=True
-                self.liveController.camera.start_streaming()
-                self.microcontroller.turn_on_AF_laser(completion={})
-                self.liveController.trigger_acquisition()
-
-                # await image arrival
-                imaging_done_event_loop.exec()
-
-                # turn off processing of incoming camera images, turn off autofocus laser
-                self.liveController.stream_handler.signal_new_frame_received.disconnect(quiteventloop)
-                self.liveController.camera.stop_streaming()
-                self.liveController.camera.is_live=False
-                self.microcontroller.turn_off_AF_laser(completion={})
-
-                image = self.liveController.stream_handler.last_image
-
-            # optionally display the image
-            if MACHINE_CONFIG.LASER_AF_DISPLAY_SPOT_IMAGE:
-                self.image_to_display.emit(image)
-
-            # calculate centroid
-            x,y = self._caculate_centroid(image)
-
-            if DEBUG_THIS_STUFF:
-                print(f"{x = } {(MACHINE_CONFIG.LASER_AF_CROP_WIDTH/2) = }")
-                print(f"{y = } {(MACHINE_CONFIG.LASER_AF_CROP_HEIGHT/2) = }")
-
-                plt.imshow(image,cmap="gist_gray")
-                plt.scatter([x],[y],marker="x",c="green")
-                plt.show()
-
-            tmp_x += x
-            tmp_y += y
-
-        x = tmp_x/MACHINE_CONFIG.LASER_AF_AVERAGING_N
-        y = tmp_y/MACHINE_CONFIG.LASER_AF_AVERAGING_N
-
-        return x,y
   
