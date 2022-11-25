@@ -489,8 +489,8 @@ MACHINE_CONFIG=MachineConfiguration(
     ),
         
     # for 384 well plate
-    X_MM_384_WELLPLATE_UPPERLEFT = 13.36,
-    Y_MM_384_WELLPLATE_UPPERLEFT = 11.28,
+    X_MM_384_WELLPLATE_UPPERLEFT = 12.74,
+    Y_MM_384_WELLPLATE_UPPERLEFT = 11.52,
 
     # for other plate format
     WELLPLATE_OFFSET_X_mm = 0.0,

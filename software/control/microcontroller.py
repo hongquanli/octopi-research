@@ -100,7 +100,7 @@ class Microcontroller():
         cmd[1] = CMD_SET.TURN_OFF_ILLUMINATION
         self.send_command(cmd)
 
-    def set_illumination(self,illumination_source:int,intensity:float):#,r=None,g=None,b=None):
+    def set_illumination(self,illumination_source:int,intensity:float):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION
         cmd[2] = illumination_source
@@ -108,7 +108,7 @@ class Microcontroller():
         cmd[4] = int((intensity/100)*65535) & 0xff
         self.send_command(cmd)
 
-    def set_illumination_led_matrix(self,illumination_source,r,g,b):
+    def set_illumination_led_matrix(self,illumination_source:int,r:float,g:float,b:float):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION_LED_MATRIX
         cmd[2] = illumination_source
@@ -117,7 +117,7 @@ class Microcontroller():
         cmd[5] = min(int(b*255),255)
         self.send_command(cmd)
 
-    def send_hardware_trigger(self,control_illumination=False,illumination_on_time_us=0,trigger_output_ch=0):
+    def send_hardware_trigger(self,control_illumination:bool=False,illumination_on_time_us:int=0,trigger_output_ch:int=0):
         illumination_on_time_us = int(illumination_on_time_us)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SEND_HARDWARE_TRIGGER

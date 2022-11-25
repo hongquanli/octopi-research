@@ -130,8 +130,8 @@ class LaserAutofocusController(QObject):
         if np.abs(um_to_move)<MACHINE_CONFIG.LASER_AUTOFOCUS_TARGET_MOVE_REPEAT_THRESHOLD_UM:
             return
 
-        if currently_repeating:
-            print(f"repeating laser af 'movement to target' (off by {um_to_move} after first move)")
+        #if currently_repeating:
+        #    print(f"repeating laser af 'movement to target' (off by {um_to_move} after first move)")
 
         # limit the range of movement
         um_to_move = min(um_to_move,200)
@@ -188,9 +188,11 @@ class LaserAutofocusController(QObject):
                 self.microcontroller.turn_on_AF_laser(completion={})
 
                 # take image
+                self.liveController.camera.start_streaming()
                 self.liveController.trigger_acquisition()
-                self.liveController.end_acquisition() # callback disabled -> do this manually
                 image = self.camera.read_frame()
+                self.liveController.end_acquisition() # callback disabled -> do this manually
+                self.liveController.camera.stop_streaming()
 
                 self.microcontroller.turn_off_AF_laser(completion={})
 

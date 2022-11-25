@@ -21,7 +21,8 @@ class Configuration:
         exposure_time:float,
         analog_gain:float,
         illumination_source:int,
-        illumination_intensity:float
+        illumination_intensity:float,
+        channel_z_offset:Optional[float]=None
     ):
         self.id = mode_id
         
@@ -37,6 +38,9 @@ class Configuration:
         self.illumination_source = illumination_source
         self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
+
+        self.channel_z_offset=channel_z_offset
+        """ relative z offset of the average object in this channel (e.g. used in multichannel acquisition) """
 
 class ConfigurationManager(QObject):
     def __init__(self,filename=str(Path.home() / "configurations_default.xml")):
@@ -67,7 +71,9 @@ class ConfigurationManager(QObject):
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
                     illumination_intensity = float(mode.get('IlluminationIntensity')),
-                    camera_sn = mode.get('CameraSN'))
+                    camera_sn = mode.get('CameraSN'),
+                    channel_z_offset = None if mode.get('RelativeZOffsetUM')=="" else float(mode.get('RelativeZOffsetUM')),
+                )
             )
 
     def update_configuration(self,configuration_id,attribute_name,new_value):

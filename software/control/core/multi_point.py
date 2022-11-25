@@ -110,7 +110,62 @@ class MultiPointWorker(QObject):
                     time.sleep(0.05)
 
         self.finished.emit()
+        
         print("finished multipoint acquisition")
+
+    def perform_software_autofocus(self):
+        """ run software autofocus to focus on current fov """
+
+        configuration_name_AF = MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
+        config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
+        self.signal_current_configuration.emit(config_AF)
+        self.autofocusController.autofocus()
+        self.autofocusController.wait_till_autofocus_has_completed()
+
+    def image_config(self,config:Configuration,saving_path:str):
+        """ take image for specified configuration and save to specified path """
+
+        if 'USB Spectrometer' in config.name:
+            raise Exception("usb spectrometer not supported")
+
+        # update the current configuration
+        self.signal_current_configuration.emit(config)
+        self.microcontroller.wait_till_operation_is_completed()
+
+        if not config.channel_z_offset is None:
+            print(f"moving to relative offset {config.channel_z_offset}µm (in the future when this is implemented)")
+            pass # todo: move to corresponding z
+
+        # trigger acquisition (including turning on the illumination), then save image and turn illumniation off again
+        self.liveController.trigger_acquisition()
+
+        image = self.camera.read_frame()
+        
+        self.liveController.end_acquisition()
+
+        # process the image -  @@@ to move to camera
+        image = utils.crop_image(image,self.crop_width,self.crop_height)
+        image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+        image_to_display = utils.crop_image(image,self.crop_width, self.crop_height)
+        self.image_to_display.emit(image_to_display)
+        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+            
+        if self.camera.is_color:
+            if 'BF LED matrix' in config.name:
+                if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW and image.dtype!=numpy.uint16:
+                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+                elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
+                    image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+                elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
+                    image = image[:,:,1]
+            else:
+                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
+
+        ImageSaver.save_image(path=saving_path,image=numpy.asarray(image),file_format=Acquisition.IMAGE_FORMAT)
+
+        QApplication.processEvents()
+
+        self.signal_new_acquisition.emit('c')
 
     def run_single_time_point(self):
 
@@ -173,11 +228,7 @@ class MultiPointWorker(QObject):
                         if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                         # temporary: replace the above line with the line below to AF every FOV
                         # if (self.NZ == 1) and (self.do_autofocus):
-                            configuration_name_AF = MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
-                            config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                            self.signal_current_configuration.emit(config_AF)
-                            self.autofocusController.autofocus()
-                            self.autofocusController.wait_till_autofocus_has_completed()
+                            self.perform_software_autofocus()
                     else:
                         # first FOV
                         if self.reflection_af_initialized==False:
@@ -185,11 +236,7 @@ class MultiPointWorker(QObject):
                             self.laserAutofocusController.initialize_auto()
                             # do contrast AF for the first FOV
                             if self.do_autofocus and self.FOV_counter==0 and ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) :
-                                configuration_name_AF = MUTABLE_MACHINE_CONFIG.MULTIPOINT_AUTOFOCUS_CHANNEL
-                                config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
-                                self.signal_current_configuration.emit(config_AF)
-                                self.autofocusController.autofocus()
-                                self.autofocusController.wait_till_autofocus_has_completed()
+                                self.perform_software_autofocus()
                             # set the current plane as reference
                             self.laserAutofocusController.set_reference()
                             self.reflection_af_initialized = True
@@ -214,52 +261,12 @@ class MultiPointWorker(QObject):
                         # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                         # metadata = json.dumps(metadata)
 
+                        movement_deviation_from_focusplane=0.0
+
                         # iterate through selected modes
                         for config in tqdm(self.selected_configurations,desc="channel",unit="channel",leave=False):
-                            if 'USB Spectrometer' in config.name:
-                                raise Exception("usb spectrometer not supported")
-
-                            # update the current configuration
-                            self.signal_current_configuration.emit(config)
-                            self.microcontroller.wait_till_operation_is_completed()
-
-                            # trigger acquisition (including turning on the illumination)
-                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                                self.liveController.turn_on_illumination()
-                                self.camera.send_trigger()
-                            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-
-                            # read camera frame
-                            image = self.camera.read_frame()
-                            # tunr of the illumination if using software trigger
-                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
-                                self.liveController.turn_off_illumination()
-                            # process the image -  @@@ to move to camera
-                            image = utils.crop_image(image,self.crop_width,self.crop_height)
-                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                            # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width), round(self.crop_height)),cv2.INTER_LINEAR))
-                            image_to_display = utils.crop_image(image,self.crop_width, self.crop_height)
-                            self.image_to_display.emit(image_to_display)
-                            self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                                
                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_'))
-                            if self.camera.is_color:
-                                if 'BF LED matrix' in config.name:
-                                    if MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RAW and image.dtype!=numpy.uint16:
-                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                    elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.RGB2GRAY:
-                                        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                                    elif MUTABLE_MACHINE_CONFIG.MULTIPOINT_BF_SAVING_OPTION == BrightfieldSavingMode.GREEN_ONLY:
-                                        image = image[:,:,1]
-                                else:
-                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-
-                            ImageSaver.save_image(path=saving_path,image=numpy.asarray(image),file_format=Acquisition.IMAGE_FORMAT)
-
-                            QApplication.processEvents()
-
-                            self.signal_new_acquisition.emit('c')
+                            self.image_config(config=config,saving_path=saving_path)
 
                         # add the coordinate of the current location
                         coordinates_pd = pd.concat([

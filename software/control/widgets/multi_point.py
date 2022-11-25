@@ -140,7 +140,7 @@ class MultiPointWidget(QFrame):
             af_channel_dropdown.setCurrentIndex(channel_names.index(self.multipointController.autofocus_channel_name))
             af_channel_dropdown.currentIndexChanged.connect(lambda index:setattr(MUTABLE_MACHINE_CONFIG,"MULTIPOINT_AUTOFOCUS_CHANNEL",channel_names[index]))
             self.af_channel_dropdown=af_channel_dropdown
-            
+
             self.set_software_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_SOFTWARE_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
             self.checkbox_laserAutofocs = QCheckBox('Laser AF')
@@ -262,7 +262,7 @@ class MultiPointWidget(QFrame):
         nx=self.multipointController.NX
         ny=self.multipointController.NY
 
-        self.well_grid_selector.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
+        #self.well_grid_selector.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
         self.well_grid_selector.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
         self.well_grid_selector.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
         self.well_grid_selector.setFixedSize(size,size)
@@ -274,6 +274,7 @@ class MultiPointWidget(QFrame):
                 grid_item=QTableWidgetItem()
                 grid_item.setSizeHint(QSize(grid_item.sizeHint().width(), size//nx))
                 grid_item.setSizeHint(QSize(grid_item.sizeHint().height(), size//ny))
+                grid_item.setSelected(True)
                 self.well_grid_selector.setItem(y,x,grid_item)
 
         self.well_grid_selector.resizeColumnsToContents()

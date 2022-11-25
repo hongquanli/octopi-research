@@ -141,6 +141,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_move_to_target.setText(MOVE_TO_TARGET_BUTTON_TEXT_IN_PROGRESS)
 
         self.laserAutofocusController.move_to_target(self.entry_target.value())
+        self.laserAutofocusController.measure_displacement()
 
         self.btn_move_to_target.setDisabled(False)
         self.btn_move_to_target.setText(MOVE_TO_TARGET_BUTTON_TEXT_IDLE)
