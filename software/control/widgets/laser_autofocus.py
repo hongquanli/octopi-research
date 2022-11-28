@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QFrame, QPushButton, QLabel, QDoubleSpinBox, QGridLayout
+from qtpy.QtWidgets import QApplication, QFrame, QPushButton, QLabel, QDoubleSpinBox, QGridLayout
 
 from control.core import LaserAutofocusController
 
@@ -91,11 +91,13 @@ class LaserAutofocusControlWidget(QFrame):
 
         self.btn_initialize.setDisabled(True)
         self.btn_initialize.setText(INITIALIZE_BUTTON_TEXT_IN_PROGRESS)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
         self.laserAutofocusController.initialize_auto()
 
         self.btn_initialize.setDisabled(False)
         self.btn_initialize.setText(INITIALIZE_BUTTON_TEXT_IDLE)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
         # allow setting of a reference after initialization
         if not self.has_been_initialized:
@@ -110,11 +112,13 @@ class LaserAutofocusControlWidget(QFrame):
     def set_reference(self):
         self.btn_set_reference.setDisabled(True)
         self.btn_set_reference.setText(SET_REFERENCE_BUTTON_TEXT_IN_PROGRESS)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
         self.laserAutofocusController.set_reference()
 
         self.btn_set_reference.setDisabled(False)
         self.btn_set_reference.setText(SET_REFERENCE_BUTTON_TEXT_IDLE)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
         # allow actual use of laser AF now
         if not self.reference_was_set:
@@ -130,18 +134,22 @@ class LaserAutofocusControlWidget(QFrame):
     def measure_displacement(self):
         self.btn_measure_displacement.setDisabled(True)
         self.btn_measure_displacement.setText(MEASURE_DISPLACEMENT_BUTTON_TEXT_IN_PROGRESS)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
         
         self.laserAutofocusController.measure_displacement()
 
         self.btn_measure_displacement.setDisabled(False)
         self.btn_measure_displacement.setText(MEASURE_DISPLACEMENT_BUTTON_TEXT_IDLE)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
     def move_to_target(self,target_um):
         self.btn_move_to_target.setDisabled(True)
         self.btn_move_to_target.setText(MOVE_TO_TARGET_BUTTON_TEXT_IN_PROGRESS)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
         self.laserAutofocusController.move_to_target(self.entry_target.value())
         self.laserAutofocusController.measure_displacement()
 
         self.btn_move_to_target.setDisabled(False)
         self.btn_move_to_target.setText(MOVE_TO_TARGET_BUTTON_TEXT_IDLE)
+        QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
