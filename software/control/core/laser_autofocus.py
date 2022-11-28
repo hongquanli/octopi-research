@@ -105,11 +105,11 @@ class LaserAutofocusController(QObject):
 
         print("laser AF initialization done")
 
-    def measure_displacement(self):
+    def measure_displacement(self)->float:
         assert self.is_initialized and not self.x_reference is None
 
         # turn on the laser
-        self.microcontroller.turn_on_AF_laser()
+        self.microcontroller.turn_on_AF_laser(completion={})
 
         # get laser spot location
         x,y = self._get_laser_spot_centroid(num_images=MACHINE_CONFIG.LASER_AF_AVERAGING_N_FAST)

@@ -64,6 +64,13 @@ class StreamHandler(QObject):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
+    def process_image(self,camera):
+        image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
+        image_cropped = np.squeeze(image_cropped)
+        image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
+
+        return utils.crop_image(image_cropped,round(self.crop_width), round(self.crop_height))
+
     def on_new_frame(self, camera:camera.Camera):
         """ this is registered as callback when the camera has recorded an image """
         if camera.is_live:
@@ -83,21 +90,7 @@ class StreamHandler(QObject):
                     self.counter = 0
                     print('real camera fps is ' + str(self.fps_real))
 
-            # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
-            # # rotate and flip - eventually these should be done in the camera
-            # camera.current_frame = utils.rotate_and_flip_image(camera.current_frame,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
-
-            # crop image
-            image_cropped = utils.crop_image(camera.current_frame,self.crop_width,self.crop_height)
-            image_cropped = np.squeeze(image_cropped)
-            
-            # # rotate and flip - moved up (1/10/2022)
-            # image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-            # added on 1/30/2022
-            # @@@ to move to camera 
-            image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=camera.rotate_image_angle,flip_image=camera.flip_image)
-
-            self.last_image=utils.crop_image(image_cropped,round(self.crop_width), round(self.crop_height))
+            self.last_image=self.process_image(camera)
 
             # send image to display
             time_now = time.time()
@@ -110,8 +103,10 @@ class StreamHandler(QObject):
             # send image to write
             if self.save_image_flag and time_now-self.timestamp_last_save >= 1/self.fps_save:
                 if camera.is_color:
-                    image_cropped = cv2.cvtColor(image_cropped,cv2.COLOR_RGB2BGR)
-                self.packet_image_to_write.emit(image_cropped,camera.frame_ID,camera.timestamp)
+                    packet_image = cv2.cvtColor(self.last_image,cv2.COLOR_RGB2BGR)
+                else:
+                    packet_image=self.last_image
+                self.packet_image_to_write.emit(packet_image,camera.frame_ID,camera.timestamp)
                 self.timestamp_last_save = time_now
 
             self.handler_busy = False

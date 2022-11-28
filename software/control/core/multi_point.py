@@ -23,6 +23,11 @@ from control.typechecker import TypecheckFunction
 
 from tqdm import tqdm
 
+class AbortAcquisitionException(Exception):
+    def __init__(self):
+        super().__init__()
+
+
 class MultiPointWorker(QObject):
 
     finished = Signal()
@@ -110,7 +115,7 @@ class MultiPointWorker(QObject):
                     time.sleep(0.05)
 
         self.finished.emit()
-        
+
         print("finished multipoint acquisition")
 
     def perform_software_autofocus(self):
@@ -121,6 +126,11 @@ class MultiPointWorker(QObject):
         self.signal_current_configuration.emit(config_AF)
         self.autofocusController.autofocus()
         self.autofocusController.wait_till_autofocus_has_completed()
+
+    def process_image(self,image):
+        image = utils.crop_image(image,self.crop_width,self.crop_height)
+        image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+        return utils.crop_image(image,self.crop_width, self.crop_height)
 
     def image_config(self,config:Configuration,saving_path:str):
         """ take image for specified configuration and save to specified path """
@@ -144,11 +154,9 @@ class MultiPointWorker(QObject):
         self.liveController.end_acquisition()
 
         # process the image -  @@@ to move to camera
-        image = utils.crop_image(image,self.crop_width,self.crop_height)
-        image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-        image_to_display = utils.crop_image(image,self.crop_width, self.crop_height)
-        self.image_to_display.emit(image_to_display)
-        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+        image = self.process_image(image)
+        self.image_to_display.emit(image)
+        self.image_to_display_multi.emit(image,config.illumination_source)
             
         if self.camera.is_color:
             if 'BF LED matrix' in config.name:
@@ -167,6 +175,100 @@ class MultiPointWorker(QObject):
 
         self.signal_new_acquisition.emit('c')
 
+    def image_well_at_position(self,x:int,y:int,coordinate_name:str):
+
+        j=x # todo actually rename the variables in this code
+        i=y # todo actually rename the variables in this code
+
+        ret_coords=[]
+
+        # autofocus
+        if self.do_reflection_af == False:
+            # perform AF only when (not taking z stack) or (doing z stack from center)
+            if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter % Acquisition.NUMBER_OF_FOVS_PER_AF == 0):
+                self.perform_software_autofocus()
+        else:
+            # first FOV
+            if self.reflection_af_initialized==False:
+                # initialize the reflection AF
+                self.laserAutofocusController.initialize_auto()
+                # do contrast AF for the first FOV
+                if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter==0):
+                    self.perform_software_autofocus()
+                # set the current plane as reference
+                self.laserAutofocusController.set_reference()
+                self.reflection_af_initialized = True
+            else:
+                self.laserAutofocusController.move_to_target(0)
+
+        if (self.NZ > 1):
+            # move to bottom of the z stack
+            if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
+                base_z=-self.deltaZ_usteps*round((self.NZ-1)/2)
+                self.navigationController.move_z_usteps(base_z,wait_for_completion={},wait_for_stabilization=True)
+            # maneuver for achiving uniform step size and repeatability when using open-loop control
+            self.navigationController.move_z_usteps(-160,wait_for_completion={})
+            self.navigationController.move_z_usteps(160,wait_for_completion={},wait_for_stabilization=True)
+
+        # z-stack
+        for k in range(self.NZ):
+            if self.num_positions_per_well>1:
+                _=next(self.well_tqdm_iter,0)
+            
+            file_ID = coordinate_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+            # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
+            # metadata = json.dumps(metadata)
+
+            movement_deviation_from_focusplane=0.0
+
+            # iterate through selected modes
+            for config in tqdm(self.selected_configurations,desc="channel",unit="channel",leave=False):
+                saving_path = os.path.join(self.current_path, file_ID + '_' + str(config.name).replace(' ','_'))
+                self.image_config(config=config,saving_path=saving_path)
+
+            # add the coordinate of the current location
+            ret_coords.append({
+                'i':i,'j':j,'k':k,
+                'x (mm)':self.navigationController.x_pos_mm,
+                'y (mm)':self.navigationController.y_pos_mm,
+                'z (um)':self.navigationController.z_pos_mm*1000
+            })
+
+            # register the current fov in the navigationViewer 
+            self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
+
+            # check if the acquisition should be aborted
+            if self.multiPointController.abort_acqusition_requested:
+                raise AbortAcquisitionException()
+
+            if self.NZ > 1:
+                # move z
+                if k < self.NZ - 1:
+                    self.navigationController.move_z_usteps(self.deltaZ_usteps,wait_for_completion={},wait_for_stabilization=True)
+                    self.on_abort_dz_usteps = self.on_abort_dz_usteps + self.deltaZ_usteps
+
+            self.signal_new_acquisition.emit('z')
+        
+        if self.NZ > 1:
+            # move z back
+            latest_offset=-self.deltaZ_usteps*(self.NZ-1)
+            if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
+                latest_offset+=self.deltaZ_usteps*round((self.NZ-1)/2)
+
+            self.on_abort_dz_usteps += latest_offset
+            self.navigationController.move_z_usteps(latest_offset,wait_for_completion={})
+
+        # update FOV counter
+        self.FOV_counter = self.FOV_counter + 1
+
+        if self.NX > 1:
+            # move x
+            if j < self.NX - 1:
+                self.navigationController.move_x_usteps(self.x_scan_direction*self.deltaX_usteps,wait_for_completion={},wait_for_stabilization=True)
+                self.on_abort_dx_usteps = self.on_abort_dx_usteps + self.x_scan_direction*self.deltaX_usteps
+
+        return ret_coords
+
     def run_single_time_point(self):
 
         # disable joystick button action
@@ -178,10 +280,13 @@ class MultiPointWorker(QObject):
         
         # for each time point, create a new folder
         current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
+        self.current_path=current_path
         os.mkdir(current_path)
 
         # create a dataframe to save coordinates
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
+
+        self.num_positions_per_well=self.NX*self.NY*self.NZ
 
         # each region is a well
         n_regions = len(self.scan_coordinates_name)
@@ -198,21 +303,20 @@ class MultiPointWorker(QObject):
             # add '_' to the coordinate name
             coordinate_name = coordinate_name + '_'
 
-            x_scan_direction = 1 # will be flipped between {-1, 1} to alternate movement direction in rows within the same well (instead of moving to same edge of row and wasting time by doing so)
-            on_abort_dx_usteps = 0
-            on_abort_dy_usteps = 0
-            on_abort_dz_usteps = 0
+            self.x_scan_direction = 1 # will be flipped between {-1, 1} to alternate movement direction in rows within the same well (instead of moving to same edge of row and wasting time by doing so)
+            self.on_abort_dx_usteps = 0
+            self.on_abort_dy_usteps = 0
+            self.on_abort_dz_usteps = 0
             z_pos = self.navigationController.z_pos
 
             # z stacking config
             if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
-            num_positions_per_well=self.NX*self.NY*self.NZ
-            if num_positions_per_well>1:
+            if self.num_positions_per_well>1:
                 # show progress when iterating over all well positions (do not differentiatte between xyz in this progress bar, it's too quick for that)
-                well_tqdm=tqdm(range(num_positions_per_well),desc="pos in well", unit="pos",leave=False)
-                well_tqdm_iter=iter(well_tqdm)
+                well_tqdm=tqdm(range(self.num_positions_per_well),desc="pos in well", unit="pos",leave=False)
+                self.well_tqdm_iter=iter(well_tqdm)
 
             # along y
             for i in range(self.NY):
@@ -222,132 +326,53 @@ class MultiPointWorker(QObject):
                 # along x
                 for j in range(self.NX):
 
-                    # autofocus
-                    if self.do_reflection_af == False:
-                        # perform AF only if when not taking z stack or doing z stack from center
-                        if ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-                        # temporary: replace the above line with the line below to AF every FOV
-                        # if (self.NZ == 1) and (self.do_autofocus):
-                            self.perform_software_autofocus()
-                    else:
-                        # first FOV
-                        if self.reflection_af_initialized==False:
-                            # initialize the reflection AF
-                            self.laserAutofocusController.initialize_auto()
-                            # do contrast AF for the first FOV
-                            if self.do_autofocus and self.FOV_counter==0 and ( (self.NZ == 1) or MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER' ) :
-                                self.perform_software_autofocus()
-                            # set the current plane as reference
-                            self.laserAutofocusController.set_reference()
-                            self.reflection_af_initialized = True
-                        else:
-                            self.laserAutofocusController.move_to_target(0)
+                    try:
+                        imaged_coords_dict_list=self.image_well_at_position(
+                            x=j,y=i,
+                            coordinate_name=coordinate_name,
+                        )
 
-                    if (self.NZ > 1):
-                        # move to bottom of the z stack
-                        if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
-                            base_z=-self.deltaZ_usteps*round((self.NZ-1)/2)
-                            self.navigationController.move_z_usteps(base_z,wait_for_completion={},wait_for_stabilization=True)
-                        # maneuver for achiving uniform step size and repeatability when using open-loop control
-                        self.navigationController.move_z_usteps(-160,wait_for_completion={})
-                        self.navigationController.move_z_usteps(160,wait_for_completion={},wait_for_stabilization=True)
-
-                    # z-stack
-                    for k in range(self.NZ):
-                        if num_positions_per_well>1:
-                            _=next(well_tqdm_iter,0)
-                        
-                        file_ID = coordinate_name + str(i) + '_' + str(j if x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
-                        # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
-                        # metadata = json.dumps(metadata)
-
-                        movement_deviation_from_focusplane=0.0
-
-                        # iterate through selected modes
-                        for config in tqdm(self.selected_configurations,desc="channel",unit="channel",leave=False):
-                            saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_'))
-                            self.image_config(config=config,saving_path=saving_path)
-
-                        # add the coordinate of the current location
                         coordinates_pd = pd.concat([
                             coordinates_pd,
-                            pd.DataFrame([{'i':i,'j':j,'k':k,
-                                            'x (mm)':self.navigationController.x_pos_mm,
-                                            'y (mm)':self.navigationController.y_pos_mm,
-                                            'z (um)':self.navigationController.z_pos_mm*1000}])
+                            pd.DataFrame(imaged_coords_dict_list)
                         ])
+                    except AbortAcquisitionException:
+                        self.liveController.turn_off_illumination()
+                        self.navigationController.move_x_usteps(-self.on_abort_dx_usteps,wait_for_completion={})
+                        self.navigationController.move_y_usteps(-self.on_abort_dy_usteps,wait_for_completion={})
+                        self.navigationController.move_z_usteps(-self.on_abort_dz_usteps,wait_for_completion={})
 
-                        # register the current fov in the navigationViewer 
-                        self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
+                        coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
+                        self.navigationController.enable_joystick_button_action = True
 
-                        # check if the acquisition should be aborted
-                        if self.multiPointController.abort_acqusition_requested:
-                            self.liveController.turn_off_illumination()
-                            self.navigationController.move_x_usteps(-on_abort_dx_usteps,wait_for_completion={})
-                            self.navigationController.move_y_usteps(-on_abort_dy_usteps,wait_for_completion={})
-                            self.navigationController.move_z_usteps(-on_abort_dz_usteps,wait_for_completion={})
-
-                            coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
-                            self.navigationController.enable_joystick_button_action = True
-
-                            return
-
-                        if self.NZ > 1:
-                            # move z
-                            if k < self.NZ - 1:
-                                self.navigationController.move_z_usteps(self.deltaZ_usteps,wait_for_completion={},wait_for_stabilization=True)
-                                on_abort_dz_usteps = on_abort_dz_usteps + self.deltaZ_usteps
-
-                        self.signal_new_acquisition.emit('z')
-                    
-                    if self.NZ > 1:
-                        # move z back
-                        if MACHINE_CONFIG.Z_STACKING_CONFIG == 'FROM CENTER':
-                            latest_offset=-self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
-                            on_abort_dz_usteps += latest_offset
-
-                            self.navigationController.move_z_usteps(latest_offset,wait_for_completion={})
-                        else:
-                            latest_offset=-self.deltaZ_usteps*(self.NZ-1)
-                            on_abort_dz_usteps += latest_offset
-
-                            self.navigationController.move_z_usteps(latest_offset,wait_for_completion={})
-
-                    # update FOV counter
-                    self.FOV_counter = self.FOV_counter + 1
-
-                    if self.NX > 1:
-                        # move x
-                        if j < self.NX - 1:
-                            self.navigationController.move_x_usteps(x_scan_direction*self.deltaX_usteps,wait_for_completion={},wait_for_stabilization=True)
-                            on_abort_dx_usteps = on_abort_dx_usteps + x_scan_direction*self.deltaX_usteps
+                        return
 
                     self.signal_new_acquisition.emit('x')
 
                 # instead of move back, reverse scan direction (12/29/2021)
-                x_scan_direction = -x_scan_direction
+                self.x_scan_direction = -self.x_scan_direction
 
                 if self.NY > 1:
                     # move y
                     if i < self.NY - 1:
                         self.navigationController.move_y_usteps(self.deltaY_usteps,wait_for_completion={},wait_for_stabilization=True)
-                        on_abort_dy_usteps = on_abort_dy_usteps + self.deltaY_usteps
+                        self.on_abort_dy_usteps = self.on_abort_dy_usteps + self.deltaY_usteps
 
                 self.signal_new_acquisition.emit('y')
 
             # exhaust tqdm iterator
-            if num_positions_per_well>1:
-                _=next(well_tqdm_iter,0)
+            if self.num_positions_per_well>1:
+                _=next(self.well_tqdm_iter,0)
 
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
                 if self.NY > 1:
                     # move y back
                     self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1),wait_for_completion={},wait_for_stabilization=True)
-                    on_abort_dy_usteps = on_abort_dy_usteps - self.deltaY_usteps*(self.NY-1)
+                    self.on_abort_dy_usteps = self.on_abort_dy_usteps - self.deltaY_usteps*(self.NY-1)
 
                 # move x back at the end of the scan
-                if x_scan_direction == -1:
+                if self.x_scan_direction == -1:
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1),wait_for_completion={},wait_for_stabilization=True)
 
                 # move z back
