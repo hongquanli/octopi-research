@@ -119,7 +119,11 @@ class OctopiGUI(QMainWindow):
 
             time_elapsed_since_start=time.monotonic()-self.acquisition_start_time
             approx_time_left=time_elapsed_since_start/self.acquisition_progress*(self.total_num_acquisitions-self.acquisition_progress)
-            self.multiPointWidget.progress_bar.setFormat(f"completed {self.acquisition_progress:4}/{self.total_num_acquisitions:4} in {time_elapsed_since_start:8.1f}s (eta: {approx_time_left:8.1f}s)")
+
+            if self.acquisition_progress==self.total_num_acquisitions:
+                self.multiPointWidget.progress_bar.setFormat(f"done. (acquired {self.total_num_acquisitions:4} images in {time_elapsed_since_start:8.1f}s)")
+            else:
+                self.multiPointWidget.progress_bar.setFormat(f"completed {self.acquisition_progress:4}/{self.total_num_acquisitions:4} in {time_elapsed_since_start:8.1f}s (eta: {approx_time_left:8.1f}s)")
 
     def abort_experiment(self):
         self.multipointController.request_abort_aquisition()
