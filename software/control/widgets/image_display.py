@@ -90,6 +90,23 @@ class ImageDisplayWindow(QMainWindow):
         else:
             self.graphics_widget.img = pg.ImageItem(border='w')
             self.graphics_widget.view.addItem(self.graphics_widget.img)
+            max_state=[[-1011.6942184540692, 4011.694218454069], [-147.79939172464378, 3147.799391724644]] # furthest zoomed out
+            min_state=[[1105.2084826209198, 1163.5473663736475], [1401.9018607761034, 1440.1751411998673]] # furthest zoomed in
+            ((max_lowerx,max_upperx),(max_lowery,max_uppery))=max_state
+            ((min_lowerx,min_upperx),(min_lowery,min_uppery))=min_state
+
+            # restrict zooming and moving (part 2 of 2)
+            self.graphics_widget.view.setLimits(
+                xMin=max_lowerx,
+                xMax=max_upperx,
+                yMin=max_lowery,
+                yMax=max_uppery,
+
+                minXRange=min_upperx-min_lowerx,
+                maxXRange=max_upperx-max_lowerx,
+                minYRange=min_uppery-min_lowery,
+                maxYRange=max_uppery-max_lowery,
+            )
 
         ## Create ROI
         self.roi_pos = (500,500)
@@ -243,6 +260,9 @@ class ImageArrayDisplayWindow(QMainWindow):
             image_display_layout.addLayout(next_graphics_widget_wrapper, row, column)
 
             self.graphics_widgets.append(next_graphics_widget)
+
+        # all views are linked, to it's enough to set the (initial) view range on a single view
+        self.graphics_widgets[0].view.setRange(xRange=(max_lowerx,max_upperx),yRange=(max_lowery,max_uppery))
 
         self.widget.setLayout(image_display_layout)
 
