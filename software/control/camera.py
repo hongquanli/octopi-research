@@ -195,17 +195,8 @@ class Camera(object):
 
     @TypecheckFunction
     def set_exposure_time(self,exposure_time:float):
-        assert not self.camera is None
-        use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
-        if use_strobe == False or self.is_global_shutter:
-            self.exposure_time = exposure_time
-            self.camera.ExposureTime.set(exposure_time * 1000)
-        else:
-            # set the camera exposure time such that the active exposure time (illumination on time) is the desired value
-            self.exposure_time = exposure_time
-            # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
-            camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
-            self.camera.ExposureTime.set(camera_exposure_time)
+        self.exposure_time = exposure_time
+        self.update_camera_exposure_time()
 
     @TypecheckFunction
     def update_camera_exposure_time(self):
