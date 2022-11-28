@@ -389,7 +389,7 @@ class MachineConfiguration:
     HAS_TWO_INTERFACES:bool = True
     USE_GLASS_TOP:bool = True
     SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS:bool = False
-    LASER_AUTOFOCUS_TARGET_MOVE_REPEAT_THRESHOLD_UM:float = 0.3 # when moving to target, if absolute measured displacement after movement is larger than this value, repeat move to target (repeat max once) - note that the usual um/pixel value is 0.4
+    LASER_AUTOFOCUS_TARGET_MOVE_THRESHOLD_UM:float = 0.3 # when moving to target, if absolute measured displacement after movement is larger than this value, repeat move to target (repeat max once) - note that the usual um/pixel value is 0.4
 
     MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = False
 

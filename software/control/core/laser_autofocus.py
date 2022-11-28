@@ -127,15 +127,11 @@ class LaserAutofocusController(QObject):
         current_displacement_um = self.measure_displacement()
 
         um_to_move = target_um - current_displacement_um
-        if np.abs(um_to_move)<MACHINE_CONFIG.LASER_AUTOFOCUS_TARGET_MOVE_REPEAT_THRESHOLD_UM:
+        if np.abs(um_to_move)<MACHINE_CONFIG.LASER_AUTOFOCUS_TARGET_MOVE_THRESHOLD_UM:
             return
 
-        #if currently_repeating:
-        #    print(f"repeating laser af 'movement to target' (off by {um_to_move} after first move)")
-
         # limit the range of movement
-        um_to_move = min(um_to_move,200)
-        um_to_move = max(um_to_move,-200)
+        um_to_move = np.clip(um_to_move,-200,200)
 
         self.navigationController.move_z(um_to_move/1000,wait_for_completion={})
 
@@ -163,6 +159,8 @@ class LaserAutofocusController(QObject):
             self.camera.disable_callback()
         else:
             callback_was_enabled=False
+
+        self.liveController.set_microscope_mode(self.liveController.currentConfiguration)
 
         tmp_x = 0
         tmp_y = 0

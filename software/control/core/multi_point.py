@@ -142,9 +142,13 @@ class MultiPointWorker(QObject):
         self.signal_current_configuration.emit(config)
         self.microcontroller.wait_till_operation_is_completed()
 
-        if not config.channel_z_offset is None:
-            print(f"moving to relative offset {config.channel_z_offset}µm (in the future when this is implemented)")
-            pass # todo: move to corresponding z
+        # move to channel specific offset (if required)
+        target_um=config.channel_z_offset or 0.0
+        um_to_move=target_um-self.movement_deviation_from_focusplane
+        if numpy.abs(um_to_move)>MACHINE_CONFIG.LASER_AUTOFOCUS_TARGET_MOVE_THRESHOLD_UM:
+            #print(f"moving to relative offset {target_um}µm")
+            self.movement_deviation_from_focusplane=target_um
+            self.navigationController.move_z(um_to_move/1000,wait_for_completion={},wait_for_stabilization=True)
 
         # trigger acquisition (including turning on the illumination), then save image and turn illumniation off again
         self.liveController.trigger_acquisition()
@@ -219,7 +223,7 @@ class MultiPointWorker(QObject):
             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
             # metadata = json.dumps(metadata)
 
-            movement_deviation_from_focusplane=0.0
+            self.movement_deviation_from_focusplane=0.0
 
             # iterate through selected modes
             for config in tqdm(self.selected_configurations,desc="channel",unit="channel",leave=False):

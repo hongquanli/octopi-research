@@ -51,6 +51,7 @@ class LiveControlWidget(QFrame):
         self.triggerMode = None
         self.dropdown_triggerManu = QComboBox()
         self.dropdown_triggerManu.addItems([mode.value for mode in TriggerMode])
+        self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
 
         # line 1: fps
         self.entry_triggerFPS = QDoubleSpinBox()
@@ -58,12 +59,14 @@ class LiveControlWidget(QFrame):
         self.entry_triggerFPS.setMaximum(1000)
         self.entry_triggerFPS.setSingleStep(1)
         self.entry_triggerFPS.setValue(self.fps_trigger)
+        self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
 
         # line 2: choose microscope mode / toggle live mode 
         self.dropdown_modeSelection = QComboBox()
         for microscope_configuration in self.configurationManager.configurations:
             self.dropdown_modeSelection.addItems([microscope_configuration.name])
         self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
+        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
 
         self.btn_live = QPushButton(LIVE_BUTTON_IDLE_TEXT)
         self.btn_live.setCheckable(True)
@@ -76,9 +79,11 @@ class LiveControlWidget(QFrame):
 
             useful for manual investigation of a plate and/or imaging settings. Note that this can lead to strong photobleaching. Consider using the snapshot button instead (labelled 'snap')
         """)
+        self.btn_live.clicked.connect(self.toggle_live)
 
         self.btn_snap=QPushButton("snap")
         self.btn_snap.setToolTip("take single image (minimizes bleaching for manual testing)")
+        self.btn_snap.clicked.connect(self.take_snapshot)
 
         # line 3: exposure time and analog gain associated with the current mode
         self.entry_exposureTime = QDoubleSpinBox()
@@ -86,13 +91,21 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.setMaximum(self.liveController.camera.EXPOSURE_TIME_MS_MAX) 
         self.entry_exposureTime.setSingleStep(1)
         self.entry_exposureTime.setValue(0)
+        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
 
         self.entry_analogGain = QDoubleSpinBox()
-        self.entry_analogGain = QDoubleSpinBox()
-        self.entry_analogGain.setMinimum(0) 
-        self.entry_analogGain.setMaximum(24) 
+        self.entry_analogGain.setMinimum(0)
+        self.entry_analogGain.setMaximum(24)
         self.entry_analogGain.setSingleStep(0.1)
         self.entry_analogGain.setValue(0)
+        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
+
+        self.entry_channelOffset=QDoubleSpinBox()
+        self.entry_channelOffset.setMinimum(-30.0)
+        self.entry_channelOffset.setMaximum(30.0)
+        self.entry_channelOffset.setSingleStep(0.1)
+        self.entry_channelOffset.setValue(0)
+        self.entry_channelOffset.valueChanged.connect(self.update_config_channel_offset)
 
         self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
         self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
@@ -101,24 +114,15 @@ class LiveControlWidget(QFrame):
         self.slider_illuminationIntensity.setValue(100)
         self.slider_illuminationIntensity.setSingleStep(1)
         self.slider_illuminationIntensity.setTickInterval(5)
+        self.slider_illuminationIntensity.valueChanged.connect(lambda v:self.entry_illuminationIntensity.setValue(float(v))) # doublespinbox does not take ints
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
         self.entry_illuminationIntensity.setMinimum(0.1)
         self.entry_illuminationIntensity.setMaximum(100)
         self.entry_illuminationIntensity.setSingleStep(0.1)
         self.entry_illuminationIntensity.setValue(100)
-        
-        # connections
-        self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
-        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
-        self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
-        self.btn_live.clicked.connect(self.toggle_live)
-        self.btn_snap.clicked.connect(self.take_snapshot)
-        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
-        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
         self.entry_illuminationIntensity.valueChanged.connect(lambda v:self.slider_illuminationIntensity.setValue(int(v))) # slider does not take float values
-        self.slider_illuminationIntensity.valueChanged.connect(lambda v:self.entry_illuminationIntensity.setValue(float(v))) # doublespinbox does not take ints
 
         # layout
         grid_line0 = QGridLayout()
@@ -141,12 +145,20 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.setToolTip(exposure_time_tooltip)
         grid_line2.addWidget(exposure_time_label, 0,0)
         grid_line2.addWidget(self.entry_exposureTime, 0,1)
+
         analog_gain_label=QLabel('Analog Gain')
         analog_gain_tooltip="analog gain increases the camera sensor sensitiviy. Higher gain will make the image look brighter so that a lower exposure time can be used, but also introduces more noise."
         analog_gain_label.setToolTip(analog_gain_tooltip)
         self.entry_analogGain.setToolTip(analog_gain_tooltip)
         grid_line2.addWidget(analog_gain_label, 0,2)
         grid_line2.addWidget(self.entry_analogGain, 0,3)
+
+        channel_offset_label=QLabel("Offset (µm)")
+        channel_offset_tooltip="channel specific z offset used in multipoint acquisition to focus properly in channels that are not in focus at the same time the nucleus is (given the nucleus is the channel that is used for focusing)"
+        channel_offset_label.setToolTip(channel_offset_tooltip)
+        self.entry_channelOffset.setToolTip(channel_offset_tooltip)
+        grid_line2.addWidget(channel_offset_label, 0,4)
+        grid_line2.addWidget(self.entry_channelOffset, 0,5)
 
         grid_line4 = QGridLayout()
         grid_line4.addWidget(QLabel('Illumination'), 0,0)
@@ -165,6 +177,7 @@ class LiveControlWidget(QFrame):
     @TypecheckFunction
     def take_snapshot(self,_pressed:Any=None):
         """ take a snapshot (more precisely, request a snapshot) """
+        self.liveController.set_microscope_mode(self.currentConfiguration)
         self.liveController.camera.is_live=True
         self.liveController.stream_handler.signal_new_frame_received.connect(self.snap_end)
         self.liveController.camera.start_streaming()
@@ -183,6 +196,7 @@ class LiveControlWidget(QFrame):
     @TypecheckFunction
     def toggle_live(self,pressed:bool):
         if pressed:
+            self.liveController.set_microscope_mode(self.currentConfiguration)
             self.btn_live.setText(LIVE_BUTTON_RUNNING_TEXT)
             self.liveController.start_live()
             self.btn_snap.setDisabled(True)
@@ -207,6 +221,7 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
         self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
         self.entry_illuminationIntensity.setValue(self.currentConfiguration.illumination_intensity)
+        self.entry_channelOffset.setValue(self.currentConfiguration.channel_z_offset or 0.0)
         self.is_switching_mode = False
 
     @TypecheckFunction
@@ -235,8 +250,13 @@ class LiveControlWidget(QFrame):
             self.liveController.set_illumination(self.currentConfiguration.illumination_source, self.currentConfiguration.illumination_intensity)
 
     @TypecheckFunction
+    def update_config_channel_offset(self,new_value:float):
+        if self.is_switching_mode == False:
+            self.currentConfiguration.channel_z_offset = new_value
+            self.configurationManager.update_configuration(self.currentConfiguration.id,'RelativeZOffsetUM',new_value)
+
+    @TypecheckFunction
     def set_microscope_mode(self,config:Configuration):
-        # self.liveController.set_microscope_mode(config)
         self.dropdown_modeSelection.setCurrentText(config.name)
 
     @TypecheckFunction

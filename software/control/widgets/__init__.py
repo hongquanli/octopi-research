@@ -6,7 +6,6 @@ from qtpy.QtWidgets import QWidget
 import pyqtgraph.dockarea as dock
 
 from .autofocus import AutoFocusWidget
-from .camera_settings import CameraSettingsWidget
 from .dac_control import DACControWidget
 from .live_control import LiveControlWidget
 from .multi_point import MultiPointWidget

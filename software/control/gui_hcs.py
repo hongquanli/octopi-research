@@ -243,7 +243,6 @@ class OctopiGUI(QMainWindow):
 
         ADD_LASER_AF_IMAGE_VIEW=True
         if ADD_LASER_AF_IMAGE_VIEW:
-            self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.focus_camera,include_gain_exposure_time=False)
             self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera)
             self.imageDisplayWindow_focus = widgets.ImageDisplayWindow(draw_crosshairs=True)
 
@@ -264,15 +263,10 @@ class OctopiGUI(QMainWindow):
             laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
 
             # connections
-            self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
-            self.liveControlWidget_focus_camera.signal_newAnalogGain.connect(self.cameraSettingWidget_focus_camera.set_analog_gain)
             self.liveControlWidget_focus_camera.update_camera_settings()
 
             self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
             self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
-            self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
-            self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget_focus_camera.set_analog_gain)
-            self.liveControlWidget.update_camera_settings()
 
             self.streamHandler_focus_camera.image_to_display.connect(self.displacementMeasurementController.update_measurement)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
@@ -315,8 +309,8 @@ class OctopiGUI(QMainWindow):
         self.camera_pixel_format_widget=QComboBox()
         self.camera_pixel_format_widget.setToolTip("camera pixel format\n\nMONO8 means monochrome (grey-scale) 8bit\nMONO12 means monochrome 12bit\n\nmore bits can capture more detail (8bit can capture 2^8 intensity values, 12bit can capture 2^12), but also increase file size")
         self.camera_pixel_format_widget.addItems(image_formats)
-        self.camera_pixel_format_widget.setCurrentIndex(0) # 8 bit is default (there is a bug where 8 bit is hardware default, but setting it to 8 bit while in this default state produces weird images. so set 8bit as display default, and only actually call the function to change the format when the format is actually changed, i.e. connect to format change signal only after this default is displayed)
         self.camera_pixel_format_widget.currentIndexChanged.connect(lambda index:self.camera.set_pixel_format(image_formats[index]))
+        self.camera_pixel_format_widget.setCurrentIndex(0) # 8 bit is default (there is a bug where 8 bit is hardware default, but setting it to 8 bit while in this default state produces weird images. so set 8bit as display default, and only actually call the function to change the format when the format is actually changed, i.e. connect to format change signal only after this default is displayed)
         
         compression_tooltip="enable image file compression (not supported for bmp)"
         self.image_compress_widget=QCheckBox()
