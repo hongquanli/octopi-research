@@ -22,6 +22,14 @@ import time
 from control.typechecker import TypecheckFunction
 from typing import Union
 
+
+def seconds_to_long_time(sec:float)->str:
+    hours=int(sec//3600)
+    sec-=hours*3600
+    minutes=int(sec//60)
+    sec-=minutes*60
+    return f"{hours:3}h {minutes:2}m {sec:4.1f}s"
+
 class OctopiGUI(QMainWindow):
 
     @property
@@ -120,10 +128,14 @@ class OctopiGUI(QMainWindow):
             time_elapsed_since_start=time.monotonic()-self.acquisition_start_time
             approx_time_left=time_elapsed_since_start/self.acquisition_progress*(self.total_num_acquisitions-self.acquisition_progress)
 
+            elapsed_time_str=seconds_to_long_time(time_elapsed_since_start)
             if self.acquisition_progress==self.total_num_acquisitions:
-                self.multiPointWidget.progress_bar.setFormat(f"done. (acquired {self.total_num_acquisitions:4} images in {time_elapsed_since_start:8.1f}s)")
+                self.multiPointWidget.progress_bar.setFormat(f"done. (acquired {self.total_num_acquisitions:4} images in {elapsed_time_str})")
             else:
-                self.multiPointWidget.progress_bar.setFormat(f"completed {self.acquisition_progress:4}/{self.total_num_acquisitions:4} in {time_elapsed_since_start:8.1f}s (eta: {approx_time_left:8.1f}s)")
+                approx_time_left_str=seconds_to_long_time(approx_time_left)
+                done_percent=int(self.acquisition_progress*100/self.total_num_acquisitions)
+                progress_bar_text=f"completed {self.acquisition_progress:4}/{self.total_num_acquisitions:4} images ({done_percent:2}%) in {elapsed_time_str} (eta: {approx_time_left_str})"
+                self.multiPointWidget.progress_bar.setFormat(progress_bar_text)
 
     def abort_experiment(self):
         self.multipointController.request_abort_aquisition()

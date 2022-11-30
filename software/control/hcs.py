@@ -137,7 +137,7 @@ class HCSController(QObject):
         well_list_physical_pos:List[Tuple[float,float]]=[wellplate_format.convert_well_index(*c) for c in well_list]
 
         # print well names as debug info
-        print("imaging wells: ",", ".join(well_list_names))
+        #print("imaging wells: ",", ".join(well_list_names))
 
         # set autofocus parameters
         if af_channel is None:

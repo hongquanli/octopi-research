@@ -131,7 +131,7 @@ class LaserAutofocusController(QObject):
             return
 
         # limit the range of movement
-        um_to_move = np.clip(um_to_move,-200,200)
+        um_to_move = np.clip(um_to_move,MACHINE_CONFIG_LASER_AUTOFOCUS_MOVEMENT_BOUNDARY_LOWER,MACHINE_CONFIG_LASER_AUTOFOCUS_MOVEMENT_BOUNDARY_UPPER)
 
         self.navigationController.move_z(um_to_move/1000,wait_for_completion={})
 

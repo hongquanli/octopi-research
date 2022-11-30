@@ -18,6 +18,9 @@ from typing import Optional, Union, List, Tuple, Callable
 from control.core import MultiPointController, ConfigurationManager
 from control.typechecker import TypecheckFunction
 
+BUTTON_START_ACQUISITION_IDLE_TEXT="Start Acquisition"
+BUTTON_START_ACQUISITION_RUNNING_TEXT="Abort Acquisition"
+
 class MultiPointWidget(QFrame):
     def __init__(self,
         multipointController:MultiPointController,
@@ -148,7 +151,7 @@ class MultiPointWidget(QFrame):
             self.checkbox_laserAutofocs.stateChanged.connect(self.multipointController.set_laser_af_flag)
             self.multipointController.set_laser_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_LASER_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-            self.btn_startAcquisition = QPushButton('Start Acquisition')
+            self.btn_startAcquisition = QPushButton(BUTTON_START_ACQUISITION_IDLE_TEXT)
             self.btn_startAcquisition.setCheckable(True)
             self.btn_startAcquisition.setChecked(False)
             self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
@@ -340,6 +343,8 @@ class MultiPointWidget(QFrame):
             return
 
         if pressed:
+            self.btn_startAcquisition.setText(BUTTON_START_ACQUISITION_RUNNING_TEXT)
+
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
@@ -356,6 +361,7 @@ class MultiPointWidget(QFrame):
                 imaging_channel_list
             )
         else:
+            self.btn_startAcquisition.setText(BUTTON_START_ACQUISITION_IDLE_TEXT)
             self.abort_experiment()
             self.setEnabled_all(True)
 
