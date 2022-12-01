@@ -1,5 +1,5 @@
 # qt libraries
-from qtpy.QtCore import Qt, QEvent
+from qtpy.QtCore import Qt, QEvent, Signal
 from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider, QCheckBox, QWidget
 
 import numpy
@@ -78,15 +78,15 @@ class OctopiGUI(QMainWindow):
     def laserAutofocusController(self)->core.LaserAutofocusController:
         return self.hcs_controller.laserAutofocusController
 
-    @TypecheckFunction
-    def start_experiment(self,experiment_data_target_folder:str,imaging_channel_list:List[str]):
+    # @TypecheckFunction # dont check because signal cannot yet be checked properly
+    def start_experiment(self,experiment_data_target_folder:str,imaging_channel_list:List[str])->Optional[Signal]:
         self.navigationViewer.register_preview_fovs()
 
         well_list=self.wellSelectionWidget.currently_selected_well_indices
 
         af_channel=self.multipointController.autofocus_channel_name if self.multipointController.do_autofocus else None
 
-        self.hcs_controller.acquire(
+        return self.hcs_controller.acquire(
             well_list,
             imaging_channel_list,
             experiment_data_target_folder,
@@ -99,7 +99,7 @@ class OctopiGUI(QMainWindow):
             af_channel=af_channel,
             set_num_acquisitions_callback=self.set_num_acquisitions,
             on_new_acquisition=self.on_step_completed,
-        )
+        ).finished
 
     def set_num_acquisitions(self,num:int):
         self.acquisition_progress=0
@@ -186,6 +186,7 @@ class OctopiGUI(QMainWindow):
             )
             liveWidget_layout.addWidget(self.laserAutofocusControlWidget)
         liveWidget_layout.addWidget(widgets.as_dock(self.histogramWidget,"Histogram"))
+        liveWidget_layout.addLayout(self.backgroundSliderContainer)
         liveWidget_layout.addLayout(self.imageEnhanceWidget)
         self.liveWidget=widgets.as_widget(liveWidget_layout)
 
@@ -435,6 +436,30 @@ class OctopiGUI(QMainWindow):
         self.last_raw_image=None
         self.last_image_data=None
 
+        self.backgroundSlider=QSlider(Qt.Horizontal)
+        self.backgroundSlider.setTickPosition(QSlider.TicksBelow)
+        self.backgroundSlider.setRange(1,255)
+        self.backgroundSlider.setSingleStep(1)
+        self.backgroundSlider.setTickInterval(16)
+        self.backgroundSlider.valueChanged.connect(self.set_background)
+        self.backgroundSlider.setValue(10)
+
+        self.backgroundSNRValueText=QLabel("SNR: undefined")
+
+        self.backgroundHeader=QHBoxLayout()
+        self.backgroundHeader.addWidget(QLabel("Background"))
+        self.backgroundHeader.addWidget(self.backgroundSNRValueText)
+
+        self.backgroundSliderContainer=QVBoxLayout()
+        self.backgroundSliderContainer.addLayout(self.backgroundHeader)
+        self.backgroundSliderContainer.addWidget(self.backgroundSlider)
+        
+
+    def set_background(self,new_background_value:int):
+        self.backgroundSlider.value=new_background_value
+        self.processLiveImage()
+        #print(f"set background to {new_background_value}")
+
     @TypecheckFunction
     def setHistogramLogScale(self,state:Union[bool,int]):
         if type(state)==int:
@@ -517,7 +542,19 @@ class OctopiGUI(QMainWindow):
 
             # since integer conversion truncates or whatever instead of scaling, scale manually
             if image.dtype==numpy.uint16:
-                image=numpy.uint8(image>>(16-8))
+                image=numpy.uint8(image>>8)
+
+            foreground_mask=image>self.backgroundSlider.value
+            snr_text="SNR: undefined"
+            if foreground_mask.any():
+                if image_mean!=0:
+                    foreground_mean=image[foreground_mask].mean()
+                    background_mean=image[~foreground_mask].mean()
+
+                    snr_value=foreground_mean/background_mean
+                    
+                    snr_text=f"SNR: {snr_value:.1f}"
+            self.backgroundSNRValueText.setText(snr_text)
 
             if not (self.imageBrightnessSlider.value==1.0 and self.imageContrastSlider.value==1.0):
                 # convert to uint8 for pillow image enhancement (not sure why uint8 is required..?)

@@ -1,8 +1,0 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<modes>
-  <mode ID="5" Name="Fluorescence 405 nm Ex" ExposureTime="9.0" AnalogGain="0.0" IlluminationSource="11" IlluminationIntensity="100.0" CameraSN="" RelativeZOffsetUM=""/>
-  <mode ID="12" Name="Fluorescence 730 nm Ex" ExposureTime="300.0" AnalogGain="20.0" IlluminationSource="15" IlluminationIntensity="100" CameraSN="" RelativeZOffsetUM=""/>
-  <mode ID="7" Name="Fluorescence 638 nm Ex" ExposureTime="50.0" AnalogGain="4.0" IlluminationSource="13" IlluminationIntensity="100" CameraSN="" RelativeZOffsetUM=""/>
-  <mode ID="8" Name="Fluorescence 561 nm Ex" ExposureTime="100.0" AnalogGain="2.0" IlluminationSource="14" IlluminationIntensity="100" CameraSN="" RelativeZOffsetUM=""/>
-  <mode ID="6" Name="Fluorescence 488 nm Ex" ExposureTime="8.0" AnalogGain="0.0" IlluminationSource="12" IlluminationIntensity="100" CameraSN="" RelativeZOffsetUM=""/>
-</modes>

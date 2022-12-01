@@ -43,6 +43,8 @@ class NavigationController(QObject):
         # self.timer_read_pos.timeout.connect(self.update_pos)
         # self.timer_read_pos.start()
 
+        self.is_in_loading_position:bool=False
+
     # ripped out of constructor
     @property
     def x_microstepping(self):
@@ -207,8 +209,11 @@ class NavigationController(QObject):
     def zero_theta(self):
         self.microcontroller.zero_theta()
 
-    def home(self,home_x:bool=True,home_y:bool=True,home_z:bool=True):
+    def loading_position_enter(self,home_x:bool=True,home_y:bool=True,home_z:bool=True):
+        assert not self.is_in_loading_position
         if home_z:
+            self.is_in_loading_position=True
+
 			# retract the objective
             self.home_z()
 			# wait for the operation to finish
@@ -219,15 +224,25 @@ class NavigationController(QObject):
             if home_z and home_y and home_x:
                 # for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
                 self.move_x(12.0)
-                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005)
+                self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x moving timeout, the program will exit')
                 
                 self.home_y()
                 self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='y homing timeout, the program will exit')
                 
                 self.home_x()
                 self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='x homing timeout, the program will exit')
-            
-                print('xy homing completed')
+
+                print("homing completed")
+
+    def loading_position_leave(self,home_x:bool=True,home_y:bool=True,home_z:bool=True):
+        assert self.is_in_loading_position
+        if home_z:
+
+            if home_z and home_y and home_x:
+
+                print("leaving loading position")
+
+                self.is_in_loading_position=False
             
                 # move to (20 mm, 20 mm)
                 self.move_x(20.0)
@@ -245,6 +260,13 @@ class NavigationController(QObject):
             self.move_z(MACHINE_CONFIG.DEFAULT_Z_POS_MM)
 			# wait for the operation to finish
             self.microcontroller.wait_till_operation_is_completed(10, time_step=0.005, timeout_msg='z return timeout, the program will exit')
+
+            print("left loading position")
+
+
+    def home(self,home_x:bool=True,home_y:bool=True,home_z:bool=True):
+        self.loading_position_enter(home_x,home_y,home_z)
+        self.loading_position_leave(home_x,home_y,home_z)
 
     def set_x_limit_pos_mm(self,value_mm):
         u_steps=int(value_mm/self.screw_x_micro)

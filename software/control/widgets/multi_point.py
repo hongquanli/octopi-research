@@ -1,9 +1,9 @@
 # qt libraries
-from qtpy.QtCore import Qt, QModelIndex, QSize
+from qtpy.QtCore import Qt, QModelIndex, QSize, Signal
 from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, \
     QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, \
     QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar, QDesktopWidget, \
-    QWidget, QTableWidget, QSizePolicy, QTableWidgetItem
+    QWidget, QTableWidget, QSizePolicy, QTableWidgetItem, QApplication
 from qtpy.QtGui import QIcon
 
 from control._def import *
@@ -25,9 +25,10 @@ class MultiPointWidget(QFrame):
     def __init__(self,
         multipointController:MultiPointController,
         configurationManager:ConfigurationManager,
-        start_experiment:Callable[[str,List[str]],None],
+        start_experiment:Callable[[str,List[str]],Optional[Signal]],
         abort_experiment:Callable[[],None]
     ):
+        """ start_experiment callable may return signal that is emitted on experiment completion"""
         super().__init__()
         
         self.multipointController = multipointController
@@ -72,26 +73,26 @@ class MultiPointWidget(QFrame):
             self.entry_NX = QSpinBox()
             self.entry_NX.setMinimum(1)
             self.entry_NX.setSingleStep(1)
-            self.entry_NX.setValue(self.multipointController.NX)
             self.entry_NX.setKeyboardTracking(False)
-            self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
+            self.entry_NX.valueChanged.connect(self.set_NX)
             self.entry_NX.valueChanged.connect(lambda v:self.grid_changed("x",v))
+            self.set_NX(self.multipointController.NX)
 
             self.entry_deltaY = QDoubleSpinBox()
             self.entry_deltaY.setMinimum(0)
             self.entry_deltaY.setSingleStep(0.1)
-            self.entry_deltaY.setValue(self.multipointController.deltaY)
             self.entry_deltaY.setDecimals(3)
             self.entry_deltaY.setKeyboardTracking(False)
             self.entry_deltaY.valueChanged.connect(self.set_deltaY)
+            self.entry_deltaY.setValue(self.multipointController.deltaY)
             
             self.entry_NY = QSpinBox()
             self.entry_NY.setMinimum(1)
             self.entry_NY.setSingleStep(1)
-            self.entry_NY.setValue(self.multipointController.NY)
             self.entry_NY.setKeyboardTracking(False)
-            self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
+            self.entry_NY.valueChanged.connect(self.set_NY)
             self.entry_NY.valueChanged.connect(lambda v:self.grid_changed("y",v))
+            self.set_NY(self.multipointController.NY)
 
             self.entry_deltaZ = QDoubleSpinBox()
             self.entry_deltaZ.setMinimum(0)
@@ -104,9 +105,9 @@ class MultiPointWidget(QFrame):
             self.entry_NZ = QSpinBox()
             self.entry_NZ.setMinimum(1)
             self.entry_NZ.setSingleStep(1)
-            self.entry_NZ.setValue(self.multipointController.NZ)
             self.entry_NZ.setKeyboardTracking(False)
-            self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
+            self.entry_NZ.valueChanged.connect(self.set_NZ)
+            self.set_NZ(self.multipointController.NZ)
             
             self.entry_dt = QDoubleSpinBox()
             self.entry_dt.setMinimum(0)
@@ -119,9 +120,9 @@ class MultiPointWidget(QFrame):
             self.entry_Nt = QSpinBox()
             self.entry_Nt.setMinimum(1)
             self.entry_Nt.setSingleStep(1)
-            self.entry_Nt.setValue(self.multipointController.Nt)
             self.entry_Nt.setKeyboardTracking(False)
-            self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
+            self.entry_Nt.valueChanged.connect(self.set_Nt)
+            self.set_Nt(self.multipointController.Nt)
 
         self.list_configurations = QListWidget()
         self.list_configurations.list_channel_names=[mc.name for mc in self.configurationManager.configurations]
@@ -176,42 +177,42 @@ class MultiPointWidget(QFrame):
         dx_tooltip="acquire grid of images (Nx images with dx mm in between acquisitions; dx does not matter if Nx is 1)\ncan be combined with dy/Ny and dz/Nz and dt/Nt for a total of Nx * Ny * Nz * Nt images"
         qtlabel_dx=QLabel('dx (mm)')
         qtlabel_dx.setToolTip(dx_tooltip)
-        grid_line2.addWidget(qtlabel_dx, 0,0)
-        grid_line2.addWidget(self.entry_deltaX, 0,1)
+        grid_line2.addWidget(qtlabel_dx, 0,2)
+        grid_line2.addWidget(self.entry_deltaX, 0,3)
         qtlabel_Nx=QLabel('Nx')
         qtlabel_Nx.setToolTip(dx_tooltip)
-        grid_line2.addWidget(qtlabel_Nx, 0,2)
-        grid_line2.addWidget(self.entry_NX, 0,3)
+        grid_line2.addWidget(qtlabel_Nx, 0,0)
+        grid_line2.addWidget(self.entry_NX, 0,1)
  
         dy_tooltip="acquire grid of images (Ny images with dy mm in between acquisitions; dy does not matter if Ny is 1)\ncan be combined with dx/Nx and dz/Nz and dt/Nt for a total of Nx*Ny*Nz*Nt images"
         qtlabel_dy=QLabel('dy (mm)')
         qtlabel_dy.setToolTip(dy_tooltip)
-        grid_line2.addWidget(qtlabel_dy, 1,0)
-        grid_line2.addWidget(self.entry_deltaY, 1,1)
+        grid_line2.addWidget(qtlabel_dy, 1,2)
+        grid_line2.addWidget(self.entry_deltaY, 1,3)
         qtlabel_Ny=QLabel('Ny')
         qtlabel_Ny.setToolTip(dy_tooltip)
-        grid_line2.addWidget(qtlabel_Ny, 1,2)
-        grid_line2.addWidget(self.entry_NY, 1,3)
+        grid_line2.addWidget(qtlabel_Ny, 1,0)
+        grid_line2.addWidget(self.entry_NY, 1,1)
  
         dz_tooltip="acquire z-stack of images (Nz images with dz µm in between acquisitions; dz does not matter if Nz is 1)\ncan be combined with dx/Nx and dy/Ny and dt/Nt for a total of Nx*Ny*Nz*Nt images"
         qtlabel_dz=QLabel('dz (um)')
-        qtlabel_dz.setToolTip(dx_tooltip)
-        grid_line2.addWidget(qtlabel_dz, 2,0)
-        grid_line2.addWidget(self.entry_deltaZ, 2,1)
+        qtlabel_dz.setToolTip(dz_tooltip)
+        grid_line2.addWidget(qtlabel_dz, 2,2)
+        grid_line2.addWidget(self.entry_deltaZ, 2,3)
         qtlabel_Nz=QLabel('Nz')
-        qtlabel_Nz.setToolTip(dx_tooltip)
-        grid_line2.addWidget(qtlabel_Nz, 2,2)
-        grid_line2.addWidget(self.entry_NZ, 2,3)
+        qtlabel_Nz.setToolTip(dz_tooltip)
+        grid_line2.addWidget(qtlabel_Nz, 2,0)
+        grid_line2.addWidget(self.entry_NZ, 2,1)
  
         dt_tooltip="acquire time-series of 'Nt' images, with 'dt' seconds in between acquisitions (dt does not matter if Nt is 1)\ncan be combined with dx/Nx and dy/Ny and dz/Nz for a total of Nx*Ny*Nz*Nt images"
         qtlabel_dt=QLabel('dt (s)')
         qtlabel_dt.setToolTip(dt_tooltip)
-        grid_line2.addWidget(qtlabel_dt, 3,0)
-        grid_line2.addWidget(self.entry_dt, 3,1)
+        grid_line2.addWidget(qtlabel_dt, 3,2)
+        grid_line2.addWidget(self.entry_dt, 3,3)
         qtlabel_Nt=QLabel('Nt')
         qtlabel_Nt.setToolTip(dt_tooltip)
-        grid_line2.addWidget(qtlabel_Nt, 3,2)
-        grid_line2.addWidget(self.entry_Nt, 3,3)
+        grid_line2.addWidget(qtlabel_Nt, 3,0)
+        grid_line2.addWidget(self.entry_Nt, 3,1)
 
         self.well_grid_selector=QTableWidget()
         self.well_grid_selector.horizontalHeader().hide()
@@ -241,12 +242,38 @@ class MultiPointWidget(QFrame):
         self.grid.addWidget(self.progress_bar,4,0)
         self.setLayout(self.grid)
 
-        # connections
-        self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+    def set_NX(self,new_value:int):
+        self.multipointController.set_NX(new_value)
+        if new_value==1:
+            self.entry_deltaX.setDisabled(True)
+        else:
+            self.entry_deltaX.setDisabled(False)
+
+    def set_NY(self,new_value:int):
+        self.multipointController.set_NY(new_value)
+        if new_value==1:
+            self.entry_deltaY.setDisabled(True)
+        else:
+            self.entry_deltaY.setDisabled(False)
+
+    def set_NZ(self,new_value:int):
+        self.multipointController.set_NZ(new_value)
+        if new_value==1:
+            self.entry_deltaZ.setDisabled(True)
+        else:
+            self.entry_deltaZ.setDisabled(False)
+
+    def set_Nt(self,new_value:int):
+        self.multipointController.set_Nt(new_value)
+        if new_value==1:
+            self.entry_dt.setDisabled(True)
+        else:
+            self.entry_dt.setDisabled(False)
+
 
     def set_software_af_flag(self,flag:Union[int,bool]):
         flag=bool(flag)
-        self.af_channel_dropdown.setDisabled(flag)
+        self.af_channel_dropdown.setDisabled(not flag)
         self.multipointController.set_software_af_flag(flag)
 
     def grid_changed(self,dimension:str,new_value:int):
@@ -335,8 +362,9 @@ class MultiPointWidget(QFrame):
 
     @TypecheckFunction
     def toggle_acquisition(self,pressed:bool):
+        self.btn_startAcquisition.setChecked(False)
+
         if self.base_path_is_set == False:
-            self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
             msg.setText("Please choose base saving directory first")
             msg.exec_()
@@ -344,6 +372,7 @@ class MultiPointWidget(QFrame):
 
         if pressed:
             self.btn_startAcquisition.setText(BUTTON_START_ACQUISITION_RUNNING_TEXT)
+            QApplication.processEvents() # make sure that the text change is visible
 
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
@@ -359,15 +388,16 @@ class MultiPointWidget(QFrame):
             self.start_experiment(
                 experiment_data_target_folder,
                 imaging_channel_list
-            )
+            ).connect(self.acquisition_is_finished)
         else:
-            self.btn_startAcquisition.setText(BUTTON_START_ACQUISITION_IDLE_TEXT)
             self.abort_experiment()
-            self.setEnabled_all(True)
+            self.acquisition_is_finished()
 
     @TypecheckFunction
     def acquisition_is_finished(self):
-        self.btn_startAcquisition.setChecked(False)
+        self.btn_startAcquisition.setText(BUTTON_START_ACQUISITION_IDLE_TEXT)
+        QApplication.processEvents() # make sure that the text change is visible
+        
         self.setEnabled_all(True)
 
     @TypecheckFunction

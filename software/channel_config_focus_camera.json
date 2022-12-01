@@ -1,0 +1,14 @@
+{
+  "configurations":[
+    {
+      "ID":1,
+      "Name":"BF LED matrix full",
+      "ExposureTime":9.0,
+      "AnalogGain":0.0,
+      "IlluminationSource":0,
+      "IlluminationIntensity":5.0,
+      "CameraSN":"",
+      "RelativeZOffsetUM":0.0
+    }
+  ]
+}

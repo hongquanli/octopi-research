@@ -1,0 +1,54 @@
+{
+  "configurations": [
+    {
+      "ID": 5,
+      "Name": "Fluorescence 405 nm Ex",
+      "IlluminationSource": 11,
+      "ExposureTime": 9.0,
+      "AnalogGain": 0.0,
+      "IlluminationIntensity": 100.0,
+      "CameraSN": "",
+      "RelativeZOffsetUM": 1.3877787807814457e-16
+    },
+    {
+      "ID": 12,
+      "Name": "Fluorescence 730 nm Ex",
+      "IlluminationSource": 15,
+      "ExposureTime": 300.0,
+      "AnalogGain": 20.0,
+      "IlluminationIntensity": 100.0,
+      "CameraSN": "",
+      "RelativeZOffsetUM": -4.5
+    },
+    {
+      "ID": 7,
+      "Name": "Fluorescence 638 nm Ex",
+      "IlluminationSource": 13,
+      "ExposureTime": 50.0,
+      "AnalogGain": 4.0,
+      "IlluminationIntensity": 100.0,
+      "CameraSN": "",
+      "RelativeZOffsetUM": 0.0
+    },
+    {
+      "ID": 8,
+      "Name": "Fluorescence 561 nm Ex",
+      "IlluminationSource": 14,
+      "ExposureTime": 100.0,
+      "AnalogGain": 2.0,
+      "IlluminationIntensity": 100.0,
+      "CameraSN": "",
+      "RelativeZOffsetUM": 0.0
+    },
+    {
+      "ID": 6,
+      "Name": "Fluorescence 488 nm Ex",
+      "IlluminationSource": 12,
+      "ExposureTime": 8.0,
+      "AnalogGain": 0.0,
+      "IlluminationIntensity": 100.0,
+      "CameraSN": "",
+      "RelativeZOffsetUM": 0.0
+    }
+  ]
+}

@@ -390,10 +390,12 @@ class MachineConfiguration:
     USE_GLASS_TOP:bool = True
     SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS:bool = False
     LASER_AUTOFOCUS_TARGET_MOVE_THRESHOLD_UM:float = 0.3 # when moving to target, if absolute measured displacement after movement is larger than this value, repeat move to target (repeat max once) - note that the usual um/pixel value is 0.4
-    MACHINE_CONFIG_LASER_AUTOFOCUS_MOVEMENT_BOUNDARY_LOWER:float=-200.0
-    MACHINE_CONFIG_LASER_AUTOFOCUS_MOVEMENT_BOUNDARY_UPPER:float=200.0
+    LASER_AUTOFOCUS_MOVEMENT_BOUNDARY_LOWER:float=-200.0 # when moving to target, no matter the measured displacement, move not further away from the current position than this value
+    LASER_AUTOFOCUS_MOVEMENT_BOUNDARY_UPPER:float=200.0 # when moving to target, no matter the measured displacement, move not further away from the current position than this value
 
     MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = False
+
+    DEFAULT_TRIGGER_FPS:float=5.0
 
 
 @TypecheckClass(check_assignment=True)

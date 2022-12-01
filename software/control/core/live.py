@@ -49,7 +49,7 @@ class LiveController(QObject):
         self.use_internal_timer_for_hardware_trigger = use_internal_timer_for_hardware_trigger # use QTimer vs timer in the MCU
         self.for_displacement_measurement=for_displacement_measurement
 
-        self.fps_trigger:float = 10.0
+        self.fps_trigger:float = MACHINE_CONFIG.DEFAULT_TRIGGER_FPS
 
         self.timer_trigger = QTimer()
         self.timer_trigger.setInterval(self.timer_trigger_interval_ms)

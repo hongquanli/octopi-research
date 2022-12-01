@@ -1,6 +1,6 @@
 # qt libraries
 from qtpy.QtCore import Signal, Qt # type: ignore
-from qtpy.QtWidgets import QFrame, QComboBox, QDoubleSpinBox, QPushButton, QSlider, QGridLayout, QLabel, QVBoxLayout
+from qtpy.QtWidgets import QFrame, QComboBox, QDoubleSpinBox, QPushButton, QSlider, QGridLayout, QLabel, QVBoxLayout, QFileDialog
 
 import time
 
@@ -107,22 +107,17 @@ class LiveControlWidget(QFrame):
         self.entry_channelOffset.setValue(0)
         self.entry_channelOffset.valueChanged.connect(self.update_config_channel_offset)
 
-        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
-        self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
-        self.slider_illuminationIntensity.setMinimum(0)
-        self.slider_illuminationIntensity.setMaximum(100)
-        self.slider_illuminationIntensity.setValue(100)
-        self.slider_illuminationIntensity.setSingleStep(1)
-        self.slider_illuminationIntensity.setTickInterval(5)
-        self.slider_illuminationIntensity.valueChanged.connect(lambda v:self.entry_illuminationIntensity.setValue(float(v))) # doublespinbox does not take ints
-
         self.entry_illuminationIntensity = QDoubleSpinBox()
         self.entry_illuminationIntensity.setMinimum(0.1)
         self.entry_illuminationIntensity.setMaximum(100)
         self.entry_illuminationIntensity.setSingleStep(0.1)
         self.entry_illuminationIntensity.setValue(100)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
-        self.entry_illuminationIntensity.valueChanged.connect(lambda v:self.slider_illuminationIntensity.setValue(int(v))) # slider does not take float values
+
+        self.save_illuminationConfig=QPushButton("save config")
+        self.save_illuminationConfig.clicked.connect(self.save_illumination_config)
+        self.load_illuminationConfig=QPushButton("load config")
+        self.load_illuminationConfig.clicked.connect(self.load_illumination_config)
 
         # layout
         grid_line0 = QGridLayout()
@@ -162,8 +157,9 @@ class LiveControlWidget(QFrame):
 
         grid_line4 = QGridLayout()
         grid_line4.addWidget(QLabel('Illumination'), 0,0)
-        grid_line4.addWidget(self.slider_illuminationIntensity, 0,1)
-        grid_line4.addWidget(self.entry_illuminationIntensity, 0,2)
+        grid_line4.addWidget(self.entry_illuminationIntensity, 0,1)
+        grid_line4.addWidget(self.save_illuminationConfig, 0,2)
+        grid_line4.addWidget(self.load_illuminationConfig, 0,3)
 
         self.grid = QVBoxLayout()
         if show_trigger_options:
@@ -173,6 +169,35 @@ class LiveControlWidget(QFrame):
         self.grid.addLayout(grid_line4)
         self.grid.addStretch()
         self.setLayout(self.grid)
+
+    def save_illumination_config(self,_button_state:bool):
+        """ save illumination configuration to a file (GUI callback) """
+
+        dialog=QFileDialog(options=QFileDialog.DontUseNativeDialog)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        save_path=dialog.getSaveFileName(caption="Save current illumination config where?")[0]
+
+        if save_path!="":
+            if not save_path.endswith(".json"):
+                save_path=save_path+".json"
+            print(f"saving config to {save_path}")
+            self.configurationManager.write_configuration(save_path)
+
+    def load_illumination_config(self,_button_state:bool):
+        """ load illumination configuration from a file (GUI callback) """
+
+        if self.liveController.camera.is_live:
+            print("! warning: cannot load illumination settings while live !")
+            return
+        
+        dialog=QFileDialog(options=QFileDialog.DontUseNativeDialog)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        load_path=dialog.getOpenFileName(caption="Load which illumination config?",filter="JSON (*.json)")[0]
+
+        if load_path!="":
+            print(f"loading config from {load_path}")
+            self.configurationManager.read_configurations(load_path)
+            self.update_microscope_mode_by_name(self.liveController.currentConfiguration.name)
 
     @TypecheckFunction
     def take_snapshot(self,_pressed:Any=None):
@@ -221,7 +246,7 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
         self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
         self.entry_illuminationIntensity.setValue(self.currentConfiguration.illumination_intensity)
-        self.entry_channelOffset.setValue(self.currentConfiguration.channel_z_offset or 0.0)
+        self.entry_channelOffset.setValue(self.currentConfiguration.channel_z_offset)
         self.is_switching_mode = False
 
     @TypecheckFunction

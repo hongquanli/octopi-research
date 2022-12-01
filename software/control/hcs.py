@@ -50,7 +50,7 @@ class HCSController(QObject):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_config_main_camera.xml')
+        self.configurationManager:    core.ConfigurationManager    = core.ConfigurationManager(filename='./channel_config_main_camera.json')
         self.streamHandler:           core.StreamHandler           = core.StreamHandler()
         self.liveController:          core.LiveController          = core.LiveController(self.camera,self.microcontroller,self.configurationManager,stream_handler=self.streamHandler)
 
@@ -60,7 +60,7 @@ class HCSController(QObject):
         LASER_AF_ENABLED=True
         if LASER_AF_ENABLED:
             # controllers
-            self.configurationManager_focus_camera = core.ConfigurationManager(filename='./channel_config_focus_camera.xml')
+            self.configurationManager_focus_camera = core.ConfigurationManager(filename='./channel_config_focus_camera.json')
             self.streamHandler_focus_camera = core.StreamHandler()
             self.liveController_focus_camera = core.LiveController(self.focus_camera,self.microcontroller,self.configurationManager_focus_camera,stream_handler=self.streamHandler_focus_camera,control_illumination=False,for_displacement_measurement=True)
 

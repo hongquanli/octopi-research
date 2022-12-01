@@ -1,9 +1,13 @@
 # qt libraries
-from qtpy.QtWidgets import QFrame, QLabel, QDoubleSpinBox, QPushButton, QGridLayout, QMessageBox, QVBoxLayout
+from qtpy.QtWidgets import QFrame, QLabel, QDoubleSpinBox, QPushButton, QGridLayout, QMessageBox, QVBoxLayout, QApplication
 
 from control._def import *
 
 from typing import Optional, Union, List, Tuple
+
+BTN_LOADING_POSITION_IDLE_UNLOADED="go to loading position"
+BTN_LOADING_POSITION_IDLE_LOADED="leave loading position"
+BTN_LOADING_POSITION_RUNNING="moving..."
 
 class NavigationWidget(QFrame):
     def __init__(self, navigationController, widget_configuration:str = 'full', *args, **kwargs):
@@ -76,6 +80,9 @@ class NavigationWidget(QFrame):
         self.btn_home_Z.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_Z)
         self.btn_zero_Z = QPushButton('Zero Z')
         self.btn_zero_Z.setDefault(False)
+
+        self.btn_goToLoadingPosition=QPushButton(BTN_LOADING_POSITION_IDLE_UNLOADED)
+        self.btn_goToLoadingPosition.clicked.connect(self.loading_position_toggle)
         
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('X (mm)'), 0,0)
@@ -113,11 +120,15 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
+        grid_line4=QGridLayout()
+        grid_line4.addWidget(self.btn_goToLoadingPosition)
+
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
         self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line2,2,0)
         self.grid.addLayout(grid_line3,3,0)
+        self.grid.addLayout(grid_line4,4,0)
         self.setLayout(self.grid)
 
         self.entry_dX.valueChanged.connect(self.set_deltaX)
@@ -137,6 +148,40 @@ class NavigationWidget(QFrame):
         self.btn_zero_X.clicked.connect(self.zero_x)
         self.btn_zero_Y.clicked.connect(self.zero_y)
         self.btn_zero_Z.clicked.connect(self.zero_z)
+
+    def set_movement_ability(self,movement_allowed:bool,apply_to_loading_position_button:bool=False):
+        self.btn_moveX_forward.setDisabled(not movement_allowed)
+        self.btn_moveX_backward.setDisabled(not movement_allowed)
+        self.btn_moveY_forward.setDisabled(not movement_allowed)
+        self.btn_moveY_backward.setDisabled(not movement_allowed)
+        self.btn_moveZ_forward.setDisabled(not movement_allowed)
+        self.btn_moveZ_backward.setDisabled(not movement_allowed)
+        self.btn_home_X.setDisabled(not movement_allowed)
+        self.btn_home_Y.setDisabled(not movement_allowed)
+        self.btn_home_Z.setDisabled(not movement_allowed)
+        self.btn_zero_X.setDisabled(not movement_allowed)
+        self.btn_zero_Y.setDisabled(not movement_allowed)
+        self.btn_zero_Z.setDisabled(not movement_allowed)
+
+        if apply_to_loading_position_button:
+            self.btn_goToLoadingPosition.setDisabled(not movement_allowed)
+
+    def loading_position_toggle(self,button_state:bool):
+        self.btn_goToLoadingPosition.setDisabled(True)
+        self.btn_goToLoadingPosition.setText(BTN_LOADING_POSITION_RUNNING)
+        self.set_movement_ability(movement_allowed=False)
+
+        QApplication.processEvents()
+
+        if self.navigationController.is_in_loading_position:
+            self.navigationController.loading_position_leave()
+            self.btn_goToLoadingPosition.setText(BTN_LOADING_POSITION_IDLE_UNLOADED)
+            self.set_movement_ability(movement_allowed=True)
+        else:
+            self.navigationController.loading_position_enter()
+            self.btn_goToLoadingPosition.setText(BTN_LOADING_POSITION_IDLE_LOADED)
+
+        self.btn_goToLoadingPosition.setDisabled(False)
         
     def move_x_forward(self):
         self.navigationController.move_x(self.entry_dX.value())
