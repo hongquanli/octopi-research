@@ -57,8 +57,6 @@ class Microcontroller2Def:
     CMD_LENGTH = 8
     N_BYTES_POS = 4
 
-USE_SEPARATE_MCU_FOR_DAC = False
-
 class MCU_PINS:
     PWM1 = 5
     PWM2 = 4
@@ -251,30 +249,30 @@ class MachineConfiguration:
 
     # beginning of actuator specific configurations
 
-    SCREW_PITCH_X_MM:float = 1.0
-    SCREW_PITCH_Y_MM:float = 1.0
-    SCREW_PITCH_Z_MM:float = 0.012*25.4
+    SCREW_PITCH_X_MM:float = 2.54
+    SCREW_PITCH_Y_MM:float = 2.54
+    SCREW_PITCH_Z_MM:float = 0.3 # 0.012*25.4 was written here at some point, not sure why. the motor makes _the_ weird noise during homing when set to the latter term, instead of 0.3
 
-    MICROSTEPPING_DEFAULT_X:int = 8
-    MICROSTEPPING_DEFAULT_Y:int = 8
-    MICROSTEPPING_DEFAULT_Z:int = 8
-    MICROSTEPPING_DEFAULT_THETA:int = 8
+    MICROSTEPPING_DEFAULT_X:int = 256
+    MICROSTEPPING_DEFAULT_Y:int = 256
+    MICROSTEPPING_DEFAULT_Z:int = 256
+    MICROSTEPPING_DEFAULT_THETA:int = 256
 
-    X_MOTOR_RMS_CURRENT_mA:int = 490
-    Y_MOTOR_RMS_CURRENT_mA:int = 490
-    Z_MOTOR_RMS_CURRENT_mA:int = 490
+    X_MOTOR_RMS_CURRENT_mA:int = 1000
+    Y_MOTOR_RMS_CURRENT_mA:int = 1000
+    Z_MOTOR_RMS_CURRENT_mA:int = 500
 
-    X_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.5
-    Y_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.5
+    X_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.25
+    Y_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.25
     Z_MOTOR_I_HOLD:ClosedRange[float](0.0,1.0) = 0.5
 
-    MAX_VELOCITY_X_mm:float = 25.0
-    MAX_VELOCITY_Y_mm:float = 25.0
+    MAX_VELOCITY_X_mm:float = 40.0
+    MAX_VELOCITY_Y_mm:float = 40.0
     MAX_VELOCITY_Z_mm:float = 2.0
 
     MAX_ACCELERATION_X_mm:float = 500.0
     MAX_ACCELERATION_Y_mm:float = 500.0
-    MAX_ACCELERATION_Z_mm:float = 20.0
+    MAX_ACCELERATION_Z_mm:float = 100.0
 
     # end of actuator specific configurations
 
@@ -350,12 +348,19 @@ class MachineConfiguration:
 
     TUBE_LENS_MM:float = 50.0
     CAMERA_SENSOR:str = 'IMX226'
+
     TRACKERS:ClassVar[List[str]] = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
     DEFAULT_TRACKER:ClosedSet[str]('csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN') = 'csrt'
 
     AF:AutofocusConfig=AutofocusConfig()
 
-    SOFTWARE_POS_LIMIT:SoftwareStagePositionLimits=SoftwareStagePositionLimits()
+    SOFTWARE_POS_LIMIT:SoftwareStagePositionLimits=SoftwareStagePositionLimits(
+        X_POSITIVE = 112.5,
+        X_NEGATIVE = 10,
+        Y_POSITIVE = 76,
+        Y_NEGATIVE = 6,
+        Z_POSITIVE = 6
+    )
 
     ENABLE_STROBE_OUTPUT:bool = False
 
@@ -397,12 +402,22 @@ class MachineConfiguration:
 
     DEFAULT_TRIGGER_FPS:float=5.0
 
+    def from_json(filename:str):
+        try:
+            with open(filename,"r",encoding="utf-8") as json_file:
+                kwargs=json.decoder.JSONDecoder().decode(json_file.read())
+
+        except FileNotFoundError:
+            kwargs={}
+
+        return MachineConfiguration(**kwargs)
+
 
 @TypecheckClass(check_assignment=True)
 class MutableMachineConfiguration(QObject):
     # things that can change in hardware (manual changes)
     DEFAULT_OBJECTIVE:str = '10x (Mitutoyo)'
-    WELLPLATE_FORMAT:ClosedSet[int](6,12,24,96,384) = 384
+    WELLPLATE_FORMAT:ClosedSet[int](6,12,24,96,384) = 96
 
     # things that can change in software
     DEFAULT_TRIGGER_MODE:TriggerMode = TriggerMode.SOFTWARE
@@ -428,6 +443,15 @@ class MutableMachineConfiguration(QObject):
         }[name].emit(value)
         super().__setattr__(name,value)
 
+    def from_json(filename:str):
+        try:
+            with open(filename,"r",encoding="utf-8") as json_file:
+                kwargs=json.decoder.JSONDecoder().decode(json_file.read())
+
+        except FileNotFoundError:
+            kwargs={}
+
+        return MutableMachineConfiguration(**kwargs)
 
 @TypecheckClass
 class MachineDisplayConfiguration:
@@ -436,102 +460,17 @@ class MachineDisplayConfiguration:
     DEFAULT_DISPLAY_CROP:ClosedRange[int](1,100) = 100
     MULTIPOINT_SOFTWARE_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = False
     MULTIPOINT_LASER_AUTOFOCUS_ENABLE_BY_DEFAULT:bool = True
-    SHOW_DAC_CONTROL:bool = False
 
+    def from_json(filename:str):
+        try:
+            with open(filename,"r",encoding="utf-8") as json_file:
+                kwargs=json.decoder.JSONDecoder().decode(json_file.read())
 
-MACHINE_CONFIG=MachineConfiguration(
-    FLIP_IMAGE = 'Vertical',
+        except FileNotFoundError:
+            kwargs={}
 
-    # beginning of actuator specific configurations
+        return MachineDisplayConfiguration(**kwargs)
 
-    SCREW_PITCH_X_MM = 2.54,
-    SCREW_PITCH_Y_MM = 2.54,
-    SCREW_PITCH_Z_MM = 0.3,
-
-    MICROSTEPPING_DEFAULT_X = 256,
-    MICROSTEPPING_DEFAULT_Y = 256,
-    MICROSTEPPING_DEFAULT_Z = 256,
-    MICROSTEPPING_DEFAULT_THETA = 256,
-
-    X_MOTOR_RMS_CURRENT_mA = 1000,
-    Y_MOTOR_RMS_CURRENT_mA = 1000,
-    Z_MOTOR_RMS_CURRENT_mA = 500,
-
-    X_MOTOR_I_HOLD = 0.25,
-    Y_MOTOR_I_HOLD = 0.25,
-    Z_MOTOR_I_HOLD = 0.5,
-
-    MAX_VELOCITY_X_mm = 40.0,
-    MAX_VELOCITY_Y_mm = 40.0,
-    MAX_VELOCITY_Z_mm = 2.0,
-
-    MAX_ACCELERATION_X_mm = 500.0,
-    MAX_ACCELERATION_Y_mm = 500.0,
-    MAX_ACCELERATION_Z_mm = 100.0,
-
-    # end of actuator specific configurations
-
-    SCAN_STABILIZATION_TIME_MS_X = 160.0,
-    SCAN_STABILIZATION_TIME_MS_Y = 160.0,
-    SCAN_STABILIZATION_TIME_MS_Z = 20.0,
-
-    HOMING_ENABLED_X = True,
-    HOMING_ENABLED_Y = True,
-    HOMING_ENABLED_Z = True,
-
-    SLEEP_TIME_S = 0.005,
-
-    TUBE_LENS_MM = 50.0,
-    CAMERA_SENSOR = 'IMX226',
-
-    SOFTWARE_POS_LIMIT=SoftwareStagePositionLimits(
-        X_POSITIVE = 112.5,
-        X_NEGATIVE = 10,
-        Y_POSITIVE = 76,
-        Y_NEGATIVE = 6,
-        Z_POSITIVE = 6
-    ),
-        
-    # for 384 well plate
-    X_MM_384_WELLPLATE_UPPERLEFT = 12.74,
-    Y_MM_384_WELLPLATE_UPPERLEFT = 11.52,
-
-    # for other plate format
-    WELLPLATE_OFFSET_X_mm = 0.0,
-    WELLPLATE_OFFSET_Y_mm = 0.0,
-
-    # default z
-    DEFAULT_Z_POS_MM = 1.550,
-    CONTROLLER_VERSION = ControllerType.TEENSY,
-)
-
-MACHINE_DISPLAY_CONFIG=MachineDisplayConfiguration(
-)
-
-MUTABLE_MACHINE_CONFIG=MutableMachineConfiguration(
-    # multipoint acquisition settings
-    MULTIPOINT_AUTOFOCUS_CHANNEL = 'Fluorescence 561 nm Ex',
-    MULTIPOINT_BF_SAVING_OPTION = BrightfieldSavingMode.GREEN_ONLY,
-    WELLPLATE_FORMAT = 384,
-    DEFAULT_OBJECTIVE = '10x (Mitutoyo)',
-)
-
-##########################################################
-#### start of loading machine specific configurations ####
-##########################################################
-#config_files = glob.glob('.' + '/' + 'configuration*.txt')
-#if config_files:
-#    if len(config_files) > 1:
-#        print('multiple machine configuration files found, the program will exit')
-#        exit()
-#    print('load machine-specific configuration')
-#    exec(open(config_files[0]).read())
-#else:
-#    print('machine-specifc configuration not present, the program will exit')
-#    exit()
-##########################################################
-##### end of loading machine specific configurations #####
-##########################################################
 
 @dataclass(frozen=True)
 class WellplateFormatPhysical:
@@ -575,7 +514,7 @@ class WellplateFormatPhysical:
     def well_name(self,row:int,column:int)->str:
         return chr(ord('A')+row)+str(column+1)
     
- 
+
 WELLPLATE_FORMATS:Dict[int,WellplateFormatPhysical]={
     6:WellplateFormatPhysical(
         well_size_mm = 34.94,
@@ -627,3 +566,9 @@ WELLPLATE_NAMES:Dict[int,str]={
     i:f"{i} well plate"
     for i in WELLPLATE_FORMATS.keys()
 }
+
+MACHINE_CONFIG=MachineConfiguration.from_json("machine_config.json")
+
+MACHINE_DISPLAY_CONFIG=MachineDisplayConfiguration.from_json("display_config.json")
+
+MUTABLE_MACHINE_CONFIG=MutableMachineConfiguration.from_json("default_mutable_machine_config.json")

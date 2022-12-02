@@ -1,63 +1,46 @@
 # qt libraries
-from qtpy.QtWidgets import QFrame, QDoubleSpinBox, QSpinBox, QPushButton, QGridLayout, QLabel
+from qtpy.QtWidgets import QFrame, QDoubleSpinBox, QSpinBox, QGridLayout, QLabel
 
 from control._def import *
+from control.gui import *
 
 from typing import Optional, Union, List, Tuple
+
+DZ_TOOLTIP="use autofocus by taking z-stack of images (NZ images, with dz um distance between images), then \ncalculating a focus metric and choosing the image plane with the best metric.\n\nthe images are taken in the channel that is currently selected for live view (led+micro will be turned on if they are off)\n\nthis will take a few seconds"
+
+DEFAULT_NZ=10
+DEFAULT_DELTAZ=1.524
 
 class AutoFocusWidget(QFrame):
     def __init__(self, autofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.autofocusController = autofocusController
+
         self.add_components()
+
+        self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
+        self.autofocusController.set_N(DEFAULT_NZ)
+        self.set_deltaZ(DEFAULT_DELTAZ)
+
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self):
-        self.entry_delta = QDoubleSpinBox()
-        self.entry_delta.setMinimum(0) 
-        self.entry_delta.setMaximum(20) 
-        self.entry_delta.setSingleStep(0.2)
-        self.entry_delta.setDecimals(3)
-        self.entry_delta.setValue(1.524)
-        self.entry_delta.setKeyboardTracking(False)
-        self.autofocusController.set_deltaZ(1.524)
+        self.entry_delta = SpinBoxDouble(minimum=0.0,maximum=20.0,step=0.2,num_decimals=3,default=DEFAULT_DELTAZ,keyboard_tracking=False,on_valueChanged=self.set_deltaZ).widget
 
-        self.entry_N = QSpinBox()
-        self.entry_N.setMinimum(3) 
-        self.entry_N.setMaximum(20) 
-        self.entry_N.setSingleStep(1)
-        self.entry_N.setValue(10)
-        self.entry_N.setKeyboardTracking(False)
-        self.autofocusController.set_N(10)
+        self.entry_N = SpinBoxInteger(minimum=3,maximum=20,step=1,default=DEFAULT_NZ,keyboard_tracking=False,on_valueChanged=self.autofocusController.set_N).widget
 
-        self.btn_autofocus = QPushButton('Autofocus')
-        self.btn_autofocus.setDefault(False)
-        self.btn_autofocus.setCheckable(True)
-        self.btn_autofocus.setChecked(False)
+        self.btn_autofocus = Button('Autofocus',default=False,checkable=True,checked=False,tooltip=DZ_TOOLTIP,on_clicked=self.autofocusController.autofocus).widget
 
         # layout
-        grid_line0 = QGridLayout()
-        dz_tooltip="use autofocus by taking z-stack of images (NZ images, with dz um distance between images), then \ncalculating a focus metric and choosing the image plane with the best metric.\n\nthe images are taken in the channel that is currently selected for live view (led+micro will be turned on if they are off)\n\nthis will take a few seconds"
-        self.btn_autofocus.setToolTip(dz_tooltip)
-        qtlabel_dz=QLabel('delta Z (um)')
-        qtlabel_dz.setToolTip(dz_tooltip)
-        grid_line0.addWidget(qtlabel_dz, 0,0)
-        grid_line0.addWidget(self.entry_delta, 0,1)
-        qtlabel_Nz=QLabel('N Z planes')
-        qtlabel_Nz.setToolTip(dz_tooltip)
-        grid_line0.addWidget(qtlabel_Nz, 0,2)
-        grid_line0.addWidget(self.entry_N, 0,3)
-        grid_line0.addWidget(self.btn_autofocus, 0,4)
+        qtlabel_dz=Label('delta Z (um)',tooltip=DZ_TOOLTIP).widget
+        qtlabel_Nz=Label('N Z planes',tooltip=DZ_TOOLTIP).widget
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.setLayout(self.grid)
+        grid_line0 = Grid([ qtlabel_dz, self.entry_delta, qtlabel_Nz, self.entry_N, self.btn_autofocus ]).layout
         
-        # connections
-        self.btn_autofocus.clicked.connect(self.autofocusController.autofocus)
-        self.entry_delta.valueChanged.connect(self.set_deltaZ)
-        self.entry_N.valueChanged.connect(self.autofocusController.set_N)
-        self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
+        self.grid = Grid(
+            [grid_line0]
+        ).layout
+        self.setLayout(self.grid)
 
     def set_deltaZ(self,value):
         mm_per_ustep = MACHINE_CONFIG.SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*MACHINE_CONFIG.FULLSTEPS_PER_REV_Z)

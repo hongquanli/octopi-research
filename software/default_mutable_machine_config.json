@@ -1,0 +1,5 @@
+{
+  "MULTIPOINT_AUTOFOCUS_CHANNEL":"Fluorescence 561 nm Ex",
+  "WELLPLATE_FORMAT":384,
+  "DEFAULT_OBJECTIVE":"10x (Mitutoyo)"
+}

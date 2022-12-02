@@ -1,7 +1,8 @@
 # qt libraries
-from qtpy.QtWidgets import QFrame, QLabel, QDoubleSpinBox, QPushButton, QGridLayout, QMessageBox, QVBoxLayout, QApplication
+from qtpy.QtWidgets import QFrame, QLabel, QDoubleSpinBox, QGridLayout, QMessageBox, QVBoxLayout, QApplication
 
 from control._def import *
+from control.gui import *
 
 from typing import Optional, Union, List, Tuple
 
@@ -21,89 +22,39 @@ class NavigationWidget(QFrame):
         self.label_Xpos = QLabel()
         self.label_Xpos.setNum(0)
         self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        self.entry_dX = QDoubleSpinBox()
-        self.entry_dX.setMinimum(0) 
-        self.entry_dX.setMaximum(25) 
-        self.entry_dX.setSingleStep(0.2)
-        self.entry_dX.setValue(0)
-        self.entry_dX.setDecimals(3)
-        self.entry_dX.setKeyboardTracking(False)
-        self.btn_moveX_forward = QPushButton('Forward')
-        self.btn_moveX_forward.setDefault(False)
-        self.btn_moveX_backward = QPushButton('Backward')
-        self.btn_moveX_backward.setDefault(False)
+        self.entry_dX = SpinBoxDouble(minimum=0.0,maximum=25.0,step=0.2,default=0.0,num_decimals=3,keyboard_tracking=False).widget
+        self.btn_moveX_forward = Button('Forward',default=False).widget
+        self.btn_moveX_backward = Button('Backward',default=False).widget
 
-        self.btn_home_X = QPushButton('Home X')
-        self.btn_home_X.setDefault(False)
-        self.btn_home_X.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_X)
-        self.btn_zero_X = QPushButton('Zero X')
-        self.btn_zero_X.setDefault(False)
+        self.btn_home_X = Button('Home X',default=False,enabled=MACHINE_CONFIG.HOMING_ENABLED_X).widget
+        self.btn_zero_X = Button('Zero X',default=False).widget
         
         self.label_Ypos = QLabel()
         self.label_Ypos.setNum(0)
         self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        self.entry_dY = QDoubleSpinBox()
-        self.entry_dY.setMinimum(0)
-        self.entry_dY.setMaximum(25)
-        self.entry_dY.setSingleStep(0.2)
-        self.entry_dY.setValue(0)
-        self.entry_dY.setDecimals(3)
-        self.entry_dY.setKeyboardTracking(False)
-        self.btn_moveY_forward = QPushButton('Forward')
-        self.btn_moveY_forward.setDefault(False)
-        self.btn_moveY_backward = QPushButton('Backward')
-        self.btn_moveY_backward.setDefault(False)
+        self.entry_dY = SpinBoxDouble(minimum=0.0,maximum=25.0,step=0.2,default=0.0,num_decimals=3,keyboard_tracking=False).widget
+        self.btn_moveY_forward = Button('Forward',default=False).widget
+        self.btn_moveY_backward = Button('Backward',default=False).widget
 
-        self.btn_home_Y = QPushButton('Home Y')
-        self.btn_home_Y.setDefault(False)
-        self.btn_home_Y.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_Y)
-        self.btn_zero_Y = QPushButton('Zero Y')
-        self.btn_zero_Y.setDefault(False)
+        self.btn_home_Y = Button('Home Y',default=False,enabled=MACHINE_CONFIG.HOMING_ENABLED_Y).widget
+        self.btn_zero_Y = Button('Zero Y',default=False).widget
 
         self.label_Zpos = QLabel()
         self.label_Zpos.setNum(0)
         self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        self.entry_dZ = QDoubleSpinBox()
-        self.entry_dZ.setMinimum(0) 
-        self.entry_dZ.setMaximum(1000) 
-        self.entry_dZ.setSingleStep(0.2)
-        self.entry_dZ.setValue(0)
-        self.entry_dZ.setDecimals(3)
-        self.entry_dZ.setKeyboardTracking(False)
-        self.btn_moveZ_forward = QPushButton('Forward')
-        self.btn_moveZ_forward.setDefault(False)
-        self.btn_moveZ_backward = QPushButton('Backward')
-        self.btn_moveZ_backward.setDefault(False)
+        self.entry_dZ = SpinBoxDouble(minimum=0.0,maximum=1000.0,step=0.2,default=0.0,num_decimals=3,keyboard_tracking=False).widget
+        self.btn_moveZ_forward = Button('Forward',default=False).widget
+        self.btn_moveZ_backward = Button('Backward',default=False).widget
 
-        self.btn_home_Z = QPushButton('Home Z')
-        self.btn_home_Z.setDefault(False)
-        self.btn_home_Z.setEnabled(MACHINE_CONFIG.HOMING_ENABLED_Z)
-        self.btn_zero_Z = QPushButton('Zero Z')
-        self.btn_zero_Z.setDefault(False)
+        self.btn_home_Z = Button('Home Z',default=False,enabled=MACHINE_CONFIG.HOMING_ENABLED_Z).widget
+        self.btn_zero_Z = Button('Zero Z',default=False).widget
 
-        self.btn_goToLoadingPosition=QPushButton(BTN_LOADING_POSITION_IDLE_UNLOADED)
+        self.btn_goToLoadingPosition=Button(BTN_LOADING_POSITION_IDLE_UNLOADED).widget
         self.btn_goToLoadingPosition.clicked.connect(self.loading_position_toggle)
         
-        grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('X (mm)'), 0,0)
-        grid_line0.addWidget(self.label_Xpos, 0,1)
-        grid_line0.addWidget(self.entry_dX, 0,2)
-        grid_line0.addWidget(self.btn_moveX_forward, 0,3)
-        grid_line0.addWidget(self.btn_moveX_backward, 0,4)
-        
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Y (mm)'), 0,0)
-        grid_line1.addWidget(self.label_Ypos, 0,1)
-        grid_line1.addWidget(self.entry_dY, 0,2)
-        grid_line1.addWidget(self.btn_moveY_forward, 0,3)
-        grid_line1.addWidget(self.btn_moveY_backward, 0,4)
-
-        grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('Z (um)'), 0,0)
-        grid_line2.addWidget(self.label_Zpos, 0,1)
-        grid_line2.addWidget(self.entry_dZ, 0,2)
-        grid_line2.addWidget(self.btn_moveZ_forward, 0,3)
-        grid_line2.addWidget(self.btn_moveZ_backward, 0,4)
+        grid_line0 = Grid([ QLabel('X (mm)'), self.label_Xpos, self.entry_dX, self.btn_moveX_forward, self.btn_moveX_backward, ]).layout
+        grid_line1 = Grid([ QLabel('Y (mm)'), self.label_Ypos, self.entry_dY, self.btn_moveY_forward, self.btn_moveY_backward, ]).layout
+        grid_line2 = Grid([ QLabel('Z (um)'), self.label_Zpos, self.entry_dZ, self.btn_moveZ_forward, self.btn_moveZ_backward, ]).layout
         
         grid_line3 = QGridLayout()
         if self.widget_configuration == 'full':
@@ -120,15 +71,15 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
-        grid_line4=QGridLayout()
-        grid_line4.addWidget(self.btn_goToLoadingPosition)
+        grid_line4=Grid([ self.btn_goToLoadingPosition ]).layout
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
-        self.grid.addLayout(grid_line2,2,0)
-        self.grid.addLayout(grid_line3,3,0)
-        self.grid.addLayout(grid_line4,4,0)
+        self.grid = Grid(
+            [grid_line0],
+            [grid_line1],
+            [grid_line2],
+            [grid_line3],
+            [grid_line4],
+        ).layout
         self.setLayout(self.grid)
 
         self.entry_dX.valueChanged.connect(self.set_deltaX)

@@ -1,0 +1,14 @@
+{
+  "FLIP_IMAGE" : "Vertical",
+  "HOMING_ENABLED_X" : true,
+  "HOMING_ENABLED_Y" : true,
+  "HOMING_ENABLED_Z" : true,
+  "SLEEP_TIME_S" : 0.005,  
+  
+  "WELLPLATE_OFFSET_X_mm" : 0.0,
+  "WELLPLATE_OFFSET_Y_mm" : 0.0,
+  
+  "X_MM_384_WELLPLATE_UPPERLEFT" : 12.74,
+  "Y_MM_384_WELLPLATE_UPPERLEFT" : 11.52,
+  "DEFAULT_Z_POS_MM" : 1.550
+}

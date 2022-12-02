@@ -7,12 +7,26 @@ import time
 from control._def import *
 from control.core import Configuration, LiveController, ConfigurationManager, StreamHandler
 from control.typechecker import TypecheckFunction
+from control.gui import *
 
 from typing import Optional, Union, List, Tuple
 
 # 'Live' button text
 LIVE_BUTTON_IDLE_TEXT="Start Live"
 LIVE_BUTTON_RUNNING_TEXT="Stop Live"
+
+LIVE_BUTTON_TOOLTIP="""start/stop live image view
+
+displays each image that is recorded by the camera
+
+useful for manual investigation of a plate and/or imaging settings. Note that this can lead to strong photobleaching. Consider using the snapshot button instead (labelled 'snap')"""
+BTN_SNAP_TOOLTIP="take single image (minimizes bleaching for manual testing)"
+
+exposure_time_tooltip="exposure time is the time the camera sensor records an image. Higher exposure time means more time to record light emitted from a sample, which also increases bleaching (the light source is activate as long as the camera sensor records the light)"
+analog_gain_tooltip="analog gain increases the camera sensor sensitiviy. Higher gain will make the image look brighter so that a lower exposure time can be used, but also introduces more noise."
+channel_offset_tooltip="channel specific z offset used in multipoint acquisition to focus properly in channels that are not in focus at the same time the nucleus is (given the nucleus is the channel that is used for focusing)"
+
+CAMERA_PIXEL_FORMAT_TOOLTIP="camera pixel format\n\nMONO8 means monochrome (grey-scale) 8bit\nMONO12 means monochrome 12bit\n\nmore bits can capture more detail (8bit can capture 2^8 intensity values, 12bit can capture 2^12), but also increase file size"
 
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
@@ -25,8 +39,7 @@ class LiveControlWidget(QFrame):
     def __init__(self, 
         streamHandler:StreamHandler, 
         liveController:LiveController,
-        configurationManager:ConfigurationManager, 
-        show_trigger_options:bool=True
+        configurationManager:ConfigurationManager
     ):
         super().__init__()
         self.liveController = liveController
@@ -37,136 +50,108 @@ class LiveControlWidget(QFrame):
         # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration:Configuration = self.configurationManager.configurations[0]
 
-        self.add_components(show_trigger_options)
+        self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
         self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
-    @TypecheckFunction
-    def add_components(self,
-        show_trigger_options:bool
-    ):
+    def add_components(self):
         # line 0: trigger mode
-        self.triggerMode = None
-        self.dropdown_triggerManu = QComboBox()
-        self.dropdown_triggerManu.addItems([mode.value for mode in TriggerMode])
-        self.dropdown_triggerManu.currentIndexChanged.connect(self.update_trigger_mode)
+        trigger_mode_name_list=[mode.value for mode in TriggerMode]
+        self.dropdown_triggerMenu = Dropdown(trigger_mode_name_list,
+            current_index=trigger_mode_name_list.index(self.triggerMode.value),
+            on_currentIndexChanged=self.update_trigger_mode
+        ).widget
 
         # line 1: fps
-        self.entry_triggerFPS = QDoubleSpinBox()
-        self.entry_triggerFPS.setMinimum(0.02)
-        self.entry_triggerFPS.setMaximum(1000)
-        self.entry_triggerFPS.setSingleStep(1)
-        self.entry_triggerFPS.setValue(self.fps_trigger)
-        self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
+        self.entry_triggerFPS = SpinBoxDouble(minimum=0.02,maximum=100.0,step=1.0,default=self.fps_trigger,
+            on_valueChanged=self.liveController.set_trigger_fps
+        ).widget
 
-        # line 2: choose microscope mode / toggle live mode 
-        self.dropdown_modeSelection = QComboBox()
-        for microscope_configuration in self.configurationManager.configurations:
-            self.dropdown_modeSelection.addItems([microscope_configuration.name])
-        self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
-        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
+        # line 2: choose microscope mode / toggle live mode
+        configuration_name_list=[microscope_configuration.name for microscope_configuration in self.configurationManager.configurations]
+        self.dropdown_modeSelection = Dropdown(
+            configuration_name_list,
+            current_index=configuration_name_list.index(self.currentConfiguration.name),
+            on_currentTextChanged=self.update_microscope_mode_by_name
+        ).widget
 
-        self.btn_live = QPushButton(LIVE_BUTTON_IDLE_TEXT)
-        self.btn_live.setCheckable(True)
-        self.btn_live.setChecked(False)
-        self.btn_live.setDefault(False)
-        self.btn_live.setToolTip("""
-            start/stop live image view
+        self.btn_live=Button(LIVE_BUTTON_IDLE_TEXT,checkable=True,checked=False,default=False,tooltip=LIVE_BUTTON_TOOLTIP,on_clicked=self.toggle_live).widget
 
-            displays each image that is recorded by the camera
-
-            useful for manual investigation of a plate and/or imaging settings. Note that this can lead to strong photobleaching. Consider using the snapshot button instead (labelled 'snap')
-        """)
-        self.btn_live.clicked.connect(self.toggle_live)
-
-        self.btn_snap=QPushButton("snap")
-        self.btn_snap.setToolTip("take single image (minimizes bleaching for manual testing)")
-        self.btn_snap.clicked.connect(self.take_snapshot)
+        self.btn_snap=Button("Snap",tooltip=BTN_SNAP_TOOLTIP,on_clicked=self.take_snapshot).widget
 
         # line 3: exposure time and analog gain associated with the current mode
-        self.entry_exposureTime = QDoubleSpinBox()
-        self.entry_exposureTime.setMinimum(self.liveController.camera.EXPOSURE_TIME_MS_MIN) 
-        self.entry_exposureTime.setMaximum(self.liveController.camera.EXPOSURE_TIME_MS_MAX) 
-        self.entry_exposureTime.setSingleStep(1)
-        self.entry_exposureTime.setValue(0)
-        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
+        self.entry_exposureTime = SpinBoxDouble(
+            minimum=self.liveController.camera.EXPOSURE_TIME_MS_MIN,
+            maximum=self.liveController.camera.EXPOSURE_TIME_MS_MAX,step=1.0,default=0.0,
+            tooltip=exposure_time_tooltip,
+            on_valueChanged=self.update_config_exposure_time
+        ).widget
 
-        self.entry_analogGain = QDoubleSpinBox()
-        self.entry_analogGain.setMinimum(0)
-        self.entry_analogGain.setMaximum(24)
-        self.entry_analogGain.setSingleStep(0.1)
-        self.entry_analogGain.setValue(0)
-        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
+        self.entry_analogGain = SpinBoxDouble(
+            minimum=0.0,maximum=24.0,step=0.1,default=0.0,tooltip=analog_gain_tooltip,
+            on_valueChanged=self.update_config_analog_gain
+        ).widget
 
-        self.entry_channelOffset=QDoubleSpinBox()
-        self.entry_channelOffset.setMinimum(-30.0)
-        self.entry_channelOffset.setMaximum(30.0)
-        self.entry_channelOffset.setSingleStep(0.1)
-        self.entry_channelOffset.setValue(0)
-        self.entry_channelOffset.valueChanged.connect(self.update_config_channel_offset)
+        self.entry_channelOffset=SpinBoxDouble(
+            minimum=-30.0,maximum=30.0,step=0.1,default=0.0,tooltip=channel_offset_tooltip,
+            on_valueChanged=self.update_config_channel_offset
+        ).widget
 
-        self.entry_illuminationIntensity = QDoubleSpinBox()
-        self.entry_illuminationIntensity.setMinimum(0.1)
-        self.entry_illuminationIntensity.setMaximum(100)
-        self.entry_illuminationIntensity.setSingleStep(0.1)
-        self.entry_illuminationIntensity.setValue(100)
-        self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
+        self.entry_illuminationIntensity = SpinBoxDouble(
+            minimum=0.1,maximum=100.0,step=0.1,default=100.0,
+            on_valueChanged=self.update_config_illumination_intensity
+        ).widget
 
-        self.save_illuminationConfig=QPushButton("save config")
-        self.save_illuminationConfig.clicked.connect(self.save_illumination_config)
-        self.load_illuminationConfig=QPushButton("load config")
-        self.load_illuminationConfig.clicked.connect(self.load_illumination_config)
+        self.save_illuminationConfig=Button("save config",on_clicked=self.save_illumination_config).widget
+        self.load_illuminationConfig=Button("load config",on_clicked=self.load_illumination_config).widget
 
-        # layout
-        grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('Trigger Mode'), 0,0)
-        grid_line0.addWidget(self.dropdown_triggerManu, 0,1)
-        grid_line0.addWidget(QLabel('Trigger FPS'), 0,2)
-        grid_line0.addWidget(self.entry_triggerFPS, 0,3)
+        exposure_time_label=Label('Exposure Time (ms)',tooltip=exposure_time_tooltip).widget
 
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Imaging Mode'), 0,0)
-        grid_line1.addWidget(self.dropdown_modeSelection, 0,1)
-        grid_line1.addWidget(self.btn_live, 0,2)
-        grid_line1.addWidget(self.btn_snap, 0,3)
+        analog_gain_label=Label('Analog Gain',tooltip=analog_gain_tooltip).widget
 
-        grid_line2 = QGridLayout()
+        channel_offset_label=Label("Offset (µm)",tooltip=channel_offset_tooltip).widget
 
-        exposure_time_label=QLabel('Exposure Time (ms)')
-        exposure_time_tooltip="exposure time is the time the camera sensor records an image. Higher exposure time means more time to record light emitted from a sample, which also increases bleaching (the light source is activate as long as the camera sensor records the light)"
-        exposure_time_label.setToolTip(exposure_time_tooltip)
-        self.entry_exposureTime.setToolTip(exposure_time_tooltip)
-        grid_line2.addWidget(exposure_time_label, 0,0)
-        grid_line2.addWidget(self.entry_exposureTime, 0,1)
+        image_formats=['MONO8','MONO12']
+        self.camera_pixel_format_widget=Dropdown(image_formats,
+            current_index=0, # default pixel format is 8 bits
+            tooltip=CAMERA_PIXEL_FORMAT_TOOLTIP,
+            on_currentIndexChanged=lambda index:self.liveController.camera.set_pixel_format(image_formats[index])
+        ).widget
 
-        analog_gain_label=QLabel('Analog Gain')
-        analog_gain_tooltip="analog gain increases the camera sensor sensitiviy. Higher gain will make the image look brighter so that a lower exposure time can be used, but also introduces more noise."
-        analog_gain_label.setToolTip(analog_gain_tooltip)
-        self.entry_analogGain.setToolTip(analog_gain_tooltip)
-        grid_line2.addWidget(analog_gain_label, 0,2)
-        grid_line2.addWidget(self.entry_analogGain, 0,3)
-
-        channel_offset_label=QLabel("Offset (µm)")
-        channel_offset_tooltip="channel specific z offset used in multipoint acquisition to focus properly in channels that are not in focus at the same time the nucleus is (given the nucleus is the channel that is used for focusing)"
-        channel_offset_label.setToolTip(channel_offset_tooltip)
-        self.entry_channelOffset.setToolTip(channel_offset_tooltip)
-        grid_line2.addWidget(channel_offset_label, 0,4)
-        grid_line2.addWidget(self.entry_channelOffset, 0,5)
-
-        grid_line4 = QGridLayout()
-        grid_line4.addWidget(QLabel('Illumination'), 0,0)
-        grid_line4.addWidget(self.entry_illuminationIntensity, 0,1)
-        grid_line4.addWidget(self.save_illuminationConfig, 0,2)
-        grid_line4.addWidget(self.load_illuminationConfig, 0,3)
-
-        self.grid = QVBoxLayout()
-        if show_trigger_options:
-            self.grid.addLayout(grid_line0)
-        self.grid.addLayout(grid_line1)
-        self.grid.addLayout(grid_line2)
-        self.grid.addLayout(grid_line4)
+        self.grid = VBox(
+            Grid([ # general camera settings
+                Label('pixel format',tooltip=CAMERA_PIXEL_FORMAT_TOOLTIP).widget, 
+                self.camera_pixel_format_widget,
+                QLabel('Trigger Mode'), 
+                self.dropdown_triggerMenu, 
+            ]).layout,
+            Grid([ # start live imaging
+                self.btn_live,
+                self.btn_snap,
+                Label('FPS',tooltip="take this many images per second.\n\nNote that the FPS is practially capped by the exposure time. A warning message will be printed in the terminal if the actual number of images per second does not match the requested number.").widget,
+                self.entry_triggerFPS,
+            ]).layout,
+            Grid([ # change imaging channel, to view settings and at the same time take an image of that channel
+                QLabel('Imaging Mode'),
+                self.dropdown_modeSelection,
+            ]).layout,
+            Grid([ # channel settings 1/2
+                exposure_time_label,
+                self.entry_exposureTime,
+                analog_gain_label,
+                self.entry_analogGain,
+                channel_offset_label,
+                self.entry_channelOffset,
+            ]).layout,
+            Grid([ # channel settings 2/2, plus buttons to save/load configuration for all channels
+                QLabel('Illumination'),
+                self.entry_illuminationIntensity,
+                self.save_illuminationConfig,
+                self.load_illuminationConfig,
+            ]).layout,
+        ).layout
         self.grid.addStretch()
         self.setLayout(self.grid)
 
@@ -251,7 +236,7 @@ class LiveControlWidget(QFrame):
 
     @TypecheckFunction
     def update_trigger_mode(self):
-        self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
+        self.liveController.set_trigger_mode(self.dropdown_triggerMenu.currentText())
 
     @TypecheckFunction
     def update_config_exposure_time(self,new_value:float):
@@ -286,5 +271,5 @@ class LiveControlWidget(QFrame):
 
     @TypecheckFunction
     def set_trigger_mode(self,trigger_mode:str):
-        self.dropdown_triggerManu.setCurrentText(trigger_mode)
-        self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
+        self.dropdown_triggerMenu.setCurrentText(trigger_mode)
+        self.liveController.set_trigger_mode(self.dropdown_triggerMenu.currentText())

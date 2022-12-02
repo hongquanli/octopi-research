@@ -1,6 +1,7 @@
-from qtpy.QtWidgets import QApplication, QFrame, QPushButton, QLabel, QDoubleSpinBox, QGridLayout
+from qtpy.QtWidgets import QApplication, QFrame, QLabel, QDoubleSpinBox, QGridLayout
 
 from control.core import LaserAutofocusController
+from control.gui import *
 
 SET_REFERENCE_BUTTON_TEXT_IDLE="Set as reference plane"
 SET_REFERENCE_BUTTON_TEXT_IN_PROGRESS="setting reference plane (in progress)"
@@ -11,68 +12,51 @@ MEASURE_DISPLACEMENT_BUTTON_TEXT_IN_PROGRESS="Measure displacement (in progress)
 MOVE_TO_TARGET_BUTTON_TEXT_IDLE="Move to target"
 MOVE_TO_TARGET_BUTTON_TEXT_IN_PROGRESS="Move to target (in progress)"
 
+BTN_INITIALIZE_TOOLTIP="after moving into focus, click this. (only needs to be done once after program startup, this does some internal setup)"
+BTN_SET_REFERENCE_TOOLTIP="after moving into focus, click this to set the current focus plane. when 'moving to target' after this has been clicked, the target will always be relative to this plane."
+BTN_MEASURE_DISPLACEMENT_TOOLTIP="measure distance between current and reference focus plane."
+BTN_MOVE_TO_TARGET_TOOLTIP="move to a focus plane with a given distance to the reference plane that was set earlier."
+
 class LaserAutofocusControlWidget(QFrame):
     def __init__(self, laserAutofocusController:LaserAutofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.laserAutofocusController = laserAutofocusController
+
         self.add_components()
+
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self):
-        self.btn_initialize = QPushButton(INITIALIZE_BUTTON_TEXT_IDLE)
-        self.btn_initialize.setCheckable(False)
-        self.btn_initialize.setChecked(False)
-        self.btn_initialize.setDefault(False)
-        self.btn_initialize.setToolTip("after moving into focus, click this. (only needs to be done once after program startup, this does some internal setup)")
-
-        self.btn_set_reference = QPushButton(SET_REFERENCE_BUTTON_TEXT_IDLE)
-        self.btn_set_reference.setCheckable(False)
-        self.btn_set_reference.setChecked(False)
-        self.btn_set_reference.setDefault(False)
-        self.btn_set_reference.setToolTip("after moving into focus, click this to set the current focus plane. when 'moving to target' after this has been clicked, the target will always be relative to this plane.")
+        self.btn_initialize = Button(INITIALIZE_BUTTON_TEXT_IDLE,checkable=False,checked=False,default=False,tooltip=BTN_INITIALIZE_TOOLTIP,on_clicked=self.initialize).widget
+        self.btn_set_reference = Button(SET_REFERENCE_BUTTON_TEXT_IDLE,checkable=False,checked=False,default=False,tooltip=BTN_SET_REFERENCE_TOOLTIP,on_clicked=self.set_reference).widget
 
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.laserAutofocusController.signal_displacement_um.connect(self.label_displacement.setNum)
 
-        self.btn_measure_displacement = QPushButton(MEASURE_DISPLACEMENT_BUTTON_TEXT_IDLE)
-        self.btn_measure_displacement.setCheckable(False)
-        self.btn_measure_displacement.setChecked(False)
-        self.btn_measure_displacement.setDefault(False)
-        self.btn_measure_displacement.setToolTip("measure distance between current and reference focus plane.")
+        self.btn_measure_displacement = Button(MEASURE_DISPLACEMENT_BUTTON_TEXT_IDLE,checkable=False,checked=False,default=False,tooltip=BTN_MEASURE_DISPLACEMENT_TOOLTIP,on_clicked=self.measure_displacement).widget
 
-        self.entry_target = QDoubleSpinBox()
-        self.entry_target.setMinimum(-100)
-        self.entry_target.setMaximum(100)
-        self.entry_target.setSingleStep(0.01)
-        self.entry_target.setDecimals(2)
-        self.entry_target.setValue(0)
-        self.entry_target.setKeyboardTracking(False)
+        self.entry_target = SpinBoxDouble(minimum=-100.0,maximum=100.0,step=0.01,num_decimals=2,default=0.0,keyboard_tracking=False).widget
+        self.btn_move_to_target = Button(MOVE_TO_TARGET_BUTTON_TEXT_IDLE,checkable=False,checked=False,default=False,tooltip=BTN_MOVE_TO_TARGET_TOOLTIP,on_clicked=self.move_to_target).widget
 
-        self.btn_move_to_target = QPushButton(MOVE_TO_TARGET_BUTTON_TEXT_IDLE)
-        self.btn_move_to_target.setCheckable(False)
-        self.btn_move_to_target.setChecked(False)
-        self.btn_move_to_target.setDefault(False)
-        self.btn_move_to_target.setToolTip("move to a focus plane with a given distance to the reference plane that was set earlier.")
+        self.grid = Grid(
+            GridItem(self.btn_initialize,0,0,1,3),
+            GridItem(self.btn_set_reference,1,0,1,3),
+            [
+                QLabel('Displacement (um)'),
+                self.label_displacement,
+                self.btn_measure_displacement,
+            ],
+            [
+                QLabel('Target (um)'),
+                self.entry_target,
+                self.btn_move_to_target,
+            ],
+        ).layout
 
-        self.grid = QGridLayout()
-        self.grid.addWidget(self.btn_initialize,0,0,1,3)
-        self.grid.addWidget(self.btn_set_reference,1,0,1,3)
-        self.grid.addWidget(QLabel('Displacement (um)'),2,0)
-        self.grid.addWidget(self.label_displacement,2,1)
-        self.grid.addWidget(self.btn_measure_displacement,2,2)
-        self.grid.addWidget(QLabel('Target (um)'),3,0)
-        self.grid.addWidget(self.entry_target,3,1)
-        self.grid.addWidget(self.btn_move_to_target,3,2)
         self.grid.setRowStretch(self.grid.rowCount(), 1)
 
         self.setLayout(self.grid)
-
-        # make connections
-        self.btn_initialize.clicked.connect(self.initialize)
-        self.btn_set_reference.clicked.connect(self.set_reference)
-        self.btn_measure_displacement.clicked.connect(self.measure_displacement)
-        self.btn_move_to_target.clicked.connect(self.move_to_target)
-        self.laserAutofocusController.signal_displacement_um.connect(self.label_displacement.setNum)
 
         self.has_been_initialized=False
         self.reference_was_set=False

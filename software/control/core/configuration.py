@@ -45,6 +45,15 @@ class Configuration:
         self.channel_z_offset=channel_z_offset
         """ relative z offset of the average object in this channel (e.g. used in multichannel acquisition) """
 
+    def set_exposure_time(self,new_value):
+        self.exposure_time=new_value
+    def set_analog_gain(self,new_value):
+        self.analog_gain=new_value
+    def set_offset(self,new_value):
+        self.channel_z_offset=new_value
+    def set_illumination_intensity(self,new_value):
+        self.illumination_intensity=new_value
+
     def as_dict(self):
         return {
             "ID":self.id,

@@ -8,18 +8,24 @@ from qtpy.QtGui import QIcon
 
 from control._def import *
 
-def as_widget(layout)->QWidget:
-    w=QWidget()
-    w.setLayout(layout)
-    return w
-
 from typing import Optional, Union, List, Tuple, Callable
 
 from control.core import MultiPointController, ConfigurationManager
 from control.typechecker import TypecheckFunction
+from control.gui import *
 
 BUTTON_START_ACQUISITION_IDLE_TEXT="Start Acquisition"
 BUTTON_START_ACQUISITION_RUNNING_TEXT="Abort Acquisition"
+
+AF_CHANNEL_TOOLTIP="set channel that will be used for autofocus measurements"
+IMAGE_FORMAT_TOOLTIP="change file format for images acquired with the multi point acquisition function"
+compression_tooltip="enable image file compression (not supported for bmp)"
+SOFTWARE_AUTOFOCUS_TOOLTIP="enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below"
+
+dx_tooltip="acquire grid of images (Nx images with dx mm in between acquisitions; dx does not matter if Nx is 1)\ncan be combined with dy/Ny and dz/Nz and dt/Nt for a total of Nx * Ny * Nz * Nt images"
+dy_tooltip="acquire grid of images (Ny images with dy mm in between acquisitions; dy does not matter if Ny is 1)\ncan be combined with dx/Nx and dz/Nz and dt/Nt for a total of Nx*Ny*Nz*Nt images"
+dz_tooltip="acquire z-stack of images (Nz images with dz µm in between acquisitions; dz does not matter if Nz is 1)\ncan be combined with dx/Nx and dy/Ny and dt/Nt for a total of Nx*Ny*Nz*Nt images"
+dt_tooltip="acquire time-series of 'Nt' images, with 'dt' seconds in between acquisitions (dt does not matter if Nt is 1)\ncan be combined with dx/Nx and dy/Ny and dz/Nz for a total of Nx*Ny*Nz*Nt images"
 
 class MultiPointWidget(QFrame):
     def __init__(self,
@@ -45,8 +51,7 @@ class MultiPointWidget(QFrame):
     def add_components(self):
 
         if True: # add image saving options (path where to save)
-            self.btn_setSavingDir = QPushButton('Browse')
-            self.btn_setSavingDir.setDefault(False)
+            self.btn_setSavingDir = Button('Browse',default=False).widget
             self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
             self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
             
@@ -60,67 +65,50 @@ class MultiPointWidget(QFrame):
 
             self.lineEdit_experimentID = QLineEdit()
 
+            self.image_compress_widget=QCheckBox()
+            self.image_compress_widget.stateChanged.connect(self.set_image_compression)
+            self.image_compress_widget.setToolTip(compression_tooltip)
+
+            self.image_compress_widget_container=HBox(
+                Label("compression",tooltip=compression_tooltip),
+                self.image_compress_widget
+            ).layout
+
+            self.image_format_widget=QComboBox()
+            self.image_format_widget.setToolTip(IMAGE_FORMAT_TOOLTIP)
+            self.image_format_widget.addItems(["BMP","TIF"])
+            self.image_format_widget.currentIndexChanged.connect(self.set_image_format)
+            self.image_format_widget.setCurrentIndex(list(ImageFormat).index(Acquisition.IMAGE_FORMAT))
+
         if True: # add imaging grid configuration options
-            self.entry_deltaX = QDoubleSpinBox()
-            self.entry_deltaX.setMinimum(0) 
-            self.entry_deltaX.setMaximum(5) 
-            self.entry_deltaX.setSingleStep(0.1)
-            self.entry_deltaX.setValue(self.multipointController.deltaX)
-            self.entry_deltaX.setDecimals(3)
-            self.entry_deltaX.setKeyboardTracking(False)
+            self.entry_deltaX = SpinBoxDouble(minimum=0.0,maximum=5.0,step=0.1,default=self.multipointController.deltaX,num_decimals=3,keyboard_tracking=False).widget
             self.entry_deltaX.valueChanged.connect(self.set_deltaX)
 
-            self.entry_NX = QSpinBox()
-            self.entry_NX.setMinimum(1)
-            self.entry_NX.setSingleStep(1)
-            self.entry_NX.setKeyboardTracking(False)
+            self.entry_NX = SpinBoxInteger(minimum=1,maximum=10,step=1,keyboard_tracking=False).widget
             self.entry_NX.valueChanged.connect(self.set_NX)
             self.entry_NX.valueChanged.connect(lambda v:self.grid_changed("x",v))
             self.set_NX(self.multipointController.NX)
 
-            self.entry_deltaY = QDoubleSpinBox()
-            self.entry_deltaY.setMinimum(0)
-            self.entry_deltaY.setSingleStep(0.1)
-            self.entry_deltaY.setDecimals(3)
-            self.entry_deltaY.setKeyboardTracking(False)
+            self.entry_deltaY = SpinBoxDouble(minimum=0.0,step=0.1,num_decimals=3,keyboard_tracking=False).widget
             self.entry_deltaY.valueChanged.connect(self.set_deltaY)
             self.entry_deltaY.setValue(self.multipointController.deltaY)
             
-            self.entry_NY = QSpinBox()
-            self.entry_NY.setMinimum(1)
-            self.entry_NY.setSingleStep(1)
-            self.entry_NY.setKeyboardTracking(False)
+            self.entry_NY = SpinBoxInteger(minimum=1,maximum=10,step=1,keyboard_tracking=False).widget
             self.entry_NY.valueChanged.connect(self.set_NY)
             self.entry_NY.valueChanged.connect(lambda v:self.grid_changed("y",v))
             self.set_NY(self.multipointController.NY)
 
-            self.entry_deltaZ = QDoubleSpinBox()
-            self.entry_deltaZ.setMinimum(0)
-            self.entry_deltaZ.setSingleStep(0.2)
-            self.entry_deltaZ.setValue(self.multipointController.deltaZ)
-            self.entry_deltaZ.setDecimals(3)
-            self.entry_deltaZ.setKeyboardTracking(False)
+            self.entry_deltaZ = SpinBoxDouble(minimum=0.0,step=0.2,default=self.multipointController.deltaZ,num_decimals=3,keyboard_tracking=False).widget
             self.entry_deltaZ.valueChanged.connect(self.set_deltaZ)
             
-            self.entry_NZ = QSpinBox()
-            self.entry_NZ.setMinimum(1)
-            self.entry_NZ.setSingleStep(1)
-            self.entry_NZ.setKeyboardTracking(False)
+            self.entry_NZ = SpinBoxInteger(minimum=1,step=1,keyboard_tracking=False).widget
             self.entry_NZ.valueChanged.connect(self.set_NZ)
             self.set_NZ(self.multipointController.NZ)
             
-            self.entry_dt = QDoubleSpinBox()
-            self.entry_dt.setMinimum(0)
-            self.entry_dt.setSingleStep(1)
-            self.entry_dt.setValue(self.multipointController.deltat)
-            self.entry_dt.setDecimals(3)
-            self.entry_dt.setKeyboardTracking(False)
+            self.entry_dt = SpinBoxDouble(minimum=0.0,step=1.0,default=self.multipointController.deltat,num_decimals=3,keyboard_tracking=False).widget
             self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
 
-            self.entry_Nt = QSpinBox()
-            self.entry_Nt.setMinimum(1)
-            self.entry_Nt.setSingleStep(1)
-            self.entry_Nt.setKeyboardTracking(False)
+            self.entry_Nt = SpinBoxInteger(minimum=1,step=1,keyboard_tracking=False).widget
             self.entry_Nt.valueChanged.connect(self.set_Nt)
             self.set_Nt(self.multipointController.Nt)
 
@@ -133,12 +121,12 @@ class MultiPointWidget(QFrame):
 
         if True: # add autofocus related stuff
             self.checkbox_withAutofocus = QCheckBox('Software AF')
-            self.checkbox_withAutofocus.setToolTip("enable autofocus for multipoint acquisition\nfor each well the autofocus will be calculated in the channel selected below")
+            self.checkbox_withAutofocus.setToolTip(SOFTWARE_AUTOFOCUS_TOOLTIP)
             self.checkbox_withAutofocus.setChecked(MACHINE_DISPLAY_CONFIG.MULTIPOINT_SOFTWARE_AUTOFOCUS_ENABLE_BY_DEFAULT)
             self.checkbox_withAutofocus.stateChanged.connect(self.set_software_af_flag)
 
             af_channel_dropdown=QComboBox()
-            af_channel_dropdown.setToolTip("set channel that will be used for autofocus measurements")
+            af_channel_dropdown.setToolTip(AF_CHANNEL_TOOLTIP)
             channel_names=[microscope_configuration.name for microscope_configuration in self.configurationManager.configurations]
             af_channel_dropdown.addItems(channel_names)
             af_channel_dropdown.setCurrentIndex(channel_names.index(self.multipointController.autofocus_channel_name))
@@ -152,67 +140,41 @@ class MultiPointWidget(QFrame):
             self.checkbox_laserAutofocs.stateChanged.connect(self.multipointController.set_laser_af_flag)
             self.multipointController.set_laser_af_flag(MACHINE_DISPLAY_CONFIG.MULTIPOINT_LASER_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-            self.btn_startAcquisition = QPushButton(BUTTON_START_ACQUISITION_IDLE_TEXT)
-            self.btn_startAcquisition.setCheckable(True)
-            self.btn_startAcquisition.setChecked(False)
+            self.btn_startAcquisition = Button(BUTTON_START_ACQUISITION_IDLE_TEXT,checkable=True,checked=False).widget
             self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
 
-            grid_multipoint_acquisition_config=QGridLayout()
-            grid_multipoint_acquisition_config.addWidget(self.checkbox_withAutofocus,0,0)
-            grid_multipoint_acquisition_config.addWidget(self.af_channel_dropdown,1,0)
-            grid_multipoint_acquisition_config.addWidget(self.checkbox_laserAutofocs,2,0)
-            grid_multipoint_acquisition_config.addWidget(self.btn_startAcquisition,3,0)
+            grid_multipoint_acquisition_config=Grid(
+                [self.checkbox_withAutofocus],
+                [self.af_channel_dropdown],
+                [self.checkbox_laserAutofocs],
+                [self.btn_startAcquisition],
+            ).widget
 
         # layout
-        grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('Saving Path'))
-        grid_line0.addWidget(self.lineEdit_savingDir, 0,1)
-        grid_line0.addWidget(self.btn_setSavingDir, 0,2)
+        grid_line0 = Grid([
+            QLabel('Saving Path'),
+            self.lineEdit_savingDir,
+            self.btn_setSavingDir,
+        ])
 
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Experiment ID'), 0,0)
-        grid_line1.addWidget(self.lineEdit_experimentID,0,1)
+        grid_line1 = Grid([
+            QLabel('Experiment ID'),
+            self.lineEdit_experimentID,
+            self.image_compress_widget_container,
+            self.image_format_widget,
+        ])
 
-        grid_line2 = QGridLayout()
-        dx_tooltip="acquire grid of images (Nx images with dx mm in between acquisitions; dx does not matter if Nx is 1)\ncan be combined with dy/Ny and dz/Nz and dt/Nt for a total of Nx * Ny * Nz * Nt images"
-        qtlabel_dx=QLabel('dx (mm)')
-        qtlabel_dx.setToolTip(dx_tooltip)
-        grid_line2.addWidget(qtlabel_dx, 0,2)
-        grid_line2.addWidget(self.entry_deltaX, 0,3)
-        qtlabel_Nx=QLabel('Nx')
-        qtlabel_Nx.setToolTip(dx_tooltip)
-        grid_line2.addWidget(qtlabel_Nx, 0,0)
-        grid_line2.addWidget(self.entry_NX, 0,1)
+        qtlabel_dx=Label('dx (mm)',tooltip=dx_tooltip).widget
+        qtlabel_Nx=Label('Nx',tooltip=dx_tooltip).widget
  
-        dy_tooltip="acquire grid of images (Ny images with dy mm in between acquisitions; dy does not matter if Ny is 1)\ncan be combined with dx/Nx and dz/Nz and dt/Nt for a total of Nx*Ny*Nz*Nt images"
-        qtlabel_dy=QLabel('dy (mm)')
-        qtlabel_dy.setToolTip(dy_tooltip)
-        grid_line2.addWidget(qtlabel_dy, 1,2)
-        grid_line2.addWidget(self.entry_deltaY, 1,3)
-        qtlabel_Ny=QLabel('Ny')
-        qtlabel_Ny.setToolTip(dy_tooltip)
-        grid_line2.addWidget(qtlabel_Ny, 1,0)
-        grid_line2.addWidget(self.entry_NY, 1,1)
+        qtlabel_dy=Label('dy (mm)',tooltip=dy_tooltip).widget
+        qtlabel_Ny=Label('Ny',tooltip=dy_tooltip).widget
  
-        dz_tooltip="acquire z-stack of images (Nz images with dz µm in between acquisitions; dz does not matter if Nz is 1)\ncan be combined with dx/Nx and dy/Ny and dt/Nt for a total of Nx*Ny*Nz*Nt images"
-        qtlabel_dz=QLabel('dz (um)')
-        qtlabel_dz.setToolTip(dz_tooltip)
-        grid_line2.addWidget(qtlabel_dz, 2,2)
-        grid_line2.addWidget(self.entry_deltaZ, 2,3)
-        qtlabel_Nz=QLabel('Nz')
-        qtlabel_Nz.setToolTip(dz_tooltip)
-        grid_line2.addWidget(qtlabel_Nz, 2,0)
-        grid_line2.addWidget(self.entry_NZ, 2,1)
+        qtlabel_dz=Label('dz (um)',tooltip=dz_tooltip).widget
+        qtlabel_Nz=Label('Nz',tooltip=dz_tooltip).widget
  
-        dt_tooltip="acquire time-series of 'Nt' images, with 'dt' seconds in between acquisitions (dt does not matter if Nt is 1)\ncan be combined with dx/Nx and dy/Ny and dz/Nz for a total of Nx*Ny*Nz*Nt images"
-        qtlabel_dt=QLabel('dt (s)')
-        qtlabel_dt.setToolTip(dt_tooltip)
-        grid_line2.addWidget(qtlabel_dt, 3,2)
-        grid_line2.addWidget(self.entry_dt, 3,3)
-        qtlabel_Nt=QLabel('Nt')
-        qtlabel_Nt.setToolTip(dt_tooltip)
-        grid_line2.addWidget(qtlabel_Nt, 3,0)
-        grid_line2.addWidget(self.entry_Nt, 3,1)
+        qtlabel_dt=Label('dt (s)',tooltip=dt_tooltip).widget
+        qtlabel_Nt=Label('Nt',tooltip=dt_tooltip).widget
 
         self.well_grid_selector=QTableWidget()
         self.well_grid_selector.horizontalHeader().hide()
@@ -223,24 +185,56 @@ class MultiPointWidget(QFrame):
         self.grid_changed("y",self.multipointController.NY)
  
         self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
-        grid_line2.addWidget(self.well_grid_selector,0,4,4,1)
-
-        grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(self.list_configurations)
-        grid_line3.addLayout(grid_multipoint_acquisition_config)
 
         self.progress_bar=QProgressBar()
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(1)
         self.progress_bar.setValue(0)
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
-        self.grid.addLayout(grid_line2,2,0)
-        self.grid.addLayout(grid_line3,3,0)
-        self.grid.addWidget(self.progress_bar,4,0)
-        self.setLayout(self.grid)
+        grid_line2 = Grid(
+            [ qtlabel_Nx, self.entry_NX, qtlabel_dx, self.entry_deltaX,],
+            [ qtlabel_Ny, self.entry_NY, qtlabel_dy, self.entry_deltaY,],
+            [ qtlabel_Nz, self.entry_NZ, qtlabel_dz, self.entry_deltaZ,],
+            [ qtlabel_Nt, self.entry_Nt, qtlabel_dt, self.entry_dt, ],
+
+            GridItem(self.well_grid_selector,0,4,4,1)
+        )
+
+        grid_line3 = HBox( self.list_configurations, grid_multipoint_acquisition_config )
+
+        self.grid = Grid(
+            [grid_line0],
+            [grid_line1],
+            [grid_line2],
+            [grid_line3],
+            [self.progress_bar],
+        )
+        self.setLayout(self.grid.layout)
+
+    @TypecheckFunction
+    def set_image_format(self,index:int):
+        Acquisition.IMAGE_FORMAT=list(ImageFormat)[index]
+        if Acquisition.IMAGE_FORMAT==ImageFormat.TIFF:
+            self.image_compress_widget.setDisabled(False)
+        else:
+            self.image_compress_widget.setDisabled(True)
+            self.image_compress_widget.setCheckState(False)
+
+    @TypecheckFunction
+    def set_image_compression(self,state:Union[int,bool]):
+        if type(state)==int:
+            state=bool(state)
+
+        if state:
+            if Acquisition.IMAGE_FORMAT==ImageFormat.TIFF:
+                Acquisition.IMAGE_FORMAT=ImageFormat.TIFF_COMPRESSED
+            else:
+                raise Exception("enabled compression even though current image file format does not support compression. this is a bug.")
+        else:
+            if Acquisition.IMAGE_FORMAT==ImageFormat.TIFF_COMPRESSED:
+                Acquisition.IMAGE_FORMAT=ImageFormat.TIFF
+            else:
+                raise Exception("disabled compression while a format that is not compressed tiff was selected. this is a bug.")
 
     def set_NX(self,new_value:int):
         self.multipointController.set_NX(new_value)
