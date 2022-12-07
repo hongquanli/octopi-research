@@ -108,17 +108,16 @@ class LaserAutofocusController(QObject):
     def measure_displacement(self)->float:
         assert self.is_initialized and not self.x_reference is None
 
-        # turn on the laser
-        self.microcontroller.turn_on_AF_laser(completion={})
-
         # get laser spot location
-        x,y = self._get_laser_spot_centroid(num_images=MACHINE_CONFIG.LASER_AF_AVERAGING_N_FAST)
+        # sometimes one of the two expected dots cannot be found in _get_laser_spot_centroid because the plate is so far off the focus plane though, catch that case
+        try:
+            x,y = self._get_laser_spot_centroid(num_images=MACHINE_CONFIG.LASER_AF_AVERAGING_N_FAST)
 
-        # turn off the laser
-        self.microcontroller.turn_off_AF_laser(completion={})
+            # calculate displacement
+            displacement_um = (x - self.x_reference)*self.pixel_to_um
+        except:
+            displacement_um=float('nan')
 
-        # calculate displacement
-        displacement_um = (x - self.x_reference)*self.pixel_to_um
         self.signal_displacement_um.emit(displacement_um)
 
         return displacement_um
@@ -154,14 +153,6 @@ class LaserAutofocusController(QObject):
             num_images is number of images that are taken to calculate the average dot position from (eliminates some noise). defaults to a large number for higher precision.
         """
 
-        if self.camera.callback_is_enabled:
-            callback_was_enabled=True
-            self.camera.disable_callback()
-        else:
-            callback_was_enabled=False
-
-        self.liveController.set_microscope_mode(self.liveController.currentConfiguration)
-
         tmp_x = 0
         tmp_y = 0
 
@@ -182,17 +173,8 @@ class LaserAutofocusController(QObject):
                 if DEBUG_THIS_STUFF:
                     print(f"{current_counter=}")
                     current_counter+=1
-
-                self.microcontroller.turn_on_AF_laser(completion={})
-
-                # take image
-                self.liveController.camera.start_streaming()
-                self.liveController.trigger_acquisition()
-                image = self.camera.read_frame()
-                self.liveController.end_acquisition() # callback disabled -> do this manually
-                self.liveController.camera.stop_streaming()
-
-                self.microcontroller.turn_off_AF_laser(completion={})
+        
+                image = self.liveController.snap(self.liveController.currentConfiguration)
 
             imaging_times.append(time.time()-take_image_start_time)
 
@@ -217,9 +199,6 @@ class LaserAutofocusController(QObject):
         if DEBUG_THIS_STUFF:
             imaging_times_str=", ".join([f"{i:.3f}" for i in imaging_times])
             print(f"calculated centroid in {(time.time()-start_time):.3f}s ({imaging_times_str})")
-
-        if callback_was_enabled:
-            self.camera.enable_callback()
 
         x = tmp_x/num_images
         y = tmp_y/num_images

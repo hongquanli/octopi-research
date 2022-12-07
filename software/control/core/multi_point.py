@@ -127,11 +127,6 @@ class MultiPointWorker(QObject):
         self.autofocusController.autofocus()
         self.autofocusController.wait_till_autofocus_has_completed()
 
-    def process_image(self,image):
-        image = utils.crop_image(image,self.crop_width,self.crop_height)
-        image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-        return utils.crop_image(image,self.crop_width, self.crop_height)
-
     def image_config(self,config:Configuration,saving_path:str):
         """ take image for specified configuration and save to specified path """
 
@@ -150,15 +145,9 @@ class MultiPointWorker(QObject):
             self.movement_deviation_from_focusplane=target_um
             self.navigationController.move_z(um_to_move/1000,wait_for_completion={},wait_for_stabilization=True)
 
-        # trigger acquisition (including turning on the illumination), then save image and turn illumniation off again
-        self.liveController.trigger_acquisition()
-
-        image = self.camera.read_frame()
-        
-        self.liveController.end_acquisition()
+        image = self.liveController.snap(config,crop=True,override_crop_height=self.crop_height,override_crop_width=self.crop_width)
 
         # process the image -  @@@ to move to camera
-        image = self.process_image(image)
         self.image_to_display.emit(image)
         self.image_to_display_multi.emit(image,config.illumination_source)
             
@@ -578,18 +567,9 @@ class MultiPointController(QObject):
         
             # stop live
             if self.liveController.is_live:
-                self.liveController_was_live_before_multipoint = True
                 self.liveController.stop_live()
 
             self.acquisitionStarted.emit()
-
-            # if the live button was not pressed before multipoint acquisition is started, camera is not yet streaming, therefore crash -> start streaming when multipoint starts
-            self.camera.start_streaming()
-
-            # disable callback
-            if self.camera.callback_is_enabled:
-                self.camera_callback_was_enabled_before_multipoint = True
-                self.camera.disable_callback()
 
             # run the acquisition
             self.timestamp_acquisition_started = time.time()
@@ -613,7 +593,6 @@ class MultiPointController(QObject):
             self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
             self.thread.finished.connect(self.thread.quit)
             self.thread.finished.connect(lambda:setattr(self,'thread',None))
-            self.thread.finished.connect(lambda:self.camera.stop_streaming())
             
             self.thread.start()
 
@@ -623,15 +602,6 @@ class MultiPointController(QObject):
         # restore the previous selected mode
         if not self.configuration_before_running_multipoint is None:
             self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
-
-        # re-enable callback
-        if self.camera_callback_was_enabled_before_multipoint:
-            self.camera.enable_callback()
-            self.camera_callback_was_enabled_before_multipoint = False
-        
-        # re-enable live if it's previously on
-        if self.liveController_was_live_before_multipoint:
-            self.liveController.start_live()
         
         # emit the acquisition finished signal to enable the UI
         self.acquisitionFinished.emit()

@@ -9,6 +9,31 @@ from typing import Optional, Union, List, Tuple, Callable, Any
 
 import pyqtgraph.dockarea as dock
 
+class ManagedObject:
+    def __init__(self):
+        self.value=None
+    def __eq__(self,other):
+        if self.value is None:
+            self.value=other
+            return other
+        else:
+            return self.value
+
+class ObjectManager:
+    def __init__(self):
+        self.managed_objects={}
+    def __getattr__(self,key):
+        if key in self.managed_objects:
+            managed_object=self.managed_objects[key]
+        else:
+            managed_object=ManagedObject()
+            self.managed_objects[key]=managed_object
+
+        if managed_object.value is None:
+            return managed_object
+        else:
+            return managed_object.value
+
 def as_widget(layout)->QWidget:
     w=QWidget()
     w.setLayout(layout)
@@ -46,15 +71,25 @@ class Grid(HasLayout,HasWidget):
                 self.layout.addWidget(outer_arg.widget,outer_arg.a,outer_arg.b,outer_arg.c,outer_arg.d)
                 continue
 
-            for inner_index,inner_arg in enumerate(outer_arg):
-                try_add_member(self.layout,inner_arg,outer_index,inner_index)
+            try:
+                _discard=outer_arg.__iter__
+                can_be_iterated_over=True
+            except:
+                can_be_iterated_over=False
+
+            if can_be_iterated_over:
+                for inner_index,inner_arg in enumerate(outer_arg):
+                    if not inner_arg is None: # inner args can be NONE to allow for some easy padding between elements
+                        try_add_member(self.layout,inner_arg,outer_index,inner_index)
+            else:
+                try_add_member(self.layout,outer_arg,outer_index,0)
 
     @property
     def widget(self):
         return as_widget(self.layout)
 
 class HBox(HasLayout,HasWidget):
-    def __init__(self,*args,**kwargs):
+    def __init__(self,*args):
         self.layout=QHBoxLayout()
         for arg in args:
             try_add_member(self.layout,arg)
@@ -64,7 +99,7 @@ class HBox(HasLayout,HasWidget):
         return as_widget(self.layout)
 
 class VBox(HasLayout,HasWidget):
-    def __init__(self,*args,**kwargs):
+    def __init__(self,*args):
         self.layout=QVBoxLayout()
         for arg in args:
             try_add_member(self.layout,arg)
@@ -154,10 +189,24 @@ class SpinBoxInteger(HasWidget):
                     getattr(self.widget,signal_name).connect(value)
 
 class Label(HasWidget):
-    def __init__(self,text:str,tooltip:Optional[str]=None):
+    def __init__(self,
+        text:str,
+        tooltip:Optional[str]=None,
+        text_color:Optional[str]=None,
+        background_color:Optional[str]=None
+    ):
         self.widget=QLabel(text)
         if not tooltip is None:
             self.widget.setToolTip(tooltip)
+        stylesheet=""
+        if not text_color is None:
+            stylesheet+=f"color : {text_color} ; "
+        if not background_color is None:
+            stylesheet+=f"background-color : {background_color} ; "
+        if len(stylesheet)>0:
+            final_stylesheet=f"QLabel {{ { stylesheet } }}"
+            self.widget.setStyleSheet(final_stylesheet)
+
 
 class Button(HasWidget):
     def __init__(self,

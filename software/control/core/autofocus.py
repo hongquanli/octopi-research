@@ -159,7 +159,7 @@ class AutoFocusController(QObject):
             self.callback_was_enabled_before_autofocus = False
 
         self.autofocus_in_progress = True
-        self.camera.start_streaming() # work around a bug, explained in MultiPointController.run_experiment
+        self.camera.start_streaming()
 
         # create a QThread object
         if not self.thread is None and self.thread.isRunning():
@@ -185,6 +185,8 @@ class AutoFocusController(QObject):
         self.thread.start()
         
     def _on_autofocus_completed(self):
+        self.camera.stop_streaming()
+        
         # re-enable callback
         if self.callback_was_enabled_before_autofocus:
             self.camera.enable_callback()

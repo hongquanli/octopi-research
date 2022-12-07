@@ -4,12 +4,14 @@ from qtpy.QtWidgets import QApplication
 
 from control._def import *
 import time
+import numpy
 
 from typing import Optional, List, Union, Tuple
 
 import control.microcontroller as microcontroller
 import control.camera as camera
 from control.core import ConfigurationManager, Configuration, StreamHandler
+import control.utils as utils
 
 class LiveController(QObject):
 
@@ -66,6 +68,49 @@ class LiveController(QObject):
         self.time_image_requested=time.time()
         self.stop_requested=False
 
+        if for_displacement_measurement:
+            self.currentConfiguration=self.configurationManager.configurations[0]
+
+    def snap(self,config:Configuration=None,crop:bool=True,override_crop_width:Optional[int]=None,override_crop_height:Optional[int]=None)->numpy.ndarray:
+        """
+        if 'crop' is True, the image will be cropped to the streamhandlers requested height and width. 'override_crop_[height,width]' override the respective value
+        """
+        if self.camera.callback_is_enabled:
+            callback_was_enabled=True
+            self.camera.disable_callback()
+        else:
+            callback_was_enabled=False
+
+        """ prepare camera and lights """
+        self.set_microscope_mode(config)
+        self.camera.start_streaming()
+        self.camera.is_live=True
+
+        """ take image """
+        self.trigger_acquisition()
+        image = self.camera.read_frame()
+        self.end_acquisition()
+
+        """ de-prepare camera and lights """
+        self.camera.is_live=False
+        self.camera.stop_streaming()
+
+        if callback_was_enabled:
+            self.camera.enable_callback()
+
+        crop_height=override_crop_height or self.stream_handler.crop_height
+        crop_width=override_crop_width or self.stream_handler.crop_width
+
+        image_cropped=image
+        if crop:
+            image_cropped = utils.crop_image(image_cropped,crop_width,crop_height)
+        image_cropped = numpy.squeeze(image_cropped)
+        image_cropped = utils.rotate_and_flip_image(image_cropped,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+        if crop:
+            image_cropped = utils.crop_image(image_cropped,round(crop_width), round(crop_height))
+
+        return image_cropped
+
     # illumination control
     def turn_on_illumination(self):
         if self.control_illumination and not self.illumination_on:
@@ -98,7 +143,7 @@ class LiveController(QObject):
             self._start_triggered_acquisition()
         # if controlling the laser displacement measurement camera
         if self.for_displacement_measurement:
-            self.microcontroller.turn_on_AF_laser()
+            self.microcontroller.turn_on_AF_laser(completion={})
 
         self.start_live_signal.emit()
 
@@ -119,7 +164,7 @@ class LiveController(QObject):
 
             # if controlling the laser displacement measurement camera
             if self.for_displacement_measurement:
-                self.microcontroller.turn_off_AF_laser()
+                self.microcontroller.turn_off_AF_laser(completion={})
 
             self.camera.stop_streaming()
 
@@ -149,6 +194,8 @@ class LiveController(QObject):
         if self.trigger_mode == TriggerMode.SOFTWARE:
             if not self.for_displacement_measurement:
                 self.turn_on_illumination()
+            else:
+                self.microcontroller.turn_on_AF_laser()
 
             self.camera.send_trigger()
 
@@ -166,6 +213,8 @@ class LiveController(QObject):
         if self.trigger_mode == TriggerMode.SOFTWARE:
             if not self.for_displacement_measurement:
                 self.turn_off_illumination()
+            else:
+                self.microcontroller.turn_off_AF_laser()
 
         self.image_acquisition_in_progress=False
         self.image_acquisition_queued=False

@@ -77,11 +77,19 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_initialize.setText(INITIALIZE_BUTTON_TEXT_IN_PROGRESS)
         QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
 
-        self.laserAutofocusController.initialize_auto()
+        try:
+            self.laserAutofocusController.initialize_auto()
+            initialization_failed=False
+        except:
+            initialization_failed=True
 
         self.btn_initialize.setDisabled(False)
         self.btn_initialize.setText(INITIALIZE_BUTTON_TEXT_IDLE)
         QApplication.processEvents() # process GUI events, i.e. actually display the changed text etc.
+
+        if initialization_failed:
+            print("there was a problem initializing the laser autofocus. is the plate in focus?")
+            return
 
         # allow setting of a reference after initialization
         if not self.has_been_initialized:

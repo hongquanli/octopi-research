@@ -1,6 +1,6 @@
 # qt libraries
 from qtpy.QtCore import Qt, QEvent, Signal
-from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider, QCheckBox, QWidget
+from qtpy.QtWidgets import QMainWindow, QTabWidget, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDesktopWidget, QSlider, QCheckBox, QWidget, QApplication
 
 import numpy
 
@@ -39,6 +39,13 @@ channel_offset_tooltip="channel specific z offset used in multipoint acquisition
 
 CAMERA_PIXEL_FORMAT_TOOLTIP="camera pixel format\n\nMONO8 means monochrome (grey-scale) 8bit\nMONO12 means monochrome 12bit\n\nmore bits can capture more detail (8bit can capture 2^8 intensity values, 12bit can capture 2^12), but also increase file size"
 
+CHANNEL_COLORS={
+    15:"darkRed", # 730
+    13:"red", # 638
+    14:"green", # 561
+    12:"blue", # 488
+    11:"purple", # 405
+}
 
 def seconds_to_long_time(sec:float)->str:
     hours=int(sec//3600)
@@ -175,18 +182,38 @@ class OctopiGUI(QMainWindow):
         self.imageDisplay           = widgets.ImageDisplay()
         self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
         self.wellSelectionWidget    = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
-        self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
+        #self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
         self.navigationWidget       = widgets.NavigationWidget(self.navigationController,widget_configuration=default_well_plate)
         self.autofocusWidget        = widgets.AutoFocusWidget(self.autofocusController)
         self.multiPointWidget       = widgets.MultiPointWidget(self.multipointController,self.configurationManager,self.start_experiment,self.abort_experiment)
         self.navigationViewer       = widgets.NavigationViewer(sample=default_well_plate)
 
-        self.imagingModes=VBox(*[
-            Grid([
-                Label(config.name).widget
-            ],[Grid([
-                Label("exposure time").widget,
-                SpinBoxDouble(
+        self.imaging_mode_config_managers={}
+
+        imaging_modes_widget_list=[]
+        for config in self.configurationManager.configurations:
+            config_manager=ObjectManager()
+
+            top_row=[
+                Label(config.name,tooltip=config.automatic_tooltip,text_color=CHANNEL_COLORS[config.illumination_source]).widget,
+                Label("illumination:").widget,
+                config_manager.illumination_strength == SpinBoxDouble(
+                    minimum=0.1,maximum=100.0,step=0.1,
+                    default=config.illumination_intensity,
+                    on_valueChanged=[
+                        config.set_illumination_intensity,
+                        self.configurationManager.save_configurations
+                    ]
+                ).widget,
+                Button("snap",on_clicked=lambda btn_state,config=config:self.snap_single(btn_state,config)).widget
+            ]
+            imaging_modes_widget_list.append(
+                HBox(*top_row)
+            )
+
+            bottom_row=[
+                Label("exposure time:").widget,
+                config_manager.exposure_time == SpinBoxDouble(
                     minimum=self.liveController.camera.EXPOSURE_TIME_MS_MIN,
                     maximum=self.liveController.camera.EXPOSURE_TIME_MS_MAX,step=1.0,
                     default=config.exposure_time,tooltip=exposure_time_tooltip,
@@ -195,8 +222,8 @@ class OctopiGUI(QMainWindow):
                         self.configurationManager.save_configurations
                     ]
                 ).widget,
-                Label("gain").widget,
-                SpinBoxDouble(
+                Label("gain:").widget,
+                config_manager.analog_gain == SpinBoxDouble(
                     minimum=0.0,maximum=24.0,step=0.1,
                     default=config.analog_gain,tooltip=analog_gain_tooltip,
                     on_valueChanged=[
@@ -204,8 +231,8 @@ class OctopiGUI(QMainWindow):
                         self.configurationManager.save_configurations
                     ]
                 ).widget,
-                Label("offset").widget,
-                SpinBoxDouble(
+                Label("offset:").widget,
+                config_manager.z_offset == SpinBoxDouble(
                     minimum=-30.0,maximum=30.0,step=0.1,
                     default=config.channel_z_offset,tooltip=channel_offset_tooltip,
                     on_valueChanged=[
@@ -213,19 +240,22 @@ class OctopiGUI(QMainWindow):
                         self.configurationManager.save_configurations
                     ]
                 ).widget,
-                # disabled because unused
-                #Label("illumination").widget,
-                #SpinBoxDouble(
-                #    minimum=0.1,maximum=100.0,step=0.1,
-                #    default=config.illumination_intensity,
-                #    on_valueChanged=[
-                #        config.set_illumination_intensity,
-                #        self.configurationManager.save_configurations
-                #    ]
-                #).widget
-            ])])
-            for config in self.configurationManager.configurations
-        ]).widget
+            ]
+            imaging_modes_widget_list.append(
+                HBox(*bottom_row)
+            )
+
+            self.imaging_mode_config_managers[config.id]=config_manager
+
+
+        self.imagingModes=VBox(
+            Button("snap all",tooltip="take a snapshot in all channels and display in multi-point acquisition panel",on_clicked=self.snap_all),
+            HBox(
+                Button("save config",tooltip="save settings related to all imaging modes/channels",on_clicked=self.save_illumination_config),
+                Button("load config",tooltip="load settings related to all imaging modes/channels",on_clicked=self.load_illumination_config)
+            ),
+            *imaging_modes_widget_list
+        ).widget
 
         self.laserAutofocusControlWidget=Dock(
             widgets.LaserAutofocusControlWidget(self.laserAutofocusController),
@@ -251,20 +281,19 @@ class OctopiGUI(QMainWindow):
 
         clear_history_button=Button("clear history",on_clicked=self.navigationViewer.clear_imaged_positions).widget
 
-        wellplate_selector=QComboBox()
         wellplate_types_str=list(WELLPLATE_NAMES.values())
-        wellplate_selector.addItems(wellplate_types_str)
+        wellplate_selector=Dropdown(
+            items=wellplate_types_str,
+            current_index=wellplate_types_str.index(default_well_plate),
+            on_currentIndexChanged=lambda wellplate_type_index:setattr(MUTABLE_MACHINE_CONFIG,"WELLPLATE_FORMAT",tuple(WELLPLATE_FORMATS.keys())[wellplate_type_index])
+        ).widget
         # disable 6 and 24 well wellplates, because images of these plates are missing
         for wpt in [0,2]:
             item=wellplate_selector.model().item(wpt)
             item.setFlags(item.flags() & ~Qt.ItemIsEnabled) # type: ignore
-        wellplate_selector.setCurrentIndex(wellplate_types_str.index(default_well_plate))
-        wellplate_selector.currentIndexChanged.connect(lambda wellplate_type_index:setattr(MUTABLE_MACHINE_CONFIG,"WELLPLATE_FORMAT",tuple(WELLPLATE_FORMATS.keys())[wellplate_type_index]))
- 
-        wellplate_overview_header=HBox( QLabel("wellplate overview"), clear_history_button, QLabel("change plate type:"), wellplate_selector ).layout
 
         self.navigationViewWrapper=VBox(
-            wellplate_overview_header,
+            HBox( QLabel("wellplate overview"), clear_history_button, QLabel("change plate type:"), wellplate_selector ).layout,
             self.navigationViewer
         ).layout
 
@@ -273,7 +302,7 @@ class OctopiGUI(QMainWindow):
 
         # layout widgets
         layout = VBox(
-            self.liveControlWidget,
+            #self.liveControlWidget,
             self.recordTabWidget
         ).layout
         layout.addStretch()
@@ -286,25 +315,25 @@ class OctopiGUI(QMainWindow):
         height_min = int(0.9*desktopWidget.height())
 
         # laser af section
-        self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera)
+        #self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera)
         self.imageDisplayWindow_focus = widgets.ImageDisplayWindow(draw_crosshairs=True)
 
         dock_laserfocus_image_display = Dock(
             widget=self.imageDisplayWindow_focus.widget,
             title='Focus Camera Image Display'
         ).widget
-        dock_laserfocus_liveController = Dock(
-            title='Focus Camera Controller',
-            widget=self.liveControlWidget_focus_camera,
-            fixed_width=self.liveControlWidget_focus_camera.minimumSizeHint().width()
-        ).widget
+        #dock_laserfocus_liveController = Dock(
+        #    title='Focus Camera Controller',
+        #    widget=self.liveControlWidget_focus_camera,
+        #    fixed_width=self.liveControlWidget_focus_camera.minimumSizeHint().width()
+        #).widget
 
         laserfocus_dockArea = dock.DockArea()
         laserfocus_dockArea.addDock(dock_laserfocus_image_display)
-        laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
+        #laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
 
         # connections
-        self.liveControlWidget_focus_camera.update_camera_settings()
+        #self.liveControlWidget_focus_camera.update_camera_settings()
 
         self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
         self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
@@ -313,21 +342,18 @@ class OctopiGUI(QMainWindow):
         self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
         # make connections
-        self.imageDisplay.image_to_display.connect(self.processLiveImage) # internally calls self.imageDisplayWindow.display_image, among other things
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
         self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
+        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+
+        self.imageDisplay.image_to_display.connect(self.processLiveImage) # internally calls self.imageDisplayWindow.display_image, among other things
+
         self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
         self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
-        self.liveControlWidget.signal_newExposureTime.connect(self.camera.set_exposure_time)
-        self.liveControlWidget.signal_newAnalogGain.connect(self.camera.set_analog_gain)
-        self.liveControlWidget.update_camera_settings()
-
-        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
@@ -362,12 +388,60 @@ class OctopiGUI(QMainWindow):
         self.setCentralWidget(main_dockArea)
         self.setMinimumSize(width_min,height_min)
 
-    def add_image_inspection(self,
-        brightness_adjust_min:int=5,
-        brightness_adjust_max:int=15,
+    def save_illumination_config(self,_button_state:bool):
+        """ save illumination configuration to a file (GUI callback) """
 
-        contrast_adjust_min:int=5,
-        contrast_adjust_max:int=15,
+        dialog=QFileDialog(options=QFileDialog.DontUseNativeDialog)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        save_path=dialog.getSaveFileName(caption="Save current illumination config where?")[0]
+
+        if save_path!="":
+            if not save_path.endswith(".json"):
+                save_path=save_path+".json"
+            print(f"saving config to {save_path}")
+            self.configurationManager.write_configuration(save_path)
+
+    def load_illumination_config(self,_button_state:bool):
+        """ load illumination configuration from a file (GUI callback) """
+
+        if self.liveController.camera.is_live:
+            print("! warning: cannot load illumination settings while live !")
+            return
+        
+        dialog=QFileDialog(options=QFileDialog.DontUseNativeDialog)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        load_path=dialog.getOpenFileName(caption="Load which illumination config?",filter="JSON (*.json)")[0]
+
+        if load_path!="":
+            print(f"loading config from {load_path}")
+            self.configurationManager.read_configurations(load_path)
+            for config in self.configurationManager.configurations:
+                self.imaging_mode_config_managers[config.id].illumination_strength.setValue(config.illumination_intensity)
+                self.imaging_mode_config_managers[config.id].exposure_time.setValue(config.exposure_time)
+                self.imaging_mode_config_managers[config.id].analog_gain.setValue(config.analog_gain)
+                self.imaging_mode_config_managers[config.id].z_offset.setValue(config.channel_z_offset)
+
+    def snap_single(self,_button_state,config,display_in_image_array_display:bool=False,preserve_existing_histogram:bool=False):
+        image=self.liveController.snap(config)
+        QApplication.processEvents()
+        histogram_color=CHANNEL_COLORS[config.illumination_source]
+        self.processLiveImage(image,histogram_color=histogram_color,preserve_existing_histogram=preserve_existing_histogram)
+        QApplication.processEvents()
+
+        if display_in_image_array_display:
+            self.imageArrayDisplayWindow.display_image(image,config.illumination_source)
+            QApplication.processEvents()
+
+    def snap_all(self,_button_state):
+        for config in self.configurationManager.configurations:
+            self.snap_single(_button_state,config,display_in_image_array_display=True,preserve_existing_histogram=True)
+
+    def add_image_inspection(self,
+        brightness_adjust_min:float=0.1,
+        brightness_adjust_max:float=4.0,
+
+        contrast_adjust_min:float=0.1,
+        contrast_adjust_max:float=4.0,
 
         histogram_log_display_default:bool=True
     ):
@@ -375,43 +449,27 @@ class OctopiGUI(QMainWindow):
         self.histogramWidget.view=self.histogramWidget.addViewBox()
 
         # add panel to change image settings
-        self.imageBrightnessSlider=QSlider(Qt.Horizontal)
-        self.imageBrightnessSlider.setTickPosition(QSlider.TicksBelow)
-        self.imageBrightnessSlider.setRange(brightness_adjust_min,brightness_adjust_max)
-        self.imageBrightnessSlider.setSingleStep(1)
-        self.imageBrightnessSlider.setTickInterval(5)
-        self.imageBrightnessSlider.setValue(10)
-        self.imageBrightnessSlider.valueChanged.connect(self.set_brightness)
-        self.imageBrightnessSlider.value=1.0
-        self.imageBrightnessLabel=QHBoxLayout()
-        self.imageBrightnessLabel.addWidget(QLabel(f"{brightness_adjust_min/10}"),0,Qt.AlignLeft)
-        self.imageBrightnessLabel.addWidget(QLabel(f"{self.imageBrightnessSlider.value}"),0,Qt.AlignCenter)
-        self.imageBrightnessLabel.addWidget(QLabel(f"{brightness_adjust_max/10}"),0,Qt.AlignRight)
-
-        self.imageBrightnessSliderContainer=VBox(
-            QLabel("Brightness"),
-            self.imageBrightnessSlider,
-            self.imageBrightnessLabel,
+        self.imageBrightnessAdjust=HBox(
+            Label("View Brightness:"),
+            SpinBoxDouble(
+                minimum=brightness_adjust_min,
+                maximum=brightness_adjust_max,
+                default=1.0,
+                on_valueChanged=self.set_brightness,
+            )
         ).layout
+        self.imageBrightnessAdjust.value=1.0
 
-        self.imageContrastSlider=QSlider(Qt.Horizontal)
-        self.imageContrastSlider.setTickPosition(QSlider.TicksBelow)
-        self.imageContrastSlider.setRange(contrast_adjust_min,contrast_adjust_max)
-        self.imageContrastSlider.setSingleStep(1)
-        self.imageContrastSlider.setTickInterval(5)
-        self.imageContrastSlider.setValue(10)
-        self.imageContrastSlider.valueChanged.connect(self.set_contrast)
-        self.imageContrastSlider.value=1.0
-        self.imageContrastLabel=QHBoxLayout()
-        self.imageContrastLabel.addWidget(QLabel(f"{contrast_adjust_min/10}"),0,Qt.AlignLeft)
-        self.imageContrastLabel.addWidget(QLabel(f"{self.imageContrastSlider.value}"),0,Qt.AlignCenter)
-        self.imageContrastLabel.addWidget(QLabel(f"{contrast_adjust_max/10}"),0,Qt.AlignRight)
-
-        self.imageContrastSliderContainer=VBox(
-            QLabel("Contrast"),
-            self.imageContrastSlider,
-            self.imageContrastLabel,
+        self.imageContrastAdjust=HBox(
+            Label("View Contrast:"),
+            SpinBoxDouble(
+                minimum=contrast_adjust_min,
+                maximum=contrast_adjust_max,
+                default=1.0,
+                on_valueChanged=self.set_contrast,
+            )
         ).layout
+        self.imageContrastAdjust.value=1.0
 
         self.histogramLogScaleCheckbox=QCheckBox()
         self.histogram_log_scale=histogram_log_display_default
@@ -419,14 +477,14 @@ class OctopiGUI(QMainWindow):
         self.histogramLogScaleCheckbox.stateChanged.connect(self.setHistogramLogScale)
         self.histogramLogScaleCheckbox.setToolTip("calculate histogram with log scale?")
 
-        self.histogramLogScaleContainer=VBox(
+        self.histogramLogScaleContainer=HBox(
             QLabel("log"),
             self.histogramLogScaleCheckbox
         ).layout
 
         self.imageEnhanceWidget=HBox(
-            self.imageBrightnessSliderContainer,
-            self.imageContrastSliderContainer,
+            self.imageBrightnessAdjust,
+            self.imageContrastAdjust,
             self.histogramLogScaleContainer,
         ).layout
         self.last_raw_image=None
@@ -447,13 +505,11 @@ class OctopiGUI(QMainWindow):
         self.backgroundSliderContainer=VBox(
             self.backgroundHeader,
             self.backgroundSlider
-        ).layout
-        
+        ).layout        
 
     def set_background(self,new_background_value:int):
         self.backgroundSlider.value=new_background_value
         self.processLiveImage()
-        #print(f"set background to {new_background_value}")
 
     @TypecheckFunction
     def setHistogramLogScale(self,state:Union[bool,int]):
@@ -464,29 +520,34 @@ class OctopiGUI(QMainWindow):
         self.processLiveImage(calculate_histogram=True)
 
     @TypecheckFunction
-    def set_brightness(self,value:int):
+    def set_brightness(self,value:float):
         """ value<1 darkens image, value>1 brightens image """
 
-        # convert qslider value to actual factor
-        factor=value/10
-        self.imageBrightnessSlider.value=factor
+        self.imageBrightnessAdjust.value=value
 
         self.processLiveImage()
 
     @TypecheckFunction
-    def set_contrast(self,value:int):
+    def set_contrast(self,value:float):
         """ value<1 decreases image contrast, value>1 increases image contrast """
 
-        # convert qslider value to actal factor
-        factor=value/10
-        self.imageContrastSlider.value=factor
+        self.imageContrastAdjust.value=value
 
         self.processLiveImage()
 
     # callback for newly acquired images in live view (that saves last live image and recalculates histogram or image view on request based on last live image)
     @TypecheckFunction
-    def processLiveImage(self,image_data:Optional[numpy.ndarray]=None,calculate_histogram:Optional[bool]=None):
-        """ set histogram according to new image. clear internal buffer on request (used by the brightness/contrast adjust functions. acquiring new image clears buffer, setting histogram for adjusted images should not clear buffer) """
+    def processLiveImage(self,
+        image_data:Optional[numpy.ndarray]=None,
+        calculate_histogram:Optional[bool]=None,
+        histogram_color:str="white",
+        preserve_existing_histogram:bool=False
+    ):
+        """
+        display image and histogram of pixel values.
+        if image_data is None, then the last displayed image is shown and used for histogram calculation, otherwise the new image overwrites the last one.
+        if calculate_histogram is None, the histogram is only calculated when a new image has been provided.
+        """
 
         # if there is a new image, save it, and force histogram calculation
         if not image_data is None:
@@ -523,11 +584,13 @@ class OctopiGUI(QMainWindow):
                 maxYRange=1.0,
             )
 
+            plot_kwargs={'x':bins[:-1],'y':hist,'pen':pg.mkPen(color=histogram_color)}
             try:
-                self.histogramWidget.plot_data.clear()
-                self.histogramWidget.plot_data.plot(x=bins[:-1],y=hist,pen=pg.mkPen(color="red"))
+                if not preserve_existing_histogram:
+                    self.histogramWidget.plot_data.clear()
+                self.histogramWidget.plot_data.plot(**plot_kwargs)
             except:
-                self.histogramWidget.plot_data=self.histogramWidget.addPlot(0,0,title="Histogram",x=bins[:-1],y=hist,viewBox=self.histogramWidget.view,pen=pg.mkPen(color="red"))
+                self.histogramWidget.plot_data=self.histogramWidget.addPlot(0,0,title="Histogram",viewBox=self.histogramWidget.view,**plot_kwargs)
                 self.histogramWidget.plot_data.hideAxis("left")
 
         # if there is data to display, apply contrast/brightness settings, then actually display the data
@@ -551,15 +614,15 @@ class OctopiGUI(QMainWindow):
 
             self.backgroundSNRValueText.setText(snr_text)
 
-            if not (self.imageBrightnessSlider.value==1.0 and self.imageContrastSlider.value==1.0):
+            if not (self.imageBrightnessAdjust.value==1.0 and self.imageContrastAdjust.value==1.0):
                 # convert to uint8 for pillow image enhancement (not sure why uint8 is required..?)
 
                 image=Image.fromarray(image)
-                if self.imageBrightnessSlider.value!=1.0:
+                if self.imageBrightnessAdjust.value!=1.0:
                     brightness_enhancer = ImageEnhance.Brightness(image)
                     image=brightness_enhancer.enhance(self.imageBrightnessSlider.value)
 
-                if self.imageContrastSlider.value!=1.0:
+                if self.imageContrastAdjust.value!=1.0:
                     contrast_enhancer = ImageEnhance.Contrast(image)
                     image=contrast_enhancer.enhance(self.imageContrastSlider.value)
 

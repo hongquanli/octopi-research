@@ -15,7 +15,7 @@ class Configuration:
     """ illumination channel configuration """
 
     def __init__(self,
-        mode_id:str, # id is a builtin function
+        mode_id:str, # 'id' is a builtin function so it needs to be called mode_id
         name:str,
         camera_sn,
         exposure_time:float,
@@ -53,6 +53,14 @@ class Configuration:
         self.channel_z_offset=new_value
     def set_illumination_intensity(self,new_value):
         self.illumination_intensity=new_value
+
+    @property
+    def automatic_tooltip(self):
+        if self.name.startswith("Fluorescence"):
+            excitation_wavelength=self.name.split(" ")[1]
+            return f"Imaging mode where the sample is excited with light at a wavelength of {excitation_wavelength}nm. The camera then records all the light that is emitted from the sample (e.g. via fluorescence)."
+        else:
+            return "no description for this channel"
 
     def as_dict(self):
         return {
