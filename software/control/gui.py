@@ -381,7 +381,9 @@ class BlankWidget(QWidget):
         width:Optional[int]=None,
         offset_left:Optional[int]=None,
         offset_top:Optional[int]=None,
+
         background_color:Optional[str]=None,
+        background_image_path:Optional[str]=None,
 
         children:list=[],
 
@@ -390,6 +392,11 @@ class BlankWidget(QWidget):
         **kwargs,
     ):
         QWidget.__init__(self)
+
+        self.background_color=background_color
+        self.background_image_path=background_image_path
+
+        self.generate_stylesheet()
 
         if not height is None and width is not None:
             self.resize(width,height)
@@ -400,9 +407,6 @@ class BlankWidget(QWidget):
             self.move(offset_left,offset_top)
         elif int(offset_left is None) + int(offset_top is None) == 1:
             assert False,"height and width must either both or neither be none"
-        
-        if not background_color is None:
-            self.setStyleSheet(f"QWidget {{ background-color: {background_color} ; }}")
 
         self.children=[]
         self.set_children(children)
@@ -423,6 +427,15 @@ class BlankWidget(QWidget):
                 raise ValueError(f"event type '{event_name}' unknown")
 
         self.event_handlers=event_handlers
+
+    def generate_stylesheet(self):
+        stylesheet=""
+        stylesheet+=f"background-color: {self.background_color or 'none'} ; "
+        if not self.background_image_path is None:
+            stylesheet+=f"border-image: url({self.background_image_path}) ; "
+        else:
+            stylesheet+=f"border-image: none ; "
+        self.setStyleSheet(f" {stylesheet} ")
 
     def set_children(self,new_children):
         # orphan old children

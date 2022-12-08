@@ -276,11 +276,11 @@ class NavigationViewer(QFrame):
             new_wellplate_type=wellplate_type
 
         wellplate_type_image={
-            WELLPLATE_NAMES[384] : 'images/384 well plate_1509x1010.png',
-            WELLPLATE_NAMES[96]  : 'images/96 well plate_1509x1010.png',
-            WELLPLATE_NAMES[24]  : 'images/24 well plate_1509x1010.png',
-            WELLPLATE_NAMES[12]  : 'images/12 well plate_1509x1010.png',
-            WELLPLATE_NAMES[6]   : 'images/6 well plate_1509x1010.png'
+            WELLPLATE_NAMES[384] : 'images/384_well_plate_1509x1010.png',
+            WELLPLATE_NAMES[96]  : 'images/96_well_plate_1509x1010.png',
+            WELLPLATE_NAMES[24]  : 'images/24_well_plate_1509x1010.png',
+            WELLPLATE_NAMES[12]  : 'images/12_well_plate_1509x1010.png',
+            WELLPLATE_NAMES[6]   : 'images/6_well_plate_1509x1010.png'
         }
         assert new_wellplate_type in wellplate_type_image, f"{new_wellplate_type} is not a valid plate type"
  

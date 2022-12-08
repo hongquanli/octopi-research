@@ -323,7 +323,6 @@ class MultiPointWidget(QFrame):
                     width=item_width,
                     offset_top=r*item_height+r,
                     offset_left=c*item_width+c,
-                    background_color="red",
                     on_mousePressEvent=lambda event_data,r=r,c=c:self.toggle_well_grid_selection(event_data,row=r,column=c)
                 )
                 self.well_grid_items[r][c]=new_item
@@ -334,12 +333,12 @@ class MultiPointWidget(QFrame):
     def toggle_well_grid_selection(self,event_data,row:int,column:int):
         grid_item=self.well_grid_items[row][column]
         if self.well_grid_items_selected[row][column]:
-            grid_item.setStyleSheet("QWidget {background-color:red;} ")
-            #print(f"deselected item at {row=} {column=}")
+            grid_item.background_color="red"
+            grid_item.generate_stylesheet()
             self.well_grid_items_selected[row][column]=False
         else:
-            grid_item.setStyleSheet("QWidget {background-color:green;} ")
-            #print(f"selected item at {row=} {column=}")
+            grid_item.background_color="green"
+            grid_item.generate_stylesheet()
             self.well_grid_items_selected[row][column]=True
 
     def channel_list_rows_moved(self,_parent:QModelIndex,row_range_moved_start:int,row_range_moved_end:int,_destination:QModelIndex,row_index_drop_release:int):

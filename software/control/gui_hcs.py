@@ -272,20 +272,19 @@ class OctopiGUI(QMainWindow):
                 Label("configuration file:",tooltip="configuration file that was loaded last. If no file has been manually loaded, this will show the path to the default configuration file where the currently displayed settings are always saved. If a file has been manually loaded at some point, the last file that was loaded will be displayed. An asterisk (*) will be displayed after the filename if the settings have been changed since a file has been loaded (these settings are always saved into the default configuration file and restored when the program is started up again, they do NOT automatically overwrite the last configuration file that was loaded.)"),
                 self.named_widgets.last_configuration_file_path == Label("").widget,
             ),
-            self.named_widgets.special_widget == BlankWidget(
-                height=300,width=300,
-                background_color="green",
-                children=self.named_widgets.wells == [
-                    BlankWidget(
-                        height=10,width=10,
-                        background_color="red",
-                        offset_left=i*(10+5),offset_top=j*(10+5),
-                        on_mousePressEvent=lambda event,i=i,j=j: self.well_click_callback(event,i,j)
-                    )
-                    for i in range(24) for j in range(16)
-                ]
-            ),
-            Label("some label is here")
+            #self.named_widgets.special_widget == BlankWidget(
+            #    height=300,width=300,
+            #    #background_image_path="./images/384_well_plate_1509x1010.png",
+            #    children=self.named_widgets.wells == [
+            #        BlankWidget(
+            #            height=10,width=10,
+            #            background_color="red",
+            #            offset_left=i*(10+5),offset_top=j*(10+5),
+            #            on_mousePressEvent=lambda event,i=i,j=j: self.well_click_callback(event,i,j)
+            #        )
+            #        for i in range(24) for j in range(16)
+            #    ]
+            #),
         ])).widget
 
         self.set_illumination_config_path_display(new_path=self.configurationManager.config_filename,set_config_changed=False)
