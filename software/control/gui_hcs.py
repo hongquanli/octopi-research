@@ -39,6 +39,8 @@ channel_offset_tooltip="channel specific z offset used in multipoint acquisition
 
 CAMERA_PIXEL_FORMAT_TOOLTIP="camera pixel format\n\nMONO8 means monochrome (grey-scale) 8bit\nMONO12 means monochrome 12bit\n\nmore bits can capture more detail (8bit can capture 2^8 intensity values, 12bit can capture 2^12), but also increase file size"
 
+FPS_TOOLTIP="Frames per second that are recorded while live"
+
 CHANNEL_COLORS={
     15:"darkRed", # 730
     13:"red", # 638
@@ -169,6 +171,8 @@ class OctopiGUI(QMainWindow):
 
         self.hcs_controller=HCSController()
 
+        self.named_widgets=ObjectManager()
+
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
 
@@ -182,7 +186,6 @@ class OctopiGUI(QMainWindow):
         self.imageDisplay           = widgets.ImageDisplay()
         self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
         self.wellSelectionWidget    = widgets.WellSelectionWidget(MUTABLE_MACHINE_CONFIG.WELLPLATE_FORMAT)
-        #self.liveControlWidget      = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager)
         self.navigationWidget       = widgets.NavigationWidget(self.navigationController,widget_configuration=default_well_plate)
         self.autofocusWidget        = widgets.AutoFocusWidget(self.autofocusController)
         self.multiPointWidget       = widgets.MultiPointWidget(self.multipointController,self.configurationManager,self.start_experiment,self.abort_experiment)
@@ -202,10 +205,11 @@ class OctopiGUI(QMainWindow):
                     default=config.illumination_intensity,
                     on_valueChanged=[
                         config.set_illumination_intensity,
-                        self.configurationManager.save_configurations
+                        self.configurationManager.save_configurations,
+                        lambda btn:self.set_illumination_config_path_display(btn,set_config_changed=True),
                     ]
                 ).widget,
-                Button("snap",on_clicked=lambda btn_state,config=config:self.snap_single(btn_state,config)).widget
+                config_manager.snap == Button("snap",on_clicked=lambda btn_state,config=config:self.snap_single(btn_state,config)).widget
             ]
             imaging_modes_widget_list.append(
                 HBox(*top_row)
@@ -219,7 +223,8 @@ class OctopiGUI(QMainWindow):
                     default=config.exposure_time,tooltip=exposure_time_tooltip,
                     on_valueChanged=[
                         config.set_exposure_time,
-                        self.configurationManager.save_configurations
+                        self.configurationManager.save_configurations,
+                        lambda btn:self.set_illumination_config_path_display(btn,set_config_changed=True),
                     ]
                 ).widget,
                 Label("gain:").widget,
@@ -228,7 +233,8 @@ class OctopiGUI(QMainWindow):
                     default=config.analog_gain,tooltip=analog_gain_tooltip,
                     on_valueChanged=[
                         config.set_analog_gain,
-                        self.configurationManager.save_configurations
+                        self.configurationManager.save_configurations,
+                        lambda btn:self.set_illumination_config_path_display(btn,set_config_changed=True),
                     ]
                 ).widget,
                 Label("offset:").widget,
@@ -237,7 +243,8 @@ class OctopiGUI(QMainWindow):
                     default=config.channel_z_offset,tooltip=channel_offset_tooltip,
                     on_valueChanged=[
                         config.set_offset,
-                        self.configurationManager.save_configurations
+                        self.configurationManager.save_configurations,
+                        lambda btn:self.set_illumination_config_path_display(btn,set_config_changed=True),
                     ]
                 ).widget,
             ]
@@ -247,15 +254,41 @@ class OctopiGUI(QMainWindow):
 
             self.imaging_mode_config_managers[config.id]=config_manager
 
-
-        self.imagingModes=VBox(
-            Button("snap all",tooltip="take a snapshot in all channels and display in multi-point acquisition panel",on_clicked=self.snap_all),
+        self.named_widgets.live == ObjectManager()
+        self.imagingModes=VBox(*flatten([
             HBox(
-                Button("save config",tooltip="save settings related to all imaging modes/channels",on_clicked=self.save_illumination_config),
-                Button("load config",tooltip="load settings related to all imaging modes/channels",on_clicked=self.load_illumination_config)
+                self.named_widgets.live.button == Button(LIVE_BUTTON_IDLE_TEXT,checkable=True,checked=False,tooltip=LIVE_BUTTON_TOOLTIP,on_clicked=self.toggle_live).widget,
+                self.named_widgets.live.channel_dropdown == Dropdown(items=[config.name for config in self.configurationManager.configurations],current_index=0).widget,
+                Label("FPS",tooltip=FPS_TOOLTIP),
+                self.named_widgets.live.fps == SpinBoxDouble(minimum=1.0,maximum=10.0,step=0.1,default=5.0,num_decimals=1,tooltip=FPS_TOOLTIP).widget,
             ),
-            *imaging_modes_widget_list
-        ).widget
+            self.named_widgets.snap_all_button == Button("snap all",tooltip="take a snapshot in all channels and display in multi-point acquisition panel",on_clicked=self.snap_all),
+            imaging_modes_widget_list,
+            HBox(
+                self.named_widgets.save_config_button == Button("save config to file",tooltip="save settings related to all imaging modes/channels in a new file (this will open a window where you can specify the location to save the config file)",on_clicked=self.save_illumination_config),
+                self.named_widgets.load_config_button == Button("load config from file",tooltip="load settings related to all imaging modes/channels from a file (this will open a window where you will specify the file to load)",on_clicked=self.load_illumination_config),
+            ),
+            HBox(
+                Label("configuration file:",tooltip="configuration file that was loaded last. If no file has been manually loaded, this will show the path to the default configuration file where the currently displayed settings are always saved. If a file has been manually loaded at some point, the last file that was loaded will be displayed. An asterisk (*) will be displayed after the filename if the settings have been changed since a file has been loaded (these settings are always saved into the default configuration file and restored when the program is started up again, they do NOT automatically overwrite the last configuration file that was loaded.)"),
+                self.named_widgets.last_configuration_file_path == Label("").widget,
+            ),
+            self.named_widgets.special_widget == BlankWidget(
+                height=300,width=300,
+                background_color="green",
+                children=self.named_widgets.wells == [
+                    BlankWidget(
+                        height=10,width=10,
+                        background_color="red",
+                        offset_left=i*(10+5),offset_top=j*(10+5),
+                        on_mousePressEvent=lambda event,i=i,j=j: self.well_click_callback(event,i,j)
+                    )
+                    for i in range(24) for j in range(16)
+                ]
+            ),
+            Label("some label is here")
+        ])).widget
+
+        self.set_illumination_config_path_display(new_path=self.configurationManager.config_filename,set_config_changed=False)
 
         self.laserAutofocusControlWidget=Dock(
             widgets.LaserAutofocusControlWidget(self.laserAutofocusController),
@@ -301,45 +334,44 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget.grid.layout.addLayout(self.navigationViewWrapper,6,0)
 
         # layout widgets
-        layout = VBox(
-            #self.liveControlWidget,
-            self.recordTabWidget
-        ).layout
-        layout.addStretch()
         
         # transfer the layout to the central widget
-        self.centralWidget:QWidget = as_widget(layout)
+        self.centralWidget:QWidget = VBox(
+            self.recordTabWidget
+        ).widget
         
         desktopWidget = QDesktopWidget()
         width_min = int(0.96*desktopWidget.width())
         height_min = int(0.9*desktopWidget.height())
 
         # laser af section
-        #self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera)
-        self.imageDisplayWindow_focus = widgets.ImageDisplayWindow(draw_crosshairs=True)
+        LASER_AUTOFOCUS_LIVE_CONTROLLER_ENABLED=True
+        if LASER_AUTOFOCUS_LIVE_CONTROLLER_ENABLED:
+            self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera)
+            self.imageDisplayWindow_focus = widgets.ImageDisplayWindow(draw_crosshairs=True)
 
-        dock_laserfocus_image_display = Dock(
-            widget=self.imageDisplayWindow_focus.widget,
-            title='Focus Camera Image Display'
-        ).widget
-        #dock_laserfocus_liveController = Dock(
-        #    title='Focus Camera Controller',
-        #    widget=self.liveControlWidget_focus_camera,
-        #    fixed_width=self.liveControlWidget_focus_camera.minimumSizeHint().width()
-        #).widget
+            dock_laserfocus_image_display = Dock(
+                widget=self.imageDisplayWindow_focus.widget,
+                title='Focus Camera Image Display'
+            ).widget
+            dock_laserfocus_liveController = Dock(
+                title='Focus Camera Controller',
+                widget=self.liveControlWidget_focus_camera,
+                fixed_width=self.liveControlWidget_focus_camera.minimumSizeHint().width()
+            ).widget
 
-        laserfocus_dockArea = dock.DockArea()
-        laserfocus_dockArea.addDock(dock_laserfocus_image_display)
-        #laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
+            laserfocus_dockArea = dock.DockArea()
+            laserfocus_dockArea.addDock(dock_laserfocus_image_display)
+            laserfocus_dockArea.addDock(dock_laserfocus_liveController,'right',relativeTo=dock_laserfocus_image_display)
 
-        # connections
-        #self.liveControlWidget_focus_camera.update_camera_settings()
+            # connections
+            self.liveControlWidget_focus_camera.update_camera_settings()
+
+            self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+            self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
         self.streamHandler_focus_camera.signal_new_frame_received.connect(self.liveController_focus_camera.on_new_frame)
-        self.streamHandler_focus_camera.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
-
         self.streamHandler_focus_camera.image_to_display.connect(self.displacementMeasurementController.update_measurement)
-        self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
         # make connections
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
@@ -388,18 +420,98 @@ class OctopiGUI(QMainWindow):
         self.setCentralWidget(main_dockArea)
         self.setMinimumSize(width_min,height_min)
 
+    def well_click_callback(self,event,i,j):
+        self.named_widgets.wells[i*16+j].setStyleSheet("QWidget {background-color: blue;}")
+
+    @property
+    def all_interactible_widgets(self)->list:
+        ret=[
+            self.named_widgets.live.channel_dropdown,
+            self.named_widgets.live.fps,
+
+            self.named_widgets.snap_all_button,
+
+            self.named_widgets.save_config_button,
+            self.named_widgets.load_config_button,
+
+            self.autofocusWidget,
+            self.laserAutofocusControlWidget,
+            self.navigationWidget,
+            self.multiPointWidget,
+        ]
+
+        for _id,manager in self.imaging_mode_config_managers.items():
+            ret.append(manager.illumination_strength)
+            ret.append(manager.exposure_time)
+            ret.append(manager.analog_gain)
+            ret.append(manager.z_offset)
+            ret.append(manager.snap)
+
+        return ret
+
+    def set_all_interactibles_enabled(self,enable:bool,exceptions:Optional[list]=None):
+        for widget in self.all_interactible_widgets:
+            if not widget in exceptions:
+                if isinstance(widget,QWidget):
+                    widget.setEnabled(enable)
+                elif isinstance(widget,HasWidget):
+                    widget.widget.setEnabled(enable)
+
+    def toggle_live(self,button_pressed:bool):
+        if button_pressed:
+            self.live_stop_requested=False
+
+            # go live
+            self.named_widgets.live.button.setText(LIVE_BUTTON_RUNNING_TEXT)
+
+            channel_index=self.named_widgets.live.channel_dropdown.currentIndex()
+            config=self.configurationManager.configurations[channel_index]
+            fps=self.named_widgets.live.fps.value()
+
+            self.set_all_interactibles_enabled(False,exceptions=[self.named_widgets.live.button])
+
+            last_imaging_time=0.0
+            while True:
+                current_time=time.monotonic()
+                if current_time-last_imaging_time > 1/fps:
+                    self.snap_single(_button_state=True,config=config,display_in_image_array_display=False,preserve_existing_histogram=False)
+                    last_imaging_time=current_time
+
+                QApplication.processEvents()
+
+                if self.live_stop_requested:
+                    # leave live
+                    self.named_widgets.live.button.setText(LIVE_BUTTON_IDLE_TEXT)
+                    
+                    self.set_all_interactibles_enabled(True,exceptions=[self.named_widgets.live.button])
+
+                    break
+        else:
+            self.live_stop_requested=True
+
+    def set_illumination_config_path_display(self,_button_state:Any=None,new_path:Optional[str]=None,set_config_changed:Optional[bool]=None):
+        if not set_config_changed is None:
+            self.configuration_has_been_changed_since_last_load=set_config_changed
+        if not new_path is None:
+            self.last_loaded_configuration_file=new_path
+
+        path_label_text=self.last_loaded_configuration_file
+        if self.configuration_has_been_changed_since_last_load:
+            path_label_text+=" *"
+        self.named_widgets.last_configuration_file_path.setText(path_label_text)
+
     def save_illumination_config(self,_button_state:bool):
         """ save illumination configuration to a file (GUI callback) """
 
-        dialog=QFileDialog(options=QFileDialog.DontUseNativeDialog)
-        dialog.setWindowModality(Qt.ApplicationModal)
-        save_path=dialog.getSaveFileName(caption="Save current illumination config where?")[0]
+        save_path=FileDialog(mode='save',directory="/home/pharmbio/Downloads",caption="Save current illumination config where?").run()
 
         if save_path!="":
             if not save_path.endswith(".json"):
                 save_path=save_path+".json"
             print(f"saving config to {save_path}")
             self.configurationManager.write_configuration(save_path)
+
+            self.set_illumination_config_path_display(new_path=save_path,set_config_changed=False)
 
     def load_illumination_config(self,_button_state:bool):
         """ load illumination configuration from a file (GUI callback) """
@@ -408,18 +520,19 @@ class OctopiGUI(QMainWindow):
             print("! warning: cannot load illumination settings while live !")
             return
         
-        dialog=QFileDialog(options=QFileDialog.DontUseNativeDialog)
-        dialog.setWindowModality(Qt.ApplicationModal)
-        load_path=dialog.getOpenFileName(caption="Load which illumination config?",filter="JSON (*.json)")[0]
+        load_path=FileDialog(mode='open',directory="/home/pharmbio/Downloads",caption="Load which illumination config?",filter_type="JSON (*.json)").run()
 
         if load_path!="":
             print(f"loading config from {load_path}")
+
             self.configurationManager.read_configurations(load_path)
             for config in self.configurationManager.configurations:
                 self.imaging_mode_config_managers[config.id].illumination_strength.setValue(config.illumination_intensity)
                 self.imaging_mode_config_managers[config.id].exposure_time.setValue(config.exposure_time)
                 self.imaging_mode_config_managers[config.id].analog_gain.setValue(config.analog_gain)
                 self.imaging_mode_config_managers[config.id].z_offset.setValue(config.channel_z_offset)
+
+            self.set_illumination_config_path_display(new_path=load_path,set_config_changed=False)
 
     def snap_single(self,_button_state,config,display_in_image_array_display:bool=False,preserve_existing_histogram:bool=False):
         image=self.liveController.snap(config)

@@ -1,13 +1,29 @@
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, \
     QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, \
     QComboBox, QHBoxLayout, QVBoxLayout, QMessageBox, QFileDialog, QProgressBar, \
     QDesktopWidget, QWidget, QTableWidget, QSizePolicy, QTableWidgetItem, \
-    QApplication, QTabWidget
-from qtpy.QtGui import QIcon
+    QApplication, QTabWidget, QStyleOption, QStyle
+from qtpy.QtGui import QIcon, QPainter
 
 from typing import Optional, Union, List, Tuple, Callable, Any
 
 import pyqtgraph.dockarea as dock
+
+from control.typechecker import *
+
+def flatten(l:list):
+    ret=[]
+
+    for item in l:
+        if isinstance(item,list):
+            ret.extend(item)
+        else:
+            ret.append(item)
+
+    return ret
+
+assert [2,3,4,5]==flatten([2,[3,4],5])
 
 class ManagedObject:
     def __init__(self):
@@ -306,3 +322,160 @@ class Dropdown(HasWidget):
                         getattr(self.widget,signal_name).connect(callback)
                 else:
                     getattr(self.widget,signal_name).connect(value)
+
+class FileDialog:
+    def __init__(self,
+        mode:ClosedSet[str]('save','open'),
+
+        directory:Optional[str]=None,
+        caption:Optional[str]=None,
+        filter_type:Optional[str]=None,
+    ):
+        self.window=QFileDialog()
+        self.window.setWindowModality(Qt.ApplicationModal)
+        self.mode=mode
+
+        self.kwargs={'options':QFileDialog.DontUseNativeDialog}
+        if not directory is None:
+            self.kwargs['directory']=directory
+        if not caption is None:
+            self.kwargs['caption']=caption
+        if not filter_type is None:
+            self.kwargs['filter']=filter_type
+            
+
+    def run(self):
+        if self.mode=='save':
+            return self.window.getSaveFileName(**self.kwargs)[0]
+        elif self.mode=='load':
+            return self.window.getOpenFileName(**self.kwargs)[0]
+        else:
+            assert False
+
+class MessageBox:
+    def __init__(self,
+        title:str,
+        mode:ClosedSet[str]('information','critical','warning','question'),
+
+        text:Optional[str]=None,
+    ):
+        self.window=QMessageBox(title=title,text=text or "")
+
+        self.mode=mode
+
+    def run(self):
+        if self.mode=='information':
+            self.window.information()
+        if self.mode=='critical':
+            self.window.critical()
+        if self.mode=='warning':
+            self.window.warning()
+        if self.mode=='question':
+            self.window.question()
+        else:
+            assert False
+
+class BlankWidget(QWidget):
+    def __init__(self,
+        height:Optional[int]=None,
+        width:Optional[int]=None,
+        offset_left:Optional[int]=None,
+        offset_top:Optional[int]=None,
+        background_color:Optional[str]=None,
+
+        children:list=[],
+
+        tooltip:Optional[str]=None,
+
+        **kwargs,
+    ):
+        QWidget.__init__(self)
+
+        if not height is None and width is not None:
+            self.resize(width,height)
+        elif int(height is None) + int(width is None) == 1:
+            assert False,"height and width must either both or neither be none"
+        
+        if not offset_left is None:
+            self.move(offset_left,offset_top)
+        elif int(offset_left is None) + int(offset_top is None) == 1:
+            assert False,"height and width must either both or neither be none"
+        
+        if not background_color is None:
+            self.setStyleSheet(f"QWidget {{ background-color: {background_color} ; }}")
+
+        self.children=[]
+        self.set_children(children)
+
+        event_handlers={}
+        for key,value in kwargs.items():
+            assert key[:3]=='on_'
+
+            event_name=key[3:]
+            event_handlers[event_name]=value
+
+            if not event_name in {
+                'mouseDoubleClickEvent',
+                'mouseMoveEvent',
+                'mousePressEvent',
+                'mouseReleaseEvent',
+            }:
+                raise ValueError(f"event type '{event_name}' unknown")
+
+        self.event_handlers=event_handlers
+
+    def set_children(self,new_children):
+        # orphan old children
+        old_children=self.children
+        for old_child in old_children:
+            old_child.setParent(None)
+            old_child.show()
+
+        # adopt new ones
+        for child in new_children:
+            child.setParent(self)
+            child.show()
+
+        # replace orphans
+        self.children=new_children
+        self.show()
+
+    # this needs to be done for custom QWidgets for some reason (from https://forum.qt.io/topic/100691/custom-qwidget-setstylesheet-not-working-python/2)
+    def paintEvent(self, pe):
+        o = QStyleOption()
+        o.initFrom(self)
+        p = QPainter(self)
+        self.style().drawPrimitive(QStyle.PE_Widget, o, p, self)
+
+    def mouseDoubleClickEvent(self,event_data):
+        if 'mouseDoubleClickEvent' in self.event_handlers:
+            event_handlers=self.event_handlers['mouseDoubleClickEvent']
+            if isinstance(event_handlers,list):
+                for callback in event_handlers:
+                    callback(event_data)
+            else:
+                event_handlers(event_data)
+    def mouseMoveEvent(self,event_data):
+        if 'mouseMoveEvent' in self.event_handlers:
+            event_handlers=self.event_handlers['mouseMoveEvent']
+            if isinstance(event_handlers,list):
+                for callback in event_handlers:
+                    callback(event_data)
+            else:
+                event_handlers(event_data)
+    def mousePressEvent(self,event_data):
+        if 'mousePressEvent' in self.event_handlers:
+            event_handlers=self.event_handlers['mousePressEvent']
+            if isinstance(event_handlers,list):
+                for callback in event_handlers:
+                    callback(event_data)
+            else:
+                event_handlers(event_data)
+    def mouseReleaseEvent(self,event_data):
+        if 'mouseReleaseEvent' in self.event_handlers:
+            event_handlers=self.event_handlers['mouseReleaseEvent']
+            if isinstance(event_handlers,list):
+                for callback in event_handlers:
+                    callback(event_data)
+            else:
+                event_handlers(event_data)

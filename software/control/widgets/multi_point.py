@@ -1,14 +1,15 @@
 # qt libraries
-from qtpy.QtCore import Qt, QModelIndex, QSize, Signal
+from qtpy.QtCore import Qt, QModelIndex, QSize, Signal, QEvent
 from qtpy.QtWidgets import QFrame, QPushButton, QLineEdit, QDoubleSpinBox, \
     QSpinBox, QListWidget, QGridLayout, QCheckBox, QLabel, QAbstractItemView, \
     QComboBox, QHBoxLayout, QMessageBox, QFileDialog, QProgressBar, QDesktopWidget, \
     QWidget, QTableWidget, QSizePolicy, QTableWidgetItem, QApplication
-from qtpy.QtGui import QIcon
+from qtpy.QtGui import QIcon, QMouseEvent
 
 from control._def import *
 
 from typing import Optional, Union, List, Tuple, Callable
+from collections import namedtuple
 
 from control.core import MultiPointController, ConfigurationManager
 from control.typechecker import TypecheckFunction
@@ -176,13 +177,10 @@ class MultiPointWidget(QFrame):
         qtlabel_dt=Label('dt (s)',tooltip=dt_tooltip).widget
         qtlabel_Nt=Label('Nt',tooltip=dt_tooltip).widget
 
-        self.well_grid_selector=QTableWidget()
-        self.well_grid_selector.horizontalHeader().hide()
-        self.well_grid_selector.verticalHeader().hide()
-        self.well_grid_selector.horizontalHeader().setMinimumSectionSize(0)
-        self.well_grid_selector.verticalHeader().setMinimumSectionSize(0)
+        self.well_grid_selector=None
         self.grid_changed("x",self.multipointController.NX)
         self.grid_changed("y",self.multipointController.NY)
+        assert not self.well_grid_selector is None
  
         self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
 
@@ -271,10 +269,21 @@ class MultiPointWidget(QFrame):
         self.multipointController.set_software_af_flag(flag)
 
     def grid_changed(self,dimension:str,new_value:int):
+        size=QDesktopWidget().width()*0.06
+        nx=self.multipointController.NX
+        ny=self.multipointController.NY
+
+        num_columns=nx
+        num_rows=ny
+
+        if self.well_grid_selector is None:
+            self.well_grid_selector=BlankWidget(height=size,width=size,background_color="black",children=[])
+            self.well_grid_selector.setFixedSize(size,size)
+
         if dimension=="x":
-            self.well_grid_selector.setColumnCount(new_value)
+            num_columns=new_value
         elif dimension=="y":
-            self.well_grid_selector.setRowCount(new_value)
+            num_rows=new_value
         elif dimension=="z":
             pass
         elif dimension=="t":
@@ -282,27 +291,56 @@ class MultiPointWidget(QFrame):
         else:
             raise Exception()
 
-        size=QDesktopWidget().width()*0.06
-        nx=self.multipointController.NX
-        ny=self.multipointController.NY
+        assert num_columns==nx
+        assert num_rows==ny
 
-        #self.well_grid_selector.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
-        self.well_grid_selector.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
-        self.well_grid_selector.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # type: ignore
-        self.well_grid_selector.setFixedSize(size,size)
-        self.well_grid_selector.horizontalHeader().setDefaultSectionSize(size//ny)
-        self.well_grid_selector.verticalHeader().setDefaultSectionSize(size//nx)
+        self.well_grid_items_selected=[
+            [
+                False 
+                for c 
+                in range(num_columns)
+            ]
+            for r 
+            in range(num_rows)
+        ]
+        self.well_grid_items=[
+            [
+                None
+                for c 
+                in range(num_columns)
+            ]
+            for r 
+            in range(num_rows)
+        ]
 
-        for x in range(0,nx):
-            for y in range(0,ny):
-                grid_item=QTableWidgetItem()
-                grid_item.setSizeHint(QSize(grid_item.sizeHint().width(), size//nx))
-                grid_item.setSizeHint(QSize(grid_item.sizeHint().height(), size//ny))
-                grid_item.setSelected(True)
-                self.well_grid_selector.setItem(y,x,grid_item)
+        # 1px between items
+        item_width=int((size-(nx-1))//nx)
+        item_height=int((size-(ny-1))//ny)
+        for c in range(num_columns):
+            for r in range(num_rows):
+                new_item=BlankWidget(
+                    height=item_height,
+                    width=item_width,
+                    offset_top=r*item_height+r,
+                    offset_left=c*item_width+c,
+                    background_color="red",
+                    on_mousePressEvent=lambda event_data,r=r,c=c:self.toggle_well_grid_selection(event_data,row=r,column=c)
+                )
+                self.well_grid_items[r][c]=new_item
+                self.toggle_well_grid_selection(event_data=None,row=r,column=c)
 
-        self.well_grid_selector.resizeColumnsToContents()
-        self.well_grid_selector.resizeRowsToContents()
+        self.well_grid_selector.set_children(flatten(self.well_grid_items))
+
+    def toggle_well_grid_selection(self,event_data,row:int,column:int):
+        grid_item=self.well_grid_items[row][column]
+        if self.well_grid_items_selected[row][column]:
+            grid_item.setStyleSheet("QWidget {background-color:red;} ")
+            #print(f"deselected item at {row=} {column=}")
+            self.well_grid_items_selected[row][column]=False
+        else:
+            grid_item.setStyleSheet("QWidget {background-color:green;} ")
+            #print(f"selected item at {row=} {column=}")
+            self.well_grid_items_selected[row][column]=True
 
     def channel_list_rows_moved(self,_parent:QModelIndex,row_range_moved_start:int,row_range_moved_end:int,_destination:QModelIndex,row_index_drop_release:int):
         # saved items about to be moved

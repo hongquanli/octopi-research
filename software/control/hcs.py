@@ -13,10 +13,13 @@ from control.typechecker import TypecheckFunction
 
 from typing import List, Tuple, Callable
 
+import numpy
+
 class HCSController(QObject):
     def __init__(self,home:bool=True):
         super().__init__()
 
+        self.home_on_startup=home
         if not home:
             print("warning: disabled homing on startup can lead to misalignment of the stage. proceed at your own risk. (may damage objective, and/or run into software stage position limits, which can lead to unexpected behaviour)")
 
@@ -71,7 +74,6 @@ class HCSController(QObject):
             self.focus_camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
             self.focus_camera.set_callback(self.streamHandler_focus_camera.on_new_frame)
             self.focus_camera.enable_callback()
-            self.focus_camera.start_streaming()
 
         self.multipointController:    core.MultiPointController    = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.laserAutofocusController, self.configurationManager)
         self.imageSaver:              core.ImageSaver              = core.ImageSaver()
@@ -96,12 +98,18 @@ class HCSController(QObject):
             'y':{'d':0.9,'N':1},
             'z':{'d':0.9,'N':1},
             't':{'d':0.9,'N':1},
-        },
-        af_channel:Optional[str]=None,
+        }, # todo add mask
+        af_channel:Optional[str]=None, # software AF
         plate_type:ClosedSet[Optional[int]](None,6,12,24,96,384)=None,
 
         set_num_acquisitions_callback:Optional[Callable[[int],None]]=None,
         on_new_acquisition:Optional[Callable[[str],None]]=None,
+
+        laser_af_on:bool=False,
+        laser_af_initial_override=None,# override settings after initialization (i think thats sensor crop region + um/px estimated value)
+
+        camera_pixel_format_override=None,
+        trigger_override=None,
     )->Optional[QThread]:
         # set objective and well plate type from machine config (or.. should be part of imaging configuration..?)
         # set wells to be imaged <- acquire.well_list argument
@@ -197,12 +205,13 @@ class HCSController(QObject):
         # make sure the lasers are turned off!
         self.microcontroller.turn_off_illumination()
 
-        # move the objective to a defined position upon exit
-        self.navigationController.move_x(0.1,{'timeout_limit_s':5, 'time_step':0.005}) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
-        self.navigationController.move_x_to(30.0,{'timeout_limit_s':5, 'time_step':0.005})
+        if self.home_on_startup:
+            # move the objective to a defined position upon exit
+            self.navigationController.move_x(0.1,{'timeout_limit_s':5, 'time_step':0.005}) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
+            self.navigationController.move_x_to(30.0,{'timeout_limit_s':5, 'time_step':0.005})
 
-        self.navigationController.move_y(0.1,{'timeout_limit_s':5, 'time_step':0.005}) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
-        self.navigationController.move_y_to(30.0,{'timeout_limit_s':5, 'time_step':0.005})
+            self.navigationController.move_y(0.1,{'timeout_limit_s':5, 'time_step':0.005}) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
+            self.navigationController.move_y_to(30.0,{'timeout_limit_s':5, 'time_step':0.005})
 
         self.liveController.stop_live()
         self.camera.close()
@@ -212,4 +221,35 @@ class HCSController(QObject):
 
         QApplication.quit()
 
-    # todo add callbacks to be triggered on image acquisition (e.g. for histograms, saving to disk etc.)
+    # some utility functions
+
+    def focus_software():
+        pass
+    def focus_laser():
+        pass
+        
+    def move_x_by():
+        pass
+    def move_x_to():
+        pass
+    def move_y_by():
+        pass
+    def move_y_to():
+        pass
+    def move_z_by():
+        pass
+    def move_z_to():
+        pass
+
+    def image_channel(channel,exposure_time_ms:float,trigger:TriggerMode,analog_gain:float=0.0,intensity:float=100.0)->numpy.ndarray:
+        pass
+
+    def loading_position_enter():
+        pass
+    def loading_position_leave():
+        pass
+
+    def measure_displacement()->float:
+        pass
+
+    

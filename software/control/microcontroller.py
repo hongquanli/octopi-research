@@ -47,7 +47,7 @@ class Microcontroller():
         self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
         self.retry = 0
 
-        print(f'connecting to controller based on {version.value}')
+        print(f'startup - connecting to controller based on {version.value}')
 
         if version == ControllerType.DUE:
             controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
@@ -64,7 +64,7 @@ class Microcontroller():
         
         self.serial:serial.Serial = serial.Serial(controller_ports[0],2000000)
         time.sleep(0.2)
-        print('controller connected')
+        print('startup - controller connected')
 
         self.new_packet_callback_external = None
         self.terminate_reading_received_packet_thread = False
@@ -81,14 +81,14 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.RESET
         self.send_command(cmd)
-        print('reset the microcontroller') # debug
+        print('startup - reset the microcontroller') # debug
 
     def initialize_drivers(self):
         self._cmd_id = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.INITIALIZE
         self.send_command(cmd)
-        print('initialize the drivers') # debug
+        print('startup - initialized the drivers') # debug
 
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
