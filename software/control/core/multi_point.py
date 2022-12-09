@@ -207,8 +207,8 @@ class MultiPointWorker(QObject):
         for k in range(self.NZ):
             if self.num_positions_per_well>1:
                 _=next(self.well_tqdm_iter,0)
-            
-            file_ID = coordinate_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+
+            file_ID = f'{coordinate_name}_dz{k}'
             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
             # metadata = json.dumps(metadata)
 
@@ -285,7 +285,7 @@ class MultiPointWorker(QObject):
         n_regions = len(self.scan_coordinates_name)
         for coordinate_id in range(n_regions) if n_regions==1 else tqdm(range(n_regions),desc="well on plate",unit="well"):
             coordinate_mm = self.scan_coordinates_mm[coordinate_id]
-            coordinate_name = self.scan_coordinates_name[coordinate_id]
+            base_coordinate_name = self.scan_coordinates_name[coordinate_id]
 
             base_x=coordinate_mm[0]-self.deltaX*(self.NX-1)/2
             base_y=coordinate_mm[1]-self.deltaY*(self.NY-1)/2
@@ -293,8 +293,6 @@ class MultiPointWorker(QObject):
             # move to the specified coordinate
             self.navigationController.move_x_to(base_x,wait_for_completion={},wait_for_stabilization=True)
             self.navigationController.move_y_to(base_y,wait_for_completion={},wait_for_stabilization=True)
-            # add '_' to the coordinate name
-            coordinate_name = coordinate_name + '_'
 
             self.x_scan_direction = 1 # will be flipped between {-1, 1} to alternate movement direction in rows within the same well (instead of moving to same edge of row and wasting time by doing so)
             self.on_abort_dx_usteps = 0
@@ -320,6 +318,10 @@ class MultiPointWorker(QObject):
                 for j in range(self.NX):
 
                     try:
+                        j_actual = j if self.x_scan_direction==1 else self.NX-1-j
+                        site_index = 1 + j_actual + i * self.NX
+                        coordinate_name = f'{base_coordinate_name}_{site_index}_dx{j_actual}_dy{i}' # _dz{k} added later
+
                         imaged_coords_dict_list=self.image_well_at_position(
                             x=j,y=i,
                             coordinate_name=coordinate_name,

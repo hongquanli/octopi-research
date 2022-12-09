@@ -512,8 +512,8 @@ class WellplateFormatPhysical:
 
     @TypecheckFunction
     def well_name(self,row:int,column:int)->str:
-        return chr(ord('A')+row)+str(column+1)
-    
+        return chr(ord('A')+row)+f'{column+1:02}' # A01
+
 
 WELLPLATE_FORMATS:Dict[int,WellplateFormatPhysical]={
     6:WellplateFormatPhysical(
