@@ -23,6 +23,8 @@ import time
 from control.typechecker import TypecheckFunction
 from typing import Union
 
+import os
+
 LIVE_BUTTON_IDLE_TEXT="Start Live"
 LIVE_BUTTON_RUNNING_TEXT="Stop Live"
 
@@ -169,7 +171,7 @@ class OctopiGUI(QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.hcs_controller=HCSController()
+        self.hcs_controller=HCSController(home=not os.environ.get('skip_homing'))
 
         self.named_widgets=ObjectManager()
 
