@@ -101,8 +101,8 @@ class Camera(object):
         self.callback_is_enabled = False
         self.is_streaming = False
 
-        self.GAIN_MAX = 24
-        self.GAIN_MIN = 0
+        self.GAIN_MAX = 100
+        self.GAIN_MIN = 1
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
@@ -137,6 +137,8 @@ class Camera(object):
         # toupcam temperature
         self.terminate_read_temperature_thread = False
         self.thread_read_temperature = threading.Thread(target=self.check_temperature, daemon=True)
+
+        self.brand = 'ToupTek'
         
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
@@ -240,7 +242,9 @@ class Camera(object):
         #     self.camera.ExposureTime.set(camera_exposure_time)
 
     def set_analog_gain(self,analog_gain):
+        analog_gain = min(100,analog_gain)
         self.analog_gain = analog_gain
+        # self.camera.put_ExpoAGain(analog_gain)
         # self.camera.Gain.set(analog_gain)
 
     def get_awb_ratios(self):
@@ -419,10 +423,10 @@ class Camera(object):
             
     def send_trigger(self):
         if self._last_software_trigger_timestamp!= None:
-            if (time.time() - self._last_software_trigger_timestamp) > (self.exposure_time*1000*1.02 + 4):
+            if (time.time() - self._last_software_trigger_timestamp) > (1.5*self.exposure_time/1000*1.02 + 4):
                 print('last software trigger timed out')
                 self._software_trigger_sent = False
-        if self.is_streaming and self._software_trigger_sent == False:
+        if self.is_streaming and (self._software_trigger_sent == False):
             self.camera.Trigger(1)
             self._software_trigger_sent = True
             self._last_software_trigger_timestamp = time.time()
@@ -431,17 +435,26 @@ class Camera(object):
             if self.is_streaming == False:
                 print('trigger not sent - camera is not streaming')
             else:
-                print('trigger not sent - waiting for the last trigger to complete')
+                # print('trigger not sent - waiting for the last trigger to complete')
+                print("{:.3f}".format(time.time()-self._last_software_trigger_timestamp) + ' s since the last trigger')
+
+    def stop_trigger(self):
+        if self.is_streaming and self._software_trigger_sent == True:
+            self.camera.Trigger(0)
+            self._software_trigger_sent = False
+        else:
+            pass
 
     def read_frame(self):
         self.image_is_ready = False
-        self.send_trigger()
+        # self.send_trigger()
         timestamp_t0 = time.time()
-        while (time.time() - timestamp_t0) <= self.exposure_time*1000*1.02 + 4:
+        while (time.time() - timestamp_t0) <= (self.exposure_time/1000)*1.02 + 4:
             time.sleep(0.005)
             if self.image_is_ready:
                 return self.current_frame
         print('read frame timed out')
+        return None
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
         # if offset_x is not None:

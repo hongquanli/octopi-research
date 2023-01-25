@@ -919,6 +919,8 @@ class AutofocusWorker(QObject):
                 self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
             # read camera frame
             image = self.camera.read_frame()
+            if image is None:
+                continue
             # tunr of the illumination if using software trigger
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
@@ -1254,6 +1256,9 @@ class MultiPointWorker(QObject):
                                     self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                                 # read camera frame
                                 image = self.camera.read_frame()
+                                if image is None:
+                                    print('self.camera.read_frame() returned None')
+                                    continue
                                 # tunr of the illumination if using software trigger
                                 if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                     self.liveController.turn_off_illumination()
