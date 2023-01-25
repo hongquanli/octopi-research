@@ -133,6 +133,9 @@ class Camera(object):
         self._last_software_trigger_timestamp = None
         if resolution != None:
             self.resolution = resolution
+        self.has_fan = None
+        self.has_TEC = None
+        self.has_low_noise_mode = None
 
         # toupcam temperature
         self.terminate_read_temperature_thread = False
@@ -151,7 +154,10 @@ class Camera(object):
             print('{}: flag = {:#x}, preview = {}, still = {}'.format(self.devices[0].displayname, self.devices[0].model.flag, self.devices[0].model.preview, self.devices[0].model.still))
             for r in self.devices[index].model.res:
                 print('\t = [{} x {}]'.format(r.width, r.height))
-            self.camera = toupcam.Toupcam.Open(self.devices[index].id)            
+            self.camera = toupcam.Toupcam.Open(self.devices[index].id)
+            self.has_fan = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_FAN ) > 0
+            self.has_TEC = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_TEC_ONOFF ) > 0
+            self.has_low_noise_mode = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_LOW_NOISE ) > 0
 
             # RGB format: The output of every pixel contains 3 componants which stand for R/G/B value respectively. This output is a processed output from the internal color processing engine.
             # RAW format: In this format, the output is the raw data directly output from the sensor. The RAW format is for the users that want to skip the internal color processing and obtain the raw data for user-specific purpose. With the raw format output enabled, the functions that are related to the internal color processing will not work, such as Toupcam_put_Hue or Toupcam_AwbOnce function and so on
@@ -395,7 +401,10 @@ class Camera(object):
         self.camera.put_Temperature(int(temperature*10))
 
     def set_fan_speed(self,speed):
-        self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
+        if self.self.has_fan:
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
+        else:
+            pass
 
     def set_continuous_acquisition(self):
         self.camera.put_Option(toupcam.TOUPCAM_OPTION_TRIGGER,0)
