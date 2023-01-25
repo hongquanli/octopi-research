@@ -18,6 +18,8 @@ from control._def import *
 import pyqtgraph.dockarea as dock
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
+import time
+
 class OctopiGUI(QMainWindow):
 
 	# variables
@@ -47,32 +49,89 @@ class OctopiGUI(QMainWindow):
 			self.microcontroller = microcontroller.Microcontroller_Simulation()
 		else:
 			self.camera = camera.Camera(resolution=(6224,4168),rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+			#self.camera = camera.Camera(resolution=(3104,2084))
+			#self.camera = camera.Camera(resolution=(2064,1386))
 			# 6224 x 4168
 			# 3104 x 2084
 			# 2064 x 1386
 			try:
-				self.microcontroller = microcontroller.Microcontroller()
+				self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 			except:
 				print('! Microcontroller not detected, using simulated microcontroller !')
 				self.microcontroller = microcontroller.Microcontroller_Simulation()
 
+		# reset the MCU
+		self.microcontroller.reset()
+
+		'''
+		# reinitialize motor drivers and DAC (in particular for V2.1 driver board where PG is not functional)
+		self.microcontroller.initialize_drivers()
+		'''
+
 		# configure the actuators
 		self.microcontroller.configure_actuators()
-			
+
 		self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
 		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
+		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
 		self.imageDisplay = core.ImageDisplay()
+		self.navigationViewer = core.NavigationViewer()
+
+		# homing
+		'''
+		self.navigationController.home_y()
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('y homing timeout, the program will exit')
+				exit()
+		
+		self.navigationController.home_x()
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('x homing timeout, the program will exit')
+				exit()
+		'''
+		'''
+		self.slidePositionController.move_to_slide_scanning_position()
+		while self.slidePositionController.slide_scanning_position_reached == False:
+			time.sleep(0.005)
+		print('homing finished')
+
+		# retract the objective
+		self.navigationController.home_z()
+		# wait for the operation to finish
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('z homing timeout, the program will exit')
+				exit()
+		print('objective retracted')
+		self.navigationController.move_z(DEFAULT_Z_POS_MM)
+
+		self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+		self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+		self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+		self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+		'''
 
 		# open the camera
 		# camera start streaming
 		self.camera.open()
+		self.camera.set_gain_mode('HCG')
+		# self.camera.camera.put_Roi(3112,2084,2048,2048)
 		# self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
 		# self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
 		self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
@@ -84,7 +143,7 @@ class OctopiGUI(QMainWindow):
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False,include_camera_temperature_setting=True)
 		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=True,autolevel=True)
-		self.navigationWidget = widgets.NavigationWidget(self.navigationController)
+		self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='malaria')
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
@@ -95,8 +154,8 @@ class OctopiGUI(QMainWindow):
 		self.recordTabWidget = QTabWidget()
 		if ENABLE_TRACKING:
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
@@ -107,6 +166,7 @@ class OctopiGUI(QMainWindow):
 			layout.addWidget(self.dacControlWidget)
 		layout.addWidget(self.autofocusWidget)
 		layout.addWidget(self.recordTabWidget)
+		layout.addWidget(self.navigationViewer)
 		layout.addStretch()
 		
 		# transfer the layout to the central widget
@@ -170,6 +230,14 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 		self.cameraSettingWidget.signal_camera_set_temperature.connect(self.camera.set_temperature)
 		self.camera.set_temperature_reading_callback(self.cameraSettingWidget.update_measured_temperature)
+
+		self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
+		self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
+		self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+		self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
+		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
 	def closeEvent(self, event):
 		event.accept()
