@@ -17,9 +17,9 @@ pip3 install numpy==1.21
 ```
 
 ### install camera drivers
-If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
-
 If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
+
+If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
 
 ### enable access to serial ports without sudo
 
