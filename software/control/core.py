@@ -1102,26 +1102,28 @@ class MultiPointWorker(QObject):
 
     def run(self):
         while self.time_point < self.Nt:
+            # check if abort acquisition has been requested
+            if self.multiPointController.abort_acqusition_requested:
+                break
+            # run single time point
+            self.run_single_time_point()
+            self.time_point = self.time_point + 1
             # continous acquisition
             if self.dt == 0:
-                self.run_single_time_point()
-                if self.multiPointController.abort_acqusition_requested:
-                    break
-                self.time_point = self.time_point + 1
+                pass
             # timed acquisition
             else:
-                self.run_single_time_point()
-                if self.multiPointController.abort_acqusition_requested:
-                    break
-                self.time_point = self.time_point + 1
                 # check if the aquisition has taken longer than dt or integer multiples of dt, if so skip the next time point(s)
                 while time.time() > self.timestamp_acquisition_started + self.time_point*self.dt:
                     print('skip time point ' + str(self.time_point+1))
                     self.time_point = self.time_point+1
+                # check if it has reached Nt
                 if self.time_point == self.Nt:
                     break # no waiting after taking the last time point
                 # wait until it's time to do the next acquisition
                 while time.time() < self.timestamp_acquisition_started + self.time_point*self.dt:
+                    if self.multiPointController.abort_acqusition_requested:
+                        break
                     time.sleep(0.05)
         self.finished.emit()
 
