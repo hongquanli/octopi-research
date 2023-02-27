@@ -10,24 +10,23 @@ sudo apt-get install python3-pyqt5
 sudo apt-get install git
 git clone https://github.com/hongquanli/octopi-research.git
 pip3 install qtpy pyserial pandas imageio crc==1.3.0
-```
-If opencv and lxml not preinstalled (e.g. if you're not using a Jetson but a regular computer), run the following
-```
-pip3 install --upgrade setuptools pip
+python3 -m pip install --upgrade --user setuptools==58.3.0
 pip3 install opencv-python opencv-contrib-python
 pip3 install lxml
+pip3 install numpy==1.21
 ```
 
 ### install camera drivers
-If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
-
 If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
+
+If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
 
 ### enable access to serial ports without sudo
 
 ```
 sudo usermod -aG dialout $USER
 ```
+Reboot the computer for the setting to take effect.
  
 ### (optional) install pytorch and torchvision on Jetson Nano
 Follow instructions on https://forums.developer.nvidia.com/t/pytorch-for-jetson-nano-version-1-5-0-now-available/72048
