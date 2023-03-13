@@ -50,25 +50,31 @@ class CameraSettingsWidget(QFrame):
         # to do: load and save pixel format in configurations
 
         self.entry_ROI_offset_x = QSpinBox()
-        self.entry_ROI_offset_x.setValue(CAMERA.ROI_OFFSET_X_DEFAULT)
-        self.entry_ROI_offset_x.setFixedWidth(40)
-        self.entry_ROI_offset_x.setMinimum(-1500)
-        self.entry_ROI_offset_x.setMaximum(1500)
+        self.entry_ROI_offset_x.setValue(self.camera.OffsetX)
+        self.entry_ROI_offset_x.setSingleStep(8)
+        self.entry_ROI_offset_x.setFixedWidth(60)
+        self.entry_ROI_offset_x.setMinimum(0)
+        self.entry_ROI_offset_x.setMaximum(self.camera.WidthMax)
         self.entry_ROI_offset_x.setKeyboardTracking(False)
         self.entry_ROI_offset_y = QSpinBox()
-        self.entry_ROI_offset_y.setValue(CAMERA.ROI_OFFSET_Y_DEFAULT)
-        self.entry_ROI_offset_y.setFixedWidth(40)
-        self.entry_ROI_offset_y.setMinimum(-1500)
-        self.entry_ROI_offset_y.setMaximum(1500)
+        self.entry_ROI_offset_y.setValue(self.camera.OffsetY)
+        self.entry_ROI_offset_y.setSingleStep(8)
+        self.entry_ROI_offset_y.setFixedWidth(60)
+        self.entry_ROI_offset_y.setMinimum(0)
+        self.entry_ROI_offset_y.setMaximum(self.camera.HeightMax)
         self.entry_ROI_offset_y.setKeyboardTracking(False)
         self.entry_ROI_width = QSpinBox()
-        self.entry_ROI_width.setMaximum(4000)
-        self.entry_ROI_width.setValue(CAMERA.ROI_WIDTH_DEFAULT)
+        self.entry_ROI_width.setMinimum(16)
+        self.entry_ROI_width.setMaximum(self.camera.WidthMax)
+        self.entry_ROI_width.setValue(self.camera.Width)
+        self.entry_ROI_width.setSingleStep(8)
         self.entry_ROI_width.setFixedWidth(60)
         self.entry_ROI_width.setKeyboardTracking(False)
         self.entry_ROI_height = QSpinBox()
-        self.entry_ROI_height.setMaximum(3000)
-        self.entry_ROI_height.setValue(CAMERA.ROI_HEIGHT_DEFAULT)
+        self.entry_ROI_height.setSingleStep(8)
+        self.entry_ROI_height.setMinimum(16)
+        self.entry_ROI_height.setMaximum(self.camera.HeightMax)
+        self.entry_ROI_height.setValue(self.camera.Height)
         self.entry_ROI_height.setFixedWidth(60)
         self.entry_ROI_height.setKeyboardTracking(False)
         self.entry_temperature = QDoubleSpinBox()
@@ -83,10 +89,10 @@ class CameraSettingsWidget(QFrame):
         self.entry_exposureTime.valueChanged.connect(self.camera.set_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.camera.set_analog_gain)
         self.dropdown_pixelFormat.currentTextChanged.connect(self.camera.set_pixel_format)
-        self.entry_ROI_offset_x.valueChanged.connect(self.set_ROI)
-        self.entry_ROI_offset_y.valueChanged.connect(self.set_ROI)
-        self.entry_ROI_height.valueChanged.connect(self.set_ROI)
-        self.entry_ROI_width.valueChanged.connect(self.set_ROI)
+        self.entry_ROI_offset_x.valueChanged.connect(self.set_ROI_offset)
+        self.entry_ROI_offset_y.valueChanged.connect(self.set_ROI_offset)
+        self.entry_ROI_height.valueChanged.connect(self.set_Height)
+        self.entry_ROI_width.valueChanged.connect(self.set_Width)
         self.entry_temperature.valueChanged.connect(self.signal_camera_set_temperature.emit)
 
         # layout
@@ -128,7 +134,31 @@ class CameraSettingsWidget(QFrame):
     def set_analog_gain(self,analog_gain):
         self.entry_analogGain.setValue(analog_gain)
 
-    def set_ROI(self):
+    def set_Width(self):
+        width = (self.entry_ROI_width.value()//8)*8
+        self.entry_ROI_width.blockSignals(True)
+        self.entry_ROI_width.setValue(width)
+        self.entry_ROI_width.blockSignals(False)
+        offset_x = (self.camera.WidthMax - self.entry_ROI_width.value())/2
+        offset_x = (offset_x//8)*8
+        self.entry_ROI_offset_x.blockSignals(True)
+        self.entry_ROI_offset_x.setValue(offset_x)
+        self.entry_ROI_offset_x.blockSignals(False)
+        self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
+
+    def set_Height(self):
+        height = (self.entry_ROI_height.value()//8)*8
+        self.entry_ROI_height.blockSignals(True)
+        self.entry_ROI_height.setValue(height)
+        self.entry_ROI_height.blockSignals(False)
+        offset_y = (self.camera.HeightMax - self.entry_ROI_height.value())/2
+        offset_y = (offset_y//8)*8
+        self.entry_ROI_offset_y.blockSignals(True)
+        self.entry_ROI_offset_y.setValue(offset_y)
+        self.entry_ROI_offset_y.blockSignals(False)
+        self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
+
+    def set_ROI_offset(self):
     	self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
     def update_measured_temperature(self,temperature):

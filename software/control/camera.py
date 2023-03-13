@@ -59,11 +59,6 @@ class Camera(object):
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 4000
 
-        self.ROI_offset_x = CAMERA.ROI_OFFSET_X_DEFAULT
-        self.ROI_offset_y = CAMERA.ROI_OFFSET_X_DEFAULT
-        self.ROI_width = CAMERA.ROI_WIDTH_DEFAULT
-        self.ROI_height = CAMERA.ROI_HEIGHT_DEFAULT
-
         self.trigger_mode = None
         self.pixel_size_byte = 1
 
@@ -103,6 +98,14 @@ class Camera(object):
 
         # turn off device link throughput limit
         self.camera.DeviceLinkThroughputLimitMode.set(gx.GxSwitchEntry.OFF)
+
+        # get sensor parameters
+        self.Width = self.camera.Width.get()
+        self.Height = self.camera.Height.get()
+        self.WidthMax = self.camera.WidthMax.get()
+        self.HeightMax = self.camera.HeightMax.get()
+        self.OffsetX = self.camera.OffsetX.get()
+        self.OffsetY = self.camera.OffsetY.get()
 
     def set_callback(self,function):
         self.new_image_callback_external = function
@@ -350,36 +353,36 @@ class Camera(object):
             was_streaming = False
 
         if width is not None:
-            self.ROI_width = width
+            self.Width = width
             # update the camera setting
             if self.camera.Width.is_implemented() and self.camera.Width.is_writable():
-                self.camera.Width.set(self.ROI_width)
+                self.camera.Width.set(self.Width)
             else:
-                print("OffsetX is not implemented or not writable")
+                print("Width is not implemented or not writable")
 
         if height is not None:
-            self.ROI_height = height
+            self.Height = height
             # update the camera setting
             if self.camera.Height.is_implemented() and self.camera.Height.is_writable():
-                self.camera.Height.set(self.ROI_height)
+                self.camera.Height.set(self.Height)
             else:
                 print("Height is not implemented or not writable")
 
         if offset_x is not None:
-            self.ROI_offset_x = offset_x
+            self.OffsetX = offset_x
             # update the camera setting
             if self.camera.OffsetX.is_implemented() and self.camera.OffsetX.is_writable():
-                self.camera.OffsetX.set(self.ROI_offset_x)
+                self.camera.OffsetX.set(self.OffsetX)
             else:
                 print("OffsetX is not implemented or not writable")
 
         if offset_y is not None:
-            self.ROI_offset_y = offset_y
+            self.OffsetY = offset_y
             # update the camera setting
             if self.camera.OffsetY.is_implemented() and self.camera.OffsetY.is_writable():
-                self.camera.OffsetY.set(self.ROI_offset_y)
+                self.camera.OffsetY.set(self.OffsetY)
             else:
-                print("OffsetX is not implemented or not writable")
+                print("OffsetY is not implemented or not writable")
 
         # restart streaming if it was previously on
         if was_streaming == True:
@@ -456,6 +459,14 @@ class Camera_Simulation(object):
         self.pixel_format = 'MONO8'
 
         self.is_live = False
+
+        self.Width = 3000
+        self.Height = 3000
+        self.WidthMax = 4000
+        self.HeightMax = 3000
+        self.OffsetX = 0
+        self.OffsetY = 0
+
 
     def open(self,index=0):
         pass
