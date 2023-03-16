@@ -48,6 +48,25 @@ git clone --branch torchvision v0.6.0 https://github.com/pytorch/vision torchvis
 cd torchvision
 sudo python3 setup.py install
 ```
+</details>
+
+<details>
+<summary>Install CuPy (optional)</summary>
+
+From March 2023 w/ RTX3050
+```
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
+sudo dpkg -i cuda-keyring_1.0-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda
+
+pip3 install cupy-cuda12x
+pip3 install cuda-python
+```
+For latest instructions, refer to 
+https://developer.nvidia.com/cuda-downloads
+https://nvidia.github.io/cuda-python/install.html
+https://docs.cupy.dev/en/stable/install.html
 
 </details>
 
