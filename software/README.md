@@ -60,10 +60,10 @@ The following aspects are specified in the configuration file:
 Use one of the following to start the program
 ```
 python3 main.py
-python3 main_camera_only.py
-python3 main_motion_only.py
+python3 main_malaria.py
+python3 main_hcs.py
 ```
 To start the program when no hardware is connected, use
 ```
-python3 main_simulation.py
+python3 main.py --simulation
 ```
