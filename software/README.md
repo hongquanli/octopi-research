@@ -27,7 +27,10 @@ If you're using The Imaging Source cameras, follow instructions on https://githu
 sudo usermod -aG dialout $USER
 ```
 Reboot the computer for the setting to take effect.
- 
+
+<details>
+<summary>Jetson Nano Instructions (last modified: July 2020)</summary>
+
 ### (optional) install pytorch and torchvision on Jetson Nano
 Follow instructions on https://forums.developer.nvidia.com/t/pytorch-for-jetson-nano-version-1-5-0-now-available/72048
 
@@ -45,6 +48,9 @@ git clone --branch torchvision v0.6.0 https://github.com/pytorch/vision torchvis
 cd torchvision
 sudo python3 setup.py install
 ```
+
+</details>
+
 ## Configuring the software
 Create a `configuration.txt` file in the software folder to set up variables for a specific machine. The file is loaded by [`control/_def.py`](https://github.com/hongquanli/octopi-research/blob/master/software/control/_def.py) There should be only one `configuration*.txt` file in the software folder. You may edit the [`configuration_example.txt` file](https://github.com/hongquanli/octopi-research/blob/master/software/configuration_example.txt) and rename it.
 
