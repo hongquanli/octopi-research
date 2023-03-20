@@ -83,6 +83,17 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer()
 
+		# retract the objective
+		self.navigationController.home_z()
+		# wait for the operation to finish
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('z homing timeout, the program will exit')
+				exit()
+		print('objective retracted')
+
 		# homing, set zero and set software limit
 		self.navigationController.set_x_limit_pos_mm(100)
 		self.navigationController.set_x_limit_neg_mm(-100)
@@ -97,6 +108,23 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
 		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
 		self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+
+		# raise the objective
+		self.navigationController.move_z(DEFAULT_Z_POS_MM)
+		# wait for the operation to finish
+		t0 = time.time() 
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 5:
+				print('z return timeout, the program will exit')
+				exit()
+
+		# set software limit
+		self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+		self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+		self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+		self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 		
 		# open the camera
 		# camera start streaming

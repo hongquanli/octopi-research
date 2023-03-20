@@ -1,5 +1,5 @@
 ROTATE_IMAGE_ANGLE = None
-FLIP_IMAGE = 'Vertical' # 'Horizontal', 'Vertical', 'Both'
+FLIP_IMAGE = 'Both' # 'Horizontal', 'Vertical', 'Both'
 
 CAMERA_REVERSE_X = False
 CAMERA_REVERSE_Y = False
@@ -152,3 +152,5 @@ class Acquisition:
     DZ = 1.5
     
 CONTROLLER_VERSION = 'Teensy' # 'Teensy'
+
+DEFAULT_Z_POS_MM = 4.000
