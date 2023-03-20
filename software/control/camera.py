@@ -244,6 +244,9 @@ class Camera(object):
             if pixel_format == 'MONO8':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO8)
                 self.pixel_size_byte = 1
+            if pixel_format == 'MONO10':
+                self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO10)
+                self.pixel_size_byte = 1
             if pixel_format == 'MONO12':
                 self.camera.PixelFormat.set(gx.GxPixelFormatEntry.MONO12)
                 self.pixel_size_byte = 2
