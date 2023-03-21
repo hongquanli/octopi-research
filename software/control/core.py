@@ -1307,7 +1307,7 @@ class MultiPointWorker(QObject):
                             multipoint_custom_script_entry(self,i,j,k,current_path,file_ID)
 
                         # add the coordinate of the current location
-                        coordinates_pd = coordinates_pd.append({'i':i,'j':j,'k':k,
+                        coordinates_pd = coordinates_pd.append({'i':i,'j':self.NX-1-j,'k':k,
                                                                 'x (mm)':self.navigationController.x_pos_mm,
                                                                 'y (mm)':self.navigationController.y_pos_mm,
                                                                 'z (um)':self.navigationController.z_pos_mm*1000},
