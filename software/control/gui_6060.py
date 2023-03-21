@@ -165,12 +165,14 @@ class OctopiGUI(QMainWindow):
 		if ENABLE_TRACKING:
 			self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
 		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+		self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
 		if ENABLE_TRACKING:
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+		self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
+		self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
