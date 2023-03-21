@@ -1258,6 +1258,9 @@ class MultiPointWidget2(QFrame):
         self.btn_clear.clicked.connect(self.clear)
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
+        self.shortcut = QShortcut(QKeySequence(";"), self)
+        self.shortcut.activated.connect(self.btn_add.click)
+
     def set_deltaX(self,value):
         mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
@@ -1296,7 +1299,7 @@ class MultiPointWidget2(QFrame):
             self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.run_acquisition()
+            self.multipointController.run_acquisition(self.location_list)
         else:
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
@@ -1386,13 +1389,19 @@ class MultiPointWidget2(QFrame):
 
     def go_to(self,index):
         if index != -1:
-            x = self.location_list[index,0]
-            y = self.location_list[index,1]
-            z = self.location_list[index,2]
-            self.navigationController.move_x_to(x)
-            self.navigationController.move_y_to(y)
-            self.navigationController.move_z_to(z)
+            if index < len(self.location_list): # to avoid giving errors when adding new points
+                x = self.location_list[index,0]
+                y = self.location_list[index,1]
+                z = self.location_list[index,2]
+                self.navigationController.move_x_to(x)
+                self.navigationController.move_y_to(y)
+                self.navigationController.move_z_to(z)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_A and event.modifiers() == Qt.ControlModifier:
+            self.add_location()
+        else:
+            super().keyPressEvent(event)
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):

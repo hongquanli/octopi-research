@@ -1148,30 +1148,45 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
-        if self.multiPointController.scanCoordinates!=None:
-            # use scan coordinates for the scan
-            self.multiPointController.scanCoordinates.get_selected_wells()
-            self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
-            self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
-            self.use_scan_coordinates = True
+        if self.multiPointController.location_list is None:
+            # use scanCoordinates for well plates or regular multipoint scan
+            if self.multiPointController.scanCoordinates!=None:
+                # use scan coordinates for the scan
+                self.multiPointController.scanCoordinates.get_selected_wells()
+                self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
+                self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
+                self.use_scan_coordinates = True
+            else:
+                # use the current position for the scan
+                self.scan_coordinates_mm = [(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)]
+                self.scan_coordinates_name = ['']
+                coordiante_name = ''
+                self.use_scan_coordinates = False
         else:
-            # use the current position for the scan
-            self.scan_coordinates_mm = [(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)]
-            self.scan_coordinates_name = ['']
-            self.use_scan_coordinates = False
+            # use location_list specified by the multipoint controlller
+            self.scan_coordinates_mm = self.multiPointController.location_list
+            self.scan_coordinates_name = None
+            self.use_scan_coordinates = True
 
-        n_regions = len(self.scan_coordinates_name)
+        n_regions = len(self.scan_coordinates_mm)
         for coordinate_id in range(n_regions):
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            coordiante_name = self.scan_coordinates_name[coordinate_id]
+            if self.scan_coordinates_name is not None:
+                coordiante_name = self.scan_coordinates_name[coordinate_id]
+            else:
+                coordiante_name = str(coordinate_id)
+            print(coordiante_mm)
             if self.use_scan_coordinates:
                 # move to the specified coordinate
                 self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
                 self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
                 self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
                 self.wait_till_operation_is_completed()
+                if len(coordiante_mm) == 3:
+                    self.navigationController.move_z_to(coordiante_mm[2])
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                if len(coordiante_mm) == 3:
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
                 coordiante_name = coordiante_name + '_'
 
@@ -1188,7 +1203,8 @@ class MultiPointWorker(QObject):
             # along y
             for i in range(self.NY):
 
-                self.FOV_counter = 0 # so that AF at the beginning of each new row
+                if self.multiPointController.location_list is None:
+                    self.FOV_counter = 0 # so that AF at the beginning of each new row - only when doing regular multipoint or wellplate multi-well multipoint
 
                 # along x
                 for j in range(self.NX):
@@ -1307,11 +1323,12 @@ class MultiPointWorker(QObject):
                             multipoint_custom_script_entry(self,i,j,k,current_path,file_ID)
 
                         # add the coordinate of the current location
-                        coordinates_pd = coordinates_pd.append({'i':i,'j':self.NX-1-j,'k':k,
-                                                                'x (mm)':self.navigationController.x_pos_mm,
-                                                                'y (mm)':self.navigationController.y_pos_mm,
-                                                                'z (um)':self.navigationController.z_pos_mm*1000},
-                                                                ignore_index = True)
+                        new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
+                                                'x (mm)':[self.navigationController.x_pos_mm],
+                                                'y (mm)':[self.navigationController.y_pos_mm],
+                                                'z (um)':[self.navigationController.z_pos_mm*1000]},
+                                                )
+                        coordinates_pd = pd.concat([coordinates_pd, new_row], ignore_index=True)
 
                         # register the current fov in the navigationViewer 
                         self.signal_register_current_fov.emit(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)
@@ -1444,6 +1461,8 @@ class MultiPointController(QObject):
         self.scanCoordinates = scanCoordinates
         self.parent = parent
 
+        self.location_list = None # for flexible multipoint
+
     def set_NX(self,N):
         self.NX = N
     def set_NY(self,N):
@@ -1496,9 +1515,14 @@ class MultiPointController(QObject):
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    def run_acquisition(self): # @@@ to do: change name to run_experiment
+    def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+        if location_list is not None:
+            print(location_list)
+            self.location_list = location_list
+        else:
+            self.location_list = None
 
         self.abort_acqusition_requested = False
 
@@ -2479,6 +2503,7 @@ class ScanCoordinates(object):
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(chr(ord('A')+row)+str(column+1))
             _increasing = not _increasing
+
 
 class LaserAutofocusController(QObject):
 
