@@ -1392,13 +1392,13 @@ class MultiPointWorker(QObject):
                         # update FOV counter
                         self.FOV_counter = self.FOV_counter + 1
 
-                        if self.NX > 1:
-                            # move x
-                            if j < self.NX - 1:
-                                self.navigationController.move_x_usteps(self.x_scan_direction*self.deltaX_usteps)
-                                self.wait_till_operation_is_completed()
-                                time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-                                self.dx_usteps = self.dx_usteps + self.x_scan_direction*self.deltaX_usteps
+                    if self.NX > 1:
+                        # move x
+                        if j < self.NX - 1:
+                            self.navigationController.move_x_usteps(self.x_scan_direction*self.deltaX_usteps)
+                            self.wait_till_operation_is_completed()
+                            time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+                            self.dx_usteps = self.dx_usteps + self.x_scan_direction*self.deltaX_usteps
 
                 # finished X scan
                 '''
