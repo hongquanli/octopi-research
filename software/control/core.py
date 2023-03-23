@@ -1340,7 +1340,10 @@ class MultiPointWorker(QObject):
                             self.wait_till_operation_is_completed()
                             self.navigationController.move_y_usteps(-dy_usteps)
                             self.wait_till_operation_is_completed()
-                            self.navigationController.move_z_usteps(-dz_usteps)
+                            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                            self.navigationController.move_z_usteps(-dz_usteps-_usteps_to_clear_backlash)
+                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                             self.wait_till_operation_is_completed()
                             coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
                             self.navigationController.enable_joystick_button_action = True
@@ -1357,11 +1360,16 @@ class MultiPointWorker(QObject):
                     if self.NZ > 1:
                         # move z back
                         if Z_STACKING_CONFIG == 'FROM CENTER':
-                            self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
+                            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                            self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
+                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                             self.wait_till_operation_is_completed()
                             dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
                         else:
-                            self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
+                            self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1) - _usteps_to_clear_backlash)
+                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                             self.wait_till_operation_is_completed()
                             dz_usteps = dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
@@ -1410,7 +1418,10 @@ class MultiPointWorker(QObject):
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
                 # move z back
-                self.navigationController.microcontroller.move_z_to_usteps(z_pos)
+                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                self.navigationController.microcontroller.move_z_to_usteps(z_pos - _usteps_to_clear_backlash)
+                self.wait_till_operation_is_completed()
+                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
 
         coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
