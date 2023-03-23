@@ -15,39 +15,78 @@ import cv2
 from control._def import *
 import control.utils as utils
 
-def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coordiante_name,i,j):
+def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coordinate_id,coordiante_name,i,j):
     
     print( 'in custom script; t ' + str(multiPointWorker.time_point) + ', location ' + coordiante_name + ': ' +  str(i) + '_' + str(j) )
 
     # autofocus
-    if multiPointWorker.do_reflection_af == False:
-        # perform AF only if when not taking z stack or doing z stack from center
-        if ( (multiPointWorker.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (multiPointWorker.do_autofocus) and (multiPointWorker.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
-        # temporary: replace the above line with the line below to AF every FOV
-        # if (multiPointWorker.NZ == 1) and (multiPointWorker.do_autofocus):
-            configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
-            config_AF = next((config for config in multiPointWorker.configurationManager.configurations if config.name == configuration_name_AF))
-            multiPointWorker.signal_current_configuration.emit(config_AF)
-            multiPointWorker.autofocusController.autofocus()
-            multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
-    else:
-       # initialize laser autofocus
-        if multiPointWorker.reflection_af_initialized==False:
-            # initialize the reflection AF
-            multiPointWorker.microscope.laserAutofocusController.initialize_auto()
-            multiPointWorker.reflection_af_initialized = True
-            # do contrast AF for the first FOV
-            if multiPointWorker.do_autofocus and ( (multiPointWorker.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) :
+
+    # if z location is included in the scan coordinates
+    if multiPointWorker.use_scan_coordinates and multiPointWorker.scan_coordinates_mm.shape[1] == 3 :
+
+        if multiPointWorker.do_autofocus:
+            
+            # autofocus for every FOV in the first scan and update the coordinates
+            if multiPointWorker.time_point == 0:
+
                 configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                 config_AF = next((config for config in multiPointWorker.configurationManager.configurations if config.name == configuration_name_AF))
                 multiPointWorker.signal_current_configuration.emit(config_AF)
                 multiPointWorker.autofocusController.autofocus()
                 multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
-            # set the current plane as reference
-            multiPointWorker.microscope.laserAutofocusController.set_reference()
+                multiPointWorker.scan_coordinates_mm[coordinate_id,2] = multiPointWorker.navigationController.z_pos_mm
+
+            # autofocus at the first FOV and offset the rest
+            else:
+
+                if coordinate_id == 0:
+
+                    z0 = multiPointWorker.scan_coordinates_mm[coordinate_id,2]
+                    configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                    config_AF = next((config for config in multiPointWorker.configurationManager.configurations if config.name == configuration_name_AF))
+                    multiPointWorker.signal_current_configuration.emit(config_AF)
+                    multiPointWorker.autofocusController.autofocus()
+                    multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
+                    multiPointWorker.scan_coordinates_mm[coordinate_id,2] = multiPointWorker.navigationController.z_pos_mm
+                    offset = multiPointWorker.scan_coordinates_mm[coordinate_id,2] - z0
+                    print('offset is ' + str(offset))
+                    multiPointWorker.scan_coordinates_mm[1:,2] = multiPointWorker.scan_coordinates_mm[1:,2] + offset
+
+                else:
+
+                    pass
+
+
+    # if z location is not included in the scan coordinates
+    else:
+        if multiPointWorker.do_reflection_af == False:
+            # perform AF only if when not taking z stack or doing z stack from center
+            if ( (multiPointWorker.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (multiPointWorker.do_autofocus) and (multiPointWorker.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+            # temporary: replace the above line with the line below to AF every FOV
+            # if (multiPointWorker.NZ == 1) and (multiPointWorker.do_autofocus):
+                configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                config_AF = next((config for config in multiPointWorker.configurationManager.configurations if config.name == configuration_name_AF))
+                multiPointWorker.signal_current_configuration.emit(config_AF)
+                multiPointWorker.autofocusController.autofocus()
+                multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
         else:
-            multiPointWorker.microscope.laserAutofocusController.move_to_target(0)
-            multiPointWorker.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+           # initialize laser autofocus
+            if multiPointWorker.reflection_af_initialized==False:
+                # initialize the reflection AF
+                multiPointWorker.microscope.laserAutofocusController.initialize_auto()
+                multiPointWorker.reflection_af_initialized = True
+                # do contrast AF for the first FOV
+                if multiPointWorker.do_autofocus and ( (multiPointWorker.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) :
+                    configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
+                    config_AF = next((config for config in multiPointWorker.configurationManager.configurations if config.name == configuration_name_AF))
+                    multiPointWorker.signal_current_configuration.emit(config_AF)
+                    multiPointWorker.autofocusController.autofocus()
+                    multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
+                # set the current plane as reference
+                multiPointWorker.microscope.laserAutofocusController.set_reference()
+            else:
+                multiPointWorker.microscope.laserAutofocusController.move_to_target(0)
+                multiPointWorker.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
 
     if (multiPointWorker.NZ > 1):
         # move to bottom of the z stack
@@ -71,7 +110,15 @@ def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coor
 
         # iterate through selected modes
         for config in multiPointWorker.selected_configurations:
+
             if 'USB Spectrometer' not in config.name:
+
+                if time_point%10 != 0:
+
+                    if 'Fluorescence' in config.name:
+                        # only do fluorescence every 10th timepoint
+                        continue
+
                 # update the current configuration
                 multiPointWorker.signal_current_configuration.emit(config)
                 multiPointWorker.wait_till_operation_is_completed()
@@ -120,7 +167,9 @@ def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coor
                             image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                     cv2.imwrite(saving_path,image)
                 QApplication.processEvents()
+            
             else:
+
                 if multiPointWorker.usb_spectrometer != None:
                     for l in range(N_SPECTRUM_PER_POINT):
                         data = multiPointWorker.usb_spectrometer.read_spectrum()
@@ -181,11 +230,3 @@ def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coor
 
     # update FOV counter
     multiPointWorker.FOV_counter = multiPointWorker.FOV_counter + 1
-
-    if multiPointWorker.NX > 1:
-        # move x
-        if j < multiPointWorker.NX - 1:
-            multiPointWorker.navigationController.move_x_usteps(multiPointWorker.x_scan_direction*multiPointWorker.deltaX_usteps)
-            multiPointWorker.wait_till_operation_is_completed()
-            time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-            multiPointWorker.dx_usteps = multiPointWorker.dx_usteps + multiPointWorker.x_scan_direction*multiPointWorker.deltaX_usteps
