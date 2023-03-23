@@ -1174,10 +1174,11 @@ class MultiPointWorker(QObject):
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]
             print(coordiante_mm)
 
-            if self.scan_coordinates_name is not None:
-                coordiante_name = self.scan_coordinates_name[coordinate_id]
-            else:
+            if self.scan_coordinates_name is None:
+                # flexible scan, use a sequencial ID
                 coordiante_name = str(coordinate_id)
+            else:
+                coordiante_name = self.scan_coordinates_name[coordinate_id]
             
             if self.use_scan_coordinates:
                 # move to the specified coordinate
@@ -1186,7 +1187,17 @@ class MultiPointWorker(QObject):
                 self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
                 self.wait_till_operation_is_completed()
                 if len(coordiante_mm) == 3:
-                    self.navigationController.move_z_to(coordiante_mm[2])
+                    if coordiante_mm[2] >= self.navigationController.z_pos_mm:
+                        self.navigationController.move_z_to(coordiante_mm[2])
+                        self.wait_till_operation_is_completed()
+                    else:
+                        self.navigationController.move_z_to(coordiante_mm[2])
+                        self.wait_till_operation_is_completed()
+                        # remove backlash
+                        _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash) # to-do: combine this with the above
+                        self.wait_till_operation_is_completed()
+                        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                 if len(coordiante_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
