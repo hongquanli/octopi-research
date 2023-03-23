@@ -1214,7 +1214,7 @@ class MultiPointWorker(QObject):
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
-                        multipoint_custom_script_entry(self,self.time_point,current_path,coordiante_name,i,j)
+                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
 
                     else:
 
