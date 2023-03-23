@@ -360,6 +360,8 @@ SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS = False
 
 MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 
+RUN_CUSTOM_MULTIPOINT = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
