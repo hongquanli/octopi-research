@@ -1438,7 +1438,7 @@ class MultiPointWorker(QObject):
 
                 # move z back
                 _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.microcontroller.move_z_to_usteps(z_pos - _usteps_to_clear_backlash)
+                self.navigationController.microcontroller.move_z_to_usteps(z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
