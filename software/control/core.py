@@ -1183,9 +1183,7 @@ class MultiPointWorker(QObject):
             if self.use_scan_coordinates:
                 # move to the specified coordinate
                 self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.wait_till_operation_is_completed()
                 self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
-                self.wait_till_operation_is_completed()
                 if len(coordiante_mm) == 3:
                     if coordiante_mm[2] >= self.navigationController.z_pos_mm:
                         self.navigationController.move_z_to(coordiante_mm[2])
@@ -1198,6 +1196,9 @@ class MultiPointWorker(QObject):
                         self.navigationController.move_z_usteps(-_usteps_to_clear_backlash) # to-do: combine this with the above
                         self.wait_till_operation_is_completed()
                         self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                        self.wait_till_operation_is_completed()
+                else:
+                    self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                 if len(coordiante_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
