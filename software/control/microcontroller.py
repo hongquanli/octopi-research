@@ -185,7 +185,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
 
     def move_x_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_X*usteps,4)
+        payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_X
         cmd[2] = payload >> 24
@@ -240,7 +240,7 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
     
     def move_y_to_usteps(self,usteps):
-        payload = self._int_to_payload(STAGE_MOVEMENT_SIGN_Y*usteps,4)
+        payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Y
         cmd[2] = payload >> 24
