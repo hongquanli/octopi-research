@@ -36,19 +36,19 @@ def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coor
                 multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
                 multiPointWorker.scan_coordinates_mm[coordinate_id,2] = multiPointWorker.navigationController.z_pos_mm
 
-            # autofocus at the first FOV and offset the rest
+            # in subsequent scans, autofocus at the first FOV and offset the rest
             else:
 
                 if coordinate_id == 0:
 
-                    z0 = multiPointWorker.scan_coordinates_mm[coordinate_id,2]
+                    z0 = multiPointWorker.scan_coordinates_mm[0,2]
                     configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                     config_AF = next((config for config in multiPointWorker.configurationManager.configurations if config.name == configuration_name_AF))
                     multiPointWorker.signal_current_configuration.emit(config_AF)
                     multiPointWorker.autofocusController.autofocus()
                     multiPointWorker.autofocusController.wait_till_autofocus_has_completed()
-                    multiPointWorker.scan_coordinates_mm[coordinate_id,2] = multiPointWorker.navigationController.z_pos_mm
-                    offset = multiPointWorker.scan_coordinates_mm[coordinate_id,2] - z0
+                    multiPointWorker.scan_coordinates_mm[0,2] = multiPointWorker.navigationController.z_pos_mm
+                    offset = multiPointWorker.scan_coordinates_mm[0,2] - z0
                     print('offset is ' + str(offset))
                     multiPointWorker.scan_coordinates_mm[1:,2] = multiPointWorker.scan_coordinates_mm[1:,2] + offset
 
