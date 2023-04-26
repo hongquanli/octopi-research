@@ -1408,6 +1408,7 @@ class MultiPointWidget2(QFrame):
         self.navigationController.move_z_to(z)
 
     def clear(self):
+        self.location_list = np.empty((0, 3), dtype=float)
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
 
