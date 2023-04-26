@@ -1370,6 +1370,7 @@ class MultiPointWidget2(QFrame):
             self.navigationViewer.register_fov_to_image(x,y)
         else:
             print("Duplicate values not added based on x and y.")
+            #to-do: update z coordinate
 
     def remove_location(self):
         index = self.dropdown_location_list.currentIndex()
@@ -1427,6 +1428,11 @@ class MultiPointWidget2(QFrame):
             self.add_location()
         else:
             super().keyPressEvent(event)
+
+    def _update_z(self,index,z_mm):
+        self.location_list[index,2] = z_mm
+        location_str = 'x: ' + str(round(self.location_list[index,0],3)) + ' mm, y: ' + str(round(self.location_list[index,1],3)) + ' mm, z: ' + str(round(1000*z_mm,1)) + ' um'
+        self.dropdown_location_list.setItemText(index, location_str)
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):
