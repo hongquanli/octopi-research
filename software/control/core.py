@@ -2610,17 +2610,31 @@ class LaserAutofocusController(QObject):
         # set camera crop
         self.initialize_manual(x_offset, y_offset, LASER_AF_CROP_WIDTH, LASER_AF_CROP_HEIGHT, 1, x)
 
-        # move z
+        # turn on laser 
+        self.microcontroller.turn_on_AF_laser()
+        self.wait_till_operation_is_completed()
+
+        # move z to - 6 um
         self.navigationController.move_z(-0.018)
         self.wait_till_operation_is_completed()
         self.navigationController.move_z(0.012)
         self.wait_till_operation_is_completed()
         time.sleep(0.02)
+
+        # measure
         x0,y0 = self._get_laser_spot_centroid()
+
+        # move z to 6 um
         self.navigationController.move_z(0.006)
         self.wait_till_operation_is_completed()
         time.sleep(0.02)
+
+        # measure
         x1,y1 = self._get_laser_spot_centroid()
+
+        # turn off laser
+        self.microcontroller.turn_off_AF_laser()
+        self.wait_till_operation_is_completed()
 
         # calculate the conversion factor
         self.pixel_to_um = 6.0/(x1-x0)
