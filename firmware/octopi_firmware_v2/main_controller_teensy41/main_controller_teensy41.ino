@@ -95,12 +95,12 @@ static const int DISABLED = 2;
 /***************************************************************************************************/
 // Teensy4.1 board v1 def
 
-// illumination
-static const int LASER_405nm = 5;   // to rename
-static const int LASER_488nm = 4;   // to rename
-static const int LASER_561nm = 22;   // to rename
-static const int LASER_638nm = 3;  // to rename
-static const int LASER_730nm = 23;  // to rename
+// illumination - laser - D1-D5; PWM16-12
+static const int LASER_405nm = 25;   // to rename
+static const int LASER_488nm = 24;   // to rename
+static const int LASER_561nm = 15;   // to rename
+static const int LASER_638nm = 10;  // to rename
+static const int LASER_730nm = 9;  // to rename
 // PWM6 2
 // PWM7 1
 // PWM8 0
@@ -186,8 +186,8 @@ void set_DAC8050x_output(int channel, uint16_t value)
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
 const uint32_t clk_Hz_TMC4361 = 16000000;
-const uint8_t lft_sw_pol[4] = {1,1,0,1};
-const uint8_t rht_sw_pol[4] = {1,1,0,1};
+const uint8_t lft_sw_pol[4] = {0,0,0,1};
+const uint8_t rht_sw_pol[4] = {0,0,0,1};
 const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, RGHT_SW, LEFT_SW};
 const int32_t vslow = 0x04FFFC00;
 
