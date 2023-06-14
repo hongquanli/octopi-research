@@ -1288,7 +1288,9 @@ class MultiPointWorker(QObject):
                             file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
-
+                            
+                            dpc_L = None
+                            dpc_R = None
                             # iterate through selected modes
                             for config in self.selected_configurations:
                                 if 'USB Spectrometer' not in config.name:
@@ -1339,6 +1341,12 @@ class MultiPointWorker(QObject):
                                             else:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
+                                        
+                                    if config.name == 'BF LED matrix left': #TODO: check capitalization
+                                        dpc_L = image
+                                    elif config.name == 'BF LED matrix right':
+                                        dpc_R = image
+                                        
                                     QApplication.processEvents()
                                 else:
                                     if self.usb_spectrometer != None:
@@ -1347,7 +1355,16 @@ class MultiPointWorker(QObject):
                                             self.spectrum_to_display.emit(data)
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
-
+                            
+                            if dpc_L != None and dpc_R != None:
+                                #TODO: Make DPC image
+                                dpc_image = dpc_L#generate_dpc(dpc_L, dpc_R)
+                                # display image
+                                self.image_to_display.emit(dpc_image)
+                                self.image_to_display_multi.emit(dpc_image, 12) # or 13
+                                
+                                
+                                
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
