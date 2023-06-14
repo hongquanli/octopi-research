@@ -1313,6 +1313,7 @@ class MultiPointWorker(QObject):
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_off_illumination()
                                     # process the image -  @@@ to move to camera
+                                    #TODO: try out different processing, be consistent across all display.
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                     # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
@@ -1356,12 +1357,12 @@ class MultiPointWorker(QObject):
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
                             
-                            if dpc_L not None and dpc_R not None:
+                            if type(dpc_L) != type(None) and type(dpc_R) != type(None):
                                 #TODO: Make DPC image
                                 dpc_image = dpc_L#generate_dpc(dpc_L, dpc_R)
                                 # display image
-                                self.image_to_display.emit(dpc_image)
-                                self.image_to_display_multi.emit(dpc_image, 12) # or 13
+                                self.image_to_display_multi.emit((dpc_L*1.25).astype(np.uint8), 12) # or 13
+                                self.image_to_display_multi.emit((dpc_R*0.75).astype(np.uint8), 13)
                                 
                                 
                                 
