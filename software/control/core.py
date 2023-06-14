@@ -37,6 +37,8 @@ import pandas as pd
 
 import imageio as iio
 
+from control.interactive_m2unet_inference import M2UnetInteractiveModel as m2u
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -84,7 +86,7 @@ class StreamHandler(QObject):
     def set_save_fps(self,fps):
         self.fps_save = fps
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -983,7 +985,7 @@ class AutoFocusController(QObject):
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -1099,6 +1101,9 @@ class MultiPointWorker(QObject):
         self.time_point = 0
 
         self.microscope = self.multiPointController.parent
+
+        # hard-coded model initialization
+        model = m2u(pretrained_model=model_pth, use_trt=True)
 
     def run(self):
 
@@ -1313,7 +1318,6 @@ class MultiPointWorker(QObject):
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_off_illumination()
                                     # process the image -  @@@ to move to camera
-                                    #TODO: try out different processing, be consistent across all display.
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                     # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
@@ -1343,7 +1347,7 @@ class MultiPointWorker(QObject):
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
                                         
-                                    if config.name == 'BF LED matrix left half': #TODO: check capitalization
+                                    if config.name == 'BF LED matrix left half':
                                         dpc_L = image
                                     elif config.name == 'BF LED matrix right half':
                                         dpc_R = image
@@ -1358,11 +1362,18 @@ class MultiPointWorker(QObject):
                                             np.savetxt(saving_path,data,delimiter=',')
                             
                             if type(dpc_L) != type(None) and type(dpc_R) != type(None):
-                                #TODO: Make DPC image
-                                dpc_image = dpc_L#generate_dpc(dpc_L, dpc_R)
+                                dpc_image = utils.generate_dpc(dpc_L, dpc_R)
+                                mask = m2u.predict_on_images(dpc_image)
+                                # save mask
+                                # TODO: save mask
+                                # colorize mask, overlay
+                                color_mask = utils.colorize_mask(mask)
+                                overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
                                 # display image
-                                self.image_to_display_multi.emit((dpc_L*1.25).astype(np.uint8), 12) # or 13
-                                self.image_to_display_multi.emit((dpc_R*0.75).astype(np.uint8), 13)
+                                overlay = utils.crop_image(overlay,self.crop_width,self.crop_height)
+                                overlay = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                mask = utils.crop_image(mask,self.crop_width,self.crop_height)
+                                self.image_to_display_multi.emit(overlay, 12)
                                 
                                 
                                 
