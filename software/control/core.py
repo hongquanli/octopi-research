@@ -1356,7 +1356,7 @@ class MultiPointWorker(QObject):
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
                             
-                            if dpc_L != None and dpc_R != None:
+                            if dpc_L not None and dpc_R not None:
                                 #TODO: Make DPC image
                                 dpc_image = dpc_L#generate_dpc(dpc_L, dpc_R)
                                 # display image
