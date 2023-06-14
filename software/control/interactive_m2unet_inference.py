@@ -1,7 +1,7 @@
 import os
 import json
 import numpy as np
-from m2unet import m2unet
+from control.m2unet import m2unet
 import torch2trt
 import torch
 import torch.nn as nn
@@ -14,9 +14,6 @@ class M2UnetInteractiveModel:
         model_name=None,          # Name of model to save
         model_config=None,        # M2UNet config
         pretrained_model=None,    # Path to pretrained model
-        save_freq=300,            # Number of epochs between model saves
-        save_intermediate = True, # Set False to overwrite, set True to keep 
-        save_if_lower = True,     # Set True to save if validation loss is lower than what was previously seen
         use_gpu=True,             # Use GPU for training and inferece
         use_trt=False,            # Set False for Torch, True for trt
         target_sz=16,             # Image height/width will be set to a multiple of target_sz
