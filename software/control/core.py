@@ -1342,9 +1342,9 @@ class MultiPointWorker(QObject):
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
                                         
-                                    if config.name == 'BF LED matrix left': #TODO: check capitalization
+                                    if config.name == 'BF LED matrix left half': #TODO: check capitalization
                                         dpc_L = image
-                                    elif config.name == 'BF LED matrix right':
+                                    elif config.name == 'BF LED matrix right half':
                                         dpc_R = image
                                         
                                     QApplication.processEvents()
