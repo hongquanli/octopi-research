@@ -144,9 +144,9 @@ class M2UnetInteractiveModel:
 
         # handle case where run_width or run_height are larger than the image - pad with 0
         if im_w < self.run_width or im_h < self.run_height:
-            images = np.zeros((n_im, im_c, np.max(im_w, self.run_width), np.max(im_h, self.run_height)))
-            wstart = int(np.floor(np.max(0, (self.run_width - im_w))/2))
-            hstart = int(np.floor(np.max(0, (self.run_height - im_h))/2))
+            images = np.zeros((n_im, im_c, max(im_w, self.run_width), max(im_h, self.run_height)))
+            wstart = int(np.floor(max(0, (self.run_width - im_w))/2))
+            hstart = int(np.floor(max(0, (self.run_height - im_h))/2))
             images[:,:,wstart:wstart+im_w, hstart:hstart+im_h] = images_in
         else:
             images = images_in
@@ -202,7 +202,7 @@ class M2UnetInteractiveModel:
             a stack of masks
         '''
         # print((image_stack.shape, nx, ny, dx, dy, im_w, im_h, n_im))
-        output = np.zeros((n_im, image_stack.shape[1], np.max(im_w, self.run_width), np.max(im_h, self.run_height)))
+        output = np.zeros((n_im, image_stack.shape[1], max(im_w, self.run_width), max(im_h, self.run_height)))
         d = int(self.overlap/2)
 
         for i in range(len(image_stack)):
@@ -271,8 +271,8 @@ class M2UnetInteractiveModel:
 
             # if run length is too long, crop edges.
             if self.run_height > im_h or self.run_width > im_w:
-                wstart = int(np.floor(np.max(0, (self.run_width - im_w))/2))
-                hstart = int(np.floor(np.max(0, (self.run_height - im_h))/2))
+                wstart = int(np.floor(max(0, (self.run_width - im_w))/2))
+                hstart = int(np.floor(max(0, (self.run_height - im_h))/2))
                 output = output[:,:,wstart:wstart+im_w, hstart:hstart+im_h]
         return output
     
@@ -323,20 +323,25 @@ class M2UnetInteractiveModel:
         return predictions
     
     def predict_on_images(self, predict_images):
+        print("starting inference")
         initial_dims = predict_images.ndim
-        if initial_dims == 3:
-            np.expand_dims(predict_images, 0)
+        while predict_images.ndim < 4:
+            predict_images = np.expand_dims(predict_images, 0)
+            print(predict_images.shape)
         assert predict_images.ndim == 4
-
+        print(predict_images.shape)
         image_stack, *im_params = self.reshape_images_stack(predict_images)
+        print("stacked, starting inference")
         # Get predictions 
         preds = self.predict_on_slices(image_stack)
+        print("inference done, starting reshapint")
         # reshape
         image_preds = self.reshape_stack_images(preds, *im_params)
 
         if initial_dims == 3:
             image_preds = image_preds[0,:,:,:]
-
+        elif initial_dims == 2:
+            image_preds = image_preds[0,0,:,:]
         return image_preds
 
     def load(self, file_path):

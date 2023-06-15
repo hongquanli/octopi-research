@@ -1103,7 +1103,7 @@ class MultiPointWorker(QObject):
         self.microscope = self.multiPointController.parent
 
         # hard-coded model initialization
-        model = m2u(pretrained_model=model_pth, use_trt=True)
+        self.model = m2u(pretrained_model='models/model_4000_11.engine', use_trt=True)
 
     def run(self):
 
@@ -1362,18 +1362,24 @@ class MultiPointWorker(QObject):
                                             np.savetxt(saving_path,data,delimiter=',')
                             
                             if type(dpc_L) != type(None) and type(dpc_R) != type(None):
+                                t0 = time.time()
                                 dpc_image = utils.generate_dpc(dpc_L, dpc_R)
-                                mask = m2u.predict_on_images(dpc_image)
+                                print(f"dpc time: {time.time()-t0}")
+                                t0 = time.time()
+                                mask = self.model.predict_on_images(dpc_image)
+                                print(f"inference time: {time.time()-t0}")
                                 # save mask
                                 # TODO: save mask
                                 # colorize mask, overlay
+                                t0 = time.time()
                                 color_mask = utils.colorize_mask(mask)
                                 overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
+                                print(f"overlay time: {time.time()-t0}")
                                 # display image
                                 overlay = utils.crop_image(overlay,self.crop_width,self.crop_height)
                                 overlay = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                 mask = utils.crop_image(mask,self.crop_width,self.crop_height)
-                                self.image_to_display_multi.emit(overlay, 12)
+                                self.image_to_display_multi.emit(overlay, 12) # or 13
                                 
                                 
                                 
