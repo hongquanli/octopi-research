@@ -1104,6 +1104,8 @@ class MultiPointWorker(QObject):
 
         # hard-coded model initialization
         self.model = m2u(pretrained_model='models/model_4000_11.engine', use_trt=True)
+        # run some dummy data thru model - warm-up
+        #dummy_data = 255 * np.random.rand(2024, 1024)
 
     def run(self):
 

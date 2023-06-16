@@ -327,14 +327,10 @@ class M2UnetInteractiveModel:
         initial_dims = predict_images.ndim
         while predict_images.ndim < 4:
             predict_images = np.expand_dims(predict_images, 0)
-            print(predict_images.shape)
         assert predict_images.ndim == 4
-        print(predict_images.shape)
         image_stack, *im_params = self.reshape_images_stack(predict_images)
-        print("stacked, starting inference")
         # Get predictions 
         preds = self.predict_on_slices(image_stack)
-        print("inference done, starting reshapint")
         # reshape
         image_preds = self.reshape_stack_images(preds, *im_params)
 
