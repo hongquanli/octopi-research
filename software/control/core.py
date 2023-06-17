@@ -1105,7 +1105,9 @@ class MultiPointWorker(QObject):
         # hard-coded model initialization
         self.model = m2u(pretrained_model='models/model_4000_11.engine', use_trt=True)
         # run some dummy data thru model - warm-up
-        #dummy_data = 255 * np.random.rand(2024, 1024)
+        dummy_data = (255 * np.random.rand(3000, 3000)).astype(np.uint8)
+        self.model.predict_on_images(dummy_data)
+        
 
     def run(self):
 
@@ -1366,22 +1368,33 @@ class MultiPointWorker(QObject):
                             if type(dpc_L) != type(None) and type(dpc_R) != type(None):
                                 t0 = time.time()
                                 dpc_image = utils.generate_dpc(dpc_L, dpc_R)
+                                saving_path = os.path.join(current_path, file_ID + '_' + "DPC" + '.' + Acquisition.IMAGE_FORMAT)
+                                cv2.imwrite(saving_path,dpc_image)
                                 print(f"dpc time: {time.time()-t0}")
                                 t0 = time.time()
-                                mask = self.model.predict_on_images(dpc_image)
+                                result = self.model.predict_on_images(dpc_image)
+                                probs = (255 * (result - np.min(result))/(np.max(result) - np.min(result))).astype(np.uint8)
+                                mask = (255*(result > 3)).astype(np.uint8)
                                 print(f"inference time: {time.time()-t0}")
-                                # save mask
-                                # TODO: save mask
+                                saving_path = os.path.join(current_path, file_ID + '_' + "Probs" + '.' + Acquisition.IMAGE_FORMAT)
+                                cv2.imwrite(saving_path,probs)
+                                saving_path = os.path.join(current_path, file_ID + '_' + "mask" + '.' + Acquisition.IMAGE_FORMAT)
+                                cv2.imwrite(saving_path,mask)
                                 # colorize mask, overlay
                                 t0 = time.time()
                                 color_mask = utils.colorize_mask(mask)
                                 overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
                                 print(f"overlay time: {time.time()-t0}")
-                                # display image
+                                # display full image
+                                overlay_disp = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                self.image_to_display.emit(overlay_disp)
+                                # display crops
                                 overlay = utils.crop_image(overlay,self.crop_width,self.crop_height)
                                 overlay = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                mask = utils.crop_image(mask,self.crop_width,self.crop_height)
+                                dpc_image = utils.crop_image(dpc_image,self.crop_width,self.crop_height)
+                                dpc_image = utils.rotate_and_flip_image(dpc_image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                 self.image_to_display_multi.emit(overlay, 12) # or 13
+                                self.image_to_display_multi.emit(dpc_image, 13)
                                 
                                 
                                 
