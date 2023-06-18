@@ -1103,8 +1103,9 @@ class MultiPointWorker(QObject):
         self.microscope = self.multiPointController.parent
 
         # hard-coded model initialization
-        #self.model = m2u(pretrained_model='models/orin_model_1400_10.engine', use_trt=True)
-        self.model = m2u(pretrained_model='/Docs/m2unet_model_flat_erode2_wdecay5_smallbatch/model_1400_10.pth', use_trt=False)
+        model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
+        assert os.path.exists(model_path)
+        self.model = m2u(pretrained_model=model_path, use_trt=True)
         # run some dummy data thru model - warm-up
         dummy_data = (255 * np.random.rand(3000, 3000)).astype(np.uint8)
         self.model.predict_on_images(dummy_data)
