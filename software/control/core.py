@@ -1103,15 +1103,19 @@ class MultiPointWorker(QObject):
         self.microscope = self.multiPointController.parent
 
         # hard-coded model initialization
-        model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
+        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
+        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
+        model_path = '/home/octopi-codex/Documents/kmarx/octopi-research-segmentation/software/models/m2unet_model_flat_erode2_wdecay5_smallbatch/laptop_model_2100_10.engine'
         assert os.path.exists(model_path)
-        self.model = m2u(pretrained_model=model_path, use_trt=True)
+        self.use_trt=True
+        self.make_over = True
+        self.model = m2u(pretrained_model=model_path, use_trt=self.use_trt)
         # run some dummy data thru model - warm-up
         dummy_data = (255 * np.random.rand(3000, 3000)).astype(np.uint8)
         self.model.predict_on_images(dummy_data)
         self.t_dpc = []
         self.t_inf = []
-        self.t_over  =[]
+        self.t_over=[]
         
 
     def run(self):
@@ -1166,7 +1170,8 @@ class MultiPointWorker(QObject):
             time.sleep(SLEEP_TIME_S)
 
     def run_single_time_point(self):
-
+        start = time.time()
+        print(time.time())
         # disable joystick button action
         self.navigationController.enable_joystick_button_action = False
 
@@ -1382,7 +1387,11 @@ class MultiPointWorker(QObject):
                                 t0 = time.time()
                                 result = self.model.predict_on_images(dpc_image)
                                 probs = (255 * (result - np.min(result))/(np.max(result) - np.min(result))).astype(np.uint8)
-                                mask = (255*(result > 0)).astype(np.uint8)
+                                if self.use_trt:
+                                    threshold = 0
+                                else:
+                                    threshold = 0.5
+                                mask = (255*(result > threshold)).astype(np.uint8)
                                 self.t_inf.append(time.time()-t0)
                                 print(f"mean inference time: {np.mean(self.t_inf)}")
                                 saving_path = os.path.join(current_path, file_ID + '_' + "Probs" + '.' + Acquisition.IMAGE_FORMAT)
@@ -1390,22 +1399,29 @@ class MultiPointWorker(QObject):
                                 saving_path = os.path.join(current_path, file_ID + '_' + "mask" + '.' + Acquisition.IMAGE_FORMAT)
                                 cv2.imwrite(saving_path,mask)
                                 # colorize mask, overlay
-                                t0 = time.time()
-                                color_mask = utils.colorize_mask(mask)
-                                overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
-                                saving_path = os.path.join(current_path, file_ID + '_' + "overlay" + '.' + Acquisition.IMAGE_FORMAT)
-                                cv2.imwrite(saving_path,overlay)
-                                self.t_over.append(time.time()-t0)
-                                print(f"mean overlay time: {np.mean(self.t_over)}")
-                                # display full image
-                                overlay_disp = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                self.image_to_display.emit(overlay_disp)
+                                if self.make_over:
+                                    t0 = time.time()
+                                    color_mask = utils.colorize_mask(mask)
+                                    overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
+                                    saving_path = os.path.join(current_path, file_ID + '_' + "overlay" + '.' + Acquisition.IMAGE_FORMAT)
+                                    cv2.imwrite(saving_path,overlay)
+                                    self.t_over.append(time.time()-t0)
+                                    print(f"mean overlay time: {np.mean(self.t_over)}")
+                                    # display full image
+                                    overlay_disp = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                    self.image_to_display.emit(overlay_disp)
+                                else:
+                                    mask_disp = utils.rotate_and_flip_image(mask,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                    self.image_to_display.emit(mask_disp)
                                 # display crops
-                                overlay = utils.crop_image(overlay,self.crop_width,self.crop_height)
-                                overlay = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                if self.make_over:
+                                    overlay = utils.crop_image(overlay,self.crop_width,self.crop_height)
+                                    overlay = utils.rotate_and_flip_image(overlay,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                    self.image_to_display_multi.emit(overlay, 12) # or 13
+                                else:
+                                    self.image_to_display_multi.emit(mask_disp, 12) # or 13
                                 dpc_image = utils.crop_image(dpc_image,self.crop_width,self.crop_height)
                                 dpc_image = utils.rotate_and_flip_image(dpc_image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                self.image_to_display_multi.emit(overlay, 12) # or 13
                                 self.image_to_display_multi.emit(dpc_image, 13)
                                 
                                 
@@ -1517,6 +1533,8 @@ class MultiPointWorker(QObject):
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
+        print(time.time())
+        print(time.time()-start)
 
 class MultiPointController(QObject):
 
