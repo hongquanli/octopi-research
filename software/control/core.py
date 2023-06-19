@@ -1105,10 +1105,11 @@ class MultiPointWorker(QObject):
         # hard-coded model initialization
         #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
         #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
-        model_path = '/home/octopi-codex/Documents/kmarx/octopi-research-segmentation/software/models/m2unet_model_flat_erode2_wdecay5_smallbatch/laptop_model_2100_10.engine'
+        model_path = 'models/m2unet_model_flat_erode2_wdecay5_smallbatch/laptop_model_1073_9.engine'
         assert os.path.exists(model_path)
         self.use_trt=True
         self.make_over = True
+        self.crop = 1500
         self.model = m2u(pretrained_model=model_path, use_trt=self.use_trt)
         # run some dummy data thru model - warm-up
         dummy_data = (255 * np.random.rand(3000, 3000)).astype(np.uint8)
@@ -1376,8 +1377,9 @@ class MultiPointWorker(QObject):
                                             np.savetxt(saving_path,data,delimiter=',')
                             
                             if type(dpc_L) != type(None) and type(dpc_R) != type(None):
-                                #dpc_L = dpc_L[0:1500, 0:1500]
-                                #dpc_R = dpc_R[0:1500, 0:1500]
+                                if self.crop > 0:
+                                    dpc_L = utils.centerCrop(dpc_L, self.crop)
+                                    dpc_R = utils.centerCrop(dpc_R, self.crop)
                                 t0 = time.time()
                                 dpc_image = utils.generate_dpc(dpc_L, dpc_R)
                                 saving_path = os.path.join(current_path, file_ID + '_' + "DPC" + '.' + Acquisition.IMAGE_FORMAT)
@@ -1387,10 +1389,7 @@ class MultiPointWorker(QObject):
                                 t0 = time.time()
                                 result = self.model.predict_on_images(dpc_image)
                                 probs = (255 * (result - np.min(result))/(np.max(result) - np.min(result))).astype(np.uint8)
-                                if self.use_trt:
-                                    threshold = 0
-                                else:
-                                    threshold = 0.5
+                                threshold = 0.5
                                 mask = (255*(result > threshold)).astype(np.uint8)
                                 self.t_inf.append(time.time()-t0)
                                 print(f"mean inference time: {np.mean(self.t_inf)}")

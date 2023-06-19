@@ -86,12 +86,18 @@ def colorize_mask(mask):
     colored_mask = cv2.applyColorMap(colored_mask, cv2.COLORMAP_HSV)
     # make sure background is black
     colored_mask[labeled_mask == 0] = 0
-
     return colored_mask
 
 def overlay_mask_dpc(color_mask, im_dpc):
     # Overlay the colored mask and DPC image
     # make DPC 3-channel
     im_dpc = np.stack([im_dpc]*3, axis=2)
-
     return (0.75*im_dpc + 0.25*color_mask).astype(np.uint8)
+    
+def centerCrop(image, crop_sz):
+    center = image.shape
+    x = int(center[1]/2 - crop_sz/2)
+    y = int(center[0]/2 - crop_sz/2)
+    cropped = image[y:y+crop_sz, x:x+crop_sz]
+    
+    return cropped
