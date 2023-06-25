@@ -8,3 +8,4 @@ sudo apt-get update
 sudo apt-get -y install cuda
 pip install cuda-python
 pip install cupy-cuda12x
+pip3 install torch torchvision torchaudio
