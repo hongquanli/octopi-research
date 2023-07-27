@@ -13,6 +13,7 @@ import control.widgets as widgets
 import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
+from control.hypha_service import start_service
 from control._def import *
 
 if SUPPORT_LASER_AUTOFOCUS:
@@ -360,6 +361,8 @@ class OctopiGUI(QMainWindow):
 			self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
 			self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
 			self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+   
+		start_service(service_id="squid-demo", navigation_controller=self.navigationController, image_to_display=self.streamHandler.image_to_display)
 
 	def closeEvent(self, event):
 		

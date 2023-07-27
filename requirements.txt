@@ -12,3 +12,4 @@ opencv-python-headless
 opencv-contrib-python
 pyqt5
 pyqtgraph
+scipy
