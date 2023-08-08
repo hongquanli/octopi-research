@@ -49,3 +49,10 @@ To test it, run:
 ```bash
 pytest -s
 ```
+
+## Simulation
+The code include a simulator for the microscope. To run it, run:
+```bash
+cd squid_control
+python3 main_hcs.py --simulation
+```
