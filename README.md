@@ -37,3 +37,22 @@ The Squid software was developed with structuring inspiration from [Tempesta-Red
 
 ## Software Instructions
 The microscope is controled by an Arduino Due and a computer running Ubuntu. The computer can be one of the Nvidia Jetson platforms (e.g. Jetson Nano, Jetson Xavier NX) or a regular laptop/workstation. Instructions for using the firmware and software can be found in the respective folders.
+
+
+## Development
+```bash
+pip install -r requirements_dev.txt
+pip install -e .
+```
+
+To test it, run:
+```bash
+pytest -s
+```
+
+## Simulation
+The code include a simulator for the microscope. To run it, run:
+```bash
+cd squid_control
+python3 main_hcs.py --simulation
+```
