@@ -398,6 +398,10 @@ class LiveController(QObject):
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
+        self.r = 1
+        self.g = 1
+        self.b = 1
+
     # illumination control
     def turn_on_illumination(self):
         self.microcontroller.turn_on_illumination()
@@ -409,7 +413,10 @@ class LiveController(QObject):
 
     def set_illumination(self,illumination_source,intensity):
         if illumination_source < 10: # LED matrix
-            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*self.r,g=(intensity/100)*self.g,b=(intensity/100)*self.b)
+            # print('set r to ' + str(LED_MATRIX_R_FACTOR))
+            # print('set g to ' + str(LED_MATRIX_G_FACTOR))
+            # print('set b to ' + str(LED_MATRIX_B_FACTOR))
         else:
             self.microcontroller.set_illumination(illumination_source,intensity)
 
@@ -517,6 +524,33 @@ class LiveController(QObject):
 
         # set illumination
         if self.control_illumination:
+            if 'LED_G' in self.currentConfiguration.name:
+                print('set RGB LED matrix to G >>')
+                # LED_MATRIX_R_FACTOR = 1
+                # LED_MATRIX_G_FACTOR = 0
+                # LED_MATRIX_B_FACTOR = 0
+                print('set LED_MATRIX_R_FACTOR to ' + str(LED_MATRIX_R_FACTOR))
+                print('set LED_MATRIX_G_FACTOR to ' + str(LED_MATRIX_G_FACTOR))
+                print('set LED_MATRIX_B_FACTOR to ' + str(LED_MATRIX_B_FACTOR))
+                self.r = 1
+                self.g = 0
+                self.b = 0
+            if 'LED_R' in self.currentConfiguration.name:
+                print('set RGB LED matrix to R >>')
+                # LED_MATRIX_R_FACTOR = 0
+                # LED_MATRIX_G_FACTOR = 1
+                # LED_MATRIX_B_FACTOR = 0
+                self.r = 0
+                self.g = 1
+                self.b = 0
+            if 'LED_B' in self.currentConfiguration.name:
+                print('set RGB LED matrix to B >>')
+                # LED_MATRIX_R_FACTOR = 0
+                # LED_MATRIX_G_FACTOR = 0
+                # LED_MATRIX_B_FACTOR = 1
+                self.r = 0
+                self.g = 0
+                self.b = 1
             self.set_illumination(self.currentConfiguration.illumination_source,self.currentConfiguration.illumination_intensity)
 
         # restart live 
@@ -1251,6 +1285,7 @@ class MultiPointWorker(QObject):
                                     except:
                                         pass
                         else:
+                            '''
                             # initialize laser autofocus
                             if self.reflection_af_initialized==False:
                                 # initialize the reflection AF
@@ -1268,6 +1303,9 @@ class MultiPointWorker(QObject):
                             else:
                                 self.microscope.laserAutofocusController.move_to_target(0)
                                 self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+                            '''
+                        self.microscope.laserAutofocusController.move_to_target(0)
+                        self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
 
                         if (self.NZ > 1):
                             # move to bottom of the z stack
@@ -1295,6 +1333,26 @@ class MultiPointWorker(QObject):
                                     # update the current configuration
                                     self.signal_current_configuration.emit(config)
                                     self.wait_till_operation_is_completed()
+                                    # z offset
+                                    if '638' in config.name:
+                                        print('offset z')
+                                        self.navigationController.move_z(-4.5*0.001)
+                                        self.wait_till_operation_is_completed()
+                                    if 'LED_R' in config.name:
+                                        print('set RGB LED matrix to R')
+                                        # LED_MATRIX_R_FACTOR = 1
+                                        # LED_MATRIX_G_FACTOR = 0
+                                        # LED_MATRIX_B_FACTOR = 0
+                                    if 'LED_G' in config.name:
+                                        print('set RGB LED matrix to G')
+                                        # LED_MATRIX_R_FACTOR = 0
+                                        # LED_MATRIX_G_FACTOR = 1
+                                        # LED_MATRIX_B_FACTOR = 0
+                                    if 'LED_B' in config.name:
+                                        print('set RGB LED matrix to B')
+                                        # LED_MATRIX_R_FACTOR = 0
+                                        # LED_MATRIX_G_FACTOR = 0
+                                        # LED_MATRIX_B_FACTOR = 1    
                                     # trigger acquisition (including turning on the illumination)
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_on_illumination()
