@@ -37,6 +37,8 @@ import pandas as pd
 
 import imageio as iio
 
+from control.processing_pipeline import *
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -1289,6 +1291,10 @@ class MultiPointWorker(QObject):
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
+                            I_fluorescence = None
+                            I_left = None
+                            I_right = None
+
                             # iterate through selected modes
                             for config in self.selected_configurations:
                                 if 'USB Spectrometer' not in config.name:
@@ -1339,6 +1345,14 @@ class MultiPointWorker(QObject):
                                             else:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
+                                    
+                                    if config.name == 'BF LED matrix left half':
+                                        I_left = np.copy(image)
+                                    elif config.name == 'BF LED matrix right half':
+                                        I_right = np.copy(image)
+                                    elif config.name == 'Fluorescence 405 nm Ex':
+                                        I_fluorescence = np.copy(image)
+
                                     QApplication.processEvents()
                                 else:
                                     if self.usb_spectrometer != None:
@@ -1347,6 +1361,32 @@ class MultiPointWorker(QObject):
                                             self.spectrum_to_display.emit(data)
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
+
+                            # real time processing 
+                            if I_fluorescence is not None and I_left is not None and I_fluorescence is not None:
+                                if True: # testing mode
+                                    I_fluorescence = imageio.v2.imread('/home/octopi/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
+                                    I_fluorescence = I_fluorescence[:,:,::-1]
+                                    I_left = imageio.v2.imread('/home/octopi/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
+                                    I_right = imageio.v2.imread('/home/octopi/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
+
+                                print(self.microscope)
+                                # process fov
+                                I,score = process_fov(I_fluorescence,I_left,I_right,self.microscope.model,self.microscope.device,self.microscope.classification_th)
+                                print(I.shape)
+
+                                # display
+                                if len(I>0):
+                                    images = I*255
+                                    score_df = pd.DataFrame(score, columns=["output"])
+
+                                    if self.microscope.dataHandler.images is None:
+                                        #annotation_pd = pd.read_csv('/home/octopi/Documents/tmp/score.csv',index_col='index')
+                                        #images = np.load('/home/octopi/Documents/tmp/test.npy')
+                                        self.microscope.dataHandler.load_images(images)
+                                        self.microscope.dataHandler.load_predictions(score_df)
+                                    else:
+                                        self.microscope.dataHandler.add_data(images,score_df)
 
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],

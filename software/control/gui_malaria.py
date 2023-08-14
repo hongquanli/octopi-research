@@ -78,7 +78,7 @@ class OctopiGUI(QMainWindow):
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
+		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
 		self.imageSaver = core.ImageSaver()
@@ -335,7 +335,7 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
 
 		# dev mode
-		if DEV_MODE:
+		if False:
 
 			annotation_pd = pd.read_csv('/home/octopi/Documents/tmp/score.csv',index_col='index')
 			images = np.load('/home/octopi/Documents/tmp/test.npy')
@@ -343,6 +343,24 @@ class OctopiGUI(QMainWindow):
 			self.dataHandler.load_predictions(annotation_pd)
 
 			self.dataHandler.add_data(images,annotation_pd)
+
+		# deep learning classification
+		self.classification_th = 0.8
+		# model
+		model_path = '/home/octopi/Documents/tmp/model_perf_r34_b32.pt'
+		if torch.cuda.is_available():
+		    self.model = torch.load(model_path)
+		else:
+		    self.model = torch.load(model_path,map_location=torch.device('cpu'))
+		    print('<<< using cpu >>>')
+
+		# cuda
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.model = self.model.to(self.device)
+		dummy_input = torch.randn(1024, 4, 31, 31)  # Adjust as per your input shape
+		if torch.cuda.is_available():
+		    dummy_input = dummy_input.cuda()
+		_ = self.model(dummy_input)
 
 	def closeEvent(self, event):
 		event.accept()
