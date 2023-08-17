@@ -2824,4 +2824,13 @@ class LaserAutofocusController(QObject):
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
-        
+     
+class SquentialImagingController(QObject):
+
+    def __init__(self, microscope, fluidics):
+        self.microscope = microscope
+        self.fluidics = fluidics
+
+    def run_experiment(self):
+        pass
+

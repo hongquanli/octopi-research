@@ -2380,3 +2380,43 @@ class WellSelectionWidget(QTableWidget):
         for index in self.selectedIndexes():
              list_of_selected_cells.append((index.row(),index.column()))
         return(list_of_selected_cells)
+
+class SequentialImagingWidgets(QFrame):
+
+    def __init__(self, squentialImagingController, main=None, *args, **kwargs):
+
+        self.squentialImagingController = squentialImagingController
+        self.add_components()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def add_components(self):
+
+        self.lineEdit_setting_file = QLineEdit()
+        self.lineEdit_setting_file.setReadOnly(True)
+        self.lineEdit_setting_file.setText(self.config_filename)
+        self.button_load = QPushButton('Load Setttings')
+        self.button_load.setIcon(QIcon('icon/folder.png'))
+
+        self.button_run = QPushButton('Start Experiment')
+        self.button_run.setCheckable(True)
+        self.button_run.setChecked(False)
+
+        self.grid = QHBoxLayout()
+        self.grid.addWidget(self.lineEdit_setting_file)
+        self.grid.addWidget(self.button_load)
+        self.grid.addWidget(self.button_run)
+
+        self.setLayout(self.grid)
+
+
+    def toggle_acquisition(self,pressed):
+
+        if pressed:
+            self.squentialImagingController.run_experiment()
+        else:
+            self.squentialImagingController.request_abort_experiment()
+
+
+    def experiment_is_finished(self):
+        self.button_run.setChecked(False)
+        self.setEnabled_all(True)

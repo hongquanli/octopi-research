@@ -36,7 +36,7 @@ class OctopiGUI(QMainWindow):
 			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
 			self.imageDisplayWindow.show_ROI_selector()
 		else:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
 		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
 		# self.imageDisplayWindow.show()
 		# self.imageArrayDisplayWindow.show()
@@ -177,7 +177,7 @@ class OctopiGUI(QMainWindow):
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
+		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
@@ -270,6 +270,7 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
+		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
 		# load vs scan position switching
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
