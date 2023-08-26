@@ -13,7 +13,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <SPI.h>
-#include "DACx050x.h"
 #include "TMC4361A.h"
 
 // Functions for user-facing API
@@ -61,6 +60,9 @@ void tmc4361A_writeMicrosteps(TMC4361ATypeDef *tmc4361A);
 int8_t tmc4361A_setSPR(TMC4361ATypeDef *tmc4361A, uint16_t spr);
 void tmc4361A_writeSPR(TMC4361ATypeDef *tmc4361A);
 void tmc4361A_setVirtualStop(TMC4361ATypeDef *tmc4361A, uint8_t which, int32_t target);
+int8_t tmc4361A_setVirtualLimit(TMC4361ATypeDef *tmc4361A, int dir, int32_t limit);
+void tmc4361A_disableVirtualLimitSwitch(TMC4361ATypeDef *tmc4361A, int dir);
+void tmc4361A_enableVirtualLimitSwitch(TMC4361ATypeDef *tmc4361A, int dir);
 
 // The following does not need to be accessed by the end user
 // Default motor settings - can override using tmc4361A_setPitch(), tmc4361A_setMicrosteps(), tmc4361A_setSPR()
