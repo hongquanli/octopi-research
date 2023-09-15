@@ -3,6 +3,8 @@ import control.microcontroller as microcontroller
 from control._def import *
 import time
 
+N_REPETITIONS = 100
+
 def print_positon_stats(t0):
         xp, yp, zp, _ = microcontroller.get_pos()
         xe, ye, ze    = microcontroller.get_enc()
@@ -35,10 +37,27 @@ while microcontroller.is_busy():
         print_positon_stats(t0)
         time.sleep(0.01)
         
-time.sleep(500)
+time.sleep(0.50)
 
 t0 = time.time()
 navigationController.move_z(-displacement)
 while microcontroller.is_busy():
         print_positon_stats(t0)
         time.sleep(0.01)
+        
+# repetition testing
+
+t0 = time.time()
+print("Start position: ")
+print_positon_stats(t0)
+for _ in range(N_REPETITIONS):
+        navigationController.move_z(displacement)
+        while microcontroller.is_busy():
+                time.sleep(0.01)
+        print_positon_stats(t0)
+        navigationController.move_z(-displacement)
+        while microcontroller.is_busy():
+                time.sleep(0.01)
+        print_positon_stats(t0)
+print("End position: ")
+print_positon_stats(t0)
