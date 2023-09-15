@@ -662,7 +662,7 @@ class Microcontroller():
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
     
     def get_enc(self):
-        return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
+        return self.x_pos, self.y_pos, self.z_pos
 
     def get_button_and_switch_state(self):
         return self.button_and_switch_state
