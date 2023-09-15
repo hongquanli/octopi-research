@@ -455,9 +455,10 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.CONFIGURE_STAGE_PID
         cmd[2] = axis
+        cmd[3] = int(flip_direction)
         payload = self._int_to_payload(transitions_per_revolution,2)
-        cmd[3] = (payload >> 8) & 0xff
-        cmd[4] = payload & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
         self.send_command(cmd)
 
     def turn_on_stage_pid(self, axis):
@@ -683,7 +684,7 @@ class Microcontroller():
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
     
     def get_enc(self):
-        return self.x_pos, self.y_pos, self.z_pos
+        return self.x_enc, self.y_enc, self.z_enc
 
     def get_button_and_switch_state(self):
         return self.button_and_switch_state

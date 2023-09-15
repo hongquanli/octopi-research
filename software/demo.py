@@ -3,35 +3,42 @@ import control.microcontroller as microcontroller
 from control._def import *
 import time
 
-def print_positon_stats():
+def print_positon_stats(t0):
         xp, yp, zp, _ = microcontroller.get_pos()
         xe, ye, ze    = microcontroller.get_enc()
-        print(time.time())
-        print(f"X positon: {xp}")
-        print(f"X encoder: {xe}")
-        print(f"Y positon: {yp}")
-        print(f"Y encoder: {ye}")
-        print(f"Z positon: {zp}")
-        print(f"Z encoder: {ze}")
-
+        print(f"{time.time()-t0}, {xp}, {yp}, {zp}, {xe}, {ye}, {ze}")
+        
 microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 navigationController = core.NavigationController(microcontroller)
 
 # configure PID
+microcontroller.configure_stage_pid(0, transitions_per_revolution=3000, flip_direction=True)
+microcontroller.configure_stage_pid(1, transitions_per_revolution=3000, flip_direction=True)
 microcontroller.configure_stage_pid(2, transitions_per_revolution=3000, flip_direction=True)
-
 # microcontroller.turn_on_stage_pid(0)
 # microcontroller.turn_on_stage_pid(1)
 
-microcontroller.turn_off_stage_pid(2)
-displacement = 5
+#microcontroller.turn_off_stage_pid(2)
+microcontroller.turn_on_stage_pid(0)
+microcontroller.turn_on_stage_pid(1)
+microcontroller.turn_on_stage_pid(2)
+displacement = 1
 
-navigationController.move_x(displacement)
-while microcontroller.is_busy():
-	print_positon_stats()
-	time.sleep(0.001)
+t0 = time.time()
+while (time.time() - t0) < 0:
+        print_positon_stats(t0)
+        time.sleep(0.1)
 
-navigationController.move_x(-displacement)
+t0 = time.time()
+navigationController.move_z(displacement)
 while microcontroller.is_busy():
-        print_positon_stats()
-	time.sleep(0.001)
+        print_positon_stats(t0)
+        time.sleep(0.01)
+        
+time.sleep(500)
+
+t0 = time.time()
+navigationController.move_z(-displacement)
+while microcontroller.is_busy():
+        print_positon_stats(t0)
+        time.sleep(0.01)
