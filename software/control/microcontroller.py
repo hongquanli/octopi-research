@@ -451,6 +451,27 @@ class Microcontroller():
         #     time.sleep(self._motion_status_checking_interval)
         #     # to do: add timeout
 
+    def configure_stage_pid(self, axis, transitions_per_revolution, flip_direction=False):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.CONFIGURE_STAGE_PID
+        cmd[2] = axis
+        payload = self._int_to_payload(transitions_per_revolution,2)
+        cmd[3] = (payload >> 8) & 0xff
+        cmd[4] = payload & 0xff
+        self.send_command(cmd)
+
+    def turn_on_stage_pid(self, axis):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.ENABLE_STAGE_PID
+        cmd[2] = axis
+        self.send_command(cmd)
+
+    def turn_off_stage_pid(self, axis):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.DISABLE_STAGE_PID
+        cmd[2] = axis
+        self.send_command(cmd)
+
     def set_lim(self,limit_code,usteps):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LIM
