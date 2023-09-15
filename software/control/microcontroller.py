@@ -37,6 +37,9 @@ class Microcontroller():
         self.z_pos = 0 # unit: microstep or encoder resolution
         self.theta_pos = 0 # unit: microstep or encoder resolution
         self.button_and_switch_state = 0
+        self.x_enc = 0
+        self.y_enc = 0
+        self.z_enc = 0
         self.joystick_button_pressed = 0
         self.signal_joystick_button_pressed_event = False
         self.switch_state = 0
@@ -606,6 +609,7 @@ class Microcontroller():
             - Z pos (4 bytes)
             - Theta (4 bytes)
             - buttons and switches (1 byte)
+            - encoder x, y, z (4 byte each)
             - reserved (4 bytes)
             - CRC (1 byte)
             '''
@@ -635,6 +639,11 @@ class Microcontroller():
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
             self.button_and_switch_state = msg[18]
+            
+            self.x_enc = self._payload_to_int(msg[19:23],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            self.y_enc = self._payload_to_int(msg[23:27],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            self.z_enc = self._payload_to_int(msg[27:31],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
             joystick_button_pressed = tmp > 0
@@ -650,6 +659,9 @@ class Microcontroller():
                 self.new_packet_callback_external(self)
 
     def get_pos(self):
+        return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
+    
+    def get_enc(self):
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
 
     def get_button_and_switch_state(self):

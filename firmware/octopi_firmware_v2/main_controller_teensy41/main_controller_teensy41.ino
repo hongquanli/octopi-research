@@ -25,7 +25,7 @@
 // byte[3]: how many micro steps - lower 8 bits
 
 static const int CMD_LENGTH = 8;
-static const int MSG_LENGTH = 24;
+static const int MSG_LENGTH = 40;
 byte buffer_rx[512];
 byte buffer_tx[MSG_LENGTH];
 volatile int buffer_rx_ptr;
@@ -1802,6 +1802,29 @@ void loop() {
 
     buffer_tx[18] &= ~ (1 << BIT_POS_JOYSTICK_BUTTON); // clear the joystick button bit
     buffer_tx[18] = buffer_tx[18] | joystick_button_pressed << BIT_POS_JOYSTICK_BUTTON;
+
+    // todo: kevin add encoder
+    // 19 - 22: x enconder
+    uint32_t encoder_pos = tmc4361A_read_encoder(&tmc4361[x], 0);
+    buffer_tx[19] = byte(encoder_pos>>24);
+    buffer_tx[20] = byte((encoder_pos>>16)%256);
+    buffer_tx[21] = byte((encoder_pos>>8)%256);
+    buffer_tx[22] = byte((encoder_pos)%256);
+    // 23 - 26: y encoder
+    encoder_pos = tmc4361A_read_encoder(&tmc4361[y], 0);
+    buffer_tx[23] = byte(encoder_pos>>24);
+    buffer_tx[24] = byte((encoder_pos>>16)%256);
+    buffer_tx[25] = byte((encoder_pos>>8)%256);
+    buffer_tx[26] = byte((encoder_pos)%256);
+    // 27 - 30: z encoder
+    encoder_pos = tmc4361A_read_encoder(&tmc4361[z], 0);
+    buffer_tx[27] = byte(encoder_pos>>24);
+    buffer_tx[28] = byte((encoder_pos>>16)%256);
+    buffer_tx[29] = byte((encoder_pos>>8)%256);
+    buffer_tx[30] = byte((encoder_pos)%256);
+
+    // 31-39: reserved (?)
+    
 
     if(!DEBUG_MODE)
       SerialUSB.write(buffer_tx,MSG_LENGTH);
