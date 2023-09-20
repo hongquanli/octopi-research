@@ -231,12 +231,12 @@ class LiveControlWidget(QFrame):
         self.slider_illuminationIntensity.setMinimum(0)
         self.slider_illuminationIntensity.setMaximum(100)
         self.slider_illuminationIntensity.setValue(100)
-        self.slider_illuminationIntensity.setSingleStep(0.1)
+        self.slider_illuminationIntensity.setSingleStep(1)
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
-        self.entry_illuminationIntensity.setMinimum(0.1) 
+        self.entry_illuminationIntensity.setMinimum(0) 
         self.entry_illuminationIntensity.setMaximum(100) 
-        self.entry_illuminationIntensity.setSingleStep(0.1)
+        self.entry_illuminationIntensity.setSingleStep(1)
         self.entry_illuminationIntensity.setValue(100)
 
         # line 4: display fps and resolution scaling
@@ -725,7 +725,7 @@ class DACControWidget(QFrame):
         self.slider_DAC0.setTickPosition(QSlider.TicksBelow)
         self.slider_DAC0.setMinimum(0)
         self.slider_DAC0.setMaximum(100)
-        self.slider_DAC0.setSingleStep(0.1)
+        self.slider_DAC0.setSingleStep(1)
         self.slider_DAC0.setValue(0)
 
         self.entry_DAC0 = QDoubleSpinBox()
@@ -740,7 +740,7 @@ class DACControWidget(QFrame):
         self.slider_DAC1.setMinimum(0)
         self.slider_DAC1.setMaximum(100)
         self.slider_DAC1.setValue(0)
-        self.slider_DAC1.setSingleStep(0.1)
+        self.slider_DAC1.setSingleStep(1)
 
         self.entry_DAC1 = QDoubleSpinBox()
         self.entry_DAC1.setMinimum(0) 
@@ -2304,9 +2304,9 @@ class WellSelectionWidget(QTableWidget):
 
         # size
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(5*self.spacing_mm)
+        self.verticalHeader().setDefaultSectionSize(int(5*self.spacing_mm))
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.horizontalHeader().setMinimumSectionSize(5*self.spacing_mm)
+        self.horizontalHeader().setMinimumSectionSize(int(5*self.spacing_mm))
 
         self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

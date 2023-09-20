@@ -387,7 +387,7 @@ class LiveController(QObject):
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
 
         self.timer_trigger = QTimer()
-        self.timer_trigger.setInterval(self.timer_trigger_interval)
+        self.timer_trigger.setInterval(int(self.timer_trigger_interval))
         self.timer_trigger.timeout.connect(self.trigger_acquisition)
 
         self.trigger_ID = -1
@@ -467,7 +467,7 @@ class LiveController(QObject):
     def _set_trigger_fps(self,fps_trigger):
         self.fps_trigger = fps_trigger
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
-        self.timer_trigger.setInterval(self.timer_trigger_interval)
+        self.timer_trigger.setInterval(int(self.timer_trigger_interval))
 
     def _stop_triggerred_acquisition(self):
         self.timer_trigger.stop()
@@ -2113,7 +2113,7 @@ class ImageDisplayWindow(QMainWindow):
         desktopWidget = QDesktopWidget();
         width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
         height = width
-        self.setFixedSize(width,height)
+        self.setFixedSize(int(width),int(height))
 
     def display_image(self,image):
         if ENABLE_TRACKING:
@@ -2347,7 +2347,7 @@ class ImageArrayDisplayWindow(QMainWindow):
         desktopWidget = QDesktopWidget();
         width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
         height = width
-        self.setFixedSize(width,height)
+        self.setFixedSize(int(width),int(height))
 
     def display_image(self,image,illumination_source):
         if illumination_source < 11:
