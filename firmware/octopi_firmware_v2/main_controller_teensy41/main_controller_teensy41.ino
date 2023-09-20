@@ -5,8 +5,8 @@
 #include "TMC4361A_TMC2660_Utils.h"
 #include "crc8.h"
 
-#include "def_octopi.h"
-//#include "def_octopi_80120.h"
+//#include "def_octopi.h"
+#include "def_octopi_80120.h"
 //#include "def_gravitymachine.h"
 //#include "def_squid.h"
 //#include "def_platereader.h"
@@ -186,8 +186,8 @@ void set_DAC8050x_output(int channel, uint16_t value)
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
 const uint32_t clk_Hz_TMC4361 = 16000000;
-const uint8_t lft_sw_pol[4] = {1,1,0,1};
-const uint8_t rht_sw_pol[4] = {1,1,0,1};
+const uint8_t lft_sw_pol[4] = {0,0,0,1};
+const uint8_t rht_sw_pol[4] = {0,0,0,1};
 const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, RGHT_SW, LEFT_SW};
 const int32_t vslow = 0x04FFFC00;
 
