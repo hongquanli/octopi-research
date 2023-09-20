@@ -85,6 +85,7 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer()
 
+		'''
 		# retract the objective
 		self.navigationController.home_z()
 		# wait for the operation to finish
@@ -95,6 +96,7 @@ class OctopiGUI(QMainWindow):
 				print('z homing timeout, the program will exit')
 				exit()
 		print('objective retracted')
+		'''
 
 		# homing, set zero and set software limit
 		self.navigationController.set_x_limit_pos_mm(100)
@@ -111,6 +113,7 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
 		self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
 
+		'''
 		# raise the objective
 		self.navigationController.move_z(DEFAULT_Z_POS_MM)
 		# wait for the operation to finish
@@ -120,6 +123,7 @@ class OctopiGUI(QMainWindow):
 			if time.time() - t0 > 5:
 				print('z return timeout, the program will exit')
 				exit()
+		'''
 
 		# set software limit
 		self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
@@ -253,12 +257,14 @@ class OctopiGUI(QMainWindow):
 		self.gallerySettings = GalleryViewSettingsWidget()
 		self.trainingAndVisualizationWidget = TrainingAndVisualizationWidget(self.dataHandler)
 
+		'''
 		self.plots = {}
 		self.plots['Labels'] = PiePlotWidget()
 		self.plots['Annotation Progress'] = BarPlotWidget()
 		self.plots['Inference Result'] = HistogramPlotWidget()
 		self.plots['Similarity'] = StemPlotWidget()
 		self.plots[dimentionality_reduction] = ScatterPlotWidget()
+		'''
 
 		# tab widget
 		self.gallery_tab = QTabWidget()
@@ -297,7 +303,7 @@ class OctopiGUI(QMainWindow):
 		self.gallery_umap_selection.signal_updatePage.connect(self.gallery.update_page)
 
 		# get selected images in UMAP scatter plot
-		self.plots[dimentionality_reduction].signal_selected_points.connect(self.dataHandler.prepare_selected_images)
+		##self.plots[dimentionality_reduction].signal_selected_points.connect(self.dataHandler.prepare_selected_images)
 		self.dataHandler.signal_selected_images.connect(self.dataHandler_umap_selection.populate_selected_images)
 
 		# show selected images in UMAP
@@ -305,12 +311,12 @@ class OctopiGUI(QMainWindow):
 		self.gallery_similarity.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
 		self.gallery_umap_selection.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
 
-		self.dataHandler.signal_umap_embedding.connect(self.plots[dimentionality_reduction].show_points)
+		#self.dataHandler.signal_umap_embedding.connect(self.plots[dimentionality_reduction].show_points)
 
 		# clear the overlay when images are de-selected
-		self.gallery.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
-		self.gallery_similarity.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
-		self.gallery_umap_selection.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+		#self.gallery.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+		#self.gallery_similarity.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+		#self.gallery_umap_selection.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
 
 		# gallery settings
 		self.gallerySettings.signal_numRowsPerPage.connect(self.gallery.set_number_of_rows)
@@ -326,19 +332,21 @@ class OctopiGUI(QMainWindow):
 		self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_umap_selection.set_k_similar)
 
 		# plots
+		'''
 		self.dataHandler.signal_annotation_stats.connect(self.plots['Labels'].update_plot)
 		self.dataHandler.signal_annotation_stats.connect(self.plots['Annotation Progress'].update_plot)
 		self.dataHandler.signal_predictions.connect(self.plots['Inference Result'].update_plot)
 		self.dataHandler.signal_distances.connect(self.plots['Similarity'].update_plot)
 		self.dataHandler.signal_UMAP_visualizations.connect(self.plots[dimentionality_reduction].update_plot)
+		'''
 
 		self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
 
 		# dev mode
 		if False:
 
-			annotation_pd = pd.read_csv('/home/octopi/Documents/tmp/score.csv',index_col='index')
-			images = np.load('/home/octopi/Documents/tmp/test.npy')
+			annotation_pd = pd.read_csv('/home/prakashlab/Documents/tmp/score.csv',index_col='index')
+			images = np.load('/home/prakashlab/Documents/tmp/test.npy')
 			self.dataHandler.load_images(images)
 			self.dataHandler.load_predictions(annotation_pd)
 
@@ -347,7 +355,7 @@ class OctopiGUI(QMainWindow):
 		# deep learning classification
 		self.classification_th = 0.8
 		# model
-		model_path = '/home/octopi/Documents/tmp/model_perf_r34_b32.pt'
+		model_path = '/home/prakashlab/Documents/tmp/model_perf_r34_b32.pt'
 		if torch.cuda.is_available():
 		    self.model = torch.load(model_path)
 		else:

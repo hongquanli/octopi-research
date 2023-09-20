@@ -1365,10 +1365,10 @@ class MultiPointWorker(QObject):
                             # real time processing 
                             if I_fluorescence is not None and I_left is not None and I_fluorescence is not None:
                                 if True: # testing mode
-                                    I_fluorescence = imageio.v2.imread('/home/octopi/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
+                                    I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
-                                    I_left = imageio.v2.imread('/home/octopi/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
-                                    I_right = imageio.v2.imread('/home/octopi/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
+                                    I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
+                                    I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
 
                                 print(self.microscope)
                                 # process fov
