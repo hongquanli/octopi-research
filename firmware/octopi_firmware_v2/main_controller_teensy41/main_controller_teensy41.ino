@@ -55,6 +55,9 @@ static const int CONFIGURE_STEPPER_DRIVER = 21;
 static const int SET_MAX_VELOCITY_ACCELERATION = 22;
 static const int SET_LEAD_SCREW_PITCH = 23;
 static const int SET_OFFSET_VELOCITY = 24;
+static const int CONFIGURE_STAGE_PID = 25;
+static const int ENABLE_STAGE_PID = 26;
+static const int DISABLE_STAGE_PID = 27;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
 static const int SET_PIN_LEVEL = 41;
@@ -247,6 +250,9 @@ long Y_POS_LIMIT = Y_POS_LIMIT_MM*steps_per_mm_Y;
 long Y_NEG_LIMIT = Y_NEG_LIMIT_MM*steps_per_mm_Y;
 long Z_POS_LIMIT = Z_POS_LIMIT_MM*steps_per_mm_Z;
 long Z_NEG_LIMIT = Z_NEG_LIMIT_MM*steps_per_mm_Z;
+
+// PID
+bool stage_PID_enabled[N_MOTOR];
 
 /***************************************************************************************************/
 /******************************************** timing ***********************************************/
@@ -614,6 +620,10 @@ void setup() {
   /*********************************************************************************************************
    ************************************** TMC4361A + TMC2660 beginning ************************************* 
    *********************************************************************************************************/
+  // PID
+  for (int i = 0; i < N_MOTOR; i++) 
+    stage_PID_enabled[i] = 0;
+   
   // clock
   pinMode(pin_TMC4361_CLK, OUTPUT);
   analogWriteFrequency(pin_TMC4361_CLK, clk_Hz_TMC4361);
@@ -686,7 +696,7 @@ void setup() {
   // homing switch settings
   tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
   tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
-  tmc4361A_enableHomingLimit(&tmc4361[y], rht_sw_pol[z], TMC4361_homing_sw[z]);
+  tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
     
   /*********************************************************************************************************
    ***************************************** TMC4361A + TMC2660 end **************************************** 
@@ -1033,6 +1043,8 @@ void loop() {
             switch(buffer_rx[2])
             {
               case AXIS_X:
+                if (stage_PID_enabled[AXIS_X] == 1)
+                  tmc4361A_set_PID(&tmc4361[AXIS_X], PID_DISABLE);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],-1);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],1);
                 homing_direction_X = buffer_rx[3];
@@ -1090,6 +1102,8 @@ void loop() {
                 */
                 break;
               case AXIS_Y:
+                if (stage_PID_enabled[AXIS_Y] == 1)
+                  tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_DISABLE);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],-1);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],1);
                 homing_direction_Y = buffer_rx[3];
@@ -1128,6 +1142,8 @@ void loop() {
                 }
                 break;
               case AXIS_Z:
+                if (stage_PID_enabled[AXIS_Z] == 1)
+                  tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_DISABLE);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[z],-1);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[z],1);
                 homing_direction_Z = buffer_rx[3];
@@ -1167,6 +1183,10 @@ void loop() {
                 }
                 break;
               case AXES_XY:
+                if (stage_PID_enabled[AXIS_X] == 1)
+                  tmc4361A_set_PID(&tmc4361[AXIS_X], PID_DISABLE);
+                if (stage_PID_enabled[AXIS_Y] == 1)
+                  tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_DISABLE);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],-1);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[x],1);
                 tmc4361A_disableVirtualLimitSwitch(&tmc4361[y],-1);
@@ -1296,7 +1316,9 @@ void loop() {
         }
         case ANALOG_WRITE_ONBOARD_DAC:
         {
-          uint16_t value = ( uint16_t(buffer_rx[3])*256 + uint16_t(buffer_rx[4]) )/16;
+          int dac = buffer_rx[2];
+          uint16_t value = ( uint16_t(buffer_rx[3])*256 + uint16_t(buffer_rx[4]) );
+          set_DAC8050x_output(dac,value);
         }
         case SET_STROBE_DELAY:
         {
@@ -1318,6 +1340,36 @@ void loop() {
           int pin = buffer_rx[2];
           bool level = buffer_rx[3];
           digitalWrite(pin,level);
+          break;
+        }
+        case CONFIGURE_STAGE_PID:
+        {
+          int axis = buffer_rx[2];
+          int flip_direction = buffer_rx[3];
+          int transitions_per_revolution = (buffer_rx[4] << 8) + buffer_rx[5];
+          // Init encoder. transitions per revolution, velocity filter wait time (# of clock cycles), IIR filter exponent, vmean update frequency, invert direction (must increase as microsteps increases)
+          tmc4361A_init_ABN_encoder(&tmc4361[axis], transitions_per_revolution, 32, 4, 512, flip_direction);
+          // Init PID. target reach tolerance, position error tolerance, P, I, and D coefficients, max speed, winding limit, derivative update rate
+          if (axis == 0)
+            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 4096, 2);
+          else if (axis == 1)
+            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 4096, 2);
+          else
+            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
+          break;
+        }
+        case ENABLE_STAGE_PID:
+        {
+          int axis = buffer_rx[2];
+          tmc4361A_set_PID(&tmc4361[axis], PID_BPG0);
+          stage_PID_enabled[axis] = 1;
+          break;
+        }
+        case DISABLE_STAGE_PID:
+        {
+          int axis = buffer_rx[2];
+          tmc4361A_set_PID(&tmc4361[axis], PID_DISABLE);
+          stage_PID_enabled[axis] = 0;
           break;
         }
         case INITIALIZE:
@@ -1356,7 +1408,7 @@ void loop() {
           // homing switch settings
           tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
           tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
-          tmc4361A_enableHomingLimit(&tmc4361[y], rht_sw_pol[z], TMC4361_homing_sw[z]);
+          tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
           // DAC init
           set_DAC8050x_config();
           set_DAC8050x_gain();
@@ -1604,6 +1656,8 @@ void loop() {
   {
     // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[x],0);
+    if(stage_PID_enabled[AXIS_X])
+      tmc4361A_set_PID(&tmc4361[AXIS_X], PID_BPG0);
     X_pos = 0;
     is_homing_X = false;
     X_commanded_movement_in_progress = false;
@@ -1615,6 +1669,8 @@ void loop() {
   {
     // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[y],0);
+    if(stage_PID_enabled[AXIS_Y])
+      tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_BPG0);
     Y_pos = 0;
     is_homing_Y = false;
     Y_commanded_movement_in_progress = false;
@@ -1626,6 +1682,8 @@ void loop() {
   {
     // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[z],0);
+    if(stage_PID_enabled[AXIS_Z])
+      tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_BPG0);
     Z_pos = 0;
     focusPosition = 0;
     is_homing_Z = false;
