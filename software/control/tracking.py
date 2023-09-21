@@ -27,6 +27,11 @@ class Tracker_Image(object):
 		# Define list of trackers being used(maybe do this as a definition?)
 		# OpenCV tracking suite
 		# self.OPENCV_OBJECT_TRACKERS = {}
+		self.OPENCV_OBJECT_TRACKERS = {
+			"csrt": cv2.TrackerCSRT_create,
+			"kcf": cv2.TrackerKCF_create,
+			"mil": cv2.TrackerMIL_create,
+			}
 		try:
 			self.OPENCV_OBJECT_TRACKERS = {
 			"csrt": cv2.TrackerCSRT_create,
@@ -122,6 +127,7 @@ class Tracker_Image(object):
 			pass
 
 	def _initialize_tracker(self, image, centroid, bbox):
+		bbox = tuple(int(x) for x in bbox)
 		# check if the image is color or not
 		if(len(image.shape)<3):
 			self.is_color = False		
