@@ -234,9 +234,9 @@ class LiveControlWidget(QFrame):
         self.slider_illuminationIntensity.setSingleStep(1)
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
-        self.entry_illuminationIntensity.setMinimum(0.1) 
+        self.entry_illuminationIntensity.setMinimum(0) 
         self.entry_illuminationIntensity.setMaximum(100) 
-        self.entry_illuminationIntensity.setSingleStep(0.1)
+        self.entry_illuminationIntensity.setSingleStep(1)
         self.entry_illuminationIntensity.setValue(100)
 
         # line 4: display fps and resolution scaling
@@ -269,7 +269,7 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
-        self.entry_illuminationIntensity.valueChanged.connect(self.slider_illuminationIntensity.setValue)
+        self.entry_illuminationIntensity.valueChanged.connect(lambda x: self.slider_illuminationIntensity.setValue(int(x)))
         self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
         self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
@@ -1308,6 +1308,10 @@ class MultiPointWidget2(QFrame):
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
+
+            # add the current location to the location list if the list is empty
+            if len(self.location_list) == 0:
+                self.add_location()
             self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
