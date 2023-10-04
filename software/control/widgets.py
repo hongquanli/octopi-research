@@ -269,7 +269,7 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
-        self.entry_illuminationIntensity.valueChanged.connect(self.slider_illuminationIntensity.setValue)
+        self.entry_illuminationIntensity.valueChanged.connect(lambda x: self.slider_illuminationIntensity.setValue(int(x)))
         self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
         self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
