@@ -686,7 +686,7 @@ void setup() {
   // homing switch settings
   tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
   tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
-  tmc4361A_enableHomingLimit(&tmc4361[y], rht_sw_pol[z], TMC4361_homing_sw[z]);
+  tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
     
   /*********************************************************************************************************
    ***************************************** TMC4361A + TMC2660 end **************************************** 
@@ -1356,7 +1356,7 @@ void loop() {
           // homing switch settings
           tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
           tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
-          tmc4361A_enableHomingLimit(&tmc4361[y], rht_sw_pol[z], TMC4361_homing_sw[z]);
+          tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
           // DAC init
           set_DAC8050x_config();
           set_DAC8050x_gain();
