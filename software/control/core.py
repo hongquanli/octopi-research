@@ -8,6 +8,8 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+from control.processing_handler import ProcessingHandler, default_upload_fn, default_process_fn
+
 import control.utils as utils
 from control._def import *
 import control.tracking as tracking
@@ -1069,6 +1071,7 @@ class MultiPointWorker(QObject):
         QObject.__init__(self)
         self.multiPointController = multiPointController
 
+	self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1363,32 +1366,19 @@ class MultiPointWorker(QObject):
                                             np.savetxt(saving_path,data,delimiter=',')
 
                             # real time processing 
-                            if I_fluorescence is not None and I_left is not None and I_fluorescence is not None:
+                            if I_fluorescence is not None and I_left is not None and I_right is not None:
                                 if True: # testing mode
-                                
                                     I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
                                     I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
                                     I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
-
-                                print(self.microscope)
-                                # process fov
-                                I,score = process_fov(I_fluorescence,I_left,I_right,self.microscope.model,self.microscope.device,self.microscope.classification_th)
-                                print(I.shape)
-
-                                # display
-                                if len(I>0):
-                                    images = I*255
-                                    score_df = pd.DataFrame(score, columns=["output"])
-
-                                    if self.microscope.dataHandler.images is None:
-                                        #annotation_pd = pd.read_csv('/home/octopi/Documents/tmp/score.csv',index_col='index')
-                                        #images = np.load('/home/octopi/Documents/tmp/test.npy')
-                                        self.microscope.dataHandler.load_images(images)
-                                        self.microscope.dataHandler.load_predictions(score_df)
-                                    else:
-                                        self.microscope.dataHandler.add_data(images,score_df)
-
+                                processing_fn = default_process_fn
+                                processing_args = [process_fov, I_fluorescence.copy(),I_left.copy(), I_right.copy(), self.microscope.model, self.microscope.device, self.microscope.classification_th]
+                                processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler}
+                                task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
+                                self.processingHandler.processing_queue.put(task_dict)    
+                                
+                                    
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
@@ -1510,6 +1500,7 @@ class MultiPointController(QObject):
         QObject.__init__(self)
 
         self.camera = camera
+        self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
@@ -1634,6 +1625,8 @@ class MultiPointController(QObject):
         # create a QThread object
         self.thread = QThread()
         # create a worker object
+        self.processingHandler.start_processing()
+        self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
         # move the worker to the thread
         self.multiPointWorker.moveToThread(self.thread)
@@ -1670,6 +1663,7 @@ class MultiPointController(QObject):
                 self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
+        self.processingHandler.end_processing()
         self.acquisitionFinished.emit()
         QApplication.processEvents()
 
