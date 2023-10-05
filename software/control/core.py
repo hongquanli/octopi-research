@@ -1071,7 +1071,7 @@ class MultiPointWorker(QObject):
         QObject.__init__(self)
         self.multiPointController = multiPointController
 
-	self.processingHandler = multiPointController.processingHandler
+        self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1522,6 +1522,7 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
+        self.do_stitch_tiles = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1561,7 +1562,8 @@ class MultiPointController(QObject):
         self.do_autofocus = flag
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
-
+    def set_stitch_tiles_flag(self, flag):
+        self.do_stitch_tiles = flag
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
