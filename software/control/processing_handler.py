@@ -2,6 +2,7 @@ import threading
 import queue
 import numpy as np
 import pandas as pd
+import control.utils as utils
 
 def default_image_preprocessor(image, callable_list):
     """
@@ -65,6 +66,60 @@ def default_process_fn(process_fn, *process_args, **process_kwargs):
     return_dict['args'] = [I, score, dataHandler]
     return_dict['kwargs'] = {'multiPointWorker':multiPointWorker}
     return return_dict
+
+
+def process_fn_with_count_and_display(process_fn, *process_args, **process_kwargs):
+    """
+    :brief: meant to be queued with args being [process_fov, (all args for process_fov)]
+        and kwargs being {'dataHandler': self.microscope.dataHandler,
+        'upload_fn':default_upload_fn,
+        'multiPointWorker':the MultiPointWorker object calling this}.
+        This version really meant to be used with process_fov
+        and the DPC segmentation code
+    :return: A process task, i.e. dict of 'function' (callable), 'args' (list), and
+     'kwargs' (dict)
+    """
+    dataHandler = process_kwargs['dataHandler'] # should be a DataHandler instance
+    process_kwargs.pop('dataHandler')
+    upload_fn = process_kwargs['upload_fn'] # this should be a callable
+    process_kwargs.pop('upload_fn')
+    multiPointWorker = None
+    no_cells = 0
+    no_parasites = 0
+    overlay = None
+    dpc_image = None
+    try:
+        multiPointWorker = process_kwargs['multiPointWorker']
+        process_kwargs.pop('multiPointWorker')
+    except:
+        pass
+    if multiPointWorker is not None:
+        dpc_L = process_args[1]
+        dpc_R = process_args[2]
+        if multiPointWorker.crop > 0:
+            dpc_L = utils.centerCrop(dpc_L, multiPointWorker.crop)
+            dpc_R = utils.centerCrop(dpc_R, multiPointWorker.crop)
+        dpc_image = utils.generate_dpc(dpc_L, dpc_R)
+        result = multiPointWorker.model.predict_on_images(dpc_image)
+        probs = (255 * (result - np.min(result))/(np.max(result) - np.min(result))).astype(np.uint8)
+        threshold = 0.5
+        mask = (255*(result > threshold)).astype(np.uint8)
+        color_mask, no_cells = utils.colorize_mask_get_counts(mask)
+        overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
+    I, score = process_fn(*process_args, **process_kwargs)
+    no_parasites = len(score)
+    if multiPointWorker is not None:
+        new_counts = {"Total RBC": no_cells, "Total Parasites": no_parasites}
+        multiPointWorker.signal_update_stats.emit(new_counts)
+        multiPointWorker.image_to_display_multi.emit(overlay, 12)
+        multiPointWorker.image_to_display_multi.emit(dpc_image, 13)
+    return_dict = {}
+    return_dict['function'] = upload_fn
+    return_dict['args'] = [I, score, dataHandler]
+    return_dict['kwargs'] = {'multiPointWorker':None}
+    return return_dict
+
+
 
 class ProcessingHandler():
     """

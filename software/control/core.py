@@ -8,7 +8,7 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
-from control.processing_handler import ProcessingHandler, default_upload_fn, default_process_fn
+from control.processing_handler import ProcessingHandler, default_upload_fn, process_fn_with_count_and_display
 from control.stitcher import Stitcher, default_image_reader
 
 import control.utils as utils
@@ -1070,9 +1070,13 @@ class MultiPointWorker(QObject):
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
 
+    signal_update_stats = Signal(object)
+
     def __init__(self,multiPointController):
         QObject.__init__(self)
         self.multiPointController = multiPointController
+
+        self.signal_update_stats.connect(self.update_stats)
 
         self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
@@ -1126,6 +1130,15 @@ class MultiPointWorker(QObject):
         self.t_inf = []
         self.t_over=[]
         
+
+    def update_stats(self, new_stats):
+        for k in new_stats.keys():
+            try:
+                self.detection_stats[k]+=new_stats[k]
+            except:
+                self.detection_stats[k] = 0
+                self.detection_stats[k]+=new_stats[k]
+        self.signal_detection_stats.emit(self.detection_stats)
 
     def run(self):
 
@@ -1427,13 +1440,13 @@ class MultiPointWorker(QObject):
                                     I_fluorescence = I_fluorescence[:,:,::-1]
                                     I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
                                     I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
-                                processing_fn = default_process_fn
+                                processing_fn = process_fn_with_count_and_display
                                 processing_args = [process_fov, I_fluorescence.copy(),I_left.copy(), I_right.copy(), self.microscope.model, self.microscope.device, self.microscope.classification_th]
                                 processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler, 'multiPointWorker':self}
                                 task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
                                 self.processingHandler.processing_queue.put(task_dict)    
                                 
-                            
+                            """
                             if type(dpc_L) != type(None) and type(dpc_R) != type(None) and self.multiPointController.do_segmentation:
                                 if self.crop > 0:
                                     dpc_L = utils.centerCrop(dpc_L, self.crop)
@@ -1491,7 +1504,7 @@ class MultiPointWorker(QObject):
                                 dpc_image = utils.crop_image(dpc_image,self.crop_width,self.crop_height)
                                 dpc_image = utils.rotate_and_flip_image(dpc_image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                 self.image_to_display_multi.emit(dpc_image, 13)
-                                
+                            """ 
                                 
                                 
                             # add the coordinate of the current location
