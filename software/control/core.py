@@ -758,9 +758,9 @@ class SlidePositionControlWorker(QObject):
             self.slidePositionController.homing_done = True
         else:
             timestamp_start = time.time()
-            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM-self.navigationController.y_pos_mm)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM-self.navigationController.x_pos_mm)
+            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM-self.navigationController.y_pos_mm)
             self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
         if was_live:
             self.signal_resume_live.emit()
@@ -774,15 +774,15 @@ class SlidePositionControlWorker(QObject):
         if self.slidePositionController.homing_done == False or SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:
             if self.home_x_and_y_separately:
                 timestamp_start = time.time()
-                self.navigationController.home_y()
-                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-                self.navigationController.zero_y()
-                self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
-                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
                 self.navigationController.home_x()
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
                 self.navigationController.zero_x()
                 self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.home_y()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_y()
+                self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             else:
                 timestamp_start = time.time()
