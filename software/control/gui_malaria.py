@@ -217,7 +217,7 @@ class OctopiGUI(QMainWindow):
 			self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
 		else:
 			self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-		# self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
+		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
 		self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
