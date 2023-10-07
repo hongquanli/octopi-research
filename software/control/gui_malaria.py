@@ -85,7 +85,6 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer()
 
-		'''
 		# retract the objective
 		self.navigationController.home_z()
 		# wait for the operation to finish
@@ -96,7 +95,6 @@ class OctopiGUI(QMainWindow):
 				print('z homing timeout, the program will exit')
 				exit()
 		print('objective retracted')
-		'''
 
 		# homing, set zero and set software limit
 		self.navigationController.set_x_limit_pos_mm(100)
@@ -113,7 +111,7 @@ class OctopiGUI(QMainWindow):
 		self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
 		self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
 
-		'''
+
 		# raise the objective
 		self.navigationController.move_z(DEFAULT_Z_POS_MM)
 		# wait for the operation to finish
@@ -123,7 +121,6 @@ class OctopiGUI(QMainWindow):
 			if time.time() - t0 > 5:
 				print('z return timeout, the program will exit')
 				exit()
-		'''
 
 		# set software limit
 		self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
@@ -345,8 +342,8 @@ class OctopiGUI(QMainWindow):
 		# dev mode
 		if False:
 
-			annotation_pd = pd.read_csv('/home/prakashlab/Documents/tmp/score.csv',index_col='index')
-			images = np.load('/home/prakashlab/Documents/tmp/test.npy')
+			annotation_pd = pd.read_csv('/home/cephla/Documents/tmp/score.csv',index_col='index')
+			images = np.load('/home/cephla/Documents/tmp/test.npy')
 			self.dataHandler.load_images(images)
 			self.dataHandler.load_predictions(annotation_pd)
 
@@ -355,7 +352,7 @@ class OctopiGUI(QMainWindow):
 		# deep learning classification
 		self.classification_th = 0.8
 		# model
-		model_path = '/home/prakashlab/Documents/tmp/model_perf_r34_b32.pt'
+		model_path = '/home/cephla/Documents/tmp/model_perf_r34_b32.pt'
 		if torch.cuda.is_available():
 		    self.model = torch.load(model_path)
 		else:

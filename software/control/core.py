@@ -757,9 +757,9 @@ class SlidePositionControlWorker(QObject):
             self.slidePositionController.homing_done = True
         else:
             timestamp_start = time.time()
-            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM-self.navigationController.y_pos_mm)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             self.navigationController.move_x(SLIDE_POSITION.LOADING_X_MM-self.navigationController.x_pos_mm)
+            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            self.navigationController.move_y(SLIDE_POSITION.LOADING_Y_MM-self.navigationController.y_pos_mm)
             self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
         if was_live:
             self.signal_resume_live.emit()
@@ -773,15 +773,15 @@ class SlidePositionControlWorker(QObject):
         if self.slidePositionController.homing_done == False or SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:
             if self.home_x_and_y_separately:
                 timestamp_start = time.time()
-                self.navigationController.home_y()
-                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-                self.navigationController.zero_y()
-                self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
-                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
                 self.navigationController.home_x()
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
                 self.navigationController.zero_x()
                 self.navigationController.move_x(SLIDE_POSITION.SCANNING_X_MM)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.home_y()
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.zero_y()
+                self.navigationController.move_y(SLIDE_POSITION.SCANNING_Y_MM)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             else:
                 timestamp_start = time.time()
@@ -1395,8 +1395,9 @@ class MultiPointWorker(QObject):
                                             np.savetxt(saving_path,data,delimiter=',')
 
                             # real time processing 
+
                             if I_fluorescence is not None and I_left is not None and I_right is not None:
-                                if True: # testing mode
+                                if False: # testing mode
                                     I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
                                     I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
@@ -1406,8 +1407,7 @@ class MultiPointWorker(QObject):
                                 processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler}
                                 task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
                                 self.processingHandler.processing_queue.put(task_dict)    
-                                
-                                    
+                          
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
