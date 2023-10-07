@@ -144,6 +144,7 @@ class OctopiGUI(QMainWindow):
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
 		self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
+		self.statsDisplayWidget = widgets.StatsDisplayWidget()
 		if ENABLE_TRACKING:
 			self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
 		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
@@ -153,6 +154,7 @@ class OctopiGUI(QMainWindow):
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+		self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
@@ -219,6 +221,10 @@ class OctopiGUI(QMainWindow):
 			self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 		self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
 		self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+		try:
+			self.multipointController.detection_stats.connect(self.statsDisplayWidget.display_stats)
+		except:
+			pass
 		self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
 		self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
@@ -253,7 +259,6 @@ class OctopiGUI(QMainWindow):
 		self.gallery_umap_selection = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_umap_selection,dataHandler2=self.dataHandler)
 		self.gallerySettings = GalleryViewSettingsWidget()
 		self.trainingAndVisualizationWidget = TrainingAndVisualizationWidget(self.dataHandler)
-
 		'''
 		self.plots = {}
 		self.plots['Labels'] = PiePlotWidget()

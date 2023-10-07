@@ -833,6 +833,30 @@ class AutoFocusWidget(QFrame):
     def autofocus_is_finished(self):
         self.btn_autofocus.setChecked(False)
 
+class StatsDisplayWidget(QFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initUI()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def initUI(self):
+        self.layout = QVBoxLayout()
+        self.table_widget = QTableWidget()
+        self.table_widget.setColumnCount(2)
+        self.layout.addWidget(self.table_widget)
+        self.setLayout(self.layout)
+
+    def display_stats(self, stats):
+        self.table_widget.setRowCount(len(stats))
+        row = 0
+        for key, value in stats.items():
+            key_item = QTableWidgetItem(str(key))
+            value_item = QTableWidgetItem(str(value))
+            self.table_widget.setItem(row,0,key_item)
+            self.table_wdiget.setItem(row,1,value_item)
+            row+=1
+
+
 class MultiPointWidget(QFrame):
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -928,7 +952,15 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.multipointController.set_stitch_tiles_flag(False)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.checkbox_stitchTiles = QCheckBox("Stitch OME TIFF for each Z plane")
+        self.checkbox_segmentation = QCheckBox("Perform segmentation using DPC on tiles")
+        self.checkbox_fluorescence_rtp = QCheckBox("Perform real-time-classification using fluorescence on tiles")
+        self.checkbox_stitchTiles.setChecked(False)
+        self.checkbox_stitchTiles.setCheckable(True)
+        self.checkbox_segmentation.setChecked(False)
+        self.checkbox_segmentation.setCheckable(True)
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -963,6 +995,9 @@ class MultiPointWidget(QFrame):
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
+        grid_af.addWidget(self.checkbox_stitchTiles)
+        grid_af.addWidget(self.checkbox_segmentation)
+        gtid_af.addWidget(self.checkbox_fluorescence_rtp)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
 
@@ -993,6 +1028,9 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_stitchTiles.stateChanged.connect(self.multipointController.set_stitch_tiles_flag)
+        self.checkbox_segmentation.stateChanged.connect(self.multipointController.set_segmentation_flag)
+        self.checkbox_fluorescence_rtp.stateChanged.connect(self.multipointController.set_fluorescence_rtp_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
