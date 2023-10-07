@@ -1435,7 +1435,7 @@ class MultiPointWorker(QObject):
 
                             # real time processing 
                             if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
-                                if True: # testing mode
+                                if False: # testing mode
                                     I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
                                     I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
@@ -1657,7 +1657,7 @@ class MultiPointController(QObject):
         self.do_reflection_af = False
         self.do_stitch_tiles = False
         self.do_segmentation = False
-        self.do_fluorescence_rtp = False
+        self.do_fluorescence_rtp = True
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR

@@ -958,6 +958,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_segmentation = QCheckBox("Perform segmentation using DPC on tiles")
         self.checkbox_fluorescence_rtp = QCheckBox("Perform real-time-classification using fluorescence on tiles")
         self.checkbox_stitchTiles.setChecked(False)
+        self.checkbox_fluorescence_rtp.setChecked(True)
         self.checkbox_stitchTiles.setCheckable(True)
         self.checkbox_segmentation.setChecked(False)
         self.checkbox_segmentation.setCheckable(True)
@@ -997,7 +998,7 @@ class MultiPointWidget(QFrame):
         grid_af.addWidget(self.checkbox_withAutofocus)
         #grid_af.addWidget(self.checkbox_stitchTiles)
         #grid_af.addWidget(self.checkbox_segmentation)
-        gtid_af.addWidget(self.checkbox_fluorescence_rtp)
+        #grid_af.addWidget(self.checkbox_fluorescence_rtp)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
 
