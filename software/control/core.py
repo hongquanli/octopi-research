@@ -1068,6 +1068,7 @@ class MultiPointWorker(QObject):
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
+    signal_detection_stats = Signal(object)
 
     def __init__(self,multiPointController):
         QObject.__init__(self)
@@ -1101,6 +1102,8 @@ class MultiPointWorker(QObject):
         self.experiment_ID = self.multiPointController.experiment_ID
         self.base_path = self.multiPointController.base_path
         self.selected_configurations = self.multiPointController.selected_configurations
+        self.detection_stats = {}
+        self.async_detection_stats = {}
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
@@ -1418,7 +1421,7 @@ class MultiPointWorker(QObject):
                                             np.savetxt(saving_path,data,delimiter=',')
 
                             # real time processing 
-                            if I_fluorescence is not None and I_left is not None and I_right is not None:
+                            if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
                                 if True: # testing mode
                                     I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
@@ -1426,7 +1429,7 @@ class MultiPointWorker(QObject):
                                     I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
                                 processing_fn = default_process_fn
                                 processing_args = [process_fov, I_fluorescence.copy(),I_left.copy(), I_right.copy(), self.microscope.model, self.microscope.device, self.microscope.classification_th]
-                                processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler}
+                                processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler, 'multiPointWorker':self}
                                 task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
                                 self.processingHandler.processing_queue.put(task_dict)    
                                 
@@ -1455,7 +1458,18 @@ class MultiPointWorker(QObject):
                                 # colorize mask, overlay
                                 if self.make_over:
                                     t0 = time.time()
-                                    color_mask = utils.colorize_mask(mask)
+                                    color_mask, no_cells = utils.colorize_mask_get_counts(mask)
+                                    try:
+                                        self.detection_stats["Total RBC"] += no_cells
+                                    except:
+                                        self.detection_stats["Total RBC"] = 0
+                                        self.detection_stats["Total RBC"] += no_cells
+                                    try:
+                                        if self.detection_stats["Total Parasites"] < self.async_detection_stats["Total Parasites"]:
+                                            self.detection_stats["Total Parasites"] = self.async_detection_stats["Total Parasites"]
+                                    except:
+                                        self.detection_stats["Total Parasites"] = 0
+                                    self.signal_detection_stats.emit(self.detection_stats)
                                     overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
                                     saving_path = os.path.join(current_path, file_ID + '_' + "overlay" + '.' + Acquisition.IMAGE_FORMAT)
                                     cv2.imwrite(saving_path,overlay)
@@ -1598,6 +1612,7 @@ class MultiPointController(QObject):
     spectrum_to_display = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
+    detection_stats = Signal(object)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader):
         QObject.__init__(self)
@@ -1629,6 +1644,7 @@ class MultiPointController(QObject):
         self.do_reflection_af = False
         self.do_stitch_tiles = False
         self.do_segmentation = False
+        self.do_fluorescence_rtp = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1672,6 +1688,8 @@ class MultiPointController(QObject):
         self.do_stitch_tiles = flag
     def set_segmentation_flag(self, flag):
         self.do_segmentation = flag
+    def set_fluorescence_rtp_flag(self, flag):
+        self.do_fluorescence_rtp = flag
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
@@ -1743,6 +1761,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.moveToThread(self.thread)
         # connect signals and slots
         self.thread.started.connect(self.multiPointWorker.run)
+        self.multiPointWorker.signal_detection_stats.connect(self.slot_detection_stats)
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
         self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
         self.multiPointWorker.finished.connect(self.thread.quit)
@@ -1783,6 +1802,9 @@ class MultiPointController(QObject):
 
     def request_abort_aquisition(self):
         self.abort_acqusition_requested = True
+
+    def slot_detection_stats(self, stats):
+        self.detection_stats.emit(stats)
 
     def slot_image_to_display(self,image):
         self.image_to_display.emit(image)

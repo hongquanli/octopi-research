@@ -18,7 +18,7 @@ def default_image_preprocessor(image, callable_list):
         output_image = c['func'](output_image, *c['args'],**c['kwargs'])
     return output_image
 
-def default_upload_fn(I,score, dataHandler):
+def default_upload_fn(I,score, dataHandler, multiPointWorker = None):
     """
     :brief: designed to be called by default_process_fn that's using
         the pre-existing process_fov method
@@ -33,6 +33,13 @@ def default_upload_fn(I,score, dataHandler):
         dataHandler.load_predictions(score_df)
     else:
         dataHandler.add_data(images,score_df)
+    if multiPointWorker is not None:
+        try:
+            multiPointWorker.async_detection_stats["Total Parasites"] += len(score)
+        except:
+            multiPointWorker.async_detection_stats["Total Parasites"] = 0
+            multiPointWorker.async_detection_stats["Total Parasites"] += len(score)
+
 
 def default_process_fn(process_fn, *process_args, **process_kwargs):
     """
@@ -46,11 +53,17 @@ def default_process_fn(process_fn, *process_args, **process_kwargs):
     process_kwargs.pop('dataHandler')
     upload_fn = process_kwargs['upload_fn'] # this should be a callable
     process_kwargs.pop('upload_fn')
+    multiPointWorker = None
+    try:
+        multiPointWorker = process_kwargs['multiPointWorker']
+        process_kwargs.pop('multiPointWorker')
+    except:
+        pass
     I, score = process_fn(*process_args, **process_kwargs)
     return_dict = {}
     return_dict['function'] = upload_fn
     return_dict['args'] = [I, score, dataHandler]
-    return_dict['kwargs'] = {}
+    return_dict['kwargs'] = {'multiPointWorker':multiPointWorker}
     return return_dict
 
 class ProcessingHandler():

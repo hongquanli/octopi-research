@@ -88,6 +88,16 @@ def colorize_mask(mask):
     colored_mask[labeled_mask == 0] = 0
     return colored_mask
 
+def colorize_mask_get_counts(mask):
+    # Label the detected objects
+    labeled_mask, no_cells = label(mask)
+    # Color them
+    colored_mask = np.array((labeled_mask * 83) % 255, dtype=np.uint8)
+    colored_mask = cv2.applyColorMap(colored_mask, cv2.COLORMAP_HSV)
+    # make sure background is black
+    colored_mask[labeled_mask == 0] = 0
+    return colored_mask, no_cells
+
 def overlay_mask_dpc(color_mask, im_dpc):
     # Overlay the colored mask and DPC image
     # make DPC 3-channel
