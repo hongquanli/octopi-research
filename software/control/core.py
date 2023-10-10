@@ -569,10 +569,12 @@ class NavigationController(QObject):
         # self.timer_read_pos.start()
 
     def move_x(self,delta):
-        self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        delta_ustep = int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)))
+        self.microcontroller.move_x_usteps(delta_ustep)
 
     def move_y(self,delta):
-        self.microcontroller.move_y_usteps(int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        delta_ustep = int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)))
+        self.microcontroller.move_y_usteps(delta_ustep)
 
     def move_z(self,delta):
         self.microcontroller.move_z_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))

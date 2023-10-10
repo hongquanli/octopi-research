@@ -159,6 +159,7 @@ class Microcontroller():
     def move_x_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
+        print(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
             n_microsteps_partial_abs = (2**32)/2 - 1
@@ -214,6 +215,7 @@ class Microcontroller():
     def move_y_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
+        print(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
             n_microsteps_partial_abs = (2**32)/2 - 1

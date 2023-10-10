@@ -189,8 +189,8 @@ void set_DAC8050x_output(int channel, uint16_t value)
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
 const uint32_t clk_Hz_TMC4361 = 16000000;
-const uint8_t lft_sw_pol[4] = {1,1,0,1};
-const uint8_t rht_sw_pol[4] = {1,1,0,1};
+const uint8_t lft_sw_pol[4] = {0,0,0,1};
+const uint8_t rht_sw_pol[4] = {0,0,0,1};
 const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, RGHT_SW, LEFT_SW};
 const int32_t vslow = 0x04FFFC00;
 
@@ -718,6 +718,10 @@ void setup() {
 
   // strobe timer
   strobeTimer.begin(ISR_strobeTimer,strobeTimer_interval_us);
+
+  // motor stall prevention
+  tmc4361A_config_init_stallGuard(&tmc4361[x], 12, true, 1);
+  tmc4361A_config_init_stallGuard(&tmc4361[y], 12, true, 1);
 
 }
 
@@ -1348,12 +1352,12 @@ void loop() {
           // Init encoder. transitions per revolution, velocity filter wait time (# of clock cycles), IIR filter exponent, vmean update frequency, invert direction (must increase as microsteps increases)
           tmc4361A_init_ABN_encoder(&tmc4361[axis], transitions_per_revolution, 32, 4, 512, flip_direction);
           // Init PID. target reach tolerance, position error tolerance, P, I, and D coefficients, max speed, winding limit, derivative update rate
-          if (axis == 0)
-            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 4096, 2);
-          else if (axis == 1)
-            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 4096, 2);
-          else
+          if (axis == z)
             tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
+          else if (axis == y)
+            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 8192, 131072, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 32767, 2);
+          else
+            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 8192, 131072, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 32767, 2);
           break;
         }
         case ENABLE_STAGE_PID:
@@ -1776,7 +1780,7 @@ void loop() {
     if(checksum_error)
       buffer_tx[1] = CMD_CHECKSUM_ERROR; // cmd_execution_status
     else
-      buffer_tx[1] = mcu_cmd_execution_in_progress; // cmd_execution_status
+      buffer_tx[1] = mcu_cmd_execution_in_progress ? IN_PROGRESS : COMPLETED_WITHOUT_ERRORS; // cmd_execution_status
     
     uint32_t X_pos_int32t = uint32_t( X_use_encoder?X_pos:int32_t(tmc4361A_currentPosition(&tmc4361[x])) );
     buffer_tx[2] = byte(X_pos_int32t>>24);
@@ -1845,19 +1849,18 @@ void loop() {
     flag_send_pos_update = false;
     
   }
-
   // check if commanded position has been reached
-  if(X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x])==X_commanded_target_position && !is_homing_X) // homing is handled separately
+  if(X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x])==X_commanded_target_position && !is_homing_X && !tmc4361A_isRunning(&tmc4361[x])) // homing is handled separately
   {
     X_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
-  if(Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y])==Y_commanded_target_position && !is_homing_Y)
+  if(Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y])==Y_commanded_target_position && !is_homing_Y && !tmc4361A_isRunning(&tmc4361[y]))
   {
     Y_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
   }
-  if(Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z])==Z_commanded_target_position && !is_homing_Z)
+  if(Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z])==Z_commanded_target_position && !is_homing_Z && !tmc4361A_isRunning(&tmc4361[z]))
   {
     Z_commanded_movement_in_progress = false;
     mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
