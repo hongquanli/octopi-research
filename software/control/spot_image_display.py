@@ -830,7 +830,7 @@ class DataHandler(QObject):
         print(self.data_pd)
 
         #self.data_pd = self.data_pd.sort_values('output',ascending=False)
-        # self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
+        #self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
         if self.spot_idx_sorted is None:
             self.spot_idx_sorted = self.data_pd[
             ( self.data_pd['annotation'].isin(self.filter_label) ) &

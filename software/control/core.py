@@ -1077,7 +1077,7 @@ class MultiPointWorker(QObject):
         self.multiPointController = multiPointController
 
         self.signal_update_stats.connect(self.update_stats)
-
+        self.start_time = 0
         self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
@@ -1142,6 +1142,8 @@ class MultiPointWorker(QObject):
 
     def run(self):
 
+        self.start_time = time.perf_counter_ns()
+
         if self.multiPointController.location_list is None:
             # use scanCoordinates for well plates or regular multipoint scan
             if self.multiPointController.scanCoordinates!=None:
@@ -1187,6 +1189,8 @@ class MultiPointWorker(QObject):
                     time.sleep(0.05)
         self.processingHandler.processing_queue.join()
         self.processingHandler.upload_queue.join()
+        elapsed_time = time.perf_counter_ns()-self.start_time
+        print("Time taken for acquisition/processing: "+str(elapsed_time/10**9))
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
