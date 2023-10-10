@@ -442,6 +442,7 @@ class Camera_Simulation(object):
         self.current_frame = None
 
         self.callback_is_enabled = False
+        self.is_streaming = False
 
         self.GAIN_MAX = 24
         self.GAIN_MIN = 0
