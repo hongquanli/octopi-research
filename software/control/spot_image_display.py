@@ -829,9 +829,10 @@ class DataHandler(QObject):
         print(self.images.shape)
         print(self.data_pd)
 
-        self.data_pd = self.data_pd.sort_values('output',ascending=False)
+        #self.data_pd = self.data_pd.sort_values('output',ascending=False)
         # self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
-        self.spot_idx_sorted = self.data_pd[
+        if self.spot_idx_sorted is None:
+            self.spot_idx_sorted = self.data_pd[
             ( self.data_pd['annotation'].isin(self.filter_label) ) &
             ( ( self.data_pd['output'].between(self.filter_score_min,self.filter_score_max) ) | ( self.data_pd['output']==-1 ) )
             ].index.to_numpy().astype(int) # apply the filters
