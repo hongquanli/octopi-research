@@ -1104,6 +1104,9 @@ class MultiPointWorker(QObject):
 
     def run(self):
 
+        if self.camera.is_streaming == False:
+             self.camera.start_streaming()
+
         if self.multiPointController.location_list is None:
             # use scanCoordinates for well plates or regular multipoint scan
             if self.multiPointController.scanCoordinates!=None:
