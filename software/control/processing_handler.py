@@ -110,7 +110,7 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     no_parasites = len(score)
     if multiPointWorker is not None:
         new_counts = {"Total RBC": no_cells, "Total Parasites": no_parasites}
-        multiPointWorker.signal_update_stats.emit(new_counts)
+        multiPointWorker.update_stats(new_counts)
         multiPointWorker.image_to_display_multi.emit(overlay, 12)
         multiPointWorker.image_to_display_multi.emit(dpc_image, 13)
     return_dict = {}

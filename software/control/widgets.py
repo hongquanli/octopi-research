@@ -853,7 +853,7 @@ class StatsDisplayWidget(QFrame):
             key_item = QTableWidgetItem(str(key))
             value_item = QTableWidgetItem(str(value))
             self.table_widget.setItem(row,0,key_item)
-            self.table_wdiget.setItem(row,1,value_item)
+            self.table_widget.setItem(row,1,value_item)
             row+=1
 
 

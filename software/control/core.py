@@ -1117,14 +1117,14 @@ class MultiPointWorker(QObject):
         # hard-coded model initialization
         #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
         #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
-        model_path = 'models/m2unet_model_flat_erode2_wdecay5_smallbatch/laptop_model_1073_9.engine'
+        model_path='/home/prakashlab/Documents/tmp/model_segmentation_1073_9.pth'
         assert os.path.exists(model_path)
-        self.use_trt=True
+        self.use_trt=False
         self.make_over = True
         self.crop = 1500
         self.model = m2u(pretrained_model=model_path, use_trt=self.use_trt)
         # run some dummy data thru model - warm-up
-        dummy_data = (255 * np.random.rand(3000, 3000)).astype(np.uint8)
+        dummy_data = (255 * np.random.rand(3000,3000)).astype(np.uint8)
         self.model.predict_on_images(dummy_data)
         self.t_dpc = []
         self.t_inf = []
@@ -1185,6 +1185,8 @@ class MultiPointWorker(QObject):
                     if self.multiPointController.abort_acqusition_requested:
                         break
                     time.sleep(0.05)
+        self.processingHandler.processing_queue.join()
+        self.processingHandler.upload_queue.join()
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -1435,7 +1437,7 @@ class MultiPointWorker(QObject):
 
                             # real time processing 
                             if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
-                                if False: # testing mode
+                                if True: # testing mode
                                     I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
                                     I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')

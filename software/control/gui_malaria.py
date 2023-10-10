@@ -357,7 +357,7 @@ class OctopiGUI(QMainWindow):
 		# deep learning classification
 		self.classification_th = 0.8
 		# model
-		model_path = '/home/cephla/Documents/tmp/model_perf_r34_b32.pt'
+		model_path = '/home/prakashlab/Documents/tmp/model_perf_r34_b32.pt'
 		if torch.cuda.is_available():
 		    self.model = torch.load(model_path)
 		else:
@@ -367,7 +367,7 @@ class OctopiGUI(QMainWindow):
 		# cuda
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.model = self.model.to(self.device)
-		dummy_input = torch.randn(1024, 4, 31, 31)  # Adjust as per your input shape
+		dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
 		if torch.cuda.is_available():
 		    dummy_input = dummy_input.cuda()
 		_ = self.model(dummy_input)
