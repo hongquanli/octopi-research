@@ -845,6 +845,9 @@ class StatsDisplayWidget(QFrame):
         self.layout = QVBoxLayout()
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(2)
+        self.table_widget.verticalHeader().hide()
+        self.table_widget.horizontalHeader().hide()
+        self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.layout.addWidget(self.table_widget)
         self.setLayout(self.layout)
 

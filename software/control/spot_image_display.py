@@ -776,7 +776,6 @@ class DataHandler(QObject):
             self.data_pd = self.data_pd.drop(columns=['output'])
         self.data_pd = self.data_pd.merge(annotation_pd,left_index=True, right_index=True, how='outer')
         print(self.data_pd)
-
         # sort the predictions
         self.data_pd = self.data_pd.sort_values('output',ascending=False)
         # self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
@@ -819,20 +818,22 @@ class DataHandler(QObject):
         # emit the results for display
         self.signal_predictions.emit(self.data_pd['output'].to_numpy(),self.data_pd['annotation'].to_numpy())
 
-    def add_data(self,images,predictions_df):
-
-        self.images = np.concatenate((self.images,images),axis=0)
+    def add_data(self,images,predictions_df, sort = False):
+    
+        self.images = np.concatenate((images, self.images),axis=0)
 
         predictions_df.index += self.data_pd.shape[0]
         predictions_df['annotation'] = -1
-        self.data_pd = pd.concat([self.data_pd, predictions_df])
+        predictions_df = predictions_df.sort_values('output',ascending=False)
+        self.data_pd = pd.concat([predictions_df, self.data_pd])
 
         print(self.images.shape)
         print(self.data_pd)
-        sort_time = time.perf_counter_ns()
-        self.data_pd = self.data_pd.sort_values('output',ascending=False)
-        sort_time = time.perf_counter_ns()-sort_time
-        print("data_pd sorting took: "+str(sort_time/10**6)+" ms")
+        if sort:
+            sort_time = time.perf_counter_ns()
+            self.data_pd = self.data_pd.sort_values('output',ascending=False)
+            sort_time = time.perf_counter_ns()-sort_time
+            print("data_pd sorting took: "+str(sort_time/10**6)+" ms")
         #self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
         spot_idx_time = time.perf_counter_ns()
         if True:
@@ -841,6 +842,7 @@ class DataHandler(QObject):
             ( ( self.data_pd['output'].between(self.filter_score_min,self.filter_score_max) ) | ( self.data_pd['output']==-1 ) )
             ].index.to_numpy().astype(int) # apply the filters
         spot_idx_time = time.perf_counter_ns()-spot_idx_time
+        print(self.spot_idx_sorted)
         print("spot_idx_sorted generation took: "+str(spot_idx_time/10**6)+" ms")
         
         # self.signal_set_total_page_count.emit(int(np.ceil(self.get_number_of_rows()/self.n_images_per_page)))
