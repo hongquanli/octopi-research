@@ -663,6 +663,7 @@ class TrainingAndVisualizationWidget(QFrame):
 class DataHandler(QObject):
 
     signal_populate_page0 = pyqtSignal()
+    signal_populate_top_results = pyqtSignal()
     signal_set_total_page_count = pyqtSignal(int)
     signal_sorting_method = pyqtSignal(str)
     signal_annotation_stats = pyqtSignal(np.ndarray)
@@ -828,14 +829,19 @@ class DataHandler(QObject):
 
         print(self.images.shape)
         print(self.data_pd)
-
-        #self.data_pd = self.data_pd.sort_values('output',ascending=False)
+        sort_time = time.perf_counter_ns()
+        self.data_pd = self.data_pd.sort_values('output',ascending=False)
+        sort_time = time.perf_counter_ns()-sort_time
+        print("data_pd sorting took: "+str(sort_time/10**6)+" ms")
         #self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
-        if self.spot_idx_sorted is None:
+        spot_idx_time = time.perf_counter_ns()
+        if True:
             self.spot_idx_sorted = self.data_pd[
             ( self.data_pd['annotation'].isin(self.filter_label) ) &
             ( ( self.data_pd['output'].between(self.filter_score_min,self.filter_score_max) ) | ( self.data_pd['output']==-1 ) )
             ].index.to_numpy().astype(int) # apply the filters
+        spot_idx_time = time.perf_counter_ns()-spot_idx_time
+        print("spot_idx_sorted generation took: "+str(spot_idx_time/10**6)+" ms")
         
         # self.signal_set_total_page_count.emit(int(np.ceil(self.get_number_of_rows()/self.n_images_per_page)))
         self.signal_set_total_page_count.emit(int(np.ceil(len(self.spot_idx_sorted)/self.n_images_per_page)))
@@ -972,10 +978,12 @@ class DataHandler(QObject):
         print(criterion)
         if criterion == 'Sort by prediction score':
             self.data_pd = self.data_pd.sort_values('output',ascending=False)
+            '''
             self.spot_idx_sorted = self.data_pd[
             ( self.data_pd['annotation'].isin(self.filter_label) ) &
             ( ( self.data_pd['output'].between(self.filter_score_min,self.filter_score_max) ) | ( self.data_pd['output']==-1 ) )
             ].index.to_numpy().astype(int)
+            '''
         elif criterion == 'Sort by labels':
             self.data_pd = self.data_pd.sort_values('annotation',ascending=False)
         elif criterion == 'Sort by similarity':

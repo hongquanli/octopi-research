@@ -1138,6 +1138,8 @@ class MultiPointWorker(QObject):
             except:
                 self.detection_stats[k] = 0
                 self.detection_stats[k]+=new_stats[k]
+        if "Total RBC" in self.detection_stats and "Total Parasites" in self.detection_stats:
+            self.detection_stats["Parasites per uL"] = 5e6*(self.detection_stats["Total Parasites"]/self.detection_stats["Total RBC"])
         self.signal_detection_stats.emit(self.detection_stats)
 
     def run(self):
@@ -1633,7 +1635,7 @@ class MultiPointController(QObject):
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader, images_per_page_during_acquisition=20):
         QObject.__init__(self)
 
         self.camera = camera
@@ -1675,6 +1677,10 @@ class MultiPointController(QObject):
         self.scanCoordinates = scanCoordinates
         self.parent = parent
 
+        self.images_per_page_during_acquisition = images_per_page_during_acquisition
+        self.old_images_per_page = 1
+        if self.parent is not None:
+            self.old_images_per_page = self.parent.dataHandler.n_images_per_page
         self.location_list = None # for flexible multipoint
 
     def set_NX(self,N):
@@ -1736,6 +1742,8 @@ class MultiPointController(QObject):
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
+        if self.parent is not None:
+            self.parent.dataHandler.set_number_of_images_per_page(self.images_per_page_during_acquisition)
         self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
@@ -1816,6 +1824,9 @@ class MultiPointController(QObject):
         
         # emit the acquisition finished signal to enable the UI
         self.processingHandler.end_processing()
+        if self.parent is not None:
+            self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+            self.parent.dataHandler.signal_populate_page0.emit()
         self.acquisitionFinished.emit()
         QApplication.processEvents()
 

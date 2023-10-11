@@ -78,6 +78,16 @@ class OctopiGUI(QMainWindow):
 		self.navigationController = core.NavigationController(self.microcontroller)
 		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
+		# Display of detection result
+		# core
+		self.dataHandler = DataHandler()
+		self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
+
+		self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
+		self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
+
+		self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
+		self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
 		if ENABLE_TRACKING:
 			self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
@@ -240,17 +250,6 @@ class OctopiGUI(QMainWindow):
 
 		self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
 		self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
-
-		# Display of detection result
-		# core
-		self.dataHandler = DataHandler()
-		self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
-
-		self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
-		self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
-
-		self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
-		self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
 
 		# widgets
 		self.dataLoaderWidget = DataLoaderWidget(self.dataHandler)

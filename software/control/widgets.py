@@ -3,6 +3,8 @@ import os
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
+import locale
+
 # qt libraries
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
@@ -847,11 +849,16 @@ class StatsDisplayWidget(QFrame):
         self.setLayout(self.layout)
 
     def display_stats(self, stats):
+        locale.setlocale(locale.LC_ALL, '')
         self.table_widget.setRowCount(len(stats))
         row = 0
         for key, value in stats.items():
             key_item = QTableWidgetItem(str(key))
-            value_item = QTableWidgetItem(str(value))
+            value_item = None
+            try:
+                value_item = QTableWidgetItem(f'{value:n}')
+            except:
+                value_item = QTableWidgetItem(str(value))
             self.table_widget.setItem(row,0,key_item)
             self.table_widget.setItem(row,1,value_item)
             row+=1
