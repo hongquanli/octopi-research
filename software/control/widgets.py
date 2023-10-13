@@ -16,6 +16,125 @@ from datetime import datetime
 
 from control._def import *
 
+
+class ConfigEditorWidget(QDialog):
+    def __init__(self, config, original_filename = None, main_window = None):
+        super().__init__()
+
+        self.config = config
+        self.original_filename = original_filename
+        self.main_window = main_window
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.layout = QVBoxLayout()
+
+        self.table = QTableWidget()
+        self.setup_table()
+        self.layout.addWidget(self.table)
+
+        self.load_button = QPushButton("Load and View Configuration")
+        self.load_button.clicked.connect(self.load_config)
+        self.layout.addWidget(self.load_button)
+
+        '''
+        self.save_button = QPushButton("Apply Changes")
+        self.save_button.clicked.connect(self.save_config)
+        self.layout.addWidget(self.save_button)
+        '''
+
+        self.save_exit_button = QPushButton("Apply Changes and Exit")
+        self.save_exit_button.clicked.connect(self.apply_and_exit)
+        self.layout.addWidget(self.save_exit_button)
+
+        self.save_file_button = QPushButton("Save to File")
+        self.save_file_button.clicked.connect(self.save_to_file)
+        self.layout.addWidget(self.save_file_button)
+        
+        self.setMinimumWidth(int(self.main_window.width()*2/3)+10)
+        self.setLayout(self.layout)
+
+    def setup_table(self):
+        sections = self.config.sections()
+
+        self.table.setColumnCount(3)
+        self.table.setRowCount(0)
+        self.table.setHorizontalHeaderLabels(["Section", "Option", "Value"])
+
+        for section in sections:
+            for option, value in self.config.items(section):
+                if option.startswith('_') and option.endswith('_options'):
+                    # Skip displaying options with leading underscore and trailing "_options"
+                    continue
+                self.table.insertRow(self.table.rowCount())
+                self.table.setItem(self.table.rowCount() - 1, 0, QTableWidgetItem(section))
+                self.table.setItem(self.table.rowCount() - 1, 1, QTableWidgetItem(option))
+                if self.config.has_option(section, f'_{option}_options'):
+                    # Create a dropdown for options with "_options"
+                    options = self.config.get(section, f'_{option}_options')
+                    options = options.strip('[]').split(',')
+                    combo = QComboBox()
+                    for i in range(len(options)):
+                        options[i] = options[i].strip()
+                    value = value.strip()
+                    if value not in options:
+                        options.append(value)
+                    combo.addItems(options)
+                    combo.setCurrentText(value)
+                    self.table.setCellWidget(self.table.rowCount() - 1, 2, combo)
+                else:
+                    self.table.setItem(self.table.rowCount() - 1, 2, QTableWidgetItem(value))
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+    def apply_and_exit(self):
+        if self.original_filename is None:
+            self.save_to_file()
+        else:
+            file_path = self.original_filename
+            self.save_config()
+            with open(file_path, 'w') as file:
+                self.config.write(file)
+        if self.main_window is not None:
+            self.main_window.close()
+        self.close()
+
+    def save_config(self):
+        for row in range(self.table.rowCount()):
+            section = self.table.item(row, 0).text()
+            option = self.table.item(row, 1).text()
+            if self.table.cellWidget(row, 2):
+                value = self.table.cellWidget(row, 2).currentText()
+            else:
+                value = self.table.item(row, 2).text()
+            self.config.set(section, option, value)
+
+    def save_to_file(self):
+        file_dialog = QFileDialog(self)
+        file_dialog.setFileMode(QFileDialog.AnyFile)
+        file_dialog.setAcceptMode(QFileDialog.AcceptSave)
+
+        if file_dialog.exec_():
+            file_path = file_dialog.selectedFiles()[0]
+            self.save_config()
+            with open(file_path, 'w') as file:
+                self.config.write(file)
+
+    def load_config(self):
+        file_dialog = QFileDialog(self)
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+
+        if file_dialog.exec_():
+            file_path = file_dialog.selectedFiles()[0]
+
+            new_config = ConfigParser()
+            new_config.read(file_path)
+
+            self.config = new_config
+
+            self.table.clear()
+            self.setup_table()
+
+
 class CameraSettingsWidget(QFrame):
 
     signal_camera_set_temperature = Signal(float)
