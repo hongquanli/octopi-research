@@ -12,7 +12,11 @@ def print_positon_stats(t0):
         
 microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
 navigationController = core.NavigationController(microcontroller)
-
+microcontroller.initialize_drivers()
+        
+# init. current pos
+#microcontroller.zero_x()
+#microcontroller.zero_y()
 # configure PID
 microcontroller.configure_stage_pid(0, transitions_per_revolution=16282, flip_direction=True)
 microcontroller.configure_stage_pid(1, transitions_per_revolution=16282, flip_direction=False)
@@ -20,10 +24,13 @@ microcontroller.configure_stage_pid(2, transitions_per_revolution=16282, flip_di
 # microcontroller.turn_on_stage_pid(0)
 # microcontroller.turn_on_stage_pid(1)
 
+
+
 #microcontroller.turn_off_stage_pid(2)
 microcontroller.turn_on_stage_pid(0)
 microcontroller.turn_on_stage_pid(1)
 microcontroller.turn_on_stage_pid(2)
+                
 displacement = 10
 
 t0 = time.time()
