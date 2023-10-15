@@ -91,7 +91,7 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
-		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.scanCoordinates = core.ScanCoordinates()
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
@@ -101,6 +101,7 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
 
+		'''
 		if HOMING_ENABLED_Z:
 			# retract the objective
 			self.navigationController.home_z()
@@ -166,6 +167,64 @@ class OctopiGUI(QMainWindow):
 				if time.time() - t0 > 5:
 					print('z return timeout, the program will exit')
 					exit()
+		'''
+
+		# retract the objective
+		self.navigationController.home_z()
+		# wait for the operation to finish
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('z homing timeout, the program will exit')
+				exit()
+		print('objective retracted')
+		self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+
+		# home XY, set zero and set software limit
+		print('home xy')
+		timestamp_start = time.time()
+		# x needs to be at > + 20 mm when homing y
+		self.navigationController.move_x(20) # to-do: add blocking code
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+		# home y
+		self.navigationController.home_y()
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('y homing timeout, the program will exit')
+				exit()
+		self.navigationController.zero_y()
+		# home x
+		self.navigationController.home_x()
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('y homing timeout, the program will exit')
+				exit()
+		self.navigationController.zero_x()
+		self.slidePositionController.homing_done = True
+
+		# move to scanning position
+		self.navigationController.move_x(20)
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+		self.navigationController.move_y(20)
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+
+		# move z
+		self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+		# wait for the operation to finish
+		t0 = time.time() 
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 5:
+				print('z return timeout, the program will exit')
+				exit()
 		
 		# open the camera
 		# camera start streaming
@@ -365,6 +424,7 @@ class OctopiGUI(QMainWindow):
 			self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
 			self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
 			self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+
 
 	def closeEvent(self, event):
 		

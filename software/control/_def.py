@@ -367,6 +367,9 @@ MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 
 RUN_CUSTOM_MULTIPOINT = False
 
+RETRACT_OBJECTIVE_BEFORE_MOVING_TO_LOADING_POSITION = True
+OBJECTIVE_RETRACTED_POS_MM = 0.1
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

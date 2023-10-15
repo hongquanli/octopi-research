@@ -580,9 +580,11 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '384 well plate':
+            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '96 well plate':
+            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
@@ -688,7 +690,7 @@ class NavigationWidget(QFrame):
     def slot_slide_loading_position_reached(self):
         self.slide_position = 'loading'
         self.btn_load_slide.setStyleSheet("background-color: #C2FFC2");
-        self.btn_load_slide.setText('To Slide Scanning Position')
+        self.btn_load_slide.setText('To Scanning Position')
         self.btn_moveX_forward.setEnabled(False)
         self.btn_moveX_backward.setEnabled(False)
         self.btn_moveY_forward.setEnabled(False)
@@ -699,7 +701,7 @@ class NavigationWidget(QFrame):
     def slot_slide_scanning_position_reached(self):
         self.slide_position = 'scanning'
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
-        self.btn_load_slide.setText('To Slide Loading Position')
+        self.btn_load_slide.setText('To Loading Position')
         self.btn_moveX_forward.setEnabled(True)
         self.btn_moveX_backward.setEnabled(True)
         self.btn_moveY_forward.setEnabled(True)

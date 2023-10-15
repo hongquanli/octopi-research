@@ -59,9 +59,9 @@ X_MOTOR_I_HOLD = 0.25
 Y_MOTOR_I_HOLD = 0.25
 Z_MOTOR_I_HOLD = 0.5
 
-MAX_VELOCITY_X_mm = 40
-MAX_VELOCITY_Y_mm = 40
-MAX_VELOCITY_Z_mm = 2
+MAX_VELOCITY_X_mm = 30
+MAX_VELOCITY_Y_mm = 30
+MAX_VELOCITY_Z_mm = 4
 
 MAX_ACCELERATION_X_mm = 500
 MAX_ACCELERATION_Y_mm = 500
@@ -69,8 +69,8 @@ MAX_ACCELERATION_Z_mm = 100
 
 # end of actuator specific configurations
 
-SCAN_STABILIZATION_TIME_MS_X = 160
-SCAN_STABILIZATION_TIME_MS_Y = 160
+SCAN_STABILIZATION_TIME_MS_X = 25
+SCAN_STABILIZATION_TIME_MS_Y = 25
 SCAN_STABILIZATION_TIME_MS_Z = 20
 
 # limit switch
@@ -106,7 +106,7 @@ class PLATE_READER:
     OFFSET_COLUMN_1_MM = 20
     OFFSET_ROW_A_MM = 20
 
-DEFAULT_DISPLAY_CROP = 60 # value ranges from 1 to 100 - image display crop size 
+DEFAULT_DISPLAY_CROP = 85 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'PYTHON300':4.8}
 OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
@@ -118,7 +118,7 @@ OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
                 '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
-DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
+DEFAULT_OBJECTIVE = '20x'
 TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
 DEFAULT_TRACKER = 'csrt'
 
@@ -147,6 +147,16 @@ class SOFTWARE_POS_LIMIT:
     Y_NEGATIVE = 6
     Z_POSITIVE = 6
     
+class Acquisition:
+    CROP_WIDTH = 3000
+    CROP_HEIGHT = 3000
+    NUMBER_OF_FOVS_PER_AF = 3
+    IMAGE_FORMAT = 'bmp'
+    IMAGE_DISPLAY_SCALING_FACTOR = 0.85
+    DX = 0.9
+    DY = 0.9
+    DZ = 1.5
+    
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 12.41
 Y_MM_384_WELLPLATE_UPPERLEFT = 11.18
@@ -156,10 +166,26 @@ WELLPLATE_OFFSET_X_mm = 0
 WELLPLATE_OFFSET_Y_mm = 0
 
 # default z
-DEFAULT_Z_POS_MM = 5.21825
+# DEFAULT_Z_POS_MM = 5.21825
+DEFAULT_Z_POS_MM = 2.287
+
+class SLIDE_POSITION:
+    LOADING_X_MM = 0.5
+    LOADING_Y_MM = 0.5
+    SCANNING_X_MM = 20
+    SCANNING_Y_MM = 20
 
 # well plate format selection
 WELLPLATE_FORMAT = 384
 
 FOCUS_MEASURE_OPERATOR = 'GLVA'
 CONTROLLER_VERSION = 'Teensy'
+
+SUPPORT_LASER_AUTOFOCUS = True
+MAIN_CAMERA_MODEL = 'MER-1220-32U3M'
+FOCUS_CAMEARA_MODEL = 'MER2-630-60U3M'
+FOCUS_CAMERA_EXPOSURE_TIME_MS = 0.8
+
+HAS_TWO_INTERFACES = True
+
+ENABLE_FLEXIBLE_MULTIPOINT = True
