@@ -84,7 +84,7 @@ class ConfigEditor(QDialog):
                 option_layout.addWidget(option_name)
                 if f'_{option}_options' in self.config.options(section):
                     option_value_list = self.config.get(section,f'_{option}_options')
-                    values = option_value_list.strip('[]').split(', ')
+                    values = option_value_list.strip('[]').split(',')
                     for i in range(len(values)):
                         values[i] = values[i].strip()
                     if option_value not in values:
