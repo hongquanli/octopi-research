@@ -11,7 +11,7 @@ from qtpy.QtGui import *
 
 # app specific libraries
 import control.gui_malaria as gui
-from control.widgets import ConfigEditorWidget
+from control.widgets import ConfigEditorBackwardsCompatible
 
 from configparser import ConfigParser
 import glob
@@ -21,7 +21,7 @@ parser.add_argument("--simulation", help="Run the GUI with simulated hardware.",
 args = parser.parse_args()
 
 def show_config(cfp, configpath, main_gui):
-    config_widget = ConfigEditorWidget(cfp, configpath, main_gui)
+    config_widget = ConfigEditorBackwardsCompatible(cfp, configpath, main_gui)
     config_widget.exec_()
 
 if __name__ == "__main__":

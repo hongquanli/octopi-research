@@ -16,124 +16,147 @@ from datetime import datetime
 
 from control._def import *
 
+class CollapsibleGroupBox(QGroupBox):
+    def __init__(self, title):
+        super(CollapsibleGroupBox,self).__init__(title)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.higher_layout = QVBoxLayout()
+        self.content = QVBoxLayout()
+        #self.content.setAlignment(Qt.AlignTop)
+        self.content_widget = QWidget()
+        self.content_widget.setLayout(self.content)
+        self.higher_layout.addWidget(self.content_widget)
+        self.setLayout(self.higher_layout)
+        self.toggled.connect(self.toggle_content)
 
-class ConfigEditorWidget(QDialog):
-    def __init__(self, config, original_filename = None, main_window = None):
+    def toggle_content(self,state):
+        self.content_widget.setVisible(state)
+
+class ConfigEditor(QDialog):
+    def __init__(self, config):
         super().__init__()
 
         self.config = config
-        self.original_filename = original_filename
-        self.main_window = main_window
-        self.setup_ui()
 
-    def setup_ui(self):
-        self.layout = QVBoxLayout()
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area_widget = QWidget()
+        self.scroll_area_layout = QVBoxLayout()
+        self.scroll_area_widget.setLayout(self.scroll_area_layout)
+        self.scroll_area.setWidget(self.scroll_area_widget)
 
-        self.table = QTableWidget()
-        self.setup_table()
-        self.layout.addWidget(self.table)
+        self.save_config_button = QPushButton("Save Config")
+        self.save_config_button.clicked.connect(self.save_config)
+        self.save_to_file_button = QPushButton("Save to File")
+        self.save_to_file_button.clicked.connect(self.save_to_file)
+        self.load_config_button = QPushButton("Load Config from File")
+        self.load_config_button.clicked.connect(self.load_config_from_file)
 
-        self.load_button = QPushButton("Load and View Configuration")
-        self.load_button.clicked.connect(self.load_config)
-        self.layout.addWidget(self.load_button)
+        layout = QVBoxLayout()
+        layout.addWidget(self.scroll_area)
+        layout.addWidget(self.save_config_button)
+        layout.addWidget(self.save_to_file_button)
+        layout.addWidget(self.load_config_button)
 
-        '''
-        self.save_button = QPushButton("Apply Changes")
-        self.save_button.clicked.connect(self.save_config)
-        self.layout.addWidget(self.save_button)
-        '''
+        self.config_value_widgets = {}
 
-        self.save_exit_button = QPushButton("Apply Changes and Exit")
-        self.save_exit_button.clicked.connect(self.apply_and_exit)
-        self.layout.addWidget(self.save_exit_button)
+        self.setLayout(layout)
+        self.setWindowTitle("Configuration Editor")
+        self.init_ui()
 
-        self.save_file_button = QPushButton("Save to File")
-        self.save_file_button.clicked.connect(self.save_to_file)
-        self.layout.addWidget(self.save_file_button)
-        
-        self.setMinimumWidth(int(self.main_window.width()*2/3)+10)
-        self.setLayout(self.layout)
+    def init_ui(self):
+        self.groups = {}
+        for section in self.config.sections():
+            group_box = CollapsibleGroupBox(section)
+            group_layout = QVBoxLayout()
 
-    def setup_table(self):
-        sections = self.config.sections()
+            section_value_widgets = {}
 
-        self.table.setColumnCount(3)
-        self.table.setRowCount(0)
-        self.table.setHorizontalHeaderLabels(["Section", "Option", "Value"])
+            self.groups[section] = group_box
 
-        for section in sections:
-            for option, value in self.config.items(section):
+            for option in self.config.options(section):
                 if option.startswith('_') and option.endswith('_options'):
-                    # Skip displaying options with leading underscore and trailing "_options"
-                    continue
-                self.table.insertRow(self.table.rowCount())
-                self.table.setItem(self.table.rowCount() - 1, 0, QTableWidgetItem(section))
-                self.table.setItem(self.table.rowCount() - 1, 1, QTableWidgetItem(option))
-                if self.config.has_option(section, f'_{option}_options'):
-                    # Create a dropdown for options with "_options"
-                    options = self.config.get(section, f'_{option}_options')
-                    options = options.strip('[]').split(',')
-                    combo = QComboBox()
-                    for i in range(len(options)):
-                        options[i] = options[i].strip()
-                    value = value.strip()
-                    if value not in options:
-                        options.append(value)
-                    combo.addItems(options)
-                    combo.setCurrentText(value)
-                    self.table.setCellWidget(self.table.rowCount() - 1, 2, combo)
+                    continue 
+                option_value = self.config.get(section, option)
+                option_name = QLabel(option)
+                option_layout = QHBoxLayout()
+                option_layout.addWidget(option_name)
+                if f'_{option}_options' in self.config.options(section):
+                    option_value_list = self.config.get(section,f'_{option}_options')
+                    values = option_value_list.strip('[]').split(', ')
+                    for i in range(len(values)):
+                        values[i] = values[i].strip()
+                    if option_value not in values:
+                        values.append(option_value)
+                    combo_box = QComboBox()
+                    combo_box.addItems(values)
+                    combo_box.setCurrentText(option_value)
+                    option_layout.addWidget(combo_box)
+                    section_value_widgets[option] = combo_box
                 else:
-                    self.table.setItem(self.table.rowCount() - 1, 2, QTableWidgetItem(value))
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+                    option_input = QLineEdit(option_value)
+                    option_layout.addWidget(option_input)
+                    section_value_widgets[option] = option_input
+                group_layout.addLayout(option_layout)
 
-    def apply_and_exit(self):
-        if self.original_filename is None:
-            self.save_to_file()
-        else:
-            file_path = self.original_filename
-            self.save_config()
-            with open(file_path, 'w') as file:
-                self.config.write(file)
-        if self.main_window is not None:
-            self.main_window.close()
-        self.close()
+            self.config_value_widgets[section] = section_value_widgets
+            group_box.content.addLayout(group_layout)
+            self.scroll_area_layout.addWidget(group_box)
 
     def save_config(self):
-        for row in range(self.table.rowCount()):
-            section = self.table.item(row, 0).text()
-            option = self.table.item(row, 1).text()
-            if self.table.cellWidget(row, 2):
-                value = self.table.cellWidget(row, 2).currentText()
-            else:
-                value = self.table.item(row, 2).text()
-            self.config.set(section, option, value)
+        for section in self.config.sections():
+            for option in self.config.options(section):
+                if option.startswith("_") and option.endswith("_options"):
+                    continue
+                old_val = self.config.get(section, option)
+                widget = self.config_value_widgets[section][option]
+                if type(widget) is QLineEdit:
+                    self.config.set(section, option, widget.text())
+                else:
+                    self.config.set(section, option, widget.currentText())
+                if old_val != self.config.get(section,option):
+                    print(self.config.get(section,option))
 
     def save_to_file(self):
-        file_dialog = QFileDialog(self)
-        file_dialog.setFileMode(QFileDialog.AnyFile)
-        file_dialog.setAcceptMode(QFileDialog.AcceptSave)
+        self.save_config()
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Config File", '', "INI Files (*.ini);;All Files (*)")
+        if file_path:
+            with open(file_path, 'w') as configfile:
+                self.config.write(configfile)
 
-        if file_dialog.exec_():
-            file_path = file_dialog.selectedFiles()[0]
-            self.save_config()
-            with open(file_path, 'w') as file:
-                self.config.write(file)
+    def load_config_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Load Config File", '', "INI Files (*.ini);;All Files (*)")
+        if file_path:
+            self.config.read(file_path)
+            # Clear and re-initialize the UI
+            self.scroll_area_widget.deleteLater()
+            self.scroll_area_widget = QWidget()
+            self.scroll_area_layout = QVBoxLayout()
+            self.scroll_area_widget.setLayout(self.scroll_area_layout)
+            self.scroll_area.setWidget(self.scroll_area_widget)
+            self.init_ui()
 
-    def load_config(self):
-        file_dialog = QFileDialog(self)
-        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+class ConfigEditorBackwardsCompatible(ConfigEditor):
+    def __init__(self, config, original_filepath, main_window):
+        super().__init__(config)
+        self.original_filepath = original_filepath
+        self.main_window = main_window
+        
+        self.apply_exit_button = QPushButton("Apply and Exit")
+        self.apply_exit_button.clicked.connect(self.apply_and_exit)
 
-        if file_dialog.exec_():
-            file_path = file_dialog.selectedFiles()[0]
+        self.layout().addWidget(self.apply_exit_button)
 
-            new_config = ConfigParser()
-            new_config.read(file_path)
-
-            self.config = new_config
-
-            self.table.clear()
-            self.setup_table()
-
+    def apply_and_exit(self):
+        self.save_config()
+        with open(self.original_filepath, 'w') as configfile:
+            self.config.write(configfile)
+        try:
+            self.main_window.close()
+        except:
+            pass
+        self.close()
 
 class CameraSettingsWidget(QFrame):
 
