@@ -1,6 +1,7 @@
 import cv2
 from numpy import std, square, mean
 import numpy as np
+from scipy.ndimage import label
 
 def crop_image(image,crop_width,crop_height):
     image_height = image.shape[0]
@@ -61,3 +62,52 @@ def rotate_and_flip_image(image,rotate_image_angle,flip_image):
             image = cv2.flip(image, -1)
 
     return image
+
+def generate_dpc(im_left, im_right):
+    # Normalize the images
+    im_left = im_left.astype(float)/255
+    im_right = im_right.astype(float)/255
+    # differential phase contrast calculation
+    im_dpc = 0.5 + np.divide(im_left-im_right, im_left+im_right)
+    # take care of errors
+    im_dpc[im_dpc < 0] = 0
+    im_dpc[im_dpc > 1] = 1
+    im_dpc[np.isnan(im_dpc)] = 0
+
+    im_dpc = (im_dpc * 255).astype(np.uint8)
+
+    return im_dpc
+
+def colorize_mask(mask):
+    # Label the detected objects
+    labeled_mask, ___ = label(mask)
+    # Color them
+    colored_mask = np.array((labeled_mask * 83) % 255, dtype=np.uint8)
+    colored_mask = cv2.applyColorMap(colored_mask, cv2.COLORMAP_HSV)
+    # make sure background is black
+    colored_mask[labeled_mask == 0] = 0
+    return colored_mask
+
+def colorize_mask_get_counts(mask):
+    # Label the detected objects
+    labeled_mask, no_cells = label(mask)
+    # Color them
+    colored_mask = np.array((labeled_mask * 83) % 255, dtype=np.uint8)
+    colored_mask = cv2.applyColorMap(colored_mask, cv2.COLORMAP_HSV)
+    # make sure background is black
+    colored_mask[labeled_mask == 0] = 0
+    return colored_mask, no_cells
+
+def overlay_mask_dpc(color_mask, im_dpc):
+    # Overlay the colored mask and DPC image
+    # make DPC 3-channel
+    im_dpc = np.stack([im_dpc]*3, axis=2)
+    return (0.75*im_dpc + 0.25*color_mask).astype(np.uint8)
+    
+def centerCrop(image, crop_sz):
+    center = image.shape
+    x = int(center[1]/2 - crop_sz/2)
+    y = int(center[0]/2 - crop_sz/2)
+    cropped = image[y:y+crop_sz, x:x+crop_sz]
+    
+    return cropped

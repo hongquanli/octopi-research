@@ -1,0 +1,21 @@
+Halcon sample
+=================
+
+For using Halcon sample.
+
+You need to install Halcon completely(Download from https://www.mvtec.com/download/halcon/).
+
+And make sure you have "$HALCONROOT" and "$HALCONARCH" in your environment.
+
+1. $HALCONROOT
+	The path you chose when installing Halcon.
+	"lib" and "include" directory must exist under this path.
+2. $HALCONARCH
+	This environment variable is related to your system architecture.
+	This variable must be the same as the folder name under the "$HALCONROOT/lib/", so you can directly make the Halcon sample program.
+
+
+Notice
+=================
+
+When using Dongle, you may need to use "sudo" to elevate privileges to execute this sample.

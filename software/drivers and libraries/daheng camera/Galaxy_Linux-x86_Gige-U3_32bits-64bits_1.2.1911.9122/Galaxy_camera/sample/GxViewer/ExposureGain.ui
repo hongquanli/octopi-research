@@ -1,0 +1,537 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CExposureGain</class>
+ <widget class="QDialog" name="CExposureGain">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>351</width>
+    <height>541</height>
+   </rect>
+  </property>
+  <property name="mouseTracking">
+   <bool>false</bool>
+  </property>
+  <property name="focusPolicy">
+   <enum>Qt::TabFocus</enum>
+  </property>
+  <property name="windowTitle">
+   <string>ExposureGain</string>
+  </property>
+  <widget class="QGroupBox" name="Exposure">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>331</width>
+     <height>151</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Exposure</string>
+   </property>
+   <widget class="QComboBox" name="ExposureAuto">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>24</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="editable">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="ExposureAutoLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>30</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ExposureAuto</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="ExposureTimeLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>60</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ExposureTime(us)</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AutoExposureTimeMax">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>120</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AutoExposureTimeMax</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="ExposureTimeSpin">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>54</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>abcd</string>
+    </property>
+    <property name="whatsThis">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="AutoExposureTimeMaxSpin">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>114</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AutoExposureTimeMinLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>90</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AutoExposureTimeMin</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="AutoExposureTimeMinSpin">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>84</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QPushButton" name="AA_Close">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>508</y>
+     <width>131</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Close</string>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="Gain">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>165</y>
+     <width>331</width>
+     <height>151</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Gain</string>
+   </property>
+   <widget class="QComboBox" name="GainAuto">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>24</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="editable">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="GainAutoLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>30</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>GainAuto</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="GainLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>60</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Gain(dB)</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AutoGainMaxLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>120</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AutoGainMax</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="GainSpin">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>54</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="AutoGainMaxSpin">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>114</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AutoGainMinLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>90</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AutoGainMin</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="AutoGainMinSpin">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>84</y>
+      <width>131</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QGroupBox" name="AA_Param">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>320</y>
+     <width>331</width>
+     <height>181</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Auto Exposure &amp;&amp; Auto Gain Param</string>
+   </property>
+   <widget class="QLabel" name="AAROIHeightLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>56</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AAROIHeight</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AAROIOffsetYLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>116</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AAROIOffsetY</string>
+    </property>
+   </widget>
+   <widget class="QSlider" name="AAROIHeightSlider">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>55</y>
+      <width>61</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="inputMethodHints">
+     <set>Qt::ImhNone</set>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+    <property name="invertedAppearance">
+     <bool>false</bool>
+    </property>
+    <property name="invertedControls">
+     <bool>false</bool>
+    </property>
+    <property name="tickPosition">
+     <enum>QSlider::NoTicks</enum>
+    </property>
+   </widget>
+   <widget class="QSlider" name="AAROIOffsetYSlider">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>115</y>
+      <width>60</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="inputMethodHints">
+     <set>Qt::ImhNone</set>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+    <property name="invertedAppearance">
+     <bool>false</bool>
+    </property>
+    <property name="invertedControls">
+     <bool>false</bool>
+    </property>
+    <property name="tickPosition">
+     <enum>QSlider::NoTicks</enum>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="AAROIHeightSpin">
+    <property name="geometry">
+     <rect>
+      <x>250</x>
+      <y>50</y>
+      <width>61</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="AAROIOffsetYSpin">
+    <property name="geometry">
+     <rect>
+      <x>250</x>
+      <y>110</y>
+      <width>61</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AAROIOffsetXLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>86</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AAROIOffsetX</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="AAROIOffsetXSpin">
+    <property name="geometry">
+     <rect>
+      <x>250</x>
+      <y>80</y>
+      <width>61</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QSlider" name="AAROIOffsetXSlider">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>85</y>
+      <width>60</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="inputMethodHints">
+     <set>Qt::ImhNone</set>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+    <property name="invertedAppearance">
+     <bool>false</bool>
+    </property>
+    <property name="invertedControls">
+     <bool>false</bool>
+    </property>
+    <property name="tickPosition">
+     <enum>QSlider::NoTicks</enum>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="AAROIWidthSpin">
+    <property name="geometry">
+     <rect>
+      <x>250</x>
+      <y>21</y>
+      <width>61</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::WheelFocus</enum>
+    </property>
+   </widget>
+   <widget class="QSlider" name="AAROIWidthSlider">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>26</y>
+      <width>61</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="inputMethodHints">
+     <set>Qt::ImhNone</set>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+    <property name="invertedAppearance">
+     <bool>false</bool>
+    </property>
+    <property name="invertedControls">
+     <bool>false</bool>
+    </property>
+    <property name="tickPosition">
+     <enum>QSlider::NoTicks</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="AAROIWidthLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>27</y>
+      <width>121</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AAROIWidth</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="ExpectedGrayValueSpin">
+    <property name="geometry">
+     <rect>
+      <x>250</x>
+      <y>140</y>
+      <width>61</width>
+      <height>24</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="ExpectedGrayValueLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>146</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ExpectedGrayValue</string>
+    </property>
+   </widget>
+   <widget class="QSlider" name="ExpectedGrayValueSlider">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>145</y>
+      <width>60</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="inputMethodHints">
+     <set>Qt::ImhNone</set>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+    <property name="invertedAppearance">
+     <bool>false</bool>
+    </property>
+    <property name="invertedControls">
+     <bool>false</bool>
+    </property>
+    <property name="tickPosition">
+     <enum>QSlider::NoTicks</enum>
+    </property>
+   </widget>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>ExposureAuto</tabstop>
+  <tabstop>ExposureTimeSpin</tabstop>
+  <tabstop>AutoExposureTimeMinSpin</tabstop>
+  <tabstop>AutoExposureTimeMaxSpin</tabstop>
+  <tabstop>GainAuto</tabstop>
+  <tabstop>GainSpin</tabstop>
+  <tabstop>AutoGainMinSpin</tabstop>
+  <tabstop>AutoGainMaxSpin</tabstop>
+  <tabstop>AAROIWidthSlider</tabstop>
+  <tabstop>AAROIWidthSpin</tabstop>
+  <tabstop>AAROIHeightSlider</tabstop>
+  <tabstop>AAROIHeightSpin</tabstop>
+  <tabstop>AAROIOffsetXSlider</tabstop>
+  <tabstop>AAROIOffsetXSpin</tabstop>
+  <tabstop>AAROIOffsetYSlider</tabstop>
+  <tabstop>AAROIOffsetYSpin</tabstop>
+  <tabstop>ExpectedGrayValueSlider</tabstop>
+  <tabstop>ExpectedGrayValueSpin</tabstop>
+  <tabstop>AA_Close</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

@@ -3,6 +3,8 @@ import os
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
+import locale
+
 # qt libraries
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
@@ -13,6 +15,148 @@ import pyqtgraph as pg
 from datetime import datetime
 
 from control._def import *
+
+class CollapsibleGroupBox(QGroupBox):
+    def __init__(self, title):
+        super(CollapsibleGroupBox,self).__init__(title)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.higher_layout = QVBoxLayout()
+        self.content = QVBoxLayout()
+        #self.content.setAlignment(Qt.AlignTop)
+        self.content_widget = QWidget()
+        self.content_widget.setLayout(self.content)
+        self.higher_layout.addWidget(self.content_widget)
+        self.setLayout(self.higher_layout)
+        self.toggled.connect(self.toggle_content)
+
+    def toggle_content(self,state):
+        self.content_widget.setVisible(state)
+
+class ConfigEditor(QDialog):
+    def __init__(self, config):
+        super().__init__()
+
+        self.config = config
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area_widget = QWidget()
+        self.scroll_area_layout = QVBoxLayout()
+        self.scroll_area_widget.setLayout(self.scroll_area_layout)
+        self.scroll_area.setWidget(self.scroll_area_widget)
+
+        self.save_config_button = QPushButton("Save Config")
+        self.save_config_button.clicked.connect(self.save_config)
+        self.save_to_file_button = QPushButton("Save to File")
+        self.save_to_file_button.clicked.connect(self.save_to_file)
+        self.load_config_button = QPushButton("Load Config from File")
+        self.load_config_button.clicked.connect(self.load_config_from_file)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.scroll_area)
+        layout.addWidget(self.save_config_button)
+        layout.addWidget(self.save_to_file_button)
+        layout.addWidget(self.load_config_button)
+
+        self.config_value_widgets = {}
+
+        self.setLayout(layout)
+        self.setWindowTitle("Configuration Editor")
+        self.init_ui()
+
+    def init_ui(self):
+        self.groups = {}
+        for section in self.config.sections():
+            group_box = CollapsibleGroupBox(section)
+            group_layout = QVBoxLayout()
+
+            section_value_widgets = {}
+
+            self.groups[section] = group_box
+
+            for option in self.config.options(section):
+                if option.startswith('_') and option.endswith('_options'):
+                    continue 
+                option_value = self.config.get(section, option)
+                option_name = QLabel(option)
+                option_layout = QHBoxLayout()
+                option_layout.addWidget(option_name)
+                if f'_{option}_options' in self.config.options(section):
+                    option_value_list = self.config.get(section,f'_{option}_options')
+                    values = option_value_list.strip('[]').split(',')
+                    for i in range(len(values)):
+                        values[i] = values[i].strip()
+                    if option_value not in values:
+                        values.append(option_value)
+                    combo_box = QComboBox()
+                    combo_box.addItems(values)
+                    combo_box.setCurrentText(option_value)
+                    option_layout.addWidget(combo_box)
+                    section_value_widgets[option] = combo_box
+                else:
+                    option_input = QLineEdit(option_value)
+                    option_layout.addWidget(option_input)
+                    section_value_widgets[option] = option_input
+                group_layout.addLayout(option_layout)
+
+            self.config_value_widgets[section] = section_value_widgets
+            group_box.content.addLayout(group_layout)
+            self.scroll_area_layout.addWidget(group_box)
+
+    def save_config(self):
+        for section in self.config.sections():
+            for option in self.config.options(section):
+                if option.startswith("_") and option.endswith("_options"):
+                    continue
+                old_val = self.config.get(section, option)
+                widget = self.config_value_widgets[section][option]
+                if type(widget) is QLineEdit:
+                    self.config.set(section, option, widget.text())
+                else:
+                    self.config.set(section, option, widget.currentText())
+                if old_val != self.config.get(section,option):
+                    print(self.config.get(section,option))
+
+    def save_to_file(self):
+        self.save_config()
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Config File", '', "INI Files (*.ini);;All Files (*)")
+        if file_path:
+            with open(file_path, 'w') as configfile:
+                self.config.write(configfile)
+
+    def load_config_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Load Config File", '', "INI Files (*.ini);;All Files (*)")
+        if file_path:
+            self.config.read(file_path)
+            # Clear and re-initialize the UI
+            self.scroll_area_widget.deleteLater()
+            self.scroll_area_widget = QWidget()
+            self.scroll_area_layout = QVBoxLayout()
+            self.scroll_area_widget.setLayout(self.scroll_area_layout)
+            self.scroll_area.setWidget(self.scroll_area_widget)
+            self.init_ui()
+
+class ConfigEditorBackwardsCompatible(ConfigEditor):
+    def __init__(self, config, original_filepath, main_window):
+        super().__init__(config)
+        self.original_filepath = original_filepath
+        self.main_window = main_window
+        
+        self.apply_exit_button = QPushButton("Apply and Exit")
+        self.apply_exit_button.clicked.connect(self.apply_and_exit)
+
+        self.layout().addWidget(self.apply_exit_button)
+
+    def apply_and_exit(self):
+        self.save_config()
+        with open(self.original_filepath, 'w') as configfile:
+            self.config.write(configfile)
+        try:
+            self.main_window.close()
+        except:
+            pass
+        self.close()
 
 class CameraSettingsWidget(QFrame):
 
@@ -835,6 +979,38 @@ class AutoFocusWidget(QFrame):
     def autofocus_is_finished(self):
         self.btn_autofocus.setChecked(False)
 
+class StatsDisplayWidget(QFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initUI()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def initUI(self):
+        self.layout = QVBoxLayout()
+        self.table_widget = QTableWidget()
+        self.table_widget.setColumnCount(2)
+        self.table_widget.verticalHeader().hide()
+        self.table_widget.horizontalHeader().hide()
+        self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.layout.addWidget(self.table_widget)
+        self.setLayout(self.layout)
+
+    def display_stats(self, stats):
+        locale.setlocale(locale.LC_ALL, '')
+        self.table_widget.setRowCount(len(stats))
+        row = 0
+        for key, value in stats.items():
+            key_item = QTableWidgetItem(str(key))
+            value_item = None
+            try:
+                value_item = QTableWidgetItem(f'{value:n}')
+            except:
+                value_item = QTableWidgetItem(str(value))
+            self.table_widget.setItem(row,0,key_item)
+            self.table_widget.setItem(row,1,value_item)
+            row+=1
+
+
 class MultiPointWidget(QFrame):
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -930,7 +1106,16 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.multipointController.set_stitch_tiles_flag(False)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.checkbox_stitchTiles = QCheckBox("Stitch OME TIFF for each Z plane")
+        self.checkbox_segmentation = QCheckBox("Perform segmentation using DPC on tiles")
+        self.checkbox_fluorescence_rtp = QCheckBox("Perform real-time-classification using fluorescence on tiles")
+        self.checkbox_stitchTiles.setChecked(False)
+        self.checkbox_fluorescence_rtp.setChecked(True)
+        self.checkbox_stitchTiles.setCheckable(True)
+        self.checkbox_segmentation.setChecked(False)
+        self.checkbox_segmentation.setCheckable(True)
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -965,6 +1150,9 @@ class MultiPointWidget(QFrame):
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
+        #grid_af.addWidget(self.checkbox_stitchTiles)
+        #grid_af.addWidget(self.checkbox_segmentation)
+        #grid_af.addWidget(self.checkbox_fluorescence_rtp)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
 
@@ -995,6 +1183,9 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_stitchTiles.stateChanged.connect(self.multipointController.set_stitch_tiles_flag)
+        self.checkbox_segmentation.stateChanged.connect(self.multipointController.set_segmentation_flag)
+        self.checkbox_fluorescence_rtp.stateChanged.connect(self.multipointController.set_fluorescence_rtp_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)

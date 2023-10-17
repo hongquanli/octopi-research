@@ -2,6 +2,53 @@ import os
 import glob
 import numpy as np
 from pathlib import Path
+from configparser import ConfigParser
+import json
+
+def conf_attribute_reader(string_value):
+    """
+    :brief: standardized way for reading config entries
+    that are strings, in priority order
+    dict/list (via json) -> int -> float -> string
+    REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN
+    DOUBLE QUOTES
+    """
+    actualvalue = str(string_value).strip()
+    try:
+        if str(actualvalue) == "True" or str(actualvalue) == "true":
+            return True
+        if str(actualvalue) == "False" or str(actualvalue) == "false":
+            return False
+    except:
+        pass
+    try:
+        actualvalue = json.loads(actualvalue)
+    except:
+        try:
+            actualvalue = int(str(actualvalue))
+        except:
+            try:
+                actualvalue = float(actualvalue)
+            except:
+                actualvalue = str(actualvalue)
+    return actualvalue
+
+
+def populate_class_from_dict(myclass, options):
+    """
+    :brief: helper function to establish a compatibility
+        layer between new way of storing config and current
+        way of accessing it. assumes all class attributes are
+        all-uppercase, and pattern-matches attributes in
+        priority order dict/list (json) -> -> int -> float-> string
+    REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS IN DOUBLE QUOTES
+    """
+    for key, value in options:
+        if key.startswith('_') and key.endswith('options'):
+            continue
+        actualkey = key.upper()
+        actualvalue = conf_attribute_reader(value)
+        setattr(myclass, actualkey, actualvalue)
 
 class TriggerMode:
     SOFTWARE = 'Software Trigger'
@@ -114,6 +161,10 @@ class LIMIT_SWITCH_POLARITY:
     ACTIVE_LOW = 0
     ACTIVE_HIGH = 1
     DISABLED = 2
+    X_HOME= 1
+    Y_HOME= 1
+    Z_HOME= 2
+
 
 class ILLUMINATION_CODE:
     ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
@@ -223,12 +274,6 @@ MAX_ACCELERATION_Z_mm = 20
 SCAN_STABILIZATION_TIME_MS_X = 160
 SCAN_STABILIZATION_TIME_MS_Y = 160
 SCAN_STABILIZATION_TIME_MS_Z = 20
-
-# limit switch
-X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.ACTIVE_HIGH
-Y_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.ACTIVE_HIGH
-Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.DISABLED
-
 HOMING_ENABLED_X = True
 HOMING_ENABLED_Y = True
 HOMING_ENABLED_Z = False
@@ -249,7 +294,7 @@ class PLATE_READER:
     OFFSET_COLUMN_1_MM = 20
     OFFSET_ROW_A_MM = 20
 
-DEFAULT_DISPLAY_CROP = 50 # value ranges from 1 to 100 - image display crop size 
+DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
 OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
@@ -373,19 +418,46 @@ OBJECTIVE_RETRACTED_POS_MM = 0.1
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
-config_files = glob.glob('.' + '/' + 'configuration*.txt')
+config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
         print('multiple machine configuration files found, the program will exit')
         exit()
     print('load machine-specific configuration')
-    exec(open(config_files[0]).read())
+    #exec(open(config_files[0]).read())
+    cfp = ConfigParser()
+    cfp.read(config_files[0])
+    for option, value in cfp.items("GENERAL"):
+        var_name = option.upper()
+        actualvalue = conf_attribute_reader(value)
+        locals()[var_name] = actualvalue
+    var_items = list(locals().keys())
+    for classkey in var_items:
+        myclass = None
+        classkeyupper = classkey.upper()
+        pop_items = None
+        try:
+            pop_items = cfp.items(classkeyupper)
+        except:
+            continue
+        if type(locals()[classkey]) is not type:
+            continue
+        myclass = locals()[classkey]
+        populate_class_from_dict(myclass,pop_items)
 else:
     print('machine-specifc configuration not present, the program will exit')
     exit()
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
+# saving path
+DEFAULT_SAVING_PATH = str(Path.home())+DEFAULT_SAVING_PATH
+
+# limit switch
+X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.X_HOME
+Y_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Y_HOME
+Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Z_HOME
+
 if WELLPLATE_FORMAT == 384:
     WELL_SIZE_MM = 3.3
     WELL_SPACING_MM = 4.5
