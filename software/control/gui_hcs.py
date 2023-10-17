@@ -36,7 +36,7 @@ class OctopiGUI(QMainWindow):
 			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
 			self.imageDisplayWindow.show_ROI_selector()
 		else:
-			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+			self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
 		self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
 		# self.imageDisplayWindow.show()
 		# self.imageArrayDisplayWindow.show()
@@ -91,7 +91,7 @@ class OctopiGUI(QMainWindow):
 		self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
 		self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
 		self.navigationController = core.NavigationController(self.microcontroller)
-		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+		self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
 		self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
 		self.scanCoordinates = core.ScanCoordinates()
 		self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
@@ -101,6 +101,7 @@ class OctopiGUI(QMainWindow):
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
 
+		'''
 		if HOMING_ENABLED_Z:
 			# retract the objective
 			self.navigationController.home_z()
@@ -166,6 +167,64 @@ class OctopiGUI(QMainWindow):
 				if time.time() - t0 > 5:
 					print('z return timeout, the program will exit')
 					exit()
+		'''
+
+		# retract the objective
+		self.navigationController.home_z()
+		# wait for the operation to finish
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('z homing timeout, the program will exit')
+				exit()
+		print('objective retracted')
+		self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+
+		# home XY, set zero and set software limit
+		print('home xy')
+		timestamp_start = time.time()
+		# x needs to be at > + 20 mm when homing y
+		self.navigationController.move_x(20) # to-do: add blocking code
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+		# home y
+		self.navigationController.home_y()
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('y homing timeout, the program will exit')
+				exit()
+		self.navigationController.zero_y()
+		# home x
+		self.navigationController.home_x()
+		t0 = time.time()
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 10:
+				print('y homing timeout, the program will exit')
+				exit()
+		self.navigationController.zero_x()
+		self.slidePositionController.homing_done = True
+
+		# move to scanning position
+		self.navigationController.move_x(20)
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+		self.navigationController.move_y(20)
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+
+		# move z
+		self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+		# wait for the operation to finish
+		t0 = time.time() 
+		while self.microcontroller.is_busy():
+			time.sleep(0.005)
+			if time.time() - t0 > 5:
+				print('z return timeout, the program will exit')
+				exit()
 		
 		# open the camera
 		# camera start streaming
@@ -177,7 +236,7 @@ class OctopiGUI(QMainWindow):
 
 		# load widgets
 		self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
-		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
+		self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
 		self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
 		self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
 		self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
@@ -185,14 +244,18 @@ class OctopiGUI(QMainWindow):
 		if ENABLE_TRACKING:
 			self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
 		self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+		self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager)
 
 		self.recordTabWidget = QTabWidget()
 		if ENABLE_TRACKING:
 			self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
 		#self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+		self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
 		self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
 		self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+
+		if ENABLE_FLEXIBLE_MULTIPOINT:
+			self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
 
 		# layout widgets
 		layout = QVBoxLayout() #layout = QStackedLayout()
@@ -270,6 +333,7 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
+		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
 		# load vs scan position switching
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -360,6 +424,7 @@ class OctopiGUI(QMainWindow):
 			self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
 			self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
 			self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+
 
 	def closeEvent(self, event):
 		

@@ -148,8 +148,9 @@ void tmc4361A_init(TMC4361ATypeDef *tmc4361A, uint8_t channel, ConfigurationType
   tmc4361A->xmin      = -2147483648;
   tmc4361A->xmax      = 2147483647;
   tmc4361A->xhome     = 0;
+  tmc4361A->dac_idx   = NO_DAC;
+  tmc4361A->dac_fullscale_msteps = 0;
   tmc4361A->config    = config;
-  tmc4361A->velocity_mode = false;
 
   tmc4361A->config->callback     = NULL;
   tmc4361A->config->channel      = channel;
@@ -164,6 +165,9 @@ void tmc4361A_init(TMC4361ATypeDef *tmc4361A, uint8_t channel, ConfigurationType
   }
   for (i = 0; i < N_RPARAM; i++) {
     tmc4361A->rampParam[i] = 0;
+  }
+  for (i = 0; i < N_CPARAM; i++) {
+    tmc4361A->cscaleParam[i] = 0;
   }
 }
 
