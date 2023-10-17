@@ -415,6 +415,16 @@ RUN_CUSTOM_MULTIPOINT = False
 RETRACT_OBJECTIVE_BEFORE_MOVING_TO_LOADING_POSITION = True
 OBJECTIVE_RETRACTED_POS_MM = 0.1
 
+CLASSIFICATION_MODEL_PATH ="/home/cephla/Documents/tmp/model_perf_r34_b32.pt"
+SEGMENTATION_MODEL_PATH = "/home/cephla/Documents/tmp/model_segmentation_1073_9.pth"
+CLASSIFICATION_TEST_MODE=False
+
+USE_TRT_SEGMENTATION=False
+SEGMENTATION_CROP=1500
+
+DISP_TH_DURING_MULTIPOINT=0.95
+SORT_DURING_MULTIPOINT = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

@@ -97,6 +97,23 @@ def generate_overlay(image):
     # print(images.shape)
     return images
 
+def count_consecutive_rows_above_threshold(df, column_name, threshold):
+    # Check if the column name exists in the DataFrame
+    if column_name not in df.columns:
+        raise ValueError(f"Column '{column_name}' not found in the DataFrame.")
+    
+    # Find the first row number at which consecutive_count did not increment
+    above_threshold = (df[column_name] > threshold)
+    consecutive_count = above_threshold.cumsum()
+    
+
+    first_non_incrementing_row = consecutive_count.loc[consecutive_count.diff() == 0].head(1)
+    
+    if first_non_incrementing_row.empty:
+        return len(df)  # Return the last row number if no decrement was found
+    else:
+        return first_non_incrementing_row.iloc[0]
+
 class CustomWidget(QWidget):
     def __init__(self, text, img, parent=None):
         QWidget.__init__(self, parent)
@@ -818,7 +835,7 @@ class DataHandler(QObject):
         # emit the results for display
         self.signal_predictions.emit(self.data_pd['output'].to_numpy(),self.data_pd['annotation'].to_numpy())
 
-    def add_data(self,images,predictions_df, sort = False):
+    def add_data(self,images,predictions_df, sort = False, disp_th = None):
     
         self.images = np.concatenate((images, self.images),axis=0)
 
@@ -834,6 +851,11 @@ class DataHandler(QObject):
             self.data_pd = self.data_pd.sort_values('output',ascending=False)
             sort_time = time.perf_counter_ns()-sort_time
             print("data_pd sorting took: "+str(sort_time/10**6)+" ms")
+        if disp_th is not None:
+            print("setting display with threshold "+str(disp_th))
+            no_spots_to_display = count_consecutive_rows_above_threshold(self.data_pd, 'output',disp_th)
+            self.set_number_of_images_per_page(no_spots_to_display)
+            print("displaying "+str(no_spots_to_display)+" spots")
         #self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
         spot_idx_time = time.perf_counter_ns()
         if True:

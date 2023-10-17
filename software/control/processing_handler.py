@@ -19,7 +19,7 @@ def default_image_preprocessor(image, callable_list):
         output_image = c['func'](output_image, *c['args'],**c['kwargs'])
     return output_image
 
-def default_upload_fn(I,score, dataHandler, multiPointWorker = None):
+def default_upload_fn(I,score, dataHandler, sort=False,disp_th=None):
     """
     :brief: designed to be called by default_process_fn that's using
         the pre-existing process_fov method
@@ -33,13 +33,7 @@ def default_upload_fn(I,score, dataHandler, multiPointWorker = None):
         dataHandler.load_images(images)
         dataHandler.load_predictions(score_df)
     else:
-        dataHandler.add_data(images,score_df)
-    if multiPointWorker is not None:
-        try:
-            multiPointWorker.async_detection_stats["Total Parasites"] += len(score)
-        except:
-            multiPointWorker.async_detection_stats["Total Parasites"] = 0
-            multiPointWorker.async_detection_stats["Total Parasites"] += len(score)
+        dataHandler.add_data(images,score_df,sort=sort,disp_th=disp_th)
 
 
 def default_process_fn(process_fn, *process_args, **process_kwargs):
@@ -93,9 +87,25 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
         process_kwargs.pop('multiPointWorker')
     except:
         pass
+    sort = False
+    disp_th = None
+    try:
+        sort = process_kwargs['sort']
+        process_kwargs.pop('sort')
+    except:
+        pass
+    try:
+        disp_th = process_kwargs['disp_th']
+        process_kwargs.pop('disp_th')
+    except:
+        pass
     if multiPointWorker is not None:
         dpc_L = process_args[1]
         dpc_R = process_args[2]
+        dpc_L_area = dpc_L.shape[0]*dpc_L.shape[1]
+        dpc_R_area = dpc_R.shape[0]*dpc_R.shape[1]
+        biggest_area = max(dpc_L_area,dpc_R_area)
+        rbc_ratio = biggest_area/(multiPointWorker.crop**2)
         if multiPointWorker.crop > 0:
             dpc_L = utils.centerCrop(dpc_L, multiPointWorker.crop)
             dpc_R = utils.centerCrop(dpc_R, multiPointWorker.crop)
@@ -109,14 +119,15 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     I, score = process_fn(*process_args, **process_kwargs)
     no_parasites = len(score)
     if multiPointWorker is not None:
-        new_counts = {"Total RBC": no_cells, "Total Parasites": no_parasites}
+        new_counts = {"Counted RBC": no_cells, "Estimated Total RBC":int(no_cells*rbc_ratio) , "Total Parasites": no_parasites,
+                "# FOV Processed":1}
         multiPointWorker.signal_update_stats.emit(new_counts)
         multiPointWorker.image_to_display_multi.emit(overlay, 12)
         multiPointWorker.image_to_display_multi.emit(dpc_image, 13)
     return_dict = {}
     return_dict['function'] = upload_fn
     return_dict['args'] = [I, score, dataHandler]
-    return_dict['kwargs'] = {'multiPointWorker':None}
+    return_dict['kwargs'] = {'sort':sort,'disp_th':disp_th}
     return return_dict
 
 

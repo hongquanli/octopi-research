@@ -41,8 +41,6 @@ import pandas as pd
 import imageio as iio
 
 from control.processing_pipeline import *
-from control.interactive_m2unet_inference import M2UnetInteractiveModel as m2u
-
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -1222,18 +1220,11 @@ class MultiPointWorker(QObject):
 
         self.microscope = self.multiPointController.parent
 
+        self.model = self.microscope.segmentation_model
+        self.crop = SEGMENTATION_CROP
+
         # hard-coded model initialization
         #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
-        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
-        model_path='/home/prakashlab/Documents/tmp/model_segmentation_1073_9.pth'
-        assert os.path.exists(model_path)
-        self.use_trt=False
-        self.make_over = True
-        self.crop = 1500
-        self.model = m2u(pretrained_model=model_path, use_trt=self.use_trt)
-        # run some dummy data thru model - warm-up
-        dummy_data = (255 * np.random.rand(3000,3000)).astype(np.uint8)
-        self.model.predict_on_images(dummy_data)
         self.t_dpc = []
         self.t_inf = []
         self.t_over=[]
@@ -1553,14 +1544,14 @@ class MultiPointWorker(QObject):
 
                             # real time processing 
                             if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
-                                if True: # testing mode
+                                if CLASSIFICATION_TEST_MODE: # testing mode
                                     I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
                                     I_fluorescence = I_fluorescence[:,:,::-1]
                                     I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
                                     I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
                                 processing_fn = process_fn_with_count_and_display
                                 processing_args = [process_fov, I_fluorescence.copy(),I_left.copy(), I_right.copy(), self.microscope.model, self.microscope.device, self.microscope.classification_th]
-                                processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler, 'multiPointWorker':self}
+                                processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler, 'multiPointWorker':self,'sort':SORT_DURING_MULTIPOINT,'disp_th':DISP_TH_DURING_MULTIPOINT}
                                 task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
                                 self.processingHandler.processing_queue.put(task_dict)    
                                 
@@ -1745,7 +1736,7 @@ class MultiPointController(QObject):
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader, images_per_page_during_acquisition=20):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader):
         QObject.__init__(self)
 
         self.camera = camera
@@ -1787,7 +1778,6 @@ class MultiPointController(QObject):
         self.scanCoordinates = scanCoordinates
         self.parent = parent
 
-        self.images_per_page_during_acquisition = images_per_page_during_acquisition
         self.old_images_per_page = 1
         if self.parent is not None:
             self.old_images_per_page = self.parent.dataHandler.n_images_per_page
@@ -1852,8 +1842,6 @@ class MultiPointController(QObject):
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
-        if self.parent is not None:
-            self.parent.dataHandler.set_number_of_images_per_page(self.images_per_page_during_acquisition)
         self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
@@ -1863,6 +1851,8 @@ class MultiPointController(QObject):
             self.location_list = None
 
         self.abort_acqusition_requested = False
+
+        
 
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
@@ -1886,6 +1876,8 @@ class MultiPointController(QObject):
             else:
                 self.usb_spectrometer_was_streaming = False
 
+        if self.parent is not None:
+            self.parent.imageDisplayTabs.setCurrentWidget(self.parent.gallery)
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
@@ -1936,6 +1928,7 @@ class MultiPointController(QObject):
         self.processingHandler.end_processing()
         if self.parent is not None:
             self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+            self.parent.dataHandler.sort('Sort by prediction score')
             self.parent.dataHandler.signal_populate_page0.emit()
         self.acquisitionFinished.emit()
         QApplication.processEvents()
