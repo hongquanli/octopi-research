@@ -1080,6 +1080,25 @@ class MultiPointWidget(QFrame):
     def enable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(True)
 
+    def set_experiment_id(self,experiment_id):
+        self.lineEdit_experimentID.setText(experiment_id)
+
+    def update_multipointController(self):
+        self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+        self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+        # set parameters
+        self.multipointController.set_deltaX(self.entry_deltaX.value())
+        self.multipointController.set_deltaY(self.entry_deltaY.value())
+        self.multipointController.set_deltaZ(self.entry_deltaZ.value())
+        self.multipointController.set_deltat(self.entry_dt.value())
+        self.multipointController.set_NX(self.entry_NX.value())
+        self.multipointController.set_NY(self.entry_NY.value())
+        self.multipointController.set_NZ(self.entry_NZ.value())
+        self.multipointController.set_Nt(self.entry_Nt.value())
+        self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
+        self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
+        self.multipointController.set_base_path(self.lineEdit_savingDir.text())
+
 class MultiPointWidget2(QFrame):
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2384,7 +2403,7 @@ class WellSelectionWidget(QTableWidget):
 class SequentialImagingWidgets(QFrame):
 
     def __init__(self, squentialImagingController, main=None, *args, **kwargs):
-
+        super().__init__(*args, **kwargs)
         self.squentialImagingController = squentialImagingController
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -2393,7 +2412,6 @@ class SequentialImagingWidgets(QFrame):
 
         self.lineEdit_setting_file = QLineEdit()
         self.lineEdit_setting_file.setReadOnly(True)
-        self.lineEdit_setting_file.setText(self.config_filename)
         self.button_load = QPushButton('Load Setttings')
         self.button_load.setIcon(QIcon('icon/folder.png'))
 
@@ -2408,11 +2426,14 @@ class SequentialImagingWidgets(QFrame):
 
         self.setLayout(self.grid)
 
+        # connections
+        self.button_load.clicked.connect(self.load_settings)
+        self.button_run.clicked.connect(self.toggle_acquisition)
+
 
     def toggle_acquisition(self,pressed):
-
         if pressed:
-            self.squentialImagingController.run_experiment()
+            self.squentialImagingController.run_experiment(self.lineEdit_setting_file.text())
         else:
             self.squentialImagingController.request_abort_experiment()
 
@@ -2420,3 +2441,11 @@ class SequentialImagingWidgets(QFrame):
     def experiment_is_finished(self):
         self.button_run.setChecked(False)
         self.setEnabled_all(True)
+
+
+    def load_settings(self):
+        dialog = QFileDialog()
+        filename, _filter = dialog.getOpenFileName(None,'Open File','.','CSV files (*.csv)')
+        if filename:
+            self.config_filename = filename
+            self.lineEdit_setting_file.setText(filename)

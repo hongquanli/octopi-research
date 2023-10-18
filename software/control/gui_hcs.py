@@ -517,6 +517,11 @@ class OctopiGUI(QMainWindow):
 			self.fluidics_gui.setLayout(layout)
 			self.imageDisplayTabs.addTab(self.fluidics_gui, "Fluidics")
 
+			# add the sequential imaging controller and widget
+			self.squentialImagingController = core.SquentialImagingController(microscope = self, fluidics_controller = self.fluidController, fluidics_sequence_widget = self.sequenceWidget)
+			self.sequentialImagingWidgets = widgets.SequentialImagingWidgets(self.squentialImagingController)
+			self.recordTabWidget.addTab(self.sequentialImagingWidgets, 'Sequential Imaging')
+
 
 	if INCLUDE_FLUIDICS:
 

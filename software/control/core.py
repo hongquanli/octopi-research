@@ -2455,6 +2455,13 @@ class ConfigurationManager(QObject):
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
 
+    def update_configuration_by_name(self,configuration_name,attribute_name,new_value):
+        print('update configuration for ' + configuration_name)
+        list = self.config_xml_tree_root.xpath("//mode[contains(@Name," + "'" + str(configuration_name) + "')]")
+        mode_to_update = list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+        self.save_configurations()
+
 class PlateReaderNavigationController(QObject):
 
     signal_homing_complete = Signal()
@@ -2827,10 +2834,44 @@ class LaserAutofocusController(QObject):
      
 class SquentialImagingController(QObject):
 
-    def __init__(self, microscope, fluidics):
+    def __init__(self, microscope, fluidics_controller,fluidics_sequence_widget):
+        QObject.__init__(self)
         self.microscope = microscope
-        self.fluidics = fluidics
+        self.fluidics_controller = fluidics_controller
+        self.fluidics_sequence_widget = fluidics_sequence_widget
 
-    def run_experiment(self):
-        pass
+    def run_experiment(self,setting_file):
 
+        # load setting
+        setting_df = pd.read_csv(setting_file)
+        print(setting_df)
+
+        # go through the sequence
+        for index, row in setting_df.iterrows():
+
+            # extract cycle setting
+            cycle_number = row['cycle number']
+            port = row['port']
+            exposure_time = {}
+            analog_gain = {}
+            exposure_time['405'] = row['exposure time 405']
+            analog_gain['405'] = row['analog gain 405']
+            exposure_time['488'] = row['exposure time 488']
+            analog_gain['488'] = row['gain 488']
+            exposure_time['561'] = row['exposure time 561']
+            analog_gain['561'] = row['gain 530']
+            exposure_time['638'] = row['exposure time 638']
+            analog_gain['638'] = row['gain 640']
+
+            # update detector settings
+            for channel in ['405','488','561','638']:
+                self.microscope.configurationManager.update_configuration_by_name('Fluorescence ' + channel + ' nm Ex','ExposureTime',exposure_time[channel])
+                self.microscope.configurationManager.update_configuration_by_name('Fluorescence ' + channel + ' nm Ex','AnalogGain',analog_gain[channel])
+
+            print('<<< running cycle ' + str(cycle_number) + ' >>>')
+            print('run fluidics at port ' + str(port))
+            self.fluidics_sequence_widget.run_sequence_at_port(port)
+            print('run imaging')
+            self.microscope.multiPointWidget.set_experiment_id('cycle ' + str(cycle_number))
+            self.microscope.multiPointWidget.update_multipointController()
+            self.microscope.multiPointWidget.toggle_acquisition(True)
