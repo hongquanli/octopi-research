@@ -207,6 +207,11 @@ class OctopiGUI(QMainWindow):
             desktopWidget = QDesktopWidget()
             height_min = 0.9*desktopWidget.height()
             width_min = 0.96*desktopWidget.width()
+            screen = QApplication.primaryScreen()
+            size = screen.size()
+            rect = screen.availableGeometry()
+            width_min = min(width_min, rect.width()*0.96)
+            height_min = min(height_min, rect.height()*0.9)
             self.setMinimumSize(int(width_min),int(height_min))
         else:
             self.setCentralWidget(self.centralWidget)
