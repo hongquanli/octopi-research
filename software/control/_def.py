@@ -362,6 +362,8 @@ MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 
 RUN_CUSTOM_MULTIPOINT = False
 
+INCLUDE_FLUIDICS = True
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
