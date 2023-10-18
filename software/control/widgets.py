@@ -1048,7 +1048,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(1)
+        self.entry_NX.setValue(6)
         self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
@@ -1063,7 +1063,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(1)
+        self.entry_NY.setValue(3)
         self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
