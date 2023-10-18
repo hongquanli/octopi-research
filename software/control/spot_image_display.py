@@ -112,7 +112,7 @@ def count_consecutive_rows_above_threshold(df, column_name, threshold):
     if first_non_incrementing_row.empty:
         return len(df)  # Return the last row number if no decrement was found
     else:
-        return first_non_incrementing_row.iloc[0]
+        return max(1,first_non_incrementing_row.iloc[0])
 
 class CustomWidget(QWidget):
     def __init__(self, text, img, parent=None):
