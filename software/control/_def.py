@@ -443,7 +443,6 @@ if config_files:
             continue
         varnamelower = var_name.lower()
         if varnamelower not in cfp.options("GENERAL"):
-            print(varnamelower)
             continue
         value = cfp.get("GENERAL",varnamelower)
         actualvalue = conf_attribute_reader(value)
