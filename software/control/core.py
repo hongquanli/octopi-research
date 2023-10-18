@@ -1877,7 +1877,8 @@ class MultiPointController(QObject):
                 self.usb_spectrometer_was_streaming = False
 
         if self.parent is not None:
-            self.parent.imageDisplayTabs.setCurrentWidget(self.parent.gallery)
+            self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
