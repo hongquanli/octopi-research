@@ -1304,8 +1304,12 @@ class MultiPointWorker(QObject):
                                 self.microscope.laserAutofocusController.move_to_target(0)
                                 self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
                             '''
-                        self.microscope.laserAutofocusController.move_to_target(0)
-                        self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                        try:
+                            print("Attempting Laser AF")
+                            self.microscope.laserAutofocusController.move_to_target(0)
+                            self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                        except:
+                            print("Encountered problem with laser AF, skipping")
 
                         if (self.NZ > 1):
                             # move to bottom of the z stack
@@ -2594,7 +2598,11 @@ class ScanCoordinates(object):
         self.coordinates_mm = []
         self.name = []
         # populate the coordinates
-        rows = np.unique(selected_wells[:,0])
+        try:
+            rows = np.unique(selected_wells[:,0])
+        except IndexError: #usually because no rows selected
+            print("No wells selected!")
+            return
         _increasing = True
         for row in rows:
             items = selected_wells[selected_wells[:,0]==row]
@@ -2875,3 +2883,10 @@ class SquentialImagingController(QObject):
             self.microscope.multiPointWidget.set_experiment_id('cycle ' + str(cycle_number))
             self.microscope.multiPointWidget.update_multipointController()
             self.microscope.multiPointWidget.toggle_acquisition(True)
+            try:
+                print("*** previous multipoint thread still running ***")
+                while self.microscope.multiPointWidget.multipointController.thread.isRunning():
+                    QApplication.processEvents()
+                print("*** previous multipoint thread completed ***")
+            except:
+                pass
