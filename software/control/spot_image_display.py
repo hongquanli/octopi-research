@@ -57,7 +57,7 @@ SCATTER_SIZE_OVERLAY = 20
 # on mac
 # NUM_ROWS = 2
 # num_cols = 4
-
+"""
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
@@ -70,6 +70,9 @@ if config_files:
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
+"""
+
+from control._def import *
 
 # set font size
 mpl.rcParams['font.size'] = PLOTS_FONT_SIZE
