@@ -72,6 +72,9 @@ class CMD_SET:
     SET_MAX_VELOCITY_ACCELERATION = 22
     SET_LEAD_SCREW_PITCH = 23
     SET_OFFSET_VELOCITY = 24
+    CONFIGURE_STAGE_PID = 25
+    ENABLE_STAGE_PID = 26
+    DISABLE_STAGE_PID = 27
     SEND_HARDWARE_TRIGGER = 30
     SET_STROBE_DELAY = 31
     SET_PIN_LEVEL = 41
@@ -308,6 +311,8 @@ MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
 # MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
 
+ENABLE_FLEXIBLE_MULTIPOINT = False
+
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
 
 ENABLE_STROBE_OUTPUT = False
@@ -363,6 +368,9 @@ MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 RUN_CUSTOM_MULTIPOINT = False
 
 INCLUDE_FLUIDICS = True
+
+RETRACT_OBJECTIVE_BEFORE_MOVING_TO_LOADING_POSITION = True
+OBJECTIVE_RETRACTED_POS_MM = 0.1
 
 ##########################################################
 #### start of loading machine specific configurations ####

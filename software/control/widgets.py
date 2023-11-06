@@ -231,12 +231,12 @@ class LiveControlWidget(QFrame):
         self.slider_illuminationIntensity.setMinimum(0)
         self.slider_illuminationIntensity.setMaximum(100)
         self.slider_illuminationIntensity.setValue(100)
-        self.slider_illuminationIntensity.setSingleStep(0.1)
+        self.slider_illuminationIntensity.setSingleStep(1)
 
         self.entry_illuminationIntensity = QDoubleSpinBox()
-        self.entry_illuminationIntensity.setMinimum(0.1) 
+        self.entry_illuminationIntensity.setMinimum(0) 
         self.entry_illuminationIntensity.setMaximum(100) 
-        self.entry_illuminationIntensity.setSingleStep(0.1)
+        self.entry_illuminationIntensity.setSingleStep(1)
         self.entry_illuminationIntensity.setValue(100)
 
         # line 4: display fps and resolution scaling
@@ -269,7 +269,7 @@ class LiveControlWidget(QFrame):
         self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
-        self.entry_illuminationIntensity.valueChanged.connect(self.slider_illuminationIntensity.setValue)
+        self.entry_illuminationIntensity.valueChanged.connect(lambda x: self.slider_illuminationIntensity.setValue(int(x)))
         self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
         self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
@@ -580,9 +580,11 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '384 well plate':
+            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '96 well plate':
+            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
 
@@ -688,7 +690,7 @@ class NavigationWidget(QFrame):
     def slot_slide_loading_position_reached(self):
         self.slide_position = 'loading'
         self.btn_load_slide.setStyleSheet("background-color: #C2FFC2");
-        self.btn_load_slide.setText('To Slide Scanning Position')
+        self.btn_load_slide.setText('To Scanning Position')
         self.btn_moveX_forward.setEnabled(False)
         self.btn_moveX_backward.setEnabled(False)
         self.btn_moveY_forward.setEnabled(False)
@@ -699,7 +701,7 @@ class NavigationWidget(QFrame):
     def slot_slide_scanning_position_reached(self):
         self.slide_position = 'scanning'
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
-        self.btn_load_slide.setText('To Slide Loading Position')
+        self.btn_load_slide.setText('To Loading Position')
         self.btn_moveX_forward.setEnabled(True)
         self.btn_moveX_backward.setEnabled(True)
         self.btn_moveY_forward.setEnabled(True)
@@ -725,7 +727,7 @@ class DACControWidget(QFrame):
         self.slider_DAC0.setTickPosition(QSlider.TicksBelow)
         self.slider_DAC0.setMinimum(0)
         self.slider_DAC0.setMaximum(100)
-        self.slider_DAC0.setSingleStep(0.1)
+        self.slider_DAC0.setSingleStep(1)
         self.slider_DAC0.setValue(0)
 
         self.entry_DAC0 = QDoubleSpinBox()
@@ -740,7 +742,7 @@ class DACControWidget(QFrame):
         self.slider_DAC1.setMinimum(0)
         self.slider_DAC1.setMaximum(100)
         self.slider_DAC1.setValue(0)
-        self.slider_DAC1.setSingleStep(0.1)
+        self.slider_DAC1.setSingleStep(1)
 
         self.entry_DAC1 = QDoubleSpinBox()
         self.entry_DAC1.setMinimum(0) 
@@ -1327,6 +1329,10 @@ class MultiPointWidget2(QFrame):
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
+
+            # add the current location to the location list if the list is empty
+            if len(self.location_list) == 0:
+                self.add_location()
             self.setEnabled_all(False)
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
@@ -2323,9 +2329,9 @@ class WellSelectionWidget(QTableWidget):
 
         # size
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(5*self.spacing_mm)
+        self.verticalHeader().setDefaultSectionSize(int(5*self.spacing_mm))
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.horizontalHeader().setMinimumSectionSize(5*self.spacing_mm)
+        self.horizontalHeader().setMinimumSectionSize(int(5*self.spacing_mm))
 
         self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

@@ -33,6 +33,8 @@
 #define DRV1SCALE_IDX 3
 #define BSTSCALE_IDX  4
 
+#define NO_DAC 255
+
 // Helper macros
 #define TMC4361A_FIELD_READ(tdef, address, mask, shift) \
   FIELD_GET(tmc4361A_readInt(tdef, address), mask, shift)
@@ -57,7 +59,8 @@ typedef struct
   float   threadPitch;
   uint16_t stepsPerRev;
   uint16_t microsteps;
-  bool velocity_mode;
+  uint8_t dac_idx;
+  uint32_t dac_fullscale_msteps;
   
   //TMotorConfig motorConfig;
   //TClosedLoopConfig closedLoopConfig;
@@ -73,7 +76,7 @@ typedef void (*tmc4361A_callback)(TMC4361ATypeDef*, ConfigState);
 
 static const int32_t tmc4361A_defaultRegisterResetState[TMC4361A_REGISTER_COUNT] =
 {
-  //	0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   A,   B,   C,   D,   E,   F
+  //  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   A,   B,   C,   D,   E,   F
   N_A, 0,   0,   0,   0,   0,   N_A, N_A, 0,   0,   N_A, N_A, 0,   0,   0,   0,   // 0x00 - 0x0F
   R10, 0,   N_A, 0,   0,   0,   0,   0,   0,   0,   0,   0,   N_A, 0,   0,   N_A, // 0x10 - 0x1F
   R20, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x20 - 0x2F
