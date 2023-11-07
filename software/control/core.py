@@ -1448,6 +1448,13 @@ class MultiPointWorker(QObject):
                             dpc_R = None
                             # iterate through selected modes
                             for config in self.selected_configurations:
+                                if config.z_offset is not None: # perform z offset for config 
+                                    if config.z_offset != 0.0:
+                                        print("Moving to Z offset "+str(config.z_offset))
+                                        self.navigationController.move_z(config.z_offset)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+
                                 if 'USB Spectrometer' not in config.name:
                                     # update the current configuration
                                     self.signal_current_configuration.emit(config)
@@ -1542,6 +1549,14 @@ class MultiPointWorker(QObject):
                                             self.spectrum_to_display.emit(data)
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
+                                
+                                
+                                if config.z_offset is not None: # undo Z offset
+                                    if config.z_offset != 0.0:
+                                        print("Moving back from Z offset "+str(config.z_offset))
+                                        self.navigationController.move_z(-config.z_offset)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                             # real time processing 
                             if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
