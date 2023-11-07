@@ -363,7 +363,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None):
         self.id = mode_id
         self.name = name
         self.exposure_time = exposure_time
@@ -371,6 +371,7 @@ class Configuration:
         self.illumination_source = illumination_source
         self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
+        self.z_offset = z_offset
 
 class LiveController(QObject):
 
@@ -2693,7 +2694,9 @@ class ConfigurationManager(QObject):
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
                     illumination_intensity = float(mode.get('IlluminationIntensity')),
-                    camera_sn = mode.get('CameraSN'))
+                    camera_sn = mode.get('CameraSN'),
+                    z_offset = float(mode.get('ZOffset'))
+                )
             )
 
     def update_configuration(self,configuration_id,attribute_name,new_value):
