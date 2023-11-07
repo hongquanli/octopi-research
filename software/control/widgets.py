@@ -33,6 +33,121 @@ class CollapsibleGroupBox(QGroupBox):
     def toggle_content(self,state):
         self.content_widget.setVisible(state)
 
+class ConfigEditorForAcquisitions(QDialog):
+    def __init__(self, configManager):
+        super().__init__()
+
+        self.config = configManager
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area_widget = QWidget()
+        self.scroll_area_layout = QVBoxLayout()
+        self.scroll_area_widget.setLayout(self.scroll_area_layout)
+        self.scroll_area.setWidget(self.scroll_area_widget)
+
+        self.save_config_button = QPushButton("Save Config")
+        self.save_config_button.clicked.connect(self.save_config)
+        self.save_to_file_button = QPushButton("Save to File")
+        self.save_to_file_button.clicked.connect(self.save_to_file)
+        self.load_config_button = QPushButton("Load Config from File")
+        self.load_config_button.clicked.connect(self.load_config_from_file)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.scroll_area)
+        layout.addWidget(self.save_config_button)
+        layout.addWidget(self.save_to_file_button)
+        layout.addWidget(self.load_config_button)
+
+        self.config_value_widgets = {}
+
+        self.setLayout(layout)
+        self.setWindowTitle("Configuration Editor")
+        self.init_ui()
+
+    def init_ui(self):
+        self.groups = {}
+        for section in self.config.configurations:
+            group_box = CollapsibleGroupBox(section.name)
+            group_layout = QVBoxLayout()
+
+            section_value_widgets = {}
+
+            self.groups[str(section.id)] = group_box
+
+            for option in section.__dict__.keys():
+                if option.startswith('_') and option.endswith('_options'):
+                    continue
+                if option == 'id':
+                    continue
+                option_value = str(getattr(section, option))
+                option_name = QLabel(option)
+                option_layout = QHBoxLayout()
+                option_layout.addWidget(option_name)
+                if f'_{option}_options' in list(section.__dict__.keys()):
+                    option_value_list = getattr(section,f'_{option}_options')
+                    values = option_value_list.strip('[]').split(',')
+                    for i in range(len(values)):
+                        values[i] = values[i].strip()
+                    if option_value not in values:
+                        values.append(option_value)
+                    combo_box = QComboBox()
+                    combo_box.addItems(values)
+                    combo_box.setCurrentText(option_value)
+                    option_layout.addWidget(combo_box)
+                    section_value_widgets[option] = combo_box
+                else:
+                    option_input = QLineEdit(option_value)
+                    option_layout.addWidget(option_input)
+                    section_value_widgets[option] = option_input
+                group_layout.addLayout(option_layout)
+
+            self.config_value_widgets[str(section.id)] = section_value_widgets
+            group_box.content.addLayout(group_layout)
+            self.scroll_area_layout.addWidget(group_box)
+
+    def save_config(self):
+        for section in self.config.configurations:
+            for option in section.__dict__.keys():
+                if option.startswith("_") and option.endswith("_options"):
+                    continue
+                old_val = getattr(section,option)
+                if option == 'id':
+                    continue
+                elif option == 'camera_sn':
+                    option_name_in_xml = 'CameraSN'
+                else:
+                    option_name_in_xml = option.replace("_"," ").title().replace(" ","")
+                widget = self.config_value_widgets[str(section.id)][option]
+                if type(widget) is QLineEdit:
+                    self.config.update_configuration(section.id, option_name_in_xml, widget.text())
+                else:
+                    self.config.update_configuration(section.id, option_name_in_xml, widget.currentText())
+        self.config.configurations = []
+        self.config.read_configurations()
+
+    def save_to_file(self):
+        self.save_config()
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Acquisition Config File", '', "XML Files (*.xml);;All Files (*)")
+        if file_path:
+            self.config.write_configuration(file_path)
+
+    def load_config_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Load Acquisition Config File", '', "XML Files (*.xml);;All Files (*)")
+        if file_path:
+            self.config.config_filename = file_path
+            self.config.configurations = []
+            self.config.read_configurations()
+            # Clear and re-initialize the UI
+            self.scroll_area_widget.deleteLater()
+            self.scroll_area_widget = QWidget()
+            self.scroll_area_layout = QVBoxLayout()
+            self.scroll_area_widget.setLayout(self.scroll_area_layout)
+            self.scroll_area.setWidget(self.scroll_area_widget)
+            self.init_ui()
+
+
+
 class ConfigEditor(QDialog):
     def __init__(self, config):
         super().__init__()
@@ -136,6 +251,7 @@ class ConfigEditor(QDialog):
             self.scroll_area_widget.setLayout(self.scroll_area_layout)
             self.scroll_area.setWidget(self.scroll_area_widget)
             self.init_ui()
+
 
 class ConfigEditorBackwardsCompatible(ConfigEditor):
     def __init__(self, config, original_filepath, main_window):

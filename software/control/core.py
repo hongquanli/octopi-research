@@ -2700,8 +2700,8 @@ class ConfigurationManager(QObject):
             )
 
     def update_configuration(self,configuration_id,attribute_name,new_value):
-        list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
-        mode_to_update = list[0]
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
 
