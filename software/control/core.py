@@ -1844,7 +1844,8 @@ class MultiPointController(QObject):
         self.recording_start_time = time.time()
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
-        self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
+        configManagerThrowaway = ConfigurationManager(self.configurationManager.config_filename)
+        configManagerThrowaway.write_configuration_selected(self.selected_configurations,os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
         acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus,'with reflection AF':self.do_reflection_af}
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
@@ -2719,6 +2720,21 @@ class ConfigurationManager(QObject):
         mode_to_update = conf_list[0]
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
+
+    def update_configuration_without_writing(self, configuration_id, attribute_name, new_value):
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+
+    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance
+                                                                             # of this class
+        for conf in self.configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 0)
+        for conf in selected_configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 1)
+        self.write_configuration(filename)
+        for conf in selected_configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 0)
 
 class PlateReaderNavigationController(QObject):
 
