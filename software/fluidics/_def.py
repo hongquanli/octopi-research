@@ -10,6 +10,11 @@ Port['Rendering Buffer'] = 8
 Port['H2 Buffer'] = 9
 # Port['DAPI'] = 10
 Port['Air'] = 11
+Port['12'] = 12
+Port['13'] = 13
+Port['14'] = 14
+Port['15'] = 15
+Port['16'] = 16
 Port['Vacuum'] = 0
 
 INCUBATION_TIME_MAX_MIN = 60*12
@@ -17,7 +22,7 @@ FLOW_TIME_MAX = 60 # in seconds
 PRESSURE_FULL_SCALE_PSI = 5
 PRESSURE_LOOP_COEFFICIENTS_FULL_SCALE = 100
 
-SEQUENCE_ATTRIBUTES_KEYS = ['Sequence','Fluidic Port','Flow Time (s)','Incubation Time (min)','Post-Fill Fluidic Port', 'Post-Fill Flow Time (s)', 'Repeat','Include']
+SEQUENCE_ATTRIBUTES_KEYS = ['Sequence','Fluidic Port','Flow Time (s)','Incubation Time (min)','Post-Fill Fluidic Port', 'Repeat','Include']
 SEQUENCE_NAME = ['Remove Medium','Stripping Buffer Wash','Rendering Buffer Wash','Hybridize','Rendering Buffer Wash 2','Imaging Buffer Wash','Add Imaging Buffer']
 
 TIMER_CHECK_MCU_STATE_INTERVAL_MS = 10 # make it half of send_update_interval_us in the firmware

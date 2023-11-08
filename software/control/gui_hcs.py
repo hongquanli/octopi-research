@@ -430,7 +430,7 @@ class OctopiGUI(QMainWindow):
 			import fluidics.controllers as controllers_fluidics
 			import fluidics.widgets as widgets_fluidics
 
-			is_simulation=True
+			is_simulation=False
 			log_measurements=False
 			debug_mode=False
 
@@ -439,6 +439,7 @@ class OctopiGUI(QMainWindow):
 			else:
 				serial_number = '9037670'
 				self.teensy41 = controllers_fluidics.Microcontroller(serial_number)
+				print("Connected to fluidics teensy")
 			self.fluidController = controllers_fluidics.FluidController(self.teensy41,log_measurements)
 			self.logger = controllers_fluidics.Logger()
 

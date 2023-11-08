@@ -10,8 +10,6 @@ from qtpy.QtGui import *
 
 # xml
 from lxml import etree as ET
-# csv
-import pandas as pd
 
 # app specific libraries
 from datetime import datetime
@@ -196,6 +194,9 @@ class SequenceEntry(QWidget):
         self.attributes['Post-Fill Fluidic Port'] = QSpinBox()
         self.attributes['Post-Fill Fluidic Port'].setMinimum(0) # 0: virtual port - does not care
         self.attributes['Post-Fill Fluidic Port'].setMaximum(24)
+        self.attributes['Post-Fill Flow Time (s)'] = QDoubleSpinBox()
+        self.attributes['Post-Fill Flow Time (s)'].setMinimum(0) # -1: no flow
+        self.attributes['Post-Fill Flow Time (s)'].setMaximum(FLOW_TIME_MAX) 
         self.attributes['Incubation Time (min)'] = QDoubleSpinBox()
         self.attributes['Incubation Time (min)'].setDecimals(1)
         self.attributes['Incubation Time (min)'].setMinimum(0) # -1: no incubation
@@ -217,10 +218,8 @@ class SequenceWidget(QFrame):
         self.fluidController = fluidController
         self.abort_requested = False
         self.config_filename = 'settings_default.xml'
-        self.flowtime_filename = 'flowtimes_default.csv'
         self.add_components()
         self.load_sequence_settings(self.config_filename)
-        self.load_flowtime_settings(self.flowtime_filename)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def close(self):
@@ -389,23 +388,15 @@ class SequenceWidget(QFrame):
         for sequence in self.config_xml_tree_root.iter('sequence'):
             name = sequence.get('Name')
             self.sequences[name].attributes['Repeat'].setValue(int(sequence.get('Repeat')))
-            self.sequences[name].attributes['Fluidic Port'].setValue(int(sequence.get('Fluidic_Port')))
+            self.sequences[name].attributes['Fluidic Port'].setValue(0)
             self.sequences[name].attributes['Flow Time (s)'].setValue(float(sequence.get('Flow_Time_in_second')))
             self.sequences[name].attributes['Incubation Time (min)'].setValue(float(sequence.get('Incubation_Time_in_minute')))
-            self.sequences[name].attributes['Post-Fill Fluidic Port'].setValue(int(sequence.get('Post_Fill_Fluidic_Port')))
+            self.sequences[name].attributes['Post-Fill Fluidic Port'].setValue(float(0))
+            self.sequences[name].attributes['Post-Fill Flow Time (s)'].setValue(float(0))
         for aspiration_setting in self.config_xml_tree_root.iter('aspiration_setting'):
             self.entry_aspiration_pump_power.setValue(float(aspiration_setting.get('Pump_Power')))
             self.entry_aspiration_time_s.setValue(float(aspiration_setting.get('Duration_Seconds')))
-    
-    def load_flowtime_settings(self, filename):
-        # create the config file if it does not alreay exist
-        if(os.path.isfile(filename)==False):
-            utils_config.generate_default_flowtime(filename)
-            print('creating default configurations')
-        # read and parse config
-        self.flowtime_df = pd.read_csv(filename)
-        self.flowtime_df.set_index('Ports', inplace=True)
-        
+
     def load_user_selected_sequence_settings(self):
         dialog = QFileDialog()
         filename, _filter = dialog.getOpenFileName(None,'Open File','.','XML files (*.xml)')
@@ -434,6 +425,7 @@ class SequenceWidget(QFrame):
                 sequence_to_update.set('Incubation_Time_in_minute',str(self.sequences[sequence_name].attributes['Incubation Time (min)'].value()))
                 sequence_to_update.set('Flow_Time_in_second',str(self.sequences[sequence_name].attributes['Flow Time (s)'].value()))
                 sequence_to_update.set('Post_Fill_Fluidic_Port',str(self.sequences[sequence_name].attributes['Post-Fill Fluidic Port'].value()))
+                sequence_to_update.set('Post_Flow_Time_in_second',str(self.sequences[sequence_name].attributes['Post-Fill Flow Time (s)'].value()))
         # aspiration settings
         list_ = self.config_xml_tree_root.xpath("//aspiration_setting")
         if list_:
@@ -481,36 +473,19 @@ class SequenceWidget(QFrame):
             for i in range(len(SEQUENCE_NAME)):
                 current_sequence = self.sequences[SEQUENCE_NAME[i]]
                 if current_sequence.attributes['Include'].isChecked() == True:
-                    # Get information about the fluids
-                    current_fluid = current_sequence.attributes['Fluidic Port'].value()
-                    next_fluid = current_sequence.attributes['Post-Fill Fluidic Port'].value()
-                    current_fluid_time = self.flowtime_df.loc[current_fluid, 'Flowtimes']
-                    next_fluid_time = self.flowtime_df.loc[next_fluid, 'Flowtimes']
                     for k in range(current_sequence.attributes['Repeat'].value()):
-                        if k == (current_sequence.attributes['Repeat'].value() - 1):
-                        	self.log_message.emit(utils.timestamp() + 'Add ' + SEQUENCE_NAME[i] + ', round ' + str(k+1) + ' to the queue.' + ' Last round - flush with post-fill fluid')
-                        	# For the last round use the flow time for the next fluid
-                        	postflowtime = next_fluid_time
-                        	# Subtract off one line's worth of fluid flow time
-                        	flowtime = max(current_sequence.attributes['Flow Time (s)'].value() - current_fluid_time, 0)
-                        else:
-                        	self.log_message.emit(utils.timestamp() + 'Add ' + SEQUENCE_NAME[i] + ', round ' + str(k+1) + ' to the queue.')
-                        	# If this isn't the last round, don't do the post-flow fluid
-                        	postflowtime = 0
-                        	# Have the normal fluid flow time
-                        	flowtime = current_sequence.attributes['Flow Time (s)'].value()
-                        	
+                        self.log_message.emit(utils.timestamp() + 'Add ' + SEQUENCE_NAME[i] + ', round ' + str(k+1) + ' to the queue')
                         QApplication.processEvents()
                         ################################################################
                         ##### let the backend fluidController execute the sequence #####
                         ################################################################
                         self.fluidController.add_sequence(
                             SEQUENCE_NAME[i],
-                            current_fluid,
-                            flowtime,
+                            current_sequence.attributes['Fluidic Port'].value(),
+                            current_sequence.attributes['Flow Time (s)'].value(),
                             current_sequence.attributes['Incubation Time (min)'].value(),
-                            next_fluid,
-                            postflowtime,
+                            current_sequence.attributes['Post-Fill Fluidic Port'].value(),
+                            current_sequence.attributes['Post-Fill Flow Time (s)'].value(),
                             pressure_setting=None,
                             aspiration_pump_power=self.entry_aspiration_pump_power.value(),
                             aspiration_time_s=self.entry_aspiration_time_s.value(),
@@ -532,8 +507,8 @@ class SequenceWidget(QFrame):
             else:
                 fluidic_port = current_sequence.attributes['Fluidic Port'].value()
             if (current_sequence.attributes['Include'].isChecked() == True) or include_all:
-                for k in range(current_sequence.attributes['Repeat'].value(),0,-1):
-                    self.log_message.emit(utils.timestamp() + 'Add ' + SEQUENCE_NAME[i] + ', round ' + str(current_sequence.attributes['Repeat'].value()-k+1) + ' to the queue')
+                for k in range(current_sequence.attributes['Repeat'].value()):
+                    self.log_message.emit(utils.timestamp() + 'Add ' + SEQUENCE_NAME[i] + ', round ' + str(k+1) + ' to the queue')
                     QApplication.processEvents()
                         ################################################################
                         ##### let the backend fluidController execute the sequence #####
@@ -1090,7 +1065,7 @@ class ManualControlWidget(QWidget):
         self.fluidController.signal_sequences_execution_stopped.connect(self.enable_user_interface)        
 
     def update_selector_valve(self,pos_str):
-        if pos_str is not '':
+        if pos_str != '':
             self.fluidController.add_sequence('Set Selector Valve Position',int(pos_str))
             self.fluidController.start_sequence_execution()
             # self.fluidController.add_sequence('Set 10 mm Valve State',int(pos_str))
