@@ -11,6 +11,7 @@ def generate_default_configuration(filename):
     mode_1.set('IlluminationSource','0')
     mode_1.set('IlluminationIntensity','5')
     mode_1.set('CameraSN','')
+    mode_1.set('ZOffset','0.0')
 
     mode_2 = ET.SubElement(top,'mode')
     mode_2.set('ID','2')
@@ -20,6 +21,7 @@ def generate_default_configuration(filename):
     mode_2.set('IlluminationSource','1')
     mode_2.set('IlluminationIntensity','5')
     mode_2.set('CameraSN','')
+    mode_2.set('ZOffset','0.0')
 
     mode_3 = ET.SubElement(top,'mode')
     mode_3.set('ID','3')
@@ -29,6 +31,7 @@ def generate_default_configuration(filename):
     mode_3.set('IlluminationSource','2')
     mode_3.set('IlluminationIntensity','5')
     mode_3.set('CameraSN','')
+    mode_3.set('ZOffset','0.0')
 
     mode_4 = ET.SubElement(top,'mode')
     mode_4.set('ID','4')
@@ -38,6 +41,7 @@ def generate_default_configuration(filename):
     mode_4.set('IlluminationSource','3')
     mode_4.set('IlluminationIntensity','5')
     mode_4.set('CameraSN','')
+    mode_4.set('ZOffset','0.0')
 
     mode_5 = ET.SubElement(top,'mode')
     mode_5.set('ID','5')
@@ -47,6 +51,7 @@ def generate_default_configuration(filename):
     mode_5.set('IlluminationSource','11')
     mode_5.set('IlluminationIntensity','100')
     mode_5.set('CameraSN','')
+    mode_5.set('ZOffset','0.0')
 
     mode_6 = ET.SubElement(top,'mode')
     mode_6.set('ID','6')
@@ -56,6 +61,7 @@ def generate_default_configuration(filename):
     mode_6.set('IlluminationSource','12')
     mode_6.set('IlluminationIntensity','100')
     mode_6.set('CameraSN','')
+    mode_6.set('ZOffset','0.0')
 
     mode_7 = ET.SubElement(top,'mode')
     mode_7.set('ID','7')
@@ -65,6 +71,7 @@ def generate_default_configuration(filename):
     mode_7.set('IlluminationSource','13')
     mode_7.set('IlluminationIntensity','100')
     mode_7.set('CameraSN','')
+    mode_7.set('ZOffset','0.0')
 
     mode_8 = ET.SubElement(top,'mode')
     mode_8.set('ID','8')
@@ -74,6 +81,7 @@ def generate_default_configuration(filename):
     mode_8.set('IlluminationSource','14')
     mode_8.set('IlluminationIntensity','100')
     mode_8.set('CameraSN','')
+    mode_8.set('ZOffset','0.0')
 
     mode_12 = ET.SubElement(top,'mode')
     mode_12.set('ID','12')
@@ -83,6 +91,7 @@ def generate_default_configuration(filename):
     mode_12.set('IlluminationSource','15')
     mode_12.set('IlluminationIntensity','100')
     mode_12.set('CameraSN','')
+    mode_12.set('ZOffset','0.0')
 
     mode_9 = ET.SubElement(top,'mode')
     mode_9.set('ID','9')
@@ -92,6 +101,7 @@ def generate_default_configuration(filename):
     mode_9.set('IlluminationSource','4')
     mode_9.set('IlluminationIntensity','20')
     mode_9.set('CameraSN','')
+    mode_9.set('ZOffset','0.0')
 
     mode_10 = ET.SubElement(top,'mode')
     mode_10.set('ID','10')
@@ -100,7 +110,8 @@ def generate_default_configuration(filename):
     mode_10.set('AnalogGain','0')
     mode_10.set('IlluminationSource','5')
     mode_10.set('IlluminationIntensity','20')
-    mode_10.set('CameraSN','')
+    mode_10.set('CameraSN','') 
+    mode_10.set('ZOffset','0.0')
 
     mode_11 = ET.SubElement(top,'mode')
     mode_11.set('ID','11')
@@ -110,6 +121,7 @@ def generate_default_configuration(filename):
     mode_11.set('IlluminationSource','6')
     mode_11.set('IlluminationIntensity','20')
     mode_11.set('CameraSN','')
+    mode_11.set('ZOffset','0.0')
 
     mode_12 = ET.SubElement(top,'mode')
     mode_12.set('ID','20')
@@ -119,6 +131,7 @@ def generate_default_configuration(filename):
     mode_12.set('IlluminationSource','6')
     mode_12.set('IlluminationIntensity','0')
     mode_12.set('CameraSN','')
+    mode_12.set('ZOffset','0.0')
 
     tree = ET.ElementTree(top)
     tree.write(filename,encoding="utf-8", xml_declaration=True, pretty_print=True)

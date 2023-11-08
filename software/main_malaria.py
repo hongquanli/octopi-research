@@ -11,7 +11,7 @@ from qtpy.QtGui import *
 
 # app specific libraries
 import control.gui_malaria as gui
-from control.widgets import ConfigEditorBackwardsCompatible
+from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
 
 from configparser import ConfigParser
 import glob
@@ -23,6 +23,10 @@ args = parser.parse_args()
 def show_config(cfp, configpath, main_gui):
     config_widget = ConfigEditorBackwardsCompatible(cfp, configpath, main_gui)
     config_widget.exec_()
+
+def show_acq_config(cfm):
+    acq_config_widget = ConfigEditorForAcquisitions(cfm)
+    acq_config_widget.exec_()
 
 if __name__ == "__main__":
     cf_editor_parser = ConfigParser()
@@ -43,7 +47,13 @@ if __name__ == "__main__":
         win = gui.OctopiGUI()
     config_action = QAction("Configuration", win)
     config_action.triggered.connect(lambda : show_config(cf_editor_parser, config_files[0], win))
+
+    acq_config_action = QAction("Acquisition Configurations", win)
+    acq_config_action.triggered.connect(lambda : show_acq_config(win.configurationManager))
+    
     file_menu = QMenu("File", win)
+    file_menu.addAction(acq_config_action)
+     
     file_menu.addAction(config_action)
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)

@@ -363,7 +363,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None):
         self.id = mode_id
         self.name = name
         self.exposure_time = exposure_time
@@ -371,6 +371,7 @@ class Configuration:
         self.illumination_source = illumination_source
         self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
+        self.z_offset = z_offset
 
 class LiveController(QObject):
 
@@ -1447,6 +1448,13 @@ class MultiPointWorker(QObject):
                             dpc_R = None
                             # iterate through selected modes
                             for config in self.selected_configurations:
+                                if config.z_offset is not None: # perform z offset for config 
+                                    if config.z_offset != 0.0:
+                                        print("Moving to Z offset "+str(config.z_offset))
+                                        self.navigationController.move_z(config.z_offset)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+
                                 if 'USB Spectrometer' not in config.name:
                                     # update the current configuration
                                     self.signal_current_configuration.emit(config)
@@ -1541,6 +1549,14 @@ class MultiPointWorker(QObject):
                                             self.spectrum_to_display.emit(data)
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
+                                
+                                
+                                if config.z_offset is not None: # undo Z offset
+                                    if config.z_offset != 0.0:
+                                        print("Moving back from Z offset "+str(config.z_offset))
+                                        self.navigationController.move_z(-config.z_offset)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                             # real time processing 
                             if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
@@ -2693,12 +2709,14 @@ class ConfigurationManager(QObject):
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
                     illumination_intensity = float(mode.get('IlluminationIntensity')),
-                    camera_sn = mode.get('CameraSN'))
+                    camera_sn = mode.get('CameraSN'),
+                    z_offset = float(mode.get('ZOffset'))
+                )
             )
 
     def update_configuration(self,configuration_id,attribute_name,new_value):
-        list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
-        mode_to_update = list[0]
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
 
