@@ -1221,7 +1221,10 @@ class MultiPointWorker(QObject):
 
         self.microscope = self.multiPointController.parent
 
-        self.model = self.microscope.segmentation_model
+        try:
+            self.model = self.microscope.segmentation_model
+        except:
+            pass
         self.crop = SEGMENTATION_CROP
 
         # hard-coded model initialization
@@ -1782,7 +1785,7 @@ class MultiPointController(QObject):
         self.do_reflection_af = False
         self.do_stitch_tiles = False
         self.do_segmentation = False
-        self.do_fluorescence_rtp = True
+        self.do_fluorescence_rtp = DO_FLUORESCENCE_RTP
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1795,8 +1798,11 @@ class MultiPointController(QObject):
         self.parent = parent
 
         self.old_images_per_page = 1
-        if self.parent is not None:
-            self.old_images_per_page = self.parent.dataHandler.n_images_per_page
+        try:
+            if self.parent is not None:
+                self.old_images_per_page = self.parent.dataHandler.n_images_per_page
+        except:
+            pass
         self.location_list = None # for flexible multipoint
 
     def set_NX(self,N):
@@ -1894,8 +1900,14 @@ class MultiPointController(QObject):
                 self.usb_spectrometer_was_streaming = False
 
         if self.parent is not None:
-            self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
-            self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
+            try:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            except:
+                pass
+            try:
+                self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
+            except:
+                pass
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
@@ -1945,9 +1957,12 @@ class MultiPointController(QObject):
         # emit the acquisition finished signal to enable the UI
         self.processingHandler.end_processing()
         if self.parent is not None:
-            self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
-            self.parent.dataHandler.sort('Sort by prediction score')
-            self.parent.dataHandler.signal_populate_page0.emit()
+            try:
+                self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+                self.parent.dataHandler.sort('Sort by prediction score')
+                self.parent.dataHandler.signal_populate_page0.emit()
+            except:
+                pass
         self.acquisitionFinished.emit()
         QApplication.processEvents()
 

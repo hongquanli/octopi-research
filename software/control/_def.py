@@ -425,6 +425,8 @@ SEGMENTATION_CROP=1500
 DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
 
+DO_FLUORESCENCE_RTP = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
