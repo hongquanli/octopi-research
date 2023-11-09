@@ -1528,7 +1528,7 @@ class MultiPointWidget2(QFrame):
         grid_line3point5.addWidget(self.btn_remove,0,1)
         grid_line3point5.addWidget(self.btn_next,0,2)
         grid_line3point5.addWidget(self.btn_previous,0,3)
-        grid_line3point5.addWidget(self.btn_load_last_executed,0,4)
+        #grid_line3point5.addWidget(self.btn_load_last_executed,0,4)
 
         grid_line3point75 = QGridLayout()
         grid_line3point75.addWidget(self.btn_import_locations,0,0)
