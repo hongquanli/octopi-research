@@ -363,7 +363,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None):
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
         self.id = mode_id
         self.name = name
         self.exposure_time = exposure_time
@@ -372,6 +372,12 @@ class Configuration:
         self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
         self.z_offset = z_offset
+        self.pixel_format = pixel_format
+        if self.pixel_format is None:
+            self.pixel_format = "default"
+        self._pixel_format_options = _pixel_format_options
+        if _pixel_format_options is None:
+            self._pixel_format_options = self.pixel_format
 
 class LiveController(QObject):
 
@@ -1470,7 +1476,16 @@ class MultiPointWorker(QObject):
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                         self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                                     # read camera frame
+                                    old_pixel_format = self.camera.pixel_format
+                                    if config.pixel_format is not None:
+                                        if config.pixel_format != "" and config.pixel_format.lower() != "default":
+                                            self.camera.set_pixel_format(config.pixel_format)
+                                    
                                     image = self.camera.read_frame()
+
+                                    if config.pixel_format is not None:
+                                        if config.pixel_format != "" and config.pixel_format.lower() != "default":
+                                            self.camera.set_pixel_format(old_pixel_format)
                                     if image is None:
                                         print('self.camera.read_frame() returned None')
                                         continue
@@ -2726,7 +2741,9 @@ class ConfigurationManager(QObject):
                     illumination_source = int(mode.get('IlluminationSource')),
                     illumination_intensity = float(mode.get('IlluminationIntensity')),
                     camera_sn = mode.get('CameraSN'),
-                    z_offset = float(mode.get('ZOffset'))
+                    z_offset = float(mode.get('ZOffset')),
+                    pixel_format = mode.get('PixelFormat'),
+                    _pixel_format_options = mode.get('_PixelFormat_options')
                 )
             )
 

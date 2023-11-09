@@ -310,6 +310,8 @@ class CameraSettingsWidget(QFrame):
         self.dropdown_pixelFormat.addItems(['MONO8','MONO12','MONO14','MONO16','BAYER_RG8','BAYER_RG12'])
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
+        else:
+            self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
 
         self.entry_ROI_offset_x = QSpinBox()
