@@ -1392,6 +1392,7 @@ class MultiPointWidget(QFrame):
 class MultiPointWidget2(QFrame):
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.last_used_locations = None
         self.multipointController = multipointController
         self.configurationManager = configurationManager
         self.navigationController = navigationController
@@ -1423,6 +1424,8 @@ class MultiPointWidget2(QFrame):
         self.btn_previous = QPushButton('Previous')
         self.btn_next = QPushButton('Next')
         self.btn_clear = QPushButton('Clear all')
+
+        self.btn_load_last_executed = QPushButton('Prev Used Locations')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -1510,10 +1513,13 @@ class MultiPointWidget2(QFrame):
         grid_line4.addWidget(QLabel('Location List'),0,0)
         grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
         grid_line4.addWidget(self.btn_clear,0,3)
-        grid_line4.addWidget(self.btn_add,1,0)
-        grid_line4.addWidget(self.btn_remove,1,1)
-        grid_line4.addWidget(self.btn_next,1,2)
-        grid_line4.addWidget(self.btn_previous,1,3)
+
+        grid_line3point5 = QGridLayout()
+        grid_line3point5.addWidget(self.btn_add,0,0)
+        grid_line3point5.addWidget(self.btn_remove,0,1)
+        grid_line3point5.addWidget(self.btn_next,0,2)
+        grid_line3point5.addWidget(self.btn_previous,0,3)
+        grid_line3point5.addWidget(self.btn_load_last_executed,0,4)
 
         grid_line2 = QGridLayout()
         grid_line2.addWidget(QLabel('dx (mm)'), 0,0)
@@ -1549,6 +1555,7 @@ class MultiPointWidget2(QFrame):
         self.grid.addLayout(grid_line0,0,0)
         # self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line4,1,0)
+        self.grid.addLayout(grid_line3point5,2,0)
         # self.grid.addLayout(grid_line5,2,0)
         self.grid.addLayout(grid_line2,3,0)
         self.grid.addLayout(grid_line3,4,0)
@@ -1577,6 +1584,7 @@ class MultiPointWidget2(QFrame):
         self.btn_previous.clicked.connect(self.previous)
         self.btn_next.clicked.connect(self.next)
         self.btn_clear.clicked.connect(self.clear)
+        self.btn_load_last_executed.clicked.connect(self.load_last_used_locations)
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
@@ -1622,8 +1630,8 @@ class MultiPointWidget2(QFrame):
             if len(self.location_list) == 0:
                 self.add_location()
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1641,7 +1649,32 @@ class MultiPointWidget2(QFrame):
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
 
+    def load_last_used_locations(self):
+        if self.last_used_locations is None or len(self.last_used_locations) == 0:
+            return
+        self.clear_only_location_list()
+
+        for row in self.last_used_locations:
+            x = row[0]
+            y = row[1]
+            z = row[2]
+            if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
+                location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
+                self.dropdown_location_list.addItem(location_str)
+                index = self.dropdown_location_list.count() - 1
+                self.dropdown_location_list.setCurrentIndex(index)
+                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                print(self.location_list)
+                self.navigationViewer.register_fov_to_image(x,y)
+            else:
+                print("Duplicate values not added based on x and y.")
+                #to-do: update z coordinate
+
+
+
     def acquisition_is_finished(self):
+        self.last_used_locations = self.location_list.copy()
+        self.clear_only_location_list()
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
@@ -1725,6 +1758,10 @@ class MultiPointWidget2(QFrame):
         self.location_list = np.empty((0, 3), dtype=float)
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
+
+    def clear_only_location_list(self):
+        self.location_list = np.empty((0,3),dtype=float)
+        self.dropdown_location_list.clear()
 
     def go_to(self,index):
         if index != -1:
