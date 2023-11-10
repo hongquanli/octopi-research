@@ -41,6 +41,12 @@ import pandas as pd
 import imageio as iio
 
 from control.processing_pipeline import *
+class ObjectiveStore:
+    def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
+        self.objectives_dict = objectives_dict
+        self.default_objective = default_objective
+        self.current_objective = default_objective
+
 class StreamHandler(QObject):
 
     image_to_display = Signal(np.ndarray)
@@ -1870,6 +1876,15 @@ class MultiPointController(QObject):
         configManagerThrowaway = ConfigurationManager(self.configurationManager.config_filename)
         configManagerThrowaway.write_configuration_selected(self.selected_configurations,os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
         acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus,'with reflection AF':self.do_reflection_af}
+        try: # write objective data if it is available
+            current_objective = self.parent.objectiveStore.current_objective
+            objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
+            acquisition_parameters['objective'] = {}
+            for k in objective_info.keys():
+                acquisition_parameters['objective'][k]=objective_info[k]
+            acquisition_parameters['objective']['name']=current_objective
+        except:
+            pass
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()

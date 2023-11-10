@@ -277,6 +277,42 @@ class ConfigEditorBackwardsCompatible(ConfigEditor):
             pass
         self.close()
 
+class ObjectivesWidget(QWidget):
+    def __init__(self, objective_store):
+        super(ObjectivesWidget, self).__init__()
+
+        self.objectiveStore = objective_store
+    
+        self.init_ui()
+
+        self.dropdown.setCurrentText(self.objectiveStore.current_objective)
+
+    def init_ui(self):
+        # Dropdown for selecting keys
+        self.dropdown = QComboBox(self)
+        self.dropdown.addItems(self.objectiveStore.objectives_dict.keys())
+        self.dropdown.currentIndexChanged.connect(self.display_objective)
+
+        # TextBrowser to display key-value pairs
+        self.text_browser = QTextBrowser(self)
+        # Layout
+        dropdownLayout = QHBoxLayout()
+        dropdownLabel = QLabel("Objectives:")
+        dropdownLayout.addWidget(dropdownLabel)
+        dropdownLayout.addWidget(self.dropdown)
+        textLayout = QHBoxLayout()
+        textLayout.addWidget(self.text_browser)
+        layout = QVBoxLayout(self)
+        layout.addLayout(dropdownLayout)
+        layout.addLayout(textLayout)
+
+    def display_objective(self, index):
+        selected_key = self.dropdown.currentText()
+        objective_data = self.objectiveStore.objectives_dict.get(selected_key, {})
+        text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
+        self.objectiveStore.current_objective = selected_key
+        self.text_browser.setPlainText(text)
+
 class CameraSettingsWidget(QFrame):
 
     signal_camera_set_temperature = Signal(float)
