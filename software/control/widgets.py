@@ -12,7 +12,10 @@ from qtpy.QtGui import *
 
 import pyqtgraph as pg
 
+import pandas as pd
+
 from datetime import datetime
+
 
 from control._def import *
 
@@ -274,6 +277,42 @@ class ConfigEditorBackwardsCompatible(ConfigEditor):
             pass
         self.close()
 
+class ObjectivesWidget(QWidget):
+    def __init__(self, objective_store):
+        super(ObjectivesWidget, self).__init__()
+
+        self.objectiveStore = objective_store
+    
+        self.init_ui()
+
+        self.dropdown.setCurrentText(self.objectiveStore.current_objective)
+
+    def init_ui(self):
+        # Dropdown for selecting keys
+        self.dropdown = QComboBox(self)
+        self.dropdown.addItems(self.objectiveStore.objectives_dict.keys())
+        self.dropdown.currentIndexChanged.connect(self.display_objective)
+
+        # TextBrowser to display key-value pairs
+        self.text_browser = QTextBrowser(self)
+        # Layout
+        dropdownLayout = QHBoxLayout()
+        dropdownLabel = QLabel("Objectives:")
+        dropdownLayout.addWidget(dropdownLabel)
+        dropdownLayout.addWidget(self.dropdown)
+        textLayout = QHBoxLayout()
+        textLayout.addWidget(self.text_browser)
+        layout = QVBoxLayout(self)
+        layout.addLayout(dropdownLayout)
+        layout.addLayout(textLayout)
+
+    def display_objective(self, index):
+        selected_key = self.dropdown.currentText()
+        objective_data = self.objectiveStore.objectives_dict.get(selected_key, {})
+        text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
+        self.objectiveStore.current_objective = selected_key
+        self.text_browser.setPlainText(text)
+
 class CameraSettingsWidget(QFrame):
 
     signal_camera_set_temperature = Signal(float)
@@ -307,6 +346,9 @@ class CameraSettingsWidget(QFrame):
         self.dropdown_pixelFormat.addItems(['MONO8','MONO12','MONO14','MONO16','BAYER_RG8','BAYER_RG12'])
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
+        else:
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+            self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
 
         self.entry_ROI_offset_x = QSpinBox()
@@ -1342,8 +1384,8 @@ class MultiPointWidget(QFrame):
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1392,6 +1434,7 @@ class MultiPointWidget(QFrame):
 class MultiPointWidget2(QFrame):
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.last_used_locations = None
         self.multipointController = multipointController
         self.configurationManager = configurationManager
         self.navigationController = navigationController
@@ -1400,6 +1443,7 @@ class MultiPointWidget2(QFrame):
         self.location_list = np.empty((0, 3), dtype=float)
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.acquisition_in_place=False
 
     def add_components(self):
 
@@ -1423,6 +1467,11 @@ class MultiPointWidget2(QFrame):
         self.btn_previous = QPushButton('Previous')
         self.btn_next = QPushButton('Next')
         self.btn_clear = QPushButton('Clear all')
+
+        self.btn_load_last_executed = QPushButton('Prev Used Locations')
+
+        self.btn_export_locations = QPushButton('Export Location List')
+        self.btn_import_locations = QPushButton('Import Location List')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -1510,10 +1559,17 @@ class MultiPointWidget2(QFrame):
         grid_line4.addWidget(QLabel('Location List'),0,0)
         grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
         grid_line4.addWidget(self.btn_clear,0,3)
-        grid_line4.addWidget(self.btn_add,1,0)
-        grid_line4.addWidget(self.btn_remove,1,1)
-        grid_line4.addWidget(self.btn_next,1,2)
-        grid_line4.addWidget(self.btn_previous,1,3)
+
+        grid_line3point5 = QGridLayout()
+        grid_line3point5.addWidget(self.btn_add,0,0)
+        grid_line3point5.addWidget(self.btn_remove,0,1)
+        grid_line3point5.addWidget(self.btn_next,0,2)
+        grid_line3point5.addWidget(self.btn_previous,0,3)
+        #grid_line3point5.addWidget(self.btn_load_last_executed,0,4)
+
+        grid_line3point75 = QGridLayout()
+        grid_line3point75.addWidget(self.btn_import_locations,0,0)
+        grid_line3point75.addWidget(self.btn_export_locations,0,1)
 
         grid_line2 = QGridLayout()
         grid_line2.addWidget(QLabel('dx (mm)'), 0,0)
@@ -1549,9 +1605,11 @@ class MultiPointWidget2(QFrame):
         self.grid.addLayout(grid_line0,0,0)
         # self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line4,1,0)
+        self.grid.addLayout(grid_line3point5,2,0)
+        self.grid.addLayout(grid_line3point75,3,0)
         # self.grid.addLayout(grid_line5,2,0)
-        self.grid.addLayout(grid_line2,3,0)
-        self.grid.addLayout(grid_line3,4,0)
+        self.grid.addLayout(grid_line2,4,0)
+        self.grid.addLayout(grid_line3,5,0)
         self.setLayout(self.grid)
 
         # add and display a timer - to be implemented
@@ -1577,6 +1635,10 @@ class MultiPointWidget2(QFrame):
         self.btn_previous.clicked.connect(self.previous)
         self.btn_next.clicked.connect(self.next)
         self.btn_clear.clicked.connect(self.clear)
+        self.btn_load_last_executed.clicked.connect(self.load_last_used_locations)
+        self.btn_export_locations.clicked.connect(self.export_location_list)
+        self.btn_import_locations.clicked.connect(self.import_location_list)
+
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
@@ -1621,9 +1683,10 @@ class MultiPointWidget2(QFrame):
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
                 self.add_location()
+                self.acquisition_in_place =True
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1641,7 +1704,35 @@ class MultiPointWidget2(QFrame):
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
 
+    def load_last_used_locations(self):
+        if self.last_used_locations is None or len(self.last_used_locations) == 0:
+            return
+        self.clear_only_location_list()
+
+        for row in self.last_used_locations:
+            x = row[0]
+            y = row[1]
+            z = row[2]
+            if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
+                location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
+                self.dropdown_location_list.addItem(location_str)
+                index = self.dropdown_location_list.count() - 1
+                self.dropdown_location_list.setCurrentIndex(index)
+                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                print(self.location_list)
+                self.navigationViewer.register_fov_to_image(x,y)
+            else:
+                print("Duplicate values not added based on x and y.")
+                #to-do: update z coordinate
+
+
+
     def acquisition_is_finished(self):
+        if not self.acquisition_in_place:
+            self.last_used_locations = self.location_list.copy()
+        else:
+            self.clear()
+            self.acquisition_in_place = False
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
@@ -1726,6 +1817,10 @@ class MultiPointWidget2(QFrame):
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
 
+    def clear_only_location_list(self):
+        self.location_list = np.empty((0,3),dtype=float)
+        self.dropdown_location_list.clear()
+
     def go_to(self,index):
         if index != -1:
             if index < len(self.location_list): # to avoid giving errors when adding new points
@@ -1746,6 +1841,43 @@ class MultiPointWidget2(QFrame):
         self.location_list[index,2] = z_mm
         location_str = 'x: ' + str(round(self.location_list[index,0],3)) + ' mm, y: ' + str(round(self.location_list[index,1],3)) + ' mm, z: ' + str(round(1000*z_mm,1)) + ' um'
         self.dropdown_location_list.setItemText(index, location_str)
+
+    def export_location_list(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Location List", '', "CSV Files (*.csv);;All Files (*)")
+        if file_path:
+            location_list_df = pd.DataFrame(self.location_list,columns=['x (mm)','y (mm)', 'z (um)'])
+            location_list_df['i'] = 0
+            location_list_df['j'] = 0
+            location_list_df['k'] = 0
+            location_list_df.to_csv(file_path,index=False,header=True)
+
+    def import_location_list(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import Location List", '', "CSV Files (*.csv);;All Files (*)")
+        if file_path:
+            location_list_df = pd.read_csv(file_path)
+            location_list_df_relevant = None
+            try:
+                location_list_df_relevant = location_list_df[['x (mm)', 'y (mm)', 'z (um)']]
+            except KeyError:
+                print("Improperly formatted location list being imported")
+                return
+            self.clear_only_location_list()
+            for index, row in location_list_df_relevant.iterrows():
+                x = row['x (mm)']
+                y = row['y (mm)']
+                z = row['z (um)']
+                if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
+                    location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
+                    self.dropdown_location_list.addItem(location_str)
+                    index = self.dropdown_location_list.count() - 1
+                    self.dropdown_location_list.setCurrentIndex(index)
+                    self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                    self.navigationViewer.register_fov_to_image(x,y)
+                else:
+                    print("Duplicate values not added based on x and y.")
+            print(self.location_list)
+
+
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):

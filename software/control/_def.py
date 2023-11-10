@@ -286,6 +286,8 @@ LED_MATRIX_B_FACTOR = 1
 
 DEFAULT_SAVING_PATH = str(Path.home()) + "/Downloads"
 
+DEFAULT_PIXEL_FORMAT = 'MONO12'
+
 class PLATE_READER:
     NUMBER_OF_ROWS = 8
     NUMBER_OF_COLUMNS = 12
@@ -424,6 +426,8 @@ SEGMENTATION_CROP=1500
 
 DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
+
+DO_FLUORESCENCE_RTP = False
 
 ##########################################################
 #### start of loading machine specific configurations ####

@@ -43,6 +43,9 @@ class OctopiGUI(QMainWindow):
         # self.imageArrayDisplayWindow.show()
 
         # image display windows
+        self.objectiveStore = core.ObjectiveStore()
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
+
         self.imageDisplayTabs = QTabWidget()
         self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
         self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
@@ -171,6 +174,8 @@ class OctopiGUI(QMainWindow):
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
+        layout.addWidget(self.objectivesWidget)
+        self.objectivesWidget.setFixedHeight(100)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
