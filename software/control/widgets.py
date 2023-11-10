@@ -999,6 +999,7 @@ class NavigationWidget(QFrame):
         self.btn_moveY_backward.setEnabled(False)
         self.btn_moveZ_forward.setEnabled(False)
         self.btn_moveZ_backward.setEnabled(False)
+        self.btn_load_slide.setEnabled(True)
 
     def slot_slide_scanning_position_reached(self):
         self.slide_position = 'scanning'
@@ -1010,12 +1011,14 @@ class NavigationWidget(QFrame):
         self.btn_moveY_backward.setEnabled(True)
         self.btn_moveZ_forward.setEnabled(True)
         self.btn_moveZ_backward.setEnabled(True)
+        self.btn_load_slide.setEnabled(True)
 
     def switch_position(self):
         if self.slide_position != 'loading':
             self.slidePositionController.move_to_slide_loading_position()
         else:
             self.slidePositionController.move_to_slide_scanning_position()
+        self.btn_load_slide.setEnabled(False)
 
 class DACControWidget(QFrame):
     def __init__(self, microcontroller ,*args, **kwargs):
