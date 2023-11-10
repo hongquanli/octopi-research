@@ -79,7 +79,7 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     process_kwargs.pop('upload_fn')
     multiPointWorker = None
     no_cells = 0
-    no_parasites = 0
+    no_positives = 0
     overlay = None
     dpc_image = None
     try:
@@ -117,9 +117,9 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
         color_mask, no_cells = utils.colorize_mask_get_counts(mask)
         overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
     I, score = process_fn(*process_args, **process_kwargs)
-    no_parasites = len(score)
+    no_positives = len(score)
     if multiPointWorker is not None:
-        new_counts = {"Counted RBC": no_cells, "Estimated Total RBC":int(no_cells*rbc_ratio) , "Total Parasites": no_parasites,
+        new_counts = {"Counted RBC": no_cells, "Estimated Total RBC":int(no_cells*rbc_ratio) , "Total Positives": no_positives,
                 "# FOV Processed":1}
         multiPointWorker.signal_update_stats.emit(new_counts)
         multiPointWorker.image_to_display_multi.emit(overlay, 12)

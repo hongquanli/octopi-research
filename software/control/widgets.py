@@ -1267,7 +1267,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
-        self.multipointController.set_stitch_tiles_flag(False)
+        #self.multipointController.set_stitch_tiles_flag(False)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.checkbox_stitchTiles = QCheckBox("Stitch OME TIFF for each Z plane")
         self.checkbox_segmentation = QCheckBox("Perform segmentation using DPC on tiles")

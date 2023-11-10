@@ -175,13 +175,13 @@ class Stitcher():
             image_reader=None, queue_timeout=None):
         """
         :brief: start OME-TIFF writer
-        :param outputpath: path to write tiled OME-TIFF file to
+        :param outputpath: path to write tiled TIFF file to
         :param bigtiff: bigtiff argument to pass to TiffWriter
         :param image_reader: image reader function to pass to TIFF writer when parsing tiles
         :param queue_timeout: queue_timeout parameter to pass to TIFF writer
         """
         if outputpath == None:
-            outputpath = self.stitched_file_path
+            outputpath = self.tiled_file_path
         if image_reader == None:
             image_reader = self.image_reader
         self.ometiff_writer_thread = threading.Thread(target=queued_ometiff_writer,\
