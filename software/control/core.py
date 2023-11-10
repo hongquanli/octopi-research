@@ -1457,10 +1457,11 @@ class MultiPointWorker(QObject):
                             dpc_R = None
                             # iterate through selected modes
                             for config in self.selected_configurations:
-                                if config.z_offset is not None: # perform z offset for config 
+                                if config.z_offset is not None: # perform z offset for config, assume
+                                                                # z_offset is in um
                                     if config.z_offset != 0.0:
                                         print("Moving to Z offset "+str(config.z_offset))
-                                        self.navigationController.move_z(config.z_offset)
+                                        self.navigationController.move_z(config.z_offset/1000)
                                         self.wait_till_operation_is_completed()
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
@@ -1570,9 +1571,10 @@ class MultiPointWorker(QObject):
                                 
                                 
                                 if config.z_offset is not None: # undo Z offset
+                                                                # assume z_offset is in um
                                     if config.z_offset != 0.0:
                                         print("Moving back from Z offset "+str(config.z_offset))
-                                        self.navigationController.move_z(-config.z_offset)
+                                        self.navigationController.move_z(-config.z_offset/1000)
                                         self.wait_till_operation_is_completed()
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 

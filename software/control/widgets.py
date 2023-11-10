@@ -311,6 +311,7 @@ class CameraSettingsWidget(QFrame):
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
         else:
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
 
