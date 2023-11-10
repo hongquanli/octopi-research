@@ -182,7 +182,7 @@ class OctopiGUI(QMainWindow):
         cameraWidgetsLayout = QHBoxLayout()
         cameraWidgetsLayout.addWidget(self.cameraSettingWidget)
         cameraWidgetsLayout.addWidget(self.objectivesWidget)
-        self.objectivesWidget.setFixedHeight(100)
+        #self.objectivesWidget.setFixedHeight(100)
         layout.addLayout(cameraWidgetsLayout)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)

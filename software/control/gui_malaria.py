@@ -175,7 +175,7 @@ class OctopiGUI(QMainWindow):
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
         layout.addWidget(self.objectivesWidget)
-        self.objectivesWidget.setFixedHeight(100)
+        #self.objectivesWidget.setFixedHeight(100)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:

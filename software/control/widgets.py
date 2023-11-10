@@ -294,24 +294,24 @@ class ObjectivesWidget(QWidget):
         self.dropdown.currentIndexChanged.connect(self.display_objective)
 
         # TextBrowser to display key-value pairs
-        self.text_browser = QTextBrowser(self)
+        #self.text_browser = QTextBrowser(self)
         # Layout
         dropdownLayout = QHBoxLayout()
         dropdownLabel = QLabel("Objectives:")
         dropdownLayout.addWidget(dropdownLabel)
         dropdownLayout.addWidget(self.dropdown)
-        textLayout = QHBoxLayout()
-        textLayout.addWidget(self.text_browser)
+        #textLayout = QHBoxLayout()
+        #textLayout.addWidget(self.text_browser)
         layout = QVBoxLayout(self)
         layout.addLayout(dropdownLayout)
-        layout.addLayout(textLayout)
+        #layout.addLayout(textLayout)
 
     def display_objective(self, index):
         selected_key = self.dropdown.currentText()
         objective_data = self.objectiveStore.objectives_dict.get(selected_key, {})
-        text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
+        #text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
         self.objectiveStore.current_objective = selected_key
-        self.text_browser.setPlainText(text)
+        #self.text_browser.setPlainText(text)
 
 class CameraSettingsWidget(QFrame):
 
