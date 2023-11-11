@@ -10,7 +10,6 @@ from qtpy.QtGui import *
 
 from control.processing_handler import ProcessingHandler
 from control.stitcher import Stitcher, default_image_reader
-from control.multipoint_built_in_functionalities import malaria_rtp
 
 import control.utils as utils
 from control._def import *
@@ -43,7 +42,6 @@ import imageio as iio
 
 import subprocess
 
-from control.processing_pipeline import *
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
         self.objectives_dict = objectives_dict
@@ -1236,14 +1234,6 @@ class MultiPointWorker(QObject):
 
         self.microscope = self.multiPointController.parent
 
-        try:
-            self.model = self.microscope.segmentation_model
-        except:
-            pass
-        self.crop = SEGMENTATION_CROP
-
-        # hard-coded model initialization
-        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
         self.t_dpc = []
         self.t_inf = []
         self.t_over=[]
@@ -1577,18 +1567,6 @@ class MultiPointWorker(QObject):
                                         self.wait_till_operation_is_completed()
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-
-                            acquired_image_configs = list(current_round_images.keys())
-                            if ('BF LED matrix left half' in acquired_image_configs) and ('BF LED matrix right half' in acquired_image_configs) and ('Fluorescence 405 nm Ex' in acquired_image_configs) and self.multiPointController.do_fluorescence_rtp:
-                                try:
-                                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
-                                        raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
-                                    I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
-                                    I_left = current_round_images['BF LED matrix left half']
-                                    I_right = current_round_images['BF LED matrix right half']
-                                    malaria_rtp(I_fluorescence, I_left, I_right, self,classification_test_mode=CLASSIFICATION_TEST_MODE,sort_during_multipoint=SORT_DURING_MULTIPOINT,disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
-                                except AttributeError as e:
-                                    print(repr(e))
                                                             
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
@@ -1738,9 +1716,7 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
-        self.do_stitch_tiles = STITCH_TILES_WITH_ASHLAR
-        self.do_segmentation = False
-        self.do_fluorescence_rtp = DO_FLUORESCENCE_RTP
+        self.do_stitch_tiles = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1786,12 +1762,6 @@ class MultiPointController(QObject):
         self.do_autofocus = flag
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
-    def set_stitch_tiles_flag(self, flag):
-        self.do_stitch_tiles = flag
-    def set_segmentation_flag(self, flag):
-        self.do_segmentation = flag
-    def set_fluorescence_rtp_flag(self, flag):
-        self.do_fluorescence_rtp = flag
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height

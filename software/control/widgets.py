@@ -1267,16 +1267,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
-        #self.multipointController.set_stitch_tiles_flag(False)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
-        self.checkbox_stitchTiles = QCheckBox("Stitch OME TIFF for each Z plane")
-        self.checkbox_segmentation = QCheckBox("Perform segmentation using DPC on tiles")
-        self.checkbox_fluorescence_rtp = QCheckBox("Perform real-time-classification using fluorescence on tiles")
-        self.checkbox_stitchTiles.setChecked(False)
-        self.checkbox_fluorescence_rtp.setChecked(True)
-        self.checkbox_stitchTiles.setCheckable(True)
-        self.checkbox_segmentation.setChecked(False)
-        self.checkbox_segmentation.setCheckable(True)
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -1311,9 +1302,6 @@ class MultiPointWidget(QFrame):
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
-        #grid_af.addWidget(self.checkbox_stitchTiles)
-        #grid_af.addWidget(self.checkbox_segmentation)
-        #grid_af.addWidget(self.checkbox_fluorescence_rtp)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
 
@@ -1344,9 +1332,6 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
-        self.checkbox_stitchTiles.stateChanged.connect(self.multipointController.set_stitch_tiles_flag)
-        self.checkbox_segmentation.stateChanged.connect(self.multipointController.set_segmentation_flag)
-        self.checkbox_fluorescence_rtp.stateChanged.connect(self.multipointController.set_fluorescence_rtp_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)

@@ -481,7 +481,7 @@ else:
 ##########################################################
 # saving path
 if not (DEFAULT_SAVING_PATH.startswith(str(Path.home()))):
-    DEFAULT_SAVING_PATH = os.path.join(str(Path.home()),DEFAULT_SAVING_PATH)
+    DEFAULT_SAVING_PATH = str(Path.home())+"/"+DEFAULT_SAVING_PATH.strip("/")
 
 # limit switch
 X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.X_HOME
