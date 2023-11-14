@@ -663,10 +663,10 @@ class Microcontroller():
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
             self.button_and_switch_state = msg[18]
-            
-            self.x_enc = self._payload_to_int(msg[19:23],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
-            self.y_enc = self._payload_to_int(msg[23:27],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
-            self.z_enc = self._payload_to_int(msg[27:31],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            # Remove reading encoder
+            #self.x_enc = self._payload_to_int(msg[19:23],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            #self.y_enc = self._payload_to_int(msg[23:27],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            #self.z_enc = self._payload_to_int(msg[27:31],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
             
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
