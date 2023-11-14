@@ -69,7 +69,10 @@ https://nvidia.github.io/cuda-python/install.html
 https://docs.cupy.dev/en/stable/install.html
 
 </details>
-
+<details>
+<summary>Installing drivers and libraries for FLIR camera support</summary>
+Go to [FLIR's page for downloading their Spinnaker SDK](https://www.flir.com/support/products/spinnaker-sdk/) and download and install the Spinnaker package for your version of Ubuntu (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the `flirimaging` group). After this, download the Python Spinnaker package for the appropriate version of python from the same page, and install it in either your base environment or the environment you run microscopy software in by following the instructions in its README file.
+</details>
 ## Configuring the software
 Create a `configuration.txt` file in the software folder to set up variables for a specific machine. The file is loaded by [`control/_def.py`](https://github.com/hongquanli/octopi-research/blob/master/software/control/_def.py) There should be only one `configuration*.txt` file in the software folder. You may edit the [`configuration_example.txt` file](https://github.com/hongquanli/octopi-research/blob/master/software/configuration_example.txt) and rename it.
 
