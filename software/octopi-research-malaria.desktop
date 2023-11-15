@@ -1,9 +1,8 @@
 [Desktop Entry]
 Version=1.0
-Name=main_malaria.py
-Comment=Execute main_malaria.py
-Path=/home/prakashlab/Desktop/octopi-research/software/
-Exec=python3 "/home/prakashlab/Desktop/octopi-research/software/main_malaria.py"
+Name=Squid
+Comment=Execute main_6060.py
+Exec="sh -c 'cd /home/prakashlab/Desktop/octopi-rtp/octopi-research/software/ && exec python3 main_6060.py'"
 Terminal=true
 Type=Application
 Categories=Application
