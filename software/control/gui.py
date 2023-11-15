@@ -106,18 +106,16 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
         # layout widgets
-        cameraWidgetsLayout = QHBoxLayout()
-        cameraWidgetsLayout.addWidget(self.cameraSettingWidget)
-        cameraWidgetsLayout.addWidget(self.objectivesWidget)
+        layout = QVBoxLayout() 
+        layout.addWidget(self.cameraSettingWidget)
         #self.objectivesWidget.setFixedHeight(100)
-        layout = QVBoxLayout() #layout = QStackedLayout()
-        layout.addLayout(cameraWidgetsLayout)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
+        layout.addWidget(self.objectivesWidget)
         layout.addStretch()
 
         # transfer the layout to the central widget
