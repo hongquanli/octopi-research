@@ -2631,7 +2631,7 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename=str(Path.home()) + "/configurations_default.xml"):
+    def __init__(self,filename="channel_configurations.xml"):
         QObject.__init__(self)
         self.config_filename = filename
         self.configurations = []
