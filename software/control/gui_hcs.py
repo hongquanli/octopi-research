@@ -100,7 +100,6 @@ class OctopiGUI(QMainWindow):
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
-
 		'''
 		if HOMING_ENABLED_Z:
 			# retract the objective

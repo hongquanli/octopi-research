@@ -179,11 +179,8 @@ class OctopiGUI(QMainWindow):
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
-        cameraWidgetsLayout = QHBoxLayout()
-        cameraWidgetsLayout.addWidget(self.cameraSettingWidget)
-        cameraWidgetsLayout.addWidget(self.objectivesWidget)
+        layout.addWidget(self.cameraSettingWidget)
         #self.objectivesWidget.setFixedHeight(100)
-        layout.addLayout(cameraWidgetsLayout)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
@@ -191,6 +188,7 @@ class OctopiGUI(QMainWindow):
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
         layout.addWidget(self.navigationViewer)
+        layout.addWidget(self.objectivesWidget)
         layout.addStretch()
 
         # transfer the layout to the central widget
