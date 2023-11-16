@@ -2647,6 +2647,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_set_reference.setCheckable(False)
         self.btn_set_reference.setChecked(False)
         self.btn_set_reference.setDefault(False)
+        self.btn_set_reference.setEnabled(False)
 
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -2655,6 +2656,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_measure_displacement.setCheckable(False)
         self.btn_measure_displacement.setChecked(False)
         self.btn_measure_displacement.setDefault(False)
+        self.btn_measure_displacement.setEnabled(False)
 
         self.entry_target = QDoubleSpinBox()
         self.entry_target.setMinimum(-100)
@@ -2668,6 +2670,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_move_to_target.setCheckable(False)
         self.btn_move_to_target.setChecked(False)
         self.btn_move_to_target.setDefault(False)
+        self.btn_move_to_target.setEnabled(False)
 
         self.grid = QGridLayout()
         self.grid.addWidget(self.btn_initialize,0,0,1,3)
@@ -2683,11 +2686,18 @@ class LaserAutofocusControlWidget(QFrame):
         self.setLayout(self.grid)
 
         # make connections
-        self.btn_initialize.clicked.connect(self.laserAutofocusController.initialize_auto)
+        self.btn_initialize.clicked.connect(self.init_controller)
         self.btn_set_reference.clicked.connect(self.laserAutofocusController.set_reference)
         self.btn_measure_displacement.clicked.connect(self.laserAutofocusController.measure_displacement)
         self.btn_move_to_target.clicked.connect(self.move_to_target)
         self.laserAutofocusController.signal_displacement_um.connect(self.label_displacement.setNum)
+
+    def init_controller(self):
+        self.laserAutofocusController.initialize_auto()
+        if self.laserAutofocusController.is_initialized:
+            self.btn_set_reference.setEnabled(True)
+            self.btn_measure_displacement.setEnabled(True)
+            self.btn_move_to_target.setEnabled(True)
 
     def move_to_target(self,target_um):
         self.laserAutofocusController.move_to_target(self.entry_target.value())
