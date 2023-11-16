@@ -3,7 +3,6 @@ import cv2
 import time
 import numpy as np
 import PySpin
-import control.gxipy as gx
 from control._def import *
 
 class ReadType:
