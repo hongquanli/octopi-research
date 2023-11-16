@@ -409,8 +409,6 @@ class ImageEventHandler(PySpin.ImageEventHandler):
             else:
                 rgb_image = self._processor.Convert(raw_image,PySpin.PixelFormat_RGB8)
             numpy_image = rgb_image.GetNDArray()
-            if self.camera.pixel_format == 'BAYER_RG12':
-                numpy_image = numpy_image << 4
         else:
             if self.camera.convert_pixel_format:
                 converted_image = self._processor.Convert(raw_image,self.camera.conversion_pixel_format)
@@ -418,7 +416,12 @@ class ImageEventHandler(PySpin.ImageEventHandler):
                 if self.camera.conversion_pixel_format == PySpin.PixelFormat_Mono12:
                     numpy_image = numpy_image << 4
             else:
-                numpy_image = raw_image.GetNDArray()
+                try:
+                    numpy_image = raw_image.GetNDArray()
+                except PySpin.SpinnakerException:
+                    print("Encountered problem getting ndarray, falling back to conversion to Mono8")
+                    converted_image = self.one_frame_post_processor.Convert(raw_image, PySpin.PixelFormat_Mono8)
+                    numpy_image = converted_image.GetNDArray()
                 if self.camera.pixel_format == 'MONO12':
                     numpy_image = numpy_image <<4
         self.camera.current_frame = numpy_image
@@ -540,8 +543,8 @@ class Camera(object):
                 pass
 
         # turn off device throughput limit
-        max_throughput = PySpin.CIntegerPtr(self.nodemap.GetNode('DeviceMaxThroughput')).GetValue()
-        PySpin.CIntegerPtr(self.nodemap.GetNode('DeviceLinkThroughputLimit')).SetValue(max_throughput)
+        node_throughput_limit =  PySpin.CIntegerPtr(self.nodemap.GetNode('DeviceLinkThroughputLimit'))
+        node_throughput_limit.SetValue(node_throughput_limit.GetMax())
 
         self.Width = PySpin.CIntegerPtr(self.nodemap.GetNode('Width')).GetValue()
         self.Height = PySpin.CIntegerPtr(self.nodemap.GetNode('Height')).GetValue()
@@ -834,7 +837,7 @@ class Camera(object):
             print("Camera is not streaming")
             self.is_streaming = False
 
-    def set_pixel_format(self,pixel_format,convert_if_not_native =False):
+    def set_pixel_format(self,pixel_format,convert_if_not_native=False):
         if self.is_streaming == True:
             was_streaming = True
             self.stop_streaming()
@@ -847,33 +850,37 @@ class Camera(object):
         if PySpin.IsWritable(node_pixel_format):
             pixel_selection =  None
             pixel_size_byte = None
+            fallback_pixel_selection = None
+            conversion_pixel_format = None
             if pixel_format == 'MONO8':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono8'))
-                self.conversion_pixel_format = PySpin.PixelFormat_Mono8
+                conversion_pixel_format = PySpin.PixelFormat_Mono8
                 pixel_size_byte = 1
             if pixel_format == 'MONO10': 
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono10'))
-                self.conversion_pixel_format = PySpin.PixelFormat_Mono10
+                fallback_pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono10p'))
+                conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 1
             if pixel_format == 'MONO12':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono12'))
-                self.conversion_pixel_format = PySpin.PixelFormat_Mono12
+                fallback_pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono12p'))
+                conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 2
             if pixel_format == 'MONO14':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono14'))
-                self.conversion_pixel_format = PySpin.PixelFormat_Mono14
+                conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 2
             if pixel_format == 'MONO16':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono16'))
-                self.conversion_pixel_format = PySpin.PixelFormat_Mono16
+                conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 2
             if pixel_format == 'BAYER_RG8':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
-                self.conversion_pixel_format = PySpin.PixelFormat_BayerRG8
+                conversion_pixel_format = PySpin.PixelFormat_BayerRG8
                 pixel_size_byte = 1
             if pixel_format == 'BAYER_RG12':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG12'))
-                self.conversion_pixel_format = PySpin.PixelFormat_BayerRG12
+                conversion_pixel_format = PySpin.PixelFormat_BayerRG12
                 pixel_size_byte = 2
 
             if pixel_selection is not None:
@@ -882,8 +889,16 @@ class Camera(object):
                     self.pixel_size_byte = pixel_size_byte
                     self.pixel_format = pixel_format
                     self.convert_pixel_format = False
+                elif PySpin.IsReadable(fallback_pixel_selection):
+                    node_pixel_format.SetIntValue(fallback_pixel_selection.GetValue())
+                    self.pixel_size_byte = pixel_size_byte
+                    self.pixel_format = pixel_format
+                    self.conversion_pixel_format = conversion_pixel_format
+                    self.convert_pixel_format = True
                 else:
                     self.convert_pixel_format = convert_if_not_native
+                    if convert_if_not_native:
+                        self.conversion_pixel_format = conversion_pixel_format
                     print("Pixel format not available for this camera")
             else:
                 print("Pixel format not implemented for Squid")
@@ -963,6 +978,10 @@ class Camera(object):
         if not self.camera.IsStreaming():
             print("Cannot read frame, camera not streaming")
             return np.zeros((self.Width,self.Height))
+        callback_was_enabled = False
+        if self.callback_is_enabled: # need to disable callback to read stream manually
+            callback_was_enabled = True
+            self.disable_callback()
         raw_image = self.camera.GetNextImage(1000)
         if raw_image.IsIncomplete():
             print('Image incomplete with image status %d ...' % raw_image.GetImageStatus())
@@ -984,11 +1003,18 @@ class Camera(object):
                 if self.conversion_pixel_format == PySpin.PixelFormat_Mono12:
                     numpy_image = numpy_image << 4
             else:
-                numpy_image = raw_image.GetNDArray()
+                try:
+                    numpy_image = raw_image.GetNDArray()
+                except PySpin.SpinnakerException:
+                    print("Encountered problem getting ndarray, falling back to conversion to Mono8")
+                    converted_image = self.one_frame_post_processor.Convert(raw_image, PySpin.PixelFormat_Mono8)
+                    numpy_image = converted_image.GetNDArray()
                 if self.pixel_format == 'MONO12':
                     numpy_image = numpy_image <<4
         # self.current_frame = numpy_image
         raw_image.Release()
+        if callback_was_enabled: # reenable callback if it was disabled
+            self.enable_callback()
         return numpy_image
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
@@ -1011,6 +1037,11 @@ class Camera(object):
         if width is not None:
             # update the camera setting
             if PySpin.IsWritable(node_width):
+                node_min = node_width.GetMin()
+                node_inc = node_width.GetInc()
+                diff = width-node_min
+                num_incs = diff//node_inc
+                width = node_min+num_incs*node_inc
                 self.Width = width
                 node_width.SetValue(min(max(int(width),0),node_width_max.GetValue()))
             else:
@@ -1019,6 +1050,12 @@ class Camera(object):
         if height is not None:
             # update the camera setting
             if PySpin.IsWritable(node_height):
+                node_min = node_height.GetMin()
+                node_inc = node_height.GetInc()
+                diff = height-node_min
+                num_incs = diff//node_inc
+                height = node_min+num_incs*node_inc
+
                 self.Height = height
                 node_height.SetValue(min(max(int(height),0),node_height_max.GetValue()))
             else:
@@ -1027,16 +1064,30 @@ class Camera(object):
         if offset_x is not None:
             # update the camera setting
             if PySpin.IsWritable(node_offset_x):
+                node_min = node_offset_x.GetMin()
+                node_max = node_offset_x.GetMax()
+                node_inc = node_offset_x.GetInc()
+                diff = offset_x-node_min
+                num_incs = diff//node_inc
+                offset_x = node_min+num_incs*node_inc
+
                 self.OffsetX = offset_x
-                node_offset_x.SetValue(min(int(offset_x), self.WidthMaxAbsolute-self.Width))
+                node_offset_x.SetValue(min(int(offset_x), node_max))
             else:
                 print("OffsetX is not implemented or not writable")
         
         if offset_y is not None:
             # update the camera setting
             if PySpin.IsWritable(node_offset_y):
+                node_min = node_offset_y.GetMin()
+                node_max = node_offset_y.GetMax()
+                node_inc = node_offset_y.GetInc()
+                diff = offset_y-node_min
+                num_incs = diff//node_inc
+                offset_y = node_min+num_incs*node_inc
+
                 self.OffsetY = offset_y
-                node_offset_y.SetValue(min(int(offset_y), self.HeightMaxAbsolute-self.Height))
+                node_offset_y.SetValue(min(int(offset_y), node_max))
             else:
                 print("OffsetY is not implemented or not writable")
 
