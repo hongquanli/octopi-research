@@ -1,8 +1,0 @@
-[Desktop Entry]
-Version=1.0
-Name=Squid
-Comment=Execute main_6060.py
-Exec="sh -c 'cd /home/prakashlab/Desktop/octopi-rtp/octopi-research/software/ && exec python3 main_6060.py'"
-Terminal=true
-Type=Application
-Categories=Application
