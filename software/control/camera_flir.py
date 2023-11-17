@@ -419,7 +419,6 @@ class ImageEventHandler(PySpin.ImageEventHandler):
                 try:
                     numpy_image = raw_image.GetNDArray()
                 except PySpin.SpinnakerException:
-                    print("Encountered problem getting ndarray, falling back to conversion to Mono8")
                     converted_image = self.one_frame_post_processor.Convert(raw_image, PySpin.PixelFormat_Mono8)
                     numpy_image = converted_image.GetNDArray()
                 if self.camera.pixel_format == 'MONO12':
@@ -846,60 +845,78 @@ class Camera(object):
         self.nodemap = self.camera.GetNodeMap()
         
         node_pixel_format = PySpin.CEnumerationPtr(self.nodemap.GetNode('PixelFormat'))
+        node_adc_bit_depth = PySpin.CEnumerationPtr(self.nodemap.GetNode('AdcBitDepth'))
 
-        if PySpin.IsWritable(node_pixel_format):
+        if PySpin.IsWritable(node_pixel_format) and PySpin.IsWritable(node_adc_bit_depth):
             pixel_selection =  None
             pixel_size_byte = None
+            adc_bit_depth = None
             fallback_pixel_selection = None
             conversion_pixel_format = None
             if pixel_format == 'MONO8':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono8'))
                 conversion_pixel_format = PySpin.PixelFormat_Mono8
                 pixel_size_byte = 1
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit10'))
             if pixel_format == 'MONO10': 
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono10'))
                 fallback_pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono10p'))
-                conversion_pixel_format = PySpin.PixelFormat_Mono16
+                conversion_pixel_format = PySpin.PixelFormat_Mono8
                 pixel_size_byte = 1
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit10'))
             if pixel_format == 'MONO12':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono12'))
                 fallback_pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono12p'))
                 conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 2
-            if pixel_format == 'MONO14':
-                pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono14'))
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit12'))
+            if pixel_format == 'MONO14': # MONO14/16 are aliases of each other, since they both
+                                         # do ADC at bit depth 14
+                pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono16'))
                 conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 2
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit14'))
             if pixel_format == 'MONO16':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('Mono16'))
                 conversion_pixel_format = PySpin.PixelFormat_Mono16
                 pixel_size_byte = 2
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit14'))
             if pixel_format == 'BAYER_RG8':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
                 conversion_pixel_format = PySpin.PixelFormat_BayerRG8
                 pixel_size_byte = 1
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit10'))
             if pixel_format == 'BAYER_RG12':
                 pixel_selection = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG12'))
                 conversion_pixel_format = PySpin.PixelFormat_BayerRG12
                 pixel_size_byte = 2
+                adc_bit_depth = PySpin.CEnumEntryPtr(node_adc_bit_depth.GetEntryByName('Bit12'))
 
-            if pixel_selection is not None:
+            if pixel_selection is not None and adc_bit_depth is not None:
                 if PySpin.IsReadable(pixel_selection):
                     node_pixel_format.SetIntValue(pixel_selection.GetValue())
                     self.pixel_size_byte = pixel_size_byte
                     self.pixel_format = pixel_format
                     self.convert_pixel_format = False
+                    if PySpin.IsReadable(adc_bit_depth):
+                        node_adc_bit_depth.SetIntValue(adc_bit_depth.GetValue())
                 elif PySpin.IsReadable(fallback_pixel_selection):
                     node_pixel_format.SetIntValue(fallback_pixel_selection.GetValue())
                     self.pixel_size_byte = pixel_size_byte
                     self.pixel_format = pixel_format
                     self.conversion_pixel_format = conversion_pixel_format
                     self.convert_pixel_format = True
+                    if PySpin.IsReadable(adc_bit_depth):
+                        node_adc_bit_depth.SetIntValue(adc_bit_depth.GetValue())
                 else:
                     self.convert_pixel_format = convert_if_not_native
                     if convert_if_not_native:
                         self.conversion_pixel_format = conversion_pixel_format
                     print("Pixel format not available for this camera")
+                    if PySpin.IsReadable(adc_bit_depth):
+                        node_adc_bit_depth.SetIntValue(adc_bit_depth.GetValue())
+                        print("Still able to set ADC bit depth to "+adc_bit_depth.GetSymbolic())
+
             else:
                 print("Pixel format not implemented for Squid")
 
