@@ -37,10 +37,12 @@ class CollapsibleGroupBox(QGroupBox):
         self.content_widget.setVisible(state)
 
 class ConfigEditorForAcquisitions(QDialog):
-    def __init__(self, configManager):
+    def __init__(self, configManager, only_z_offset=True):
         super().__init__()
 
         self.config = configManager
+        
+        self.only_z_offset=only_z_offset
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -66,12 +68,18 @@ class ConfigEditorForAcquisitions(QDialog):
 
         self.setLayout(layout)
         self.setWindowTitle("Configuration Editor")
-        self.init_ui()
+        self.init_ui(only_z_offset)
 
-    def init_ui(self):
+    def init_ui(self, only_z_offset=None):
+        if only_z_offset is None:
+            only_z_offset = self.only_z_offset
         self.groups = {}
         for section in self.config.configurations:
-            group_box = CollapsibleGroupBox(section.name)
+            if not only_z_offset:
+                group_box = CollapsibleGroupBox(section.name)
+            else:
+                group_box = QGroupBox(section.name)
+
             group_layout = QVBoxLayout()
 
             section_value_widgets = {}
@@ -82,6 +90,8 @@ class ConfigEditorForAcquisitions(QDialog):
                 if option.startswith('_') and option.endswith('_options'):
                     continue
                 if option == 'id':
+                    continue
+                if only_z_offset and option != 'z_offset':
                     continue
                 option_value = str(getattr(section, option))
                 option_name = QLabel(option)
@@ -106,7 +116,11 @@ class ConfigEditorForAcquisitions(QDialog):
                 group_layout.addLayout(option_layout)
 
             self.config_value_widgets[str(section.id)] = section_value_widgets
-            group_box.content.addLayout(group_layout)
+            if not only_z_offset:
+                group_box.content.addLayout(group_layout)
+            else:
+                group_box.setLayout(group_layout)
+
             self.scroll_area_layout.addWidget(group_box)
 
     def save_config(self):
@@ -135,7 +149,7 @@ class ConfigEditorForAcquisitions(QDialog):
         if file_path:
             self.config.write_configuration(file_path)
 
-    def load_config_from_file(self):
+    def load_config_from_file(self,only_z_offset=None):
         file_path, _ = QFileDialog.getOpenFileName(self, "Load Acquisition Config File", '', "XML Files (*.xml);;All Files (*)")
         if file_path:
             self.config.config_filename = file_path
@@ -147,7 +161,7 @@ class ConfigEditorForAcquisitions(QDialog):
             self.scroll_area_layout = QVBoxLayout()
             self.scroll_area_widget.setLayout(self.scroll_area_layout)
             self.scroll_area.setWidget(self.scroll_area_widget)
-            self.init_ui()
+            self.init_ui(only_z_offset)
 
 
 
