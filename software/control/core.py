@@ -8,6 +8,9 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+from control.processing_handler import ProcessingHandler
+from control.stitcher import Stitcher, default_image_reader
+
 import control.utils as utils
 from control._def import *
 import control.tracking as tracking
@@ -36,6 +39,14 @@ import json
 import pandas as pd
 
 import imageio as iio
+
+import subprocess
+
+class ObjectiveStore:
+    def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
+        self.objectives_dict = objectives_dict
+        self.default_objective = default_objective
+        self.current_objective = default_objective
 
 class StreamHandler(QObject):
 
@@ -84,7 +95,7 @@ class StreamHandler(QObject):
     def set_save_fps(self,fps):
         self.fps_save = fps
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -359,7 +370,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None):
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
         self.id = mode_id
         self.name = name
         self.exposure_time = exposure_time
@@ -367,6 +378,13 @@ class Configuration:
         self.illumination_source = illumination_source
         self.illumination_intensity = illumination_intensity
         self.camera_sn = camera_sn
+        self.z_offset = z_offset
+        self.pixel_format = pixel_format
+        if self.pixel_format is None:
+            self.pixel_format = "default"
+        self._pixel_format_options = _pixel_format_options
+        if _pixel_format_options is None:
+            self._pixel_format_options = self.pixel_format
 
 class LiveController(QObject):
 
@@ -774,6 +792,7 @@ class SlidePositionControlWorker(QObject):
             self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
             self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
         else:
+
             # for glass slide
             if self.slidePositionController.homing_done == False or SLIDE_POTISION_SWITCHING_HOME_EVERYTIME:
                 if self.home_x_and_y_separately:
@@ -823,6 +842,7 @@ class SlidePositionControlWorker(QObject):
             # home for the first time
             if self.slidePositionController.homing_done == False:
                 timestamp_start = time.time()
+
                 # x needs to be at > + 20 mm when homing y
                 self.navigationController.move_x(20)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
@@ -838,6 +858,7 @@ class SlidePositionControlWorker(QObject):
                 # move to scanning position
                 self.navigationController.move_x_to(SLIDE_POSITION.SCANNING_X_MM)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+
                 self.navigationController.move_y_to(SLIDE_POSITION.SCANNING_Y_MM)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
                    
@@ -1088,7 +1109,7 @@ class AutoFocusController(QObject):
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -1167,11 +1188,17 @@ class MultiPointWorker(QObject):
     image_to_display_multi = Signal(np.ndarray,int)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
+    signal_detection_stats = Signal(object)
+
+    signal_update_stats = Signal(object)
 
     def __init__(self,multiPointController):
         QObject.__init__(self)
         self.multiPointController = multiPointController
 
+        self.signal_update_stats.connect(self.update_stats)
+        self.start_time = 0
+        self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1199,14 +1226,33 @@ class MultiPointWorker(QObject):
         self.experiment_ID = self.multiPointController.experiment_ID
         self.base_path = self.multiPointController.base_path
         self.selected_configurations = self.multiPointController.selected_configurations
+        self.detection_stats = {}
+        self.async_detection_stats = {}
 
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
 
         self.microscope = self.multiPointController.parent
 
+        self.t_dpc = []
+        self.t_inf = []
+        self.t_over=[]
+        
+
+    def update_stats(self, new_stats):
+        for k in new_stats.keys():
+            try:
+                self.detection_stats[k]+=new_stats[k]
+            except:
+                self.detection_stats[k] = 0
+                self.detection_stats[k]+=new_stats[k]
+        if "Total RBC" in self.detection_stats and "Total Positives" in self.detection_stats:
+            self.detection_stats["Positives per 5M RBC"] = 5e6*(self.detection_stats["Total Positives"]/self.detection_stats["Total RBC"])
+        self.signal_detection_stats.emit(self.detection_stats)
+
     def run(self):
 
+        self.start_time = time.perf_counter_ns()
         if self.camera.is_streaming == False:
              self.camera.start_streaming()
 
@@ -1253,6 +1299,10 @@ class MultiPointWorker(QObject):
                     if self.multiPointController.abort_acqusition_requested:
                         break
                     time.sleep(0.05)
+        self.processingHandler.processing_queue.join()
+        self.processingHandler.upload_queue.join()
+        elapsed_time = time.perf_counter_ns()-self.start_time
+        print("Time taken for acquisition/processing: "+str(elapsed_time/10**9))
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -1260,7 +1310,8 @@ class MultiPointWorker(QObject):
             time.sleep(SLEEP_TIME_S)
 
     def run_single_time_point(self):
-
+        start = time.time()
+        print(time.time())
         # disable joystick button action
         self.navigationController.enable_joystick_button_action = False
 
@@ -1397,8 +1448,18 @@ class MultiPointWorker(QObject):
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
+
+                            current_round_images = {}
                             # iterate through selected modes
                             for config in self.selected_configurations:
+                                if config.z_offset is not None: # perform z offset for config, assume
+                                                                # z_offset is in um
+                                    if config.z_offset != 0.0:
+                                        print("Moving to Z offset "+str(config.z_offset))
+                                        self.navigationController.move_z(config.z_offset/1000)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+
                                 if 'USB Spectrometer' not in config.name:
                                     # update the current configuration
                                     self.signal_current_configuration.emit(config)
@@ -1411,7 +1472,16 @@ class MultiPointWorker(QObject):
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                         self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                                     # read camera frame
+                                    old_pixel_format = self.camera.pixel_format
+                                    if config.pixel_format is not None:
+                                        if config.pixel_format != "" and config.pixel_format.lower() != "default":
+                                            self.camera.set_pixel_format(config.pixel_format)
+                                    
                                     image = self.camera.read_frame()
+
+                                    if config.pixel_format is not None:
+                                        if config.pixel_format != "" and config.pixel_format.lower() != "default":
+                                            self.camera.set_pixel_format(old_pixel_format)
                                     if image is None:
                                         print('self.camera.read_frame() returned None')
                                         continue
@@ -1425,6 +1495,12 @@ class MultiPointWorker(QObject):
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                                    stitcher_tile_path = None
+                                    stitcher_of_interest = None
+                                    stitcher_key = str(config.name)+"_Z_"+str(k)
+                                    stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.tiff') 
+                                    stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.ome.tiff')
+                                    stitcher_default_options = {'align_channel':0,'maximum_shift':int(min(self.crop_width,self.crop_height)*0.05),'filter_sigma':1,'stdout':subprocess.STDOUT} # add to UI later
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1434,6 +1510,7 @@ class MultiPointWorker(QObject):
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
                                         iio.imwrite(saving_path,image)
+                                        stitcher_tile_path = saving_path
                                     else:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                         if self.camera.is_color:
@@ -1447,6 +1524,31 @@ class MultiPointWorker(QObject):
                                             else:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
+                                        stitcher_tile_path = saving_path
+                                    if self.multiPointController.do_stitch_tiles:
+                                        try:
+                                            stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
+                                        except:
+                                            self.multiPointController.tile_stitchers[stitcher_key] = Stitcher(stitcher_tiled_file_path, stitcher_stitched_file_path, stitcher_default_options, auto_run_ashlar=True, image_reader = self.multiPointController.stitcher_image_reader)
+                                            stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
+                                            stitcher_of_interest.start_ometiff_writer()
+                                        tile_metadata = {
+                                                'Pixels': {
+                                                    'PhysicalSizeX': 1, # need to get microscope info for actual values for these, if they are necessary
+                                                    'PhysicalSizeXUnit': 'μm',
+                                                    'PhysicalSizeY': 1,
+                                                    'PhysicalSizeYUnit': 'μm',
+                                                    },
+                                                'Plane': {
+                                                    'PositionX':int((j if self.x_scan_direction==1 else self.NX-1-j)*self.crop_width),
+                                                    'PositionY':int(i*self.crop_height)
+                                                    }
+                                                }
+                                        stitcher_of_interest.add_tile(stitcher_tile_path, tile_metadata)
+                                    
+
+                                    current_round_images[config.name] = np.copy(image)
+
                                     QApplication.processEvents()
                                 else:
                                     if self.usb_spectrometer != None:
@@ -1455,7 +1557,17 @@ class MultiPointWorker(QObject):
                                             self.spectrum_to_display.emit(data)
                                             saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '_' + str(l) + '.csv')
                                             np.savetxt(saving_path,data,delimiter=',')
+                                
+                                
+                                if config.z_offset is not None: # undo Z offset
+                                                                # assume z_offset is in um
+                                    if config.z_offset != 0.0:
+                                        print("Moving back from Z offset "+str(config.z_offset))
+                                        self.navigationController.move_z(-config.z_offset/1000)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
+                                                            
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
@@ -1563,6 +1675,8 @@ class MultiPointWorker(QObject):
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
+        print(time.time())
+        print(time.time()-start)
 
 class MultiPointController(QObject):
 
@@ -1572,11 +1686,15 @@ class MultiPointController(QObject):
     spectrum_to_display = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
+    detection_stats = Signal(object)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader):
         QObject.__init__(self)
 
         self.camera = camera
+        self.stitcher_image_reader = stitcher_image_reader
+        self.tile_stitchers = {}
+        self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
@@ -1598,6 +1716,7 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
+        self.do_stitch_tiles = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1609,6 +1728,12 @@ class MultiPointController(QObject):
         self.scanCoordinates = scanCoordinates
         self.parent = parent
 
+        self.old_images_per_page = 1
+        try:
+            if self.parent is not None:
+                self.old_images_per_page = self.parent.dataHandler.n_images_per_page
+        except:
+            pass
         self.location_list = None # for flexible multipoint
 
     def set_NX(self,N):
@@ -1637,7 +1762,6 @@ class MultiPointController(QObject):
         self.do_autofocus = flag
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
-
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
@@ -1651,8 +1775,18 @@ class MultiPointController(QObject):
         self.recording_start_time = time.time()
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
-        self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
+        configManagerThrowaway = ConfigurationManager(self.configurationManager.config_filename)
+        configManagerThrowaway.write_configuration_selected(self.selected_configurations,os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
         acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus,'with reflection AF':self.do_reflection_af}
+        try: # write objective data if it is available
+            current_objective = self.parent.objectiveStore.current_objective
+            objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
+            acquisition_parameters['objective'] = {}
+            for k in objective_info.keys():
+                acquisition_parameters['objective'][k]=objective_info[k]
+            acquisition_parameters['objective']['name']=current_objective
+        except:
+            pass
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
@@ -1665,6 +1799,7 @@ class MultiPointController(QObject):
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
+        self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
             print(location_list)
@@ -1673,6 +1808,8 @@ class MultiPointController(QObject):
             self.location_list = None
 
         self.abort_acqusition_requested = False
+
+        
 
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
@@ -1696,16 +1833,28 @@ class MultiPointController(QObject):
             else:
                 self.usb_spectrometer_was_streaming = False
 
+        if self.parent is not None:
+            try:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            except:
+                pass
+            try:
+                self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
+            except:
+                pass
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
         self.thread = QThread()
         # create a worker object
+        self.processingHandler.start_processing()
+        self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
         # move the worker to the thread
         self.multiPointWorker.moveToThread(self.thread)
         # connect signals and slots
         self.thread.started.connect(self.multiPointWorker.run)
+        self.multiPointWorker.signal_detection_stats.connect(self.slot_detection_stats)
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
         self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
         self.multiPointWorker.finished.connect(self.thread.quit)
@@ -1721,6 +1870,9 @@ class MultiPointController(QObject):
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
+        if self.do_stitch_tiles:
+            for k in self.tile_stitchers.keys():
+                self.tile_stitchers[k].all_tiles_added()
         self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
         # re-enable callback
@@ -1737,11 +1889,22 @@ class MultiPointController(QObject):
                 self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
+        self.processingHandler.end_processing()
+        if self.parent is not None:
+            try:
+                self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+                self.parent.dataHandler.sort('Sort by prediction score')
+                self.parent.dataHandler.signal_populate_page0.emit()
+            except:
+                pass
         self.acquisitionFinished.emit()
         QApplication.processEvents()
 
     def request_abort_aquisition(self):
         self.abort_acqusition_requested = True
+
+    def slot_detection_stats(self, stats):
+        self.detection_stats.emit(stats)
 
     def slot_image_to_display(self,image):
         self.image_to_display.emit(image)
@@ -2468,7 +2631,7 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename=str(Path.home()) + "/configurations_default.xml"):
+    def __init__(self,filename="channel_configurations.xml"):
         QObject.__init__(self)
         self.config_filename = filename
         self.configurations = []
@@ -2496,14 +2659,33 @@ class ConfigurationManager(QObject):
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
                     illumination_intensity = float(mode.get('IlluminationIntensity')),
-                    camera_sn = mode.get('CameraSN'))
+                    camera_sn = mode.get('CameraSN'),
+                    z_offset = float(mode.get('ZOffset')),
+                    pixel_format = mode.get('PixelFormat'),
+                    _pixel_format_options = mode.get('_PixelFormat_options')
+                )
             )
 
     def update_configuration(self,configuration_id,attribute_name,new_value):
-        list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
-        mode_to_update = list[0]
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
         mode_to_update.set(attribute_name,str(new_value))
         self.save_configurations()
+
+    def update_configuration_without_writing(self, configuration_id, attribute_name, new_value):
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+
+    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance
+                                                                             # of this class
+        for conf in self.configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 0)
+        for conf in selected_configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 1)
+        self.write_configuration(filename)
+        for conf in selected_configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 0)
 
 class PlateReaderNavigationController(QObject):
 

@@ -3,6 +3,8 @@ import os
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
+import locale
+
 # qt libraries
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
@@ -10,9 +12,306 @@ from qtpy.QtGui import *
 
 import pyqtgraph as pg
 
+import pandas as pd
+
 from datetime import datetime
 
+
 from control._def import *
+
+class CollapsibleGroupBox(QGroupBox):
+    def __init__(self, title):
+        super(CollapsibleGroupBox,self).__init__(title)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.higher_layout = QVBoxLayout()
+        self.content = QVBoxLayout()
+        #self.content.setAlignment(Qt.AlignTop)
+        self.content_widget = QWidget()
+        self.content_widget.setLayout(self.content)
+        self.higher_layout.addWidget(self.content_widget)
+        self.setLayout(self.higher_layout)
+        self.toggled.connect(self.toggle_content)
+
+    def toggle_content(self,state):
+        self.content_widget.setVisible(state)
+
+class ConfigEditorForAcquisitions(QDialog):
+    def __init__(self, configManager):
+        super().__init__()
+
+        self.config = configManager
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area_widget = QWidget()
+        self.scroll_area_layout = QVBoxLayout()
+        self.scroll_area_widget.setLayout(self.scroll_area_layout)
+        self.scroll_area.setWidget(self.scroll_area_widget)
+
+        self.save_config_button = QPushButton("Save Config")
+        self.save_config_button.clicked.connect(self.save_config)
+        self.save_to_file_button = QPushButton("Save to File")
+        self.save_to_file_button.clicked.connect(self.save_to_file)
+        self.load_config_button = QPushButton("Load Config from File")
+        self.load_config_button.clicked.connect(self.load_config_from_file)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.scroll_area)
+        layout.addWidget(self.save_config_button)
+        layout.addWidget(self.save_to_file_button)
+        layout.addWidget(self.load_config_button)
+
+        self.config_value_widgets = {}
+
+        self.setLayout(layout)
+        self.setWindowTitle("Configuration Editor")
+        self.init_ui()
+
+    def init_ui(self):
+        self.groups = {}
+        for section in self.config.configurations:
+            group_box = CollapsibleGroupBox(section.name)
+            group_layout = QVBoxLayout()
+
+            section_value_widgets = {}
+
+            self.groups[str(section.id)] = group_box
+
+            for option in section.__dict__.keys():
+                if option.startswith('_') and option.endswith('_options'):
+                    continue
+                if option == 'id':
+                    continue
+                option_value = str(getattr(section, option))
+                option_name = QLabel(option)
+                option_layout = QHBoxLayout()
+                option_layout.addWidget(option_name)
+                if f'_{option}_options' in list(section.__dict__.keys()):
+                    option_value_list = getattr(section,f'_{option}_options')
+                    values = option_value_list.strip('[]').split(',')
+                    for i in range(len(values)):
+                        values[i] = values[i].strip()
+                    if option_value not in values:
+                        values.append(option_value)
+                    combo_box = QComboBox()
+                    combo_box.addItems(values)
+                    combo_box.setCurrentText(option_value)
+                    option_layout.addWidget(combo_box)
+                    section_value_widgets[option] = combo_box
+                else:
+                    option_input = QLineEdit(option_value)
+                    option_layout.addWidget(option_input)
+                    section_value_widgets[option] = option_input
+                group_layout.addLayout(option_layout)
+
+            self.config_value_widgets[str(section.id)] = section_value_widgets
+            group_box.content.addLayout(group_layout)
+            self.scroll_area_layout.addWidget(group_box)
+
+    def save_config(self):
+        for section in self.config.configurations:
+            for option in section.__dict__.keys():
+                if option.startswith("_") and option.endswith("_options"):
+                    continue
+                old_val = getattr(section,option)
+                if option == 'id':
+                    continue
+                elif option == 'camera_sn':
+                    option_name_in_xml = 'CameraSN'
+                else:
+                    option_name_in_xml = option.replace("_"," ").title().replace(" ","")
+                widget = self.config_value_widgets[str(section.id)][option]
+                if type(widget) is QLineEdit:
+                    self.config.update_configuration(section.id, option_name_in_xml, widget.text())
+                else:
+                    self.config.update_configuration(section.id, option_name_in_xml, widget.currentText())
+        self.config.configurations = []
+        self.config.read_configurations()
+
+    def save_to_file(self):
+        self.save_config()
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Acquisition Config File", '', "XML Files (*.xml);;All Files (*)")
+        if file_path:
+            self.config.write_configuration(file_path)
+
+    def load_config_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Load Acquisition Config File", '', "XML Files (*.xml);;All Files (*)")
+        if file_path:
+            self.config.config_filename = file_path
+            self.config.configurations = []
+            self.config.read_configurations()
+            # Clear and re-initialize the UI
+            self.scroll_area_widget.deleteLater()
+            self.scroll_area_widget = QWidget()
+            self.scroll_area_layout = QVBoxLayout()
+            self.scroll_area_widget.setLayout(self.scroll_area_layout)
+            self.scroll_area.setWidget(self.scroll_area_widget)
+            self.init_ui()
+
+
+
+class ConfigEditor(QDialog):
+    def __init__(self, config):
+        super().__init__()
+
+        self.config = config
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area_widget = QWidget()
+        self.scroll_area_layout = QVBoxLayout()
+        self.scroll_area_widget.setLayout(self.scroll_area_layout)
+        self.scroll_area.setWidget(self.scroll_area_widget)
+
+        self.save_config_button = QPushButton("Save Config")
+        self.save_config_button.clicked.connect(self.save_config)
+        self.save_to_file_button = QPushButton("Save to File")
+        self.save_to_file_button.clicked.connect(self.save_to_file)
+        self.load_config_button = QPushButton("Load Config from File")
+        self.load_config_button.clicked.connect(self.load_config_from_file)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.scroll_area)
+        layout.addWidget(self.save_config_button)
+        layout.addWidget(self.save_to_file_button)
+        layout.addWidget(self.load_config_button)
+
+        self.config_value_widgets = {}
+
+        self.setLayout(layout)
+        self.setWindowTitle("Configuration Editor")
+        self.init_ui()
+
+    def init_ui(self):
+        self.groups = {}
+        for section in self.config.sections():
+            group_box = CollapsibleGroupBox(section)
+            group_layout = QVBoxLayout()
+
+            section_value_widgets = {}
+
+            self.groups[section] = group_box
+
+            for option in self.config.options(section):
+                if option.startswith('_') and option.endswith('_options'):
+                    continue 
+                option_value = self.config.get(section, option)
+                option_name = QLabel(option)
+                option_layout = QHBoxLayout()
+                option_layout.addWidget(option_name)
+                if f'_{option}_options' in self.config.options(section):
+                    option_value_list = self.config.get(section,f'_{option}_options')
+                    values = option_value_list.strip('[]').split(',')
+                    for i in range(len(values)):
+                        values[i] = values[i].strip()
+                    if option_value not in values:
+                        values.append(option_value)
+                    combo_box = QComboBox()
+                    combo_box.addItems(values)
+                    combo_box.setCurrentText(option_value)
+                    option_layout.addWidget(combo_box)
+                    section_value_widgets[option] = combo_box
+                else:
+                    option_input = QLineEdit(option_value)
+                    option_layout.addWidget(option_input)
+                    section_value_widgets[option] = option_input
+                group_layout.addLayout(option_layout)
+
+            self.config_value_widgets[section] = section_value_widgets
+            group_box.content.addLayout(group_layout)
+            self.scroll_area_layout.addWidget(group_box)
+
+    def save_config(self):
+        for section in self.config.sections():
+            for option in self.config.options(section):
+                if option.startswith("_") and option.endswith("_options"):
+                    continue
+                old_val = self.config.get(section, option)
+                widget = self.config_value_widgets[section][option]
+                if type(widget) is QLineEdit:
+                    self.config.set(section, option, widget.text())
+                else:
+                    self.config.set(section, option, widget.currentText())
+                if old_val != self.config.get(section,option):
+                    print(self.config.get(section,option))
+
+    def save_to_file(self):
+        self.save_config()
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Config File", '', "INI Files (*.ini);;All Files (*)")
+        if file_path:
+            with open(file_path, 'w') as configfile:
+                self.config.write(configfile)
+
+    def load_config_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Load Config File", '', "INI Files (*.ini);;All Files (*)")
+        if file_path:
+            self.config.read(file_path)
+            # Clear and re-initialize the UI
+            self.scroll_area_widget.deleteLater()
+            self.scroll_area_widget = QWidget()
+            self.scroll_area_layout = QVBoxLayout()
+            self.scroll_area_widget.setLayout(self.scroll_area_layout)
+            self.scroll_area.setWidget(self.scroll_area_widget)
+            self.init_ui()
+
+
+class ConfigEditorBackwardsCompatible(ConfigEditor):
+    def __init__(self, config, original_filepath, main_window):
+        super().__init__(config)
+        self.original_filepath = original_filepath
+        self.main_window = main_window
+        
+        self.apply_exit_button = QPushButton("Apply and Exit")
+        self.apply_exit_button.clicked.connect(self.apply_and_exit)
+
+        self.layout().addWidget(self.apply_exit_button)
+
+    def apply_and_exit(self):
+        self.save_config()
+        with open(self.original_filepath, 'w') as configfile:
+            self.config.write(configfile)
+        try:
+            self.main_window.close()
+        except:
+            pass
+        self.close()
+
+class ObjectivesWidget(QWidget):
+    def __init__(self, objective_store):
+        super(ObjectivesWidget, self).__init__()
+
+        self.objectiveStore = objective_store
+    
+        self.init_ui()
+
+        self.dropdown.setCurrentText(self.objectiveStore.current_objective)
+
+    def init_ui(self):
+        # Dropdown for selecting keys
+        self.dropdown = QComboBox(self)
+        self.dropdown.addItems(self.objectiveStore.objectives_dict.keys())
+        self.dropdown.currentIndexChanged.connect(self.display_objective)
+
+        # TextBrowser to display key-value pairs
+        #self.text_browser = QTextBrowser(self)
+        # Layout
+        dropdownLayout = QHBoxLayout()
+        dropdownLabel = QLabel("Objectives:")
+        dropdownLayout.addWidget(dropdownLabel)
+        dropdownLayout.addWidget(self.dropdown)
+        #textLayout = QHBoxLayout()
+        #textLayout.addWidget(self.text_browser)
+        layout = QVBoxLayout(self)
+        layout.addLayout(dropdownLayout)
+        #layout.addLayout(textLayout)
+
+    def display_objective(self, index):
+        selected_key = self.dropdown.currentText()
+        objective_data = self.objectiveStore.objectives_dict.get(selected_key, {})
+        #text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
+        self.objectiveStore.current_objective = selected_key
+        #self.text_browser.setPlainText(text)
 
 class CameraSettingsWidget(QFrame):
 
@@ -47,6 +346,9 @@ class CameraSettingsWidget(QFrame):
         self.dropdown_pixelFormat.addItems(['MONO8','MONO12','MONO14','MONO16','BAYER_RG8','BAYER_RG12'])
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
+        else:
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+            self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
 
         self.entry_ROI_offset_x = QSpinBox()
@@ -697,6 +999,7 @@ class NavigationWidget(QFrame):
         self.btn_moveY_backward.setEnabled(False)
         self.btn_moveZ_forward.setEnabled(False)
         self.btn_moveZ_backward.setEnabled(False)
+        self.btn_load_slide.setEnabled(True)
 
     def slot_slide_scanning_position_reached(self):
         self.slide_position = 'scanning'
@@ -708,12 +1011,14 @@ class NavigationWidget(QFrame):
         self.btn_moveY_backward.setEnabled(True)
         self.btn_moveZ_forward.setEnabled(True)
         self.btn_moveZ_backward.setEnabled(True)
+        self.btn_load_slide.setEnabled(True)
 
     def switch_position(self):
         if self.slide_position != 'loading':
             self.slidePositionController.move_to_slide_loading_position()
         else:
             self.slidePositionController.move_to_slide_scanning_position()
+        self.btn_load_slide.setEnabled(False)
 
 class DACControWidget(QFrame):
     def __init__(self, microcontroller ,*args, **kwargs):
@@ -835,6 +1140,38 @@ class AutoFocusWidget(QFrame):
     def autofocus_is_finished(self):
         self.btn_autofocus.setChecked(False)
 
+class StatsDisplayWidget(QFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initUI()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def initUI(self):
+        self.layout = QVBoxLayout()
+        self.table_widget = QTableWidget()
+        self.table_widget.setColumnCount(2)
+        self.table_widget.verticalHeader().hide()
+        self.table_widget.horizontalHeader().hide()
+        self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.layout.addWidget(self.table_widget)
+        self.setLayout(self.layout)
+
+    def display_stats(self, stats):
+        locale.setlocale(locale.LC_ALL, '')
+        self.table_widget.setRowCount(len(stats))
+        row = 0
+        for key, value in stats.items():
+            key_item = QTableWidgetItem(str(key))
+            value_item = None
+            try:
+                value_item = QTableWidgetItem(f'{value:n}')
+            except:
+                value_item = QTableWidgetItem(str(value))
+            self.table_widget.setItem(row,0,key_item)
+            self.table_widget.setItem(row,1,value_item)
+            row+=1
+
+
 class MultiPointWidget(QFrame):
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -872,7 +1209,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(1)
+        self.entry_NX.setValue(6)
         self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
@@ -887,7 +1224,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(1)
+        self.entry_NY.setValue(3)
         self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
@@ -1035,8 +1372,8 @@ class MultiPointWidget(QFrame):
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1085,6 +1422,7 @@ class MultiPointWidget(QFrame):
 class MultiPointWidget2(QFrame):
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.last_used_locations = None
         self.multipointController = multipointController
         self.configurationManager = configurationManager
         self.navigationController = navigationController
@@ -1093,6 +1431,7 @@ class MultiPointWidget2(QFrame):
         self.location_list = np.empty((0, 3), dtype=float)
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.acquisition_in_place=False
 
     def add_components(self):
 
@@ -1116,6 +1455,11 @@ class MultiPointWidget2(QFrame):
         self.btn_previous = QPushButton('Previous')
         self.btn_next = QPushButton('Next')
         self.btn_clear = QPushButton('Clear all')
+
+        self.btn_load_last_executed = QPushButton('Prev Used Locations')
+
+        self.btn_export_locations = QPushButton('Export Location List')
+        self.btn_import_locations = QPushButton('Import Location List')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -1203,10 +1547,17 @@ class MultiPointWidget2(QFrame):
         grid_line4.addWidget(QLabel('Location List'),0,0)
         grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
         grid_line4.addWidget(self.btn_clear,0,3)
-        grid_line4.addWidget(self.btn_add,1,0)
-        grid_line4.addWidget(self.btn_remove,1,1)
-        grid_line4.addWidget(self.btn_next,1,2)
-        grid_line4.addWidget(self.btn_previous,1,3)
+
+        grid_line3point5 = QGridLayout()
+        grid_line3point5.addWidget(self.btn_add,0,0)
+        grid_line3point5.addWidget(self.btn_remove,0,1)
+        grid_line3point5.addWidget(self.btn_next,0,2)
+        grid_line3point5.addWidget(self.btn_previous,0,3)
+        #grid_line3point5.addWidget(self.btn_load_last_executed,0,4)
+
+        grid_line3point75 = QGridLayout()
+        grid_line3point75.addWidget(self.btn_import_locations,0,0)
+        grid_line3point75.addWidget(self.btn_export_locations,0,1)
 
         grid_line2 = QGridLayout()
         grid_line2.addWidget(QLabel('dx (mm)'), 0,0)
@@ -1242,9 +1593,11 @@ class MultiPointWidget2(QFrame):
         self.grid.addLayout(grid_line0,0,0)
         # self.grid.addLayout(grid_line1,1,0)
         self.grid.addLayout(grid_line4,1,0)
+        self.grid.addLayout(grid_line3point5,2,0)
+        self.grid.addLayout(grid_line3point75,3,0)
         # self.grid.addLayout(grid_line5,2,0)
-        self.grid.addLayout(grid_line2,3,0)
-        self.grid.addLayout(grid_line3,4,0)
+        self.grid.addLayout(grid_line2,4,0)
+        self.grid.addLayout(grid_line3,5,0)
         self.setLayout(self.grid)
 
         # add and display a timer - to be implemented
@@ -1270,6 +1623,10 @@ class MultiPointWidget2(QFrame):
         self.btn_previous.clicked.connect(self.previous)
         self.btn_next.clicked.connect(self.next)
         self.btn_clear.clicked.connect(self.clear)
+        self.btn_load_last_executed.clicked.connect(self.load_last_used_locations)
+        self.btn_export_locations.clicked.connect(self.export_location_list)
+        self.btn_import_locations.clicked.connect(self.import_location_list)
+
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
@@ -1314,9 +1671,10 @@ class MultiPointWidget2(QFrame):
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
                 self.add_location()
+                self.acquisition_in_place =True
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1334,7 +1692,35 @@ class MultiPointWidget2(QFrame):
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
 
+    def load_last_used_locations(self):
+        if self.last_used_locations is None or len(self.last_used_locations) == 0:
+            return
+        self.clear_only_location_list()
+
+        for row in self.last_used_locations:
+            x = row[0]
+            y = row[1]
+            z = row[2]
+            if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
+                location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
+                self.dropdown_location_list.addItem(location_str)
+                index = self.dropdown_location_list.count() - 1
+                self.dropdown_location_list.setCurrentIndex(index)
+                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                print(self.location_list)
+                self.navigationViewer.register_fov_to_image(x,y)
+            else:
+                print("Duplicate values not added based on x and y.")
+                #to-do: update z coordinate
+
+
+
     def acquisition_is_finished(self):
+        if not self.acquisition_in_place:
+            self.last_used_locations = self.location_list.copy()
+        else:
+            self.clear()
+            self.acquisition_in_place = False
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
@@ -1419,6 +1805,10 @@ class MultiPointWidget2(QFrame):
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
 
+    def clear_only_location_list(self):
+        self.location_list = np.empty((0,3),dtype=float)
+        self.dropdown_location_list.clear()
+
     def go_to(self,index):
         if index != -1:
             if index < len(self.location_list): # to avoid giving errors when adding new points
@@ -1439,6 +1829,43 @@ class MultiPointWidget2(QFrame):
         self.location_list[index,2] = z_mm
         location_str = 'x: ' + str(round(self.location_list[index,0],3)) + ' mm, y: ' + str(round(self.location_list[index,1],3)) + ' mm, z: ' + str(round(1000*z_mm,1)) + ' um'
         self.dropdown_location_list.setItemText(index, location_str)
+
+    def export_location_list(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Location List", '', "CSV Files (*.csv);;All Files (*)")
+        if file_path:
+            location_list_df = pd.DataFrame(self.location_list,columns=['x (mm)','y (mm)', 'z (um)'])
+            location_list_df['i'] = 0
+            location_list_df['j'] = 0
+            location_list_df['k'] = 0
+            location_list_df.to_csv(file_path,index=False,header=True)
+
+    def import_location_list(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import Location List", '', "CSV Files (*.csv);;All Files (*)")
+        if file_path:
+            location_list_df = pd.read_csv(file_path)
+            location_list_df_relevant = None
+            try:
+                location_list_df_relevant = location_list_df[['x (mm)', 'y (mm)', 'z (um)']]
+            except KeyError:
+                print("Improperly formatted location list being imported")
+                return
+            self.clear_only_location_list()
+            for index, row in location_list_df_relevant.iterrows():
+                x = row['x (mm)']
+                y = row['y (mm)']
+                z = row['z (um)']
+                if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
+                    location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
+                    self.dropdown_location_list.addItem(location_str)
+                    index = self.dropdown_location_list.count() - 1
+                    self.dropdown_location_list.setCurrentIndex(index)
+                    self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                    self.navigationViewer.register_fov_to_image(x,y)
+                else:
+                    print("Duplicate values not added based on x and y.")
+            print(self.location_list)
+
+
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):
@@ -2220,6 +2647,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_set_reference.setCheckable(False)
         self.btn_set_reference.setChecked(False)
         self.btn_set_reference.setDefault(False)
+        self.btn_set_reference.setEnabled(False)
 
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -2228,6 +2656,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_measure_displacement.setCheckable(False)
         self.btn_measure_displacement.setChecked(False)
         self.btn_measure_displacement.setDefault(False)
+        self.btn_measure_displacement.setEnabled(False)
 
         self.entry_target = QDoubleSpinBox()
         self.entry_target.setMinimum(-100)
@@ -2241,6 +2670,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_move_to_target.setCheckable(False)
         self.btn_move_to_target.setChecked(False)
         self.btn_move_to_target.setDefault(False)
+        self.btn_move_to_target.setEnabled(False)
 
         self.grid = QGridLayout()
         self.grid.addWidget(self.btn_initialize,0,0,1,3)
@@ -2256,11 +2686,18 @@ class LaserAutofocusControlWidget(QFrame):
         self.setLayout(self.grid)
 
         # make connections
-        self.btn_initialize.clicked.connect(self.laserAutofocusController.initialize_auto)
+        self.btn_initialize.clicked.connect(self.init_controller)
         self.btn_set_reference.clicked.connect(self.laserAutofocusController.set_reference)
         self.btn_measure_displacement.clicked.connect(self.laserAutofocusController.measure_displacement)
         self.btn_move_to_target.clicked.connect(self.move_to_target)
         self.laserAutofocusController.signal_displacement_um.connect(self.label_displacement.setNum)
+
+    def init_controller(self):
+        self.laserAutofocusController.initialize_auto()
+        if self.laserAutofocusController.is_initialized:
+            self.btn_set_reference.setEnabled(True)
+            self.btn_measure_displacement.setEnabled(True)
+            self.btn_move_to_target.setEnabled(True)
 
     def move_to_target(self,target_um):
         self.laserAutofocusController.move_to_target(self.entry_target.value())

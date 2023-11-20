@@ -28,6 +28,9 @@ class OctopiGUI(QMainWindow):
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.objectiveStore = core.ObjectiveStore()
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
+
         # load window
         if ENABLE_TRACKING:
             self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -177,6 +180,7 @@ class OctopiGUI(QMainWindow):
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         layout.addWidget(self.cameraSettingWidget)
+        #self.objectivesWidget.setFixedHeight(100)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
@@ -184,6 +188,7 @@ class OctopiGUI(QMainWindow):
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
         layout.addWidget(self.navigationViewer)
+        layout.addWidget(self.objectivesWidget)
         layout.addStretch()
 
         # transfer the layout to the central widget
