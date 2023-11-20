@@ -66,6 +66,7 @@ class OctopiGUI(QMainWindow):
         self.microcontroller.configure_actuators()
 
         self.objectiveStore = core.ObjectiveStore()
+
         self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
@@ -88,7 +89,6 @@ class OctopiGUI(QMainWindow):
 
         # load widgets:
         self.objectivesWidget=widgets.ObjectivesWidget(self.objectiveStore)
-
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_trigger_options=True,show_display_options=True,show_autolevel=SHOW_AUTOLEVEL_BTN,autolevel=AUTOLEVEL_DEFAULT_SETTING)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController)
@@ -106,9 +106,8 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
         # layout widgets
-        layout = QVBoxLayout() 
+        layout = QVBoxLayout() #layout = QStackedLayout()
         layout.addWidget(self.cameraSettingWidget)
-        #self.objectivesWidget.setFixedHeight(100)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
