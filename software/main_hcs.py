@@ -47,14 +47,14 @@ if __name__ == "__main__":
     else:
         win = gui.OctopiGUI()
        
-    acq_config_action = QAction("Acquisition Configurations", win)
+    acq_config_action = QAction("Acquisition Settings", win)
     acq_config_action.triggered.connect(lambda : show_acq_config(win.configurationManager))
 
     file_menu = QMenu("File", win)
     file_menu.addAction(acq_config_action)
 
     if not legacy_config:
-        config_action = QAction("Settings", win)
+        config_action = QAction("Microscope Settings", win)
         config_action.triggered.connect(lambda : show_config(cf_editor_parser, config_files[0], win))
         file_menu.addAction(config_action)
     
