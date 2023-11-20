@@ -399,7 +399,7 @@ CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 # laser autofocus
 SUPPORT_LASER_AUTOFOCUS = False
 MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
-FOCUS_CAMEARA_MODEL = 'MER2-630-60U3M'
+FOCUS_CAMERA_MODEL = 'MER2-630-60U3M'
 FOCUS_CAMERA_EXPOSURE_TIME_MS = 2
 FOCUS_CAMERA_ANALOG_GAIN = 0
 LASER_AF_AVERAGING_N = 5
@@ -474,7 +474,7 @@ else:
         print('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
-        print('machine-specifc configuration not present, the program will exit')
+        print('machine-specific configuration not present, the program will exit')
         exit()
 ##########################################################
 ##### end of loading machine specific configurations #####
@@ -487,6 +487,9 @@ if not (DEFAULT_SAVING_PATH.startswith(str(Path.home()))):
 X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.X_HOME
 Y_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Y_HOME
 Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Z_HOME
+
+if ENABLE_TRACKING:
+    DEFAULT_DISPLAY_CROP = Tracking.DEFAULT_DISPLAY_CROP
 
 if WELLPLATE_FORMAT == 384:
     WELL_SIZE_MM = 3.3
