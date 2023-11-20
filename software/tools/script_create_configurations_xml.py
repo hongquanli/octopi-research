@@ -11,6 +11,10 @@ mode_1.set('AnalogGain','10')
 mode_1.set('IlluminationSource','0')
 mode_1.set('IlluminationIntensity','100')
 mode_1.set('CameraSN','')
+mode_1.set('ZOffset','0.0')
+mode_1.set('PixelFormat','default')
+mode_1.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
 
 mode_2 = ET.SubElement(top,'mode')
 mode_2.set('ID','2')
@@ -20,6 +24,10 @@ mode_2.set('AnalogGain','10')
 mode_2.set('IlluminationSource','1')
 mode_2.set('IlluminationIntensity','100')
 mode_2.set('CameraSN','')
+mode_2.set('ZOffset','0.0')
+mode_2.set('PixelFormat','default')
+mode_2.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
 
 mode_3 = ET.SubElement(top,'mode')
 mode_3.set('ID','3')
@@ -29,6 +37,10 @@ mode_3.set('AnalogGain','10')
 mode_3.set('IlluminationSource','2')
 mode_3.set('IlluminationIntensity','100')
 mode_3.set('CameraSN','')
+mode_3.set('ZOffset','0.0')
+mode_3.set('PixelFormat','default')
+mode_3.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
 
 mode_4 = ET.SubElement(top,'mode')
 mode_4.set('ID','4')
@@ -38,6 +50,11 @@ mode_4.set('AnalogGain','10')
 mode_4.set('IlluminationSource','3')
 mode_4.set('IlluminationIntensity','100')
 mode_4.set('CameraSN','')
+mode_4.set('ZOffset','0.0')
+mode_4.set('PixelFormat','default')
+mode_4.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
+
 
 mode_5 = ET.SubElement(top,'mode')
 mode_5.set('ID','5')
@@ -47,6 +64,10 @@ mode_5.set('AnalogGain','10')
 mode_5.set('IlluminationSource','11')
 mode_5.set('IlluminationIntensity','100')
 mode_5.set('CameraSN','')
+mode_5.set('ZOffset','0.0')
+mode_5.set('PixelFormat','default')
+mode_5.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
 
 mode_6 = ET.SubElement(top,'mode')
 mode_6.set('ID','6')
@@ -56,6 +77,10 @@ mode_6.set('AnalogGain','10')
 mode_6.set('IlluminationSource','12')
 mode_6.set('IlluminationIntensity','100')
 mode_6.set('CameraSN','')
+mode_6.set('ZOffset','0.0')
+mode_6.set('PixelFormat','default')
+mode_6.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
 
 mode_7 = ET.SubElement(top,'mode')
 mode_7.set('ID','7')
@@ -65,6 +90,10 @@ mode_7.set('AnalogGain','10')
 mode_7.set('IlluminationSource','13')
 mode_7.set('IlluminationIntensity','100')
 mode_7.set('CameraSN','')
+mode_7.set('ZOffset','0.0')
+mode_7.set('PixelFormat','default')
+mode_7.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
 
 # print(ET.tostring(top, encoding="UTF-8", pretty_print=True).decode())
 tree = ET.ElementTree(top)

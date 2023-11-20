@@ -9,11 +9,11 @@ sudo apt-get install python3-pyqtgraph
 sudo apt-get install python3-pyqt5
 sudo apt-get install git
 git clone https://github.com/hongquanli/octopi-research.git
-pip3 install qtpy pyserial pandas imageio crc==1.3.0
+pip3 install qtpy pyserial pandas imageio pyqt5-tools pyqtgraph scipy tensorrt crc==1.3.0
 python3 -m pip install --upgrade --user setuptools==58.3.0
 pip3 install opencv-python opencv-contrib-python
 pip3 install lxml
-pip3 install numpy==1.21
+pip3 install numpy
 ```
 
 ### install camera drivers

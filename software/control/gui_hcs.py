@@ -58,7 +58,7 @@ class OctopiGUI(QMainWindow):
 			try:
 				if SUPPORT_LASER_AUTOFOCUS:
 					sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-					sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMEARA_MODEL)
+					sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMERA_MODEL)
 					self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
 					self.camera.open()
 					self.camera_focus = camera.Camera(sn=sn_camera_focus)
@@ -100,7 +100,6 @@ class OctopiGUI(QMainWindow):
 		self.imageSaver = core.ImageSaver()
 		self.imageDisplay = core.ImageDisplay()
 		self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
-
 		'''
 		if HOMING_ENABLED_Z:
 			# retract the objective
