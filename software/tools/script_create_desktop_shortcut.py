@@ -2,10 +2,12 @@ import os
 import stat
 def create_desktop_shortcut_simulation(directory_path, script_name):
     squid_suffix = script_name.replace("main_","")
+    icon_path = os.path.join(directory_path, "icon/cephla_logo.svg")
     if squid_suffix != "main" and squid_suffix != "":
         shortcut_content = f'''\
 [Desktop Entry]
 Name=Squid_{squid_suffix}_simulation
+Icon={icon_path}
 Exec=gnome-terminal --working-directory="{directory_path}" -e "/usr/bin/env python3 {directory_path}/{script_name}.py --simulation"
 Type=Application
 Terminal=true
@@ -14,6 +16,7 @@ Terminal=true
          shortcut_content = f'''\
 [Desktop Entry]
 Name=Squid_simulation
+Icon={icon_path}
 Exec=gnome-terminal --working-directory="{directory_path}" -e "/usr/bin/env python3 {directory_path}/{script_name}.py --simulation"
 Type=Application
 Terminal=true
@@ -33,10 +36,12 @@ Terminal=true
 
 def create_desktop_shortcut(directory_path, script_name):
     squid_suffix = script_name.replace("main_","")
+    icon_path = os.path.join(directory_path, "icon/cephla_logo.svg")
     if squid_suffix != "main" and squid_suffix != "":
         shortcut_content = f'''\
 [Desktop Entry]
 Name=Squid_{squid_suffix}
+Icon={icon_path}
 Exec=gnome-terminal --working-directory="{directory_path}" -e "/usr/bin/env python3 {directory_path}/{script_name}.py"
 Type=Application
 Terminal=true
@@ -45,6 +50,7 @@ Terminal=true
          shortcut_content = f'''\
 [Desktop Entry]
 Name=Squid
+Icon={icon_path}
 Exec=gnome-terminal --working-directory="{directory_path}" -e "/usr/bin/env python3 {directory_path}/{script_name}.py"
 Type=Application
 Terminal=true
