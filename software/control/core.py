@@ -2840,7 +2840,7 @@ class LaserAutofocusController(QObject):
     image_to_display = Signal(np.ndarray)
     signal_displacement_um = Signal(float)
 
-    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True):
+    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True, look_for_cache=False):
         QObject.__init__(self)
         self.microcontroller = microcontroller
         self.camera = camera
@@ -2859,7 +2859,25 @@ class LaserAutofocusController(QObject):
         self.use_glass_top = use_glass_top
         self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
 
-    def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference):
+        if look_for_cache:
+            cache_path = "cache/laser_af_reference_plane.txt"
+            try:
+                with open(cache_path, "r") as cache_file:
+                    for line in cache_file:
+                        value_list = line.split(",")
+                        x_offset = int(value_list[0])
+                        y_offset = int(value_list[1])
+                        width = int(value_list[2])
+                        height = int(value_list[3])
+                        pixel_to_um = float(value_list[4])
+                        x_reference = float(value_list[5])
+                        self.initialize_manual(x_offset,y_offset,width,height,pixel_to_um,x_reference)
+                        break
+            except (FileNotFoundError, ValueError,IndexError):
+                print("Error reading Laser AF state cache")
+                pass
+
+    def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference, write_to_cache=True):
         # x_reference is relative to the full sensor
         self.pixel_to_um = pixel_to_um
         self.x_offset = int((x_offset//8)*8)
@@ -2868,6 +2886,11 @@ class LaserAutofocusController(QObject):
         self.height = int((height//2)*2)
         self.x_reference = x_reference - self.x_offset # self.x_reference is relative to the cropped region
         self.camera.set_ROI(self.x_offset,self.y_offset,self.width,self.height)
+        cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
+        if write_to_cache:
+            cache_path = Path("cache/laser_af_reference_plane.txt")
+            file.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(cache_string)
         self.is_initialized = True
 
     def initialize_auto(self):

@@ -361,6 +361,7 @@ class CameraSettingsWidget(QFrame):
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
         else:
+            print("setting camera's default pixel format")
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
@@ -1223,7 +1224,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(6)
+        self.entry_NX.setValue(DEFAULT_MULTIPOINT_NX)
         self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
@@ -1238,7 +1239,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(3)
+        self.entry_NY.setValue(DEFAULT_MULTIPOINT_NY)
         self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
