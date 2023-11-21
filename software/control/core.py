@@ -2840,7 +2840,7 @@ class LaserAutofocusController(QObject):
     image_to_display = Signal(np.ndarray)
     signal_displacement_um = Signal(float)
 
-    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True, look_for_cache=False):
+    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True, look_for_cache=True):
         QObject.__init__(self)
         self.microcontroller = microcontroller
         self.camera = camera
@@ -2865,16 +2865,17 @@ class LaserAutofocusController(QObject):
                 with open(cache_path, "r") as cache_file:
                     for line in cache_file:
                         value_list = line.split(",")
-                        x_offset = int(value_list[0])
-                        y_offset = int(value_list[1])
+                        x_offset = float(value_list[0])
+                        y_offset = float(value_list[1])
                         width = int(value_list[2])
                         height = int(value_list[3])
                         pixel_to_um = float(value_list[4])
                         x_reference = float(value_list[5])
                         self.initialize_manual(x_offset,y_offset,width,height,pixel_to_um,x_reference)
                         break
-            except (FileNotFoundError, ValueError,IndexError):
-                print("Error reading Laser AF state cache")
+            except (FileNotFoundError, ValueError,IndexError) as e:
+                print("Unable to read laser AF state cache, exception below:")
+                print(e)
                 pass
 
     def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference, write_to_cache=True):
@@ -2889,7 +2890,7 @@ class LaserAutofocusController(QObject):
         cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
         if write_to_cache:
             cache_path = Path("cache/laser_af_reference_plane.txt")
-            file.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text(cache_string)
         self.is_initialized = True
 

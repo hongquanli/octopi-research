@@ -2662,7 +2662,8 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_set_reference.setCheckable(False)
         self.btn_set_reference.setChecked(False)
         self.btn_set_reference.setDefault(False)
-        self.btn_set_reference.setEnabled(False)
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_set_reference.setEnabled(False)
 
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -2671,7 +2672,8 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_measure_displacement.setCheckable(False)
         self.btn_measure_displacement.setChecked(False)
         self.btn_measure_displacement.setDefault(False)
-        self.btn_measure_displacement.setEnabled(False)
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_measure_displacement.setEnabled(False)
 
         self.entry_target = QDoubleSpinBox()
         self.entry_target.setMinimum(-100)
@@ -2685,8 +2687,9 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_move_to_target.setCheckable(False)
         self.btn_move_to_target.setChecked(False)
         self.btn_move_to_target.setDefault(False)
-        self.btn_move_to_target.setEnabled(False)
-
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_move_to_target.setEnabled(False)
+        
         self.grid = QGridLayout()
         self.grid.addWidget(self.btn_initialize,0,0,1,3)
         self.grid.addWidget(self.btn_set_reference,1,0,1,3)
