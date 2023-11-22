@@ -2333,7 +2333,7 @@ class ImageDisplayWindow(QMainWindow):
 
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.graphics_widget.view = self.graphics_widget.addViewBox()
-        #self.graphics_widget.view.invertY()
+        self.graphics_widget.view.invertY()
         
         ## lock the aspect ratio so pixels are always square
         self.graphics_widget.view.setAspectLocked(True)
@@ -2588,26 +2588,29 @@ class ImageArrayDisplayWindow(QMainWindow):
         self.graphics_widget_1.view = self.graphics_widget_1.addViewBox()
         self.graphics_widget_1.view.setAspectLocked(True)
         self.graphics_widget_1.img = pg.ImageItem(border='w')
-        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img)
+        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img) 
+        self.graphics_widget_1.view.invertY()
 
         self.graphics_widget_2 = pg.GraphicsLayoutWidget()
         self.graphics_widget_2.view = self.graphics_widget_2.addViewBox()
         self.graphics_widget_2.view.setAspectLocked(True)
         self.graphics_widget_2.img = pg.ImageItem(border='w')
         self.graphics_widget_2.view.addItem(self.graphics_widget_2.img)
+        self.graphics_widget_2.view.invertY()
 
         self.graphics_widget_3 = pg.GraphicsLayoutWidget()
         self.graphics_widget_3.view = self.graphics_widget_3.addViewBox()
         self.graphics_widget_3.view.setAspectLocked(True)
         self.graphics_widget_3.img = pg.ImageItem(border='w')
         self.graphics_widget_3.view.addItem(self.graphics_widget_3.img)
+        self.graphics_widget_3.view.invertY()
 
         self.graphics_widget_4 = pg.GraphicsLayoutWidget()
         self.graphics_widget_4.view = self.graphics_widget_4.addViewBox()
         self.graphics_widget_4.view.setAspectLocked(True)
         self.graphics_widget_4.img = pg.ImageItem(border='w')
         self.graphics_widget_4.view.addItem(self.graphics_widget_4.img)
-
+        self.graphics_widget_4.view.invertY()
         ## Layout
         layout = QGridLayout()
         layout.addWidget(self.graphics_widget_1, 0, 0)
