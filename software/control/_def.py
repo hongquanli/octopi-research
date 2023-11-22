@@ -9,11 +9,16 @@ def conf_attribute_reader(string_value):
     """
     :brief: standardized way for reading config entries
     that are strings, in priority order
-    dict/list (via json) -> int -> float -> string
+    None -> bool -> dict/list (via json) -> int -> float -> string
     REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN
     DOUBLE QUOTES
     """
     actualvalue = str(string_value).strip()
+    try:
+        if str(actualvalue) == "None":
+            return None
+    except:
+        pass
     try:
         if str(actualvalue) == "True" or str(actualvalue) == "true":
             return True

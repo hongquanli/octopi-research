@@ -36,17 +36,18 @@ def unsigned_to_signed(unsigned_array,N):
     return signed
 
 def rotate_and_flip_image(image,rotate_image_angle,flip_image):
+    ret_image = image.copy()
     if(rotate_image_angle != 0):
         '''
             # ROTATE_90_CLOCKWISE
             # ROTATE_90_COUNTERCLOCKWISE
         '''
         if(rotate_image_angle == 90):
-            image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
+            ret_image = cv2.rotate(ret_image,cv2.ROTATE_90_CLOCKWISE)
         elif(rotate_image_angle == -90):
-            image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
+            ret_image = cv2.rotate(ret_image,cv2.ROTATE_90_COUNTERCLOCKWISE)
         elif(rotate_image_angle == 180):
-            image = cv2.rotate(image,cv2.ROTATE_180)
+            ret_image = cv2.rotate(ret_image,cv2.ROTATE_180)
 
     if(flip_image is not None):
         '''
@@ -55,13 +56,14 @@ def rotate_and_flip_image(image,rotate_image_angle,flip_image):
             flipcode < 0: flip vertically and horizontally
         '''
         if(flip_image == 'Vertical'):
-            image = cv2.flip(image, 0)
+            ret_image = cv2.flip(ret_image, 0)
         elif(flip_image == 'Horizontal'):
-            image = cv2.flip(image, 1)
+            ret_image = cv2.flip(ret_image, 1)
         elif(flip_image == 'Both'):
-            image = cv2.flip(image, -1)
+            ret_image = cv2.flip(ret_image, -1)
 
-    return image
+    print("rotated and flipped image")
+    return ret_image
 
 def generate_dpc(im_left, im_right):
     # Normalize the images
