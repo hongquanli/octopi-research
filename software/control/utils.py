@@ -62,7 +62,6 @@ def rotate_and_flip_image(image,rotate_image_angle,flip_image):
         elif(flip_image == 'Both'):
             ret_image = cv2.flip(ret_image, -1)
 
-    print("rotated and flipped image")
     return ret_image
 
 def generate_dpc(im_left, im_right):

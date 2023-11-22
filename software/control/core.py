@@ -1494,9 +1494,7 @@ class MultiPointWorker(QObject):
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                     # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                    print("emitting image to display")
                                     self.image_to_display.emit(image_to_display)
-                                    print("emitting image to display multi")
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                                     stitcher_tile_path = None
                                     stitcher_of_interest = None
