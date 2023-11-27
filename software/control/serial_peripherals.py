@@ -100,9 +100,13 @@ class SerialDevice:
 
 class XLight:
     """Wrapper for communicating with CrestOptics X-Light devices over serial"""
-    def __init__(self):
-        self.serial_connection = SerialDevice(VID=1027,PID=24577,
-                SN='A106QADU',baudrate=9600,
+    def __init__(self, SN="A106QADU"):
+        """
+        Provide serial number (default is that of the device
+        cephla already has) for device-finding purposes. Otherwise, all
+        XLight devices should use the same serial protocol
+        """
+        self.serial_connection = SerialDevice(SN=SN,baudrate=9600,
                 bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
                 parity=serial.PARITY_NONE, 
                 xonxoff=False,rtscts=False,dsrdtr=False)
