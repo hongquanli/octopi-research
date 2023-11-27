@@ -31,7 +31,7 @@ class SerialDevice:
             self.serial = serial.Serial(self.port, baudrate=baudrate, timeout=read_timeout, **kwargs)
 
     def open_ser(self, SN=None, VID=None, PID=None, baudrate =None, read_timeout=None,**kwargs):
-        if self.serial is not None:
+        if self.serial is not None and not self.serial.is_open:
             self.serial.open()
         
         if SN is None:
