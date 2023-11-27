@@ -298,11 +298,100 @@ class SpinningDiskConfocalWidget(QWidget):
         self.xlight = xlight
 
         self.init_ui()
-    
-    def init_ui(self):
-        pass
-    
+        
+        self.dropdown_emission_filter.setCurrentText(str(self.xlight.get_emission_filter()))
+        self.dropdown_dichroic.setCurrentText(str(self.xlight.get_dichroic()))
 
+        self.dropdown_emission_filter.currentIndexChanged.connect(self.set_emission_filter)
+        self.dropdown_dichroic.currentIndexChanged.connect(self.set_dichroic)
+        
+        self.disk_position_state = self.xlight.get_disk_position()
+        
+
+        if self.disk_position_state == 1:
+            self.btn_toggle_widefield.setText("Switch to Widefield")
+
+        self.btn_toggle_widefield.clicked.connect(self.toggle_disk_position)
+
+        self.btn_toggle_motor.clicked.connect(self.toggle_motor)
+
+    def init_ui(self):
+        
+        emissionFilterLayout = QVBoxLayout()
+        emissionFilterLayout.addWidget(QLabel("Emission Filter Pos."))
+
+        self.dropdown_emission_filter = QComboBox(self)
+        self.dropdown_emission_filter.addItems([str(i+1) for i in range(8)])
+
+        emissionFilterLayout.addWidget(self.dropdown_emission_filter)
+
+        dichroicLayout = QVBoxLayout()
+        dichroicLayout.addWidget(QLabel("Dichroic Pos."))
+
+        self.dropdown_dichroic = QComboBox(self)
+        self.dropdown_dichroic.addItems([str(i+1) for i in range(5)])
+
+        dichroicLayout.addWidget(self.dropdown_dichroic)
+
+        dropdownLayout = QHBoxLayout()
+
+        dropdownLayout.addLayout(emissionFilterLayout)
+        dropdownLayout.addLayout(dichroicLayout)
+
+        self.btn_toggle_widefield = QPushButton("Switch to Confocal")
+
+        self.btn_toggle_motor = QPushButton("Disk Motor On")
+        self.btn_toggle_motor.setCheckable(True)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.btn_toggle_motor)
+        layout.addWidget(self.btn_toggle_widefield)
+        layout.addLayout(dropdownLayout)
+
+        self.setLayout(layout)
+
+    def disable_all_buttons(self):
+        self.dropdown_emission_filter.setEnabled(False)
+        self.dropdown_dichroic.setEnabled(False)
+        self.btn_toggle_widefield.setEnabled(False)
+        self.btn_toggle_motor.setEnabled(False)
+
+    def enable_all_buttons(self):
+        self.dropdown_emission_filter.setEnabled(True)
+        self.dropdown_dichroic.setEnabled(True)
+        self.btn_toggle_widefield.setEnabled(True)
+        self.btn_toggle_motor.setEnabled(True)
+
+    def toggle_disk_position(self):
+        self.disable_all_buttons()
+        if self.disk_position_state==1:
+            self.disk_position_state = self.xlight.set_disk_position(0)
+            self.btn_toggle_widefield.setText("Switch to Confocal")
+        else:
+            self.disk_position_state = self.xlight.set_disk_position(1)
+            self.btn_toggle_widefield.setText("Switch to Widefield")
+        self.enable_all_buttons()
+
+    def toggle_motor(self):
+        self.disable_all_buttons()
+        if self.btn_toggle_motor.isChecked():
+            self.xlight.set_disk_motor_state(True)
+        else:
+            self.xlight.set_disk_motor_state(False)
+        self.enable_all_buttons()
+
+    def set_emission_filter(self, index):
+        self.disable_all_buttons()
+        selected_pos = self.dropdown_emission_filter.currentText()
+        self.xlight.set_emission_filter(selected_pos)
+        self.enable_all_buttons()
+    
+    def set_dichroic(self, index):
+        self.disable_all_buttons()
+        selected_pos = self.dropdown_dichroic.currentText()
+        self.xlight.set_dichroic(selected_pos)
+        self.enable_all_buttons()
+  
 class ObjectivesWidget(QWidget):
     def __init__(self, objective_store):
         super(ObjectivesWidget, self).__init__()

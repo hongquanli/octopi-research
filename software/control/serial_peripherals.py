@@ -3,6 +3,11 @@ from serial.tools import list_ports
 import time
 
 class SerialDevice:
+    """
+    General wrapper for serial devices, with
+    automating device finding based on VID/PID
+    or serial number.
+    """
     def __init__(self, port=None, VID=None,PID=None,SN=None, baudrate=9600, read_timeout=1, **kwargs):
         # Initialize the serial connection
         self.port = port
