@@ -292,7 +292,7 @@ class ConfigEditorBackwardsCompatible(ConfigEditor):
         self.close()
 
 class SpinningDiskConfocalWidget(QWidget):
-    def __init__(self, xlight, config_manager=None:
+    def __init__(self, xlight, config_manager=None):
         super(SpinningDiskConfocalWidget,self).__init__()
         
         self.config_manager = config_manager
