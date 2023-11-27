@@ -108,7 +108,7 @@ class XLight:
                 xonxoff=False,rtscts=False,dsrdtr=False)
         self.serial_connection.open_ser()
     
-    def move_emission_filter(self,position,extraction=False):
+    def set_emission_filter(self,position,extraction=False):
         if str(position) not in ["1","2","3","4","5","6","7","8"]:
             raise ValueError("Invalid emission filter wheel position!")
         position_to_write = str(position)
@@ -116,16 +116,16 @@ class XLight:
         if extraction:
             position_to_write+="m"
 
-        current_pos = self.serial_connection.write_and_check("B"+position_to_write+"\r","B"+position_to_read+"\r",check_prefix=False)
+        current_pos = self.serial_connection.write_and_check("B"+position_to_write+"\r","B"+position_to_read)
         self.emission_wheel_pos = int(current_pos[1])
         return self.emission_wheel_pos
 
-    def read_emission_filter(self):
+    def get_emission_filter(self):
         current_pos = self.serial_connection.write_and_check("rB\r","rB")
         self.emission_wheel_pos = int(current_pos[2])
         return self.emission_wheel_pos
 
-    def move_dichroic(self, position,extraction=False):
+    def set_dichroic(self, position,extraction=False):
         if str(position) not in ["1","2","3","4","5"]:
             raise ValueError("Invalid dichroic wheel position!")
         position_to_write = str(position)
@@ -133,18 +133,18 @@ class XLight:
         if extraction:
             position_to_write+="m"
 
-        current_pos = self.serial_connection.write_and_check("C"+position_to_write+"\r","C"+position_to_read+"\r",check_prefix=False)
+        current_pos = self.serial_connection.write_and_check("C"+position_to_write+"\r","C"+position_to_read)
         self.dichroic_wheel_pos = int(current_pos[1])
         return self.dichroic_wheel_pos
 
 
-    def read_dichroic(self):
+    def get_dichroic(self):
         current_pos = self.serial_connection.write_and_check("rC\r","rC")
         self.dichroic_wheel_pos = int(current_pos[2])
         return self.dichroic_wheel_pos
 
 
-    def move_disk_position(self,position):
+    def set_disk_position(self,position):
         if str(position) not in ["0","1","2","wide field","confocal"]:
             raise ValueError("Invalid disk position!")
         if position == "wide field":
@@ -156,23 +156,23 @@ class XLight:
         position_to_write = str(position)
         position_to_read = str(position)
 
-        current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read+"\r",check_prefix=False)
+        current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read)
         self.spinning_disk_pos = int(current_pos[1])
         return self.spinning_disk_pos
 
-    def read_disk_position(self):
+    def get_disk_position(self):
         current_pos = self.serial_connection.write_and_check("rD\r","rD")
         self.spinning_disk_pos = int(current_pos[2])
         return self.spinning_disk_pos
 
-    def set_disk_motor_on(self, state):
+    def set_disk_motor_state(self, state):
         """Set True for ON, False for OFF"""
         if state:
             state_to_write = "1"
         else:
             state_to_write = "0"
 
-        current_pos = self.serial_connection.write_and_check("N"+state_to_write+"\r","N"+state_to_write+"\r")
+        current_pos = self.serial_connection.write_and_check("N"+state_to_write+"\r","N"+state_to_write)
 
         self.disk_motor_state = bool(int(current_pos[1]))
 
