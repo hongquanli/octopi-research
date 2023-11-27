@@ -292,9 +292,11 @@ class ConfigEditorBackwardsCompatible(ConfigEditor):
         self.close()
 
 class SpinningDiskConfocalWidget(QWidget):
-    def __init__(self, xlight):
+    def __init__(self, xlight, config_manager=None:
         super(SpinningDiskConfocalWidget,self).__init__()
         
+        self.config_manager = config_manager
+
         self.xlight = xlight
 
         self.init_ui()
@@ -305,12 +307,19 @@ class SpinningDiskConfocalWidget(QWidget):
         self.dropdown_emission_filter.currentIndexChanged.connect(self.set_emission_filter)
         self.dropdown_dichroic.currentIndexChanged.connect(self.set_dichroic)
         
-        self.disk_position_state = self.xlight.get_disk_position()
-        
+        self.disk_position_state = self.xlight.get_disk_position()        
 
         if self.disk_position_state == 1:
             self.btn_toggle_widefield.setText("Switch to Widefield")
 
+        if self.config_manager is not None:
+            if self.disk_position_state ==1:
+                self.config_manager.config_filename = "confocal_configurations.xml"
+            else:
+                self.config_manager.config_filename = "widefield_configurations.xml"
+            self.config_manager.configurations = []    
+            self.config_manager.read_configurations()
+        
         self.btn_toggle_widefield.clicked.connect(self.toggle_disk_position)
 
         self.btn_toggle_motor.clicked.connect(self.toggle_motor)
@@ -370,6 +379,13 @@ class SpinningDiskConfocalWidget(QWidget):
         else:
             self.disk_position_state = self.xlight.set_disk_position(1)
             self.btn_toggle_widefield.setText("Switch to Widefield")
+        if self.config_manager is not None:
+            if self.disk_position_state ==1:
+                self.config_manager.config_filename = "confocal_configurations.xml"
+            else:
+                self.config_manager.config_filename = "widefield_configurations.xml"
+            self.config_manager.configurations = []    
+            self.config_manager.read_configurations()
         self.enable_all_buttons()
 
     def toggle_motor(self):
