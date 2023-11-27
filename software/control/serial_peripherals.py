@@ -102,7 +102,7 @@ class XLight:
     """Wrapper for communicating with CrestOptics X-Light devices over serial"""
     def __init__(self):
         self.serial_connection = SerialDevice(VID=1027,PID=24577,
-                serial_number='A106QADU',baudrate=9600,
+                SN='A106QADU',baudrate=9600,
                 bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
                 parity=serial.PARITY_NONE, 
                 xonxoff=False,rtscts=False,dsrdtr=False)
