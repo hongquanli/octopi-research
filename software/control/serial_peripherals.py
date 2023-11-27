@@ -6,7 +6,7 @@ class SerialDevice:
     def __init__(self, port=None, VID=None,PID=None,SN=None, baudrate=9600, read_timeout=1, **kwargs):
         # Initialize the serial connection
         self.port = port
-        self.VID = vid
+        self.VID = VID
         self.PID = PID
         self.SN = SN
 
