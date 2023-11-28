@@ -96,6 +96,42 @@ class SerialDevice:
         # Close the serial connection
         self.serial.close()
 
+class XLight_Simulation:
+    def __init__(self):
+        self.emission_wheel_pos = 1
+        self.dichroic_wheel_pos = 1
+        self.disk_motor_state = False
+        self.spinning_disk_pos = 0
+
+    def set_emission_filter(self,position, extraction=False):
+        self.emission_wheel_pos = position
+        return position
+
+    def get_emission_filter(self):
+        return self.emission_wheel_pos
+
+    def set_dichroic(self, position, extraction=False):
+        self.dichroic_wheel_pos = position
+        return position
+
+    def get_dichroic(self):
+        return self.dichroic_wheel_pos
+
+    
+    def set_disk_position(self, position):
+        self.spinning_disk_pos = position
+        return position
+
+    def get_disk_position(self):
+        return self.spinning_disk_pos
+
+    def set_disk_motor_state(self, state):
+        self.disk_motor_state = state
+        return state
+
+    def get_disk_motor_state(self):
+        return self.disk_motor_state
+
 # CrestOptics X-Light Port specs:
 # 9600 baud
 # 8 data bits

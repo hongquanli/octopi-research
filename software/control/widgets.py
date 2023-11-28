@@ -333,6 +333,7 @@ class SpinningDiskConfocalWidget(QWidget):
         self.dropdown_emission_filter.addItems([str(i+1) for i in range(8)])
 
         emissionFilterLayout.addWidget(self.dropdown_emission_filter)
+        
 
         dichroicLayout = QVBoxLayout()
         dichroicLayout.addWidget(QLabel("Dichroic Pos."))
@@ -346,6 +347,7 @@ class SpinningDiskConfocalWidget(QWidget):
 
         dropdownLayout.addLayout(emissionFilterLayout)
         dropdownLayout.addLayout(dichroicLayout)
+        
 
         self.btn_toggle_widefield = QPushButton("Switch to Confocal")
 
@@ -354,9 +356,9 @@ class SpinningDiskConfocalWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.btn_toggle_motor)
+
         layout.addWidget(self.btn_toggle_widefield)
         layout.addLayout(dropdownLayout)
-
         self.setLayout(layout)
 
     def disable_all_buttons(self):
