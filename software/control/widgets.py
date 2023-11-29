@@ -326,8 +326,8 @@ class SpinningDiskConfocalWidget(QWidget):
 
     def init_ui(self):
         
-        emissionFilterLayout = QVBoxLayout()
-        emissionFilterLayout.addWidget(QLabel("Emission Filter Pos."))
+        emissionFilterLayout = QHBoxLayout()
+        emissionFilterLayout.addWidget(QLabel("Emission Filter Position"))
 
         self.dropdown_emission_filter = QComboBox(self)
         self.dropdown_emission_filter.addItems([str(i+1) for i in range(8)])
@@ -335,18 +335,19 @@ class SpinningDiskConfocalWidget(QWidget):
         emissionFilterLayout.addWidget(self.dropdown_emission_filter)
         
 
-        dichroicLayout = QVBoxLayout()
-        dichroicLayout.addWidget(QLabel("Dichroic Pos."))
+        dichroicLayout = QHBoxLayout()
+        dichroicLayout.addWidget(QLabel("Dichroic Position"))
 
         self.dropdown_dichroic = QComboBox(self)
         self.dropdown_dichroic.addItems([str(i+1) for i in range(5)])
 
         dichroicLayout.addWidget(self.dropdown_dichroic)
 
-        dropdownLayout = QHBoxLayout()
+        dropdownLayout = QVBoxLayout()
 
-        dropdownLayout.addLayout(emissionFilterLayout)
         dropdownLayout.addLayout(dichroicLayout)
+        dropdownLayout.addLayout(emissionFilterLayout)
+        dropdownLayout.addStretch()
         
 
         self.btn_toggle_widefield = QPushButton("Switch to Confocal")
