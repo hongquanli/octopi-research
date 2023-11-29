@@ -107,10 +107,10 @@ class Camera(object):
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
 
-        self.ROI_offset_x = CAMERA.ROI_OFFSET_X_DEFAULT
-        self.ROI_offset_y = CAMERA.ROI_OFFSET_X_DEFAULT
-        self.ROI_width = CAMERA.ROI_WIDTH_DEFAULT
-        self.ROI_height = CAMERA.ROI_HEIGHT_DEFAULT
+        self.ROI_offset_x = CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
+        self.ROI_offset_y = CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
+        self.ROI_width = CAMERA_CONFIG.ROI_WIDTH_DEFAULT
+        self.ROI_height = CAMERA_CONFIG.ROI_HEIGHT_DEFAULT
 
         self.trigger_mode = None
         self.pixel_size_byte = 1
@@ -131,6 +131,8 @@ class Camera(object):
         self._toupcam_pullmode_started = False
         self._software_trigger_sent = False
         self._last_software_trigger_timestamp = None
+        self.resolution = None
+
         if resolution != None:
             self.resolution = resolution
         self.has_fan = None
@@ -143,11 +145,24 @@ class Camera(object):
 
         self.brand = 'ToupTek'
         
+        
+        self.OffsetX =  CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
+        self.OffsetY = CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
+        self.Width = CAMERA_CONFIG.ROI_WIDTH_DEFAULT
+        self.Height = CAMERA_CONFIG.ROI_HEIGHT_DEFAULT
+
+        self.WidthMax = CAMERA_CONFIG.ROI_WIDTH_DEFAULT
+        self.HeightMax = CAMERA_CONFIG.ROI_HEIGHT_DEFAULT
+
+        if resolution is not None:
+            self.Width = resolution[0]
+            self.Height = resolution[1]
+
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
             time.sleep(2)
             # print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
-            self.temperature_reading_callback(self.get_temperature())
+            self.set_temperature_reading_callback(self.get_temperature())
 
     def open(self,index=0):
         if len(self.devices) > 0:
@@ -370,7 +385,10 @@ class Camera(object):
         # PTOUPCAM_EVENT_CALLBACK and PTOUPCAM_DATA_CALLBACK_V3, the return value is E_WRONG_THREAD
 
     def set_auto_exposure(self,enabled):
-        self.camera.put_AutoExpoEnable(enabled)
+        try:
+            self.camera.put_AutoExpoEnable(enabled)
+        except toupcam.HRESULTException as e:
+            print("Unable to set auto exposure: "+repr(e))
 
     def set_data_format(self,data_format):
         self.data_format = data_format
@@ -381,6 +399,8 @@ class Camera(object):
 
     def set_resolution(self,width,height):
         self.camera.put_Size(width,height)
+        self.Width = width
+        self.Height = height
 
     def _update_buffer_settings(self):
         # resize the buffer
@@ -400,11 +420,17 @@ class Camera(object):
         return self.camera.get_Temperature()/10
 
     def set_temperature(self,temperature):
-        self.camera.put_Temperature(int(temperature*10))
+        try:
+            self.camera.put_Temperature(int(temperature*10))
+        except toupcam.HRESULTException as e:
+            print("Unable to set temperature: "+repr(e))
 
     def set_fan_speed(self,speed):
         if self.has_fan:
-            self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
+            try:
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
+            except toupcam.HRESULTException as e:
+                print("Unable to set fan speed: "+repr(e))
         else:
             pass
 
