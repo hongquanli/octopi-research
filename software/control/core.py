@@ -1100,6 +1100,8 @@ class AutoFocusController(QObject):
         self.crop_width = AF.CROP_WIDTH
         self.crop_height = AF.CROP_HEIGHT
         self.autofocus_in_progress = False
+        self.focus_map_coords = []
+        self.use_focus_map = False
 
     def set_N(self,N):
         self.N = N
@@ -1114,6 +1116,20 @@ class AutoFocusController(QObject):
         self.crop_height = crop_height
 
     def autofocus(self):
+        if self.use_focus_map:
+            self.autofocus_in_progress = True
+            self.navigationController.microcontroller.wait_till_operation_is_completed()
+            x = self.navigationController.x_pos_mm
+            y = self.navigationController.y_pos_mm
+            
+            # z here is in mm because that's how the navigation controller stores it
+            target_z = utils.interpolate_plane(*self.focus_map_coords[:3], (x,y))
+            print(f"Interpolated target z as {target_z} mm from focus map, moving there.")
+            self.navigationController.move_z_to(target_z)
+            self.navigationController.microcontroller.wait_till_operation_is_completed()
+            self.autofocus_in_progress = False
+            self.autofocusFinished.emit()
+            return
         # stop live
         if self.liveController.is_live:
             self.was_live_before_autofocus = True
@@ -1179,6 +1195,91 @@ class AutoFocusController(QObject):
         while self.autofocus_in_progress == True:
             time.sleep(0.005)
         print('autofocus wait has completed, exit wait')
+
+    def set_focus_map_use(self, enable):
+        if not enable:
+            print("Disabling focus map.")
+            self.use_focus_map = False
+            return
+        if len(self.focus_map_coords < 3):
+            print("Not enough coordinates (less than 3) for focus map generation, disabling focus map.")
+            self.use_focus_map = False
+            return
+        x1,y1,_ = self.focus_map_coords[0]
+        x2,y2,_ = self.focus_map_coords[1]
+        x3,y3,_ = self.focus_map_coords[2]
+
+        detT = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+        if detT == 0:
+            print("Your 3 x-y coordinates are linear, cannot use to interpolate, disabling focus map.")
+            self.use_focus_map = False
+            return
+
+        if enable:
+            print("Enabling focus map.")
+            self.use_focus_map = True
+
+    def clear_focus_map(self):
+        self.focus_map_coords = []
+        self.set_focus_map_use(False)
+
+    def gen_focus_map(coord1,coord2,coord3):
+        """
+        Navigate to 3 coordinates and get your focus-map coordinates
+        by autofocusing there and saving the z-values.
+        :param coord1-3: Tuples of (x,y) values, coordinates in mm.
+        :raise: ValueError if coordinates are all on the same line
+        """
+        x1,y1 = coord1
+        x2,y2 = coord2
+        x3,y3 = coord3
+        detT = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+        if detT == 0:
+            raise ValueError("Your 3 x-y coordinates are linear")
+        
+        self.focus_map_coords = []
+
+        for coord in [coord1,coord2,coord3]:
+            print(f"Navigating to coordinates ({coord[0]},{coord[1]}) to sample for focus map")
+            self.navigationController.move_to(coord[0],coord[1])
+            self.navigationController.microcontroller.wait_till_operation_is_completed()
+            print("Autofocusing")
+            self.autofocus()
+            self.wait_till_autofocus_has_completed()
+            self.navigationController.microcontroller.wait_till_operation_is_completed()
+            x = self.navigationController.x_pos_mm
+            y = self.navigationController.y_pos_mm
+            z = self.navigationController.z_pos_mm
+            print(f"Adding coordinates ({x},{y},{z}) to focus map")
+            self.focus_map_coords.append((x,y,z))
+
+        print("Generated focus map.")
+
+    def add_current_coords_to_focus_map(self):
+        if len(self.focus_map_coords) >= 3:
+            print("Replacing last coordinate on focus map.")
+        self.navigationController.microcontroller.wait_till_operation_is_completed()
+        print("Autofocusing")
+        self.autofocus()
+        self.wait_till_autofocus_has_completed()
+        self.navigationController.microcontroller.wait_till_operation_is_completed()
+        x = self.navigationController.x_pos_mm
+        y = self.navigationController.y_pos_mm
+        z = self.navigationController.z_pos_mm
+        if len(self.focus_map_coords) >= 2:
+            x1,y1,_ = self.focus_map_coords[0]
+            x2,y2,_ = self.focus_map_coords[1]
+            x3 = x
+            y3 = y
+
+            detT = (y2-y3) * (x1-x3) + (x3-x2) * (y1-y3)
+            if detT == 0:
+                raise ValueError("Your 3 x-y coordinates are linear. Navigate to a different coordinate or clear and try again.")
+        if len(self.focus_map_coords) >= 3:
+            self.focus_map_coords.pop()
+        self.focus_map_coords.append((x,y,z))
+        print("Added triple ({x},{y},{z}) to focus map")
+
 
 class MultiPointWorker(QObject):
 

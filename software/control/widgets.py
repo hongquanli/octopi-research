@@ -327,6 +327,34 @@ class ObjectivesWidget(QWidget):
         self.objectiveStore.current_objective = selected_key
         #self.text_browser.setPlainText(text)
 
+class FocusMapWidget(QWidget):
+
+    def __init__(self, autofocusController):
+        super().__init__(*args, **kwargs)
+        self.autofocusController = autofocusController
+        self.init_ui()
+        # connect buttons to autofocus functions
+
+    def init_ui(self):
+        self.btn_add_to_focusmap = QPushButton("Add to focus map")
+        self.btn_enable_focusmap = QPushButton("Focus Map Disabled")
+        self.fmap_coord_1 = QLabel()
+        self.fmap_coord_2 = QLabel()
+        self.fmap_coord_3 = QLabel()
+
+    def disable_all_buttons(self):
+        pass
+
+    def enable_all_buttons(self):
+        pass
+
+    def update_focusmap_display(self):
+        pass
+
+    def enable_focusmap(self, state):
+        pass
+
+
 class CameraSettingsWidget(QFrame):
 
     signal_camera_set_temperature = Signal(float)

@@ -111,3 +111,31 @@ def centerCrop(image, crop_sz):
     cropped = image[y:y+crop_sz, x:x+crop_sz]
     
     return cropped
+
+def interpolate_plane(triple1, triple2, triple3, point):
+    """
+    Given 3 triples triple1-3 of coordinates (x,y,z)
+    and a pair of coordinates (x,y), linearly interpolates
+    the z-value at (x,y).
+    """
+    # Unpack points
+    x1, y1, z1 = triple1
+    x2, y2, z2 = triple2
+    x3, y3, z3 = triple3
+
+    x,y = point
+    # Calculate barycentric coordinates
+    detT = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+    if detT == 0:
+        raise ValueError("Your 3 x-y coordinates are linear")
+    alpha = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / detT
+    beta = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / detT
+    gamma = 1 - alpha - beta
+
+    # Interpolate z-coordinate
+    z = alpha * z1 + beta * z2 + gamma * z3
+
+    return z
+
+
+
