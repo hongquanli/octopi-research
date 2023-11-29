@@ -449,7 +449,7 @@ class Camera(object):
                 # print('trigger not sent - waiting for the last trigger to complete')
                 print("{:.3f}".format(time.time()-self._last_software_trigger_timestamp) + ' s since the last trigger')
 
-    def stop_trigger(self):
+    def stop_exposure(self):
         if self.is_streaming and self._software_trigger_sent == True:
             self.camera.Trigger(0)
             self._software_trigger_sent = False
@@ -591,6 +591,7 @@ class Camera_Simulation(object):
         self.current_frame = None
 
         self.callback_is_enabled = False
+        self.is_streaming = False
 
         self.GAIN_MAX = 300
         self.GAIN_MIN = 100
@@ -609,6 +610,13 @@ class Camera_Simulation(object):
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         self.pixel_format = 'MONO16'
+
+        self.Width = 3000
+        self.Height = 3000
+        self.WidthMax = 4000
+        self.HeightMax = 3000
+        self.OffsetX = 0
+        self.OffsetY = 0
 
     def open(self,index=0):
         pass
@@ -675,6 +683,9 @@ class Camera_Simulation(object):
     def set_hardware_triggered_acquisition(self):
         pass
 
+    def set_gain_mode(self,mode):
+        pass
+
     def send_trigger(self):
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
@@ -695,6 +706,12 @@ class Camera_Simulation(object):
             # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
         if self.new_image_callback_external is not None and self.callback_is_enabled:
             self.new_image_callback_external(self)
+
+    def stop_exposure(self):
+        if self.is_streaming and self._software_trigger_sent == True:
+            self._software_trigger_sent = False
+        else:
+            pass
 
     def read_frame(self):
         return self.current_frame
