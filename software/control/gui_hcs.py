@@ -8,12 +8,45 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+from control._def import *
+
 # app specific libraries
 import control.widgets as widgets
-import control.camera as camera
+
+if CAMERA_TYPE == "Toupcam":
+    try:
+        import control.camera_toupcam as camera
+    except:
+        print("Problem importing Toupcam, defaulting to default camera")
+        import control.camera as camera
+elif CAMERA_TYPE == "FLIR":
+    try:
+        import control.camera_flir as camera
+    except:
+        print("Problem importing FLIR camera, defaulting to default camera")
+        import control.camera as camera
+else:
+    import control.camera as camera
+
+if FOCUS_CAMERA_TYPE == "Toupcam":
+    try:
+        import control.camera_toupcam as camera_fc
+    except:
+        print("Problem importing Toupcam for focus, defaulting to default camera")
+        import control.camera as camera_fc
+elif FOCUS_CAMERA_TYPE == "FLIR":
+    try:
+        import control.camera_flir as camera_fc
+    except:
+        print("Problem importing FLIR camera for focus, defaulting to default camera")
+        import control.camera as camera_fc
+else:
+    import control.camera as camera_fc
+
+
+
 import control.core as core
 import control.microcontroller as microcontroller
-from control._def import *
 
 import control.serial_peripherals as serial_peripherals
 
@@ -54,7 +87,7 @@ class OctopiGUI(QMainWindow):
                 self.xlight = serial_peripherals.XLight_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                self.camera_focus = camera.Camera_Simulation()
+                self.camera_focus = camera_fc.Camera_Simulation()
             else:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
@@ -64,10 +97,10 @@ class OctopiGUI(QMainWindow):
             try:
                 if SUPPORT_LASER_AUTOFOCUS:
                     sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMERA_MODEL)
+                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
                     self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
-                    self.camera_focus = camera.Camera(sn=sn_camera_focus)
+                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
                     self.camera_focus.open()
                 else:
                     self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)

@@ -437,6 +437,10 @@ STITCH_TILES_WITH_ASHLAR = False
 
 ENABLE_SPINNING_DISK_CONFOCAL=False
 
+CAMERA_TYPE="Default"
+
+FOCUS_CAMERA_TYPE="Default"
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

@@ -13,6 +13,17 @@ import threading
 import control.toupcam as toupcam
 from control.toupcam_exceptions import hresult_checker
 
+def get_sn_by_model(model_name):
+    try:
+        device_list = toupcam.Toupcam.EnumV2()
+    except:
+        print("Problem generating Toupcam device list")
+        return None
+    for dev in device_list:
+        if dev.displayname == model_name:
+            return dev.id
+    return None # return None if no device with the specified model_name is connected
+
 
 class Camera(object):
 
@@ -171,10 +182,12 @@ class Camera(object):
             print('{}: flag = {:#x}, preview = {}, still = {}'.format(self.devices[0].displayname, self.devices[0].model.flag, self.devices[0].model.preview, self.devices[0].model.still))
             for r in self.devices[index].model.res:
                 print('\t = [{} x {}]'.format(r.width, r.height))
+            if self.sn is not None:
+                index = [idx for idx in range(len(self.devices)) if self.devices[idx].id == self.sn][0]
             self.camera = toupcam.Toupcam.Open(self.devices[index].id)
-            self.has_fan = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_FAN ) > 0
-            self.has_TEC = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_TEC_ONOFF ) > 0
-            self.has_low_noise_mode = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_LOW_NOISE ) > 0
+            self.has_fan = ( self.devices[index].model.flag & toupcam.TOUPCAM_FLAG_FAN ) > 0
+            self.has_TEC = ( self.devices[index].model.flag & toupcam.TOUPCAM_FLAG_TEC_ONOFF ) > 0
+            self.has_low_noise_mode = ( self.devices[index].model.flag & toupcam.TOUPCAM_FLAG_LOW_NOISE ) > 0
             if self.has_low_noise_mode:
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_LOW_NOISE,0)
 
