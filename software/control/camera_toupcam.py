@@ -499,7 +499,8 @@ class Camera(object):
                 print('trigger not sent - camera is not streaming')
             else:
                 # print('trigger not sent - waiting for the last trigger to complete')
-                print("{:.3f}".format(time.time()-self._last_software_trigger_timestamp) + ' s since the last trigger')
+                pass
+                #print("{:.3f}".format(time.time()-self._last_software_trigger_timestamp) + ' s since the last trigger')
 
     def stop_exposure(self):
         if self.is_streaming and self._software_trigger_sent == True:
