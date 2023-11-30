@@ -2,10 +2,6 @@ import argparse
 import cv2
 import time
 import numpy as np
-try:
-    import control.gxipy as gx
-except:
-    print('gxipy import error')
 
 from control._def import *
 
@@ -68,8 +64,8 @@ class Camera(object):
             self.current_frame = raw_image.reshape(self.height,self.width)
 
         # for debugging
-        print(self.current_frame.shape)
-        print(self.current_frame.dtype)
+        #print(self.current_frame.shape)
+        #print(self.current_frame.dtype)
 
         # frame ID for hardware triggered acquisition
         if self.trigger_mode == TriggerMode.HARDWARE:
@@ -158,7 +154,8 @@ class Camera(object):
 
         self.brand = 'ToupTek'
         
-        
+        self.res_list = []
+
         self.OffsetX =  CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
         self.OffsetY = CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
         self.Width = CAMERA_CONFIG.ROI_WIDTH_DEFAULT
@@ -184,6 +181,12 @@ class Camera(object):
                 print('\t = [{} x {}]'.format(r.width, r.height))
             if self.sn is not None:
                 index = [idx for idx in range(len(self.devices)) if self.devices[idx].id == self.sn][0]
+            highest_res = (0,0)
+            self.res_list = []
+            for r in self.devices[index].model.res:
+                self.res_list.append((r.width,r.height))
+                if r.width > highest_res[0] or r.height > highest_res[1]:
+                    highest_res = (r.width, r.height)
             self.camera = toupcam.Toupcam.Open(self.devices[index].id)
             self.has_fan = ( self.devices[index].model.flag & toupcam.TOUPCAM_FLAG_FAN ) > 0
             self.has_TEC = ( self.devices[index].model.flag & toupcam.TOUPCAM_FLAG_TEC_ONOFF ) > 0
@@ -202,7 +205,11 @@ class Camera(object):
             self.set_data_format('RAW')
             self.set_pixel_format('MONO16') # 'MONO8'
             self.set_auto_exposure(False)
-            if self.resolution != None:
+            if self.resolution is None:
+                self.resolution = highest_res
+            elif self.resolution not in self.res_list:
+                self.resolution = highest_res
+            if self.resolution is not None:
                 self.set_resolution(self.resolution[0],self.resolution[1]) # buffer created when setting resolution
             else:
                 # self.set_resolution(0) # buffer created when setting resolution, # use the max resolution # to create the function with one input
@@ -326,11 +333,10 @@ class Camera(object):
 
     def set_pixel_format(self,pixel_format):
 
-        # if self.is_streaming == True:
-        #     was_streaming = True
-        #     self.stop_streaming()
-        # else:
-        #     was_streaming = False
+        was_streaming = False
+        if self.is_streaming:
+            was_streaming = True
+            self.stop_streaming()
 
         self.pixel_format = pixel_format
 
@@ -381,15 +387,13 @@ class Camera(object):
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,1)
 
-        if self._toupcam_pullmode_started:
+        if self.ROI_width != self.Width or self.ROI_height != self.Height:
+            self._update_buffer_settings(self.ROI_width,self.ROI_height) 
+        else:
             self._update_buffer_settings()
-            if self.buf:
-                try:
-                    self.camera.StartPullModeWithCallback(self._event_callback, self)
-                except toupcam.HRESULTException as ex:
-                    print('failed to start camera, hr=0x{:x}'.format(ex.hr))
-                    exit()
 
+        if was_streaming:
+            self.start_streaming()
         #     if pixel_format == 'BAYER_RG8':
         #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG8)
         #         self.pixel_size_byte = 1
@@ -413,8 +417,8 @@ class Camera(object):
     def set_auto_exposure(self,enabled):
         try:
             self.camera.put_AutoExpoEnable(enabled)
-        except toupcam.HRESULTException as e:
-            print("Unable to set auto exposure: "+repr(e))
+        except toupcam.HRESULTException as ex:
+            print("Unable to set auto exposure: "+repr(ex))
 
     def set_data_format(self,data_format):
         self.data_format = data_format
@@ -424,13 +428,29 @@ class Camera(object):
             self.camera.put_Option(toupcam.TOUPCAM_OPTION_RAW,1) # 1 is RAW mode, 0 is RGB mode
 
     def set_resolution(self,width,height):
-        self.camera.put_Size(width,height)
-        self.Width = width
-        self.Height = height
+        was_streaming = False
+        if self.is_streaming:
+            self.stop_streaming()
+            was_streaming = True
+        try:
+            self.camera.put_Size(width,height)
+            self.Width = width
+            self.Height = height
+        except toupcam.HRESULTException as ex:
+            err_type = hresult_checker(ex,'E_INVALIDARG','E_BUSY','E_ACCESDENIED')
+            if err_type == 'E_INVALIDARG':
+                print(f"Resolution ({width},{height}) not supported by camera")
+            else:
+                print(f"Resolution cannot be set due to error: "+err_type)
+        self.set_ROI(0,0,0,0)
+        self._update_buffer_settings()
+        if was_streaming:
+            self.start_streaming()
 
-    def _update_buffer_settings(self):
+    def _update_buffer_settings(self, width=None, height=None):
         # resize the buffer
-        width, height = self.camera.get_Size()
+        if width is None or height is None:
+            width, height = self.camera.get_Size()
         self.width = width
         self.height = height
         # calculate buffer size
@@ -521,8 +541,8 @@ class Camera(object):
         return None
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
-        # if offset_x is not None:
-        #     self.ROI_offset_x = offset_x
+        if offset_x is not None:
+            self.ROI_offset_x = 2*(offset_x//2)
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -538,8 +558,8 @@ class Camera(object):
         #     if was_streaming == True:
         #         self.start_streaming()
 
-        # if offset_y is not None:
-        #     self.ROI_offset_y = offset_y
+        if offset_y is not None:
+            self.ROI_offset_y = 2*(offset_y//2)
         #         # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -555,8 +575,8 @@ class Camera(object):
         #     if was_streaming == True:
         #         self.start_streaming()
 
-        # if width is not None:
-        #     self.ROI_width = width
+        if width is not None:
+            self.ROI_width = max(16,2*(width//2))
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -572,8 +592,8 @@ class Camera(object):
         #     if was_streaming == True:
         #         self.start_streaming()
 
-        # if height is not None:
-        #     self.ROI_height = height
+        if height is not None:
+            self.ROI_height = max(16,2*(height//2))
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -588,7 +608,24 @@ class Camera(object):
         #     # restart streaming if it was previously on
         #     if was_streaming == True:
         #         self.start_streaming()
-        pass
+        was_streaming = False
+        if self.is_streaming:
+            self.stop_streaming()
+            was_streaming = True
+
+        if width == 0 and height == 0:
+            self.ROI_offset_x = 0
+            self.ROI_offset_y = 0
+            self.ROI_height = self.Height
+            self.ROI_width = self.Width
+            self.camera.put_Roi(0,0,0,0)
+            self._update_buffer_settings()
+
+        else:
+            self.camera.put_Roi(self.ROI_offset_x,self.ROI_offset_y,self.ROI_width,self.ROI_height)
+            self._update_buffer_settings(self.ROI_width, self.ROI_height)
+        if was_streaming:
+            self.start_streaming()
 
     def reset_camera_acquisition_counter(self):
         # if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
