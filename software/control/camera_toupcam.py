@@ -11,6 +11,8 @@ from control._def import *
 
 import threading
 import control.toupcam as toupcam
+from control.toupcam_exceptions import hresult_checker
+
 
 class Camera(object):
 
@@ -271,10 +273,20 @@ class Camera(object):
         # self.camera.Gain.set(analog_gain)
 
     def get_awb_ratios(self):
-        pass
+        try:
+            self.camera.AwbInit()
+            return self.camera.get_WhiteBalanceGain()
+        except toupcam.HRESULTException as ex:
+            err_type = hresult_checker(ex,'E_NOTIMPL')
+            print("AWB not implemented")
+            return (0,0,0)
 
     def set_wb_ratios(self, wb_r=None, wb_g=None, wb_b=None):
-        pass
+        try:
+            camera.put_WhiteBalanceGain(wb_r,wb_g,wb_b)
+        except toupcam.HRESULTException as ex:
+            err_type = hresult_checker(ex,'E_NOTIMPL')
+            print("White balance not implemented")
 
     def set_reverse_x(self,value):
         pass
@@ -288,7 +300,8 @@ class Camera(object):
                 self.camera.StartPullModeWithCallback(self._event_callback, self)
                 self._toupcam_pullmode_started = True
             except toupcam.HRESULTException as ex:
-                print('failed to start camera, hr=0x{:x}'.format(ex.hr))
+                print('failed to start camera, hr: '+hresult_checker(ex))
+                self.close()
                 exit()
         print('  start streaming')
         self.is_streaming = True
