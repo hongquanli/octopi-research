@@ -433,6 +433,12 @@ class Camera(object):
             self.camera.put_Size(width,height)
             self.Width = width
             self.Height = height
+            self.ROI_width = width
+            self.ROI_height = height
+            self.OffsetX = 0
+            self.OffsetY = 0
+            self.ROI_offset_x = 0
+            self.ROI_offset_y = 0
         except toupcam.HRESULTException as ex:
             err_type = hresult_checker(ex,'E_INVALIDARG','E_BUSY','E_ACCESDENIED')
             if err_type == 'E_INVALIDARG':
@@ -539,8 +545,9 @@ class Camera(object):
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
         if offset_x is not None:
-            self.ROI_offset_x = 2*(offset_x//2)
-            self.OffsetX = self.ROI_offset_x
+            ROI_offset_x = 2*(offset_x//2)
+        else:
+            ROI_offset_x = self.ROI_offset_x
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -557,8 +564,9 @@ class Camera(object):
         #         self.start_streaming()
 
         if offset_y is not None:
-            self.ROI_offset_y = 2*(offset_y//2)
-            self.OffsetY = self.ROI_offset_y
+            ROI_offset_y = 2*(offset_y//2)
+        else:
+            ROI_offset_y = self.ROI_offset_y
         #         # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -575,8 +583,9 @@ class Camera(object):
         #         self.start_streaming()
 
         if width is not None:
-            self.ROI_width = max(16,2*(width//2))
-            self.Width = self.ROI_width
+            ROI_width = max(16,2*(width//2))
+        else:
+            ROI_width = self.ROI_width
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -593,8 +602,9 @@ class Camera(object):
         #         self.start_streaming()
 
         if height is not None:
-            self.ROI_height = max(16,2*(height//2))
-            self.Height = self.ROI_height
+            ROI_height = max(16,2*(height//2))
+        else:
+            ROI_height = self.ROI_height
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -630,8 +640,22 @@ class Camera(object):
             self._update_buffer_settings()
 
         else:
-            self.camera.put_Roi(self.ROI_offset_x,self.ROI_offset_y,self.ROI_width,self.ROI_height)
-            self._update_buffer_settings(self.ROI_width, self.ROI_height)
+            try:
+                self.camera.put_Roi(ROI_offset_x,ROI_offset_y,ROI_width,ROI_height)
+                self.ROI_height = ROI_height
+                self.Height = ROI_height
+                self.ROI_width = ROI_width
+                self.Width = ROI_width
+
+                self.ROI_offset_x = ROI_offset_x
+                self.OffsetX = ROI_offset_x
+
+                self.ROI_offset_y = ROI_offset_y
+                self.OffsetY = ROI_offset_y
+            except toupcam.HRESULTException as ex:
+                err_type = hresult_checker(ex,'E_INVALIDARG')
+                print("ROI bounds invalid, not changing ROI.")
+            self._update_buffer_settings(self.Width, self.Height)
         if was_streaming:
             self.start_streaming()
 

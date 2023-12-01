@@ -64,4 +64,14 @@ camera.set_ROI(0,0,0,0)
 
 time.sleep(0.5)
 
+camera.set_ROI(2500,2500,3000,3000)
+
+time.sleep(1.0)
+
+myframe2 = camera.read_frame()
+print(myframe2)
+print(myframe2.shape)
+print(myframe2.dtype)
+
+
 camera.close()
