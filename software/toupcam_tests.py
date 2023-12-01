@@ -17,10 +17,6 @@ camera.set_resolution(2000,2000)
 
 camera.set_continuous_acquisition()
 
-camera.set_pixel_format('MONO8')
-
-print(camera.get_awb_ratios())
-
 camera.start_streaming()
 
 time.sleep(0.5)
@@ -44,11 +40,25 @@ time.sleep(0.5)
 
 myframe = camera.read_frame()
 print(myframe)
+print(myframe.shape)
+print(myframe.dtype)
 camera.set_pixel_format('MONO8')
 time.sleep(0.5)
 
 myframe2 = camera.read_frame()
 print(myframe2)
+print(myframe2.shape)
+print(myframe2.dtype)
+
+time.sleep(1.0)
+
+
+myframe2 = camera.read_frame()
+print(myframe2)
+print(myframe2.shape)
+print(myframe2.dtype)
+
+
 
 camera.set_ROI(0,0,0,0)
 

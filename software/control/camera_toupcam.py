@@ -387,10 +387,7 @@ class Camera(object):
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,1)
 
-        if self.ROI_width != self.Width or self.ROI_height != self.Height:
-            self._update_buffer_settings(self.ROI_width,self.ROI_height) 
-        else:
-            self._update_buffer_settings()
+        self._update_buffer_settings(self.Width, self.Height)
 
         if was_streaming:
             self.start_streaming()
@@ -543,6 +540,7 @@ class Camera(object):
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
         if offset_x is not None:
             self.ROI_offset_x = 2*(offset_x//2)
+            self.OffsetX = self.ROI_offset_x
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -560,6 +558,7 @@ class Camera(object):
 
         if offset_y is not None:
             self.ROI_offset_y = 2*(offset_y//2)
+            self.OffsetY = self.ROI_offset_y
         #         # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -577,6 +576,7 @@ class Camera(object):
 
         if width is not None:
             self.ROI_width = max(16,2*(width//2))
+            self.Width = self.ROI_width
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -594,6 +594,7 @@ class Camera(object):
 
         if height is not None:
             self.ROI_height = max(16,2*(height//2))
+            self.Height = self.ROI_height
         #     # stop streaming if streaming is on
         #     if self.is_streaming == True:
         #         was_streaming = True
@@ -616,9 +617,16 @@ class Camera(object):
         if width == 0 and height == 0:
             self.ROI_offset_x = 0
             self.ROI_offset_y = 0
-            self.ROI_height = self.Height
-            self.ROI_width = self.Width
+            self.OffsetX = 0
+            self.OffsetY = 0
+            self.ROI_height = 0
+            self.ROI_width = 0
             self.camera.put_Roi(0,0,0,0)
+            width, height = self.camera.get_Size()
+            self.Width = width
+            self.Height = height
+            self.ROI_height = height
+            self.ROI_width = width
             self._update_buffer_settings()
 
         else:
