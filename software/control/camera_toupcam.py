@@ -171,7 +171,6 @@ class Camera(object):
 
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
-            print("Checking camera temperature")
             time.sleep(2)
             # print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
             temperature = self.get_temperature() 
