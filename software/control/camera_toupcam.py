@@ -149,6 +149,7 @@ class Camera(object):
         self.has_low_noise_mode = None
 
         # toupcam temperature
+        self.temperature_reading_callback = None
         self.terminate_read_temperature_thread = False
         self.thread_read_temperature = threading.Thread(target=self.check_temperature, daemon=True)
 
@@ -170,9 +171,16 @@ class Camera(object):
 
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
+            print("Checking camera temperature")
             time.sleep(2)
             # print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
-            self.set_temperature_reading_callback(self.get_temperature())
+            temperature = self.get_temperature() 
+            if self.temperature_reading_callback is not None:
+                try:
+                    self.temperature_reading_callback(temperature)
+                except TypeError as ex:
+                    print("Temperature read callback failed due to error: "+repr(ex))
+                    pass
 
     def open(self,index=0):
         if len(self.devices) > 0:
@@ -430,23 +438,29 @@ class Camera(object):
             self.stop_streaming()
             was_streaming = True
         try:
+            old_w, old_h = self.camera.get_Size()
             self.camera.put_Size(width,height)
-            self.Width = width
-            self.Height = height
-            self.ROI_width = width
-            self.ROI_height = height
-            self.OffsetX = 0
-            self.OffsetY = 0
+            self.HeightMax = height
+            self.WidthMax = width
+            resize_ratio_x = width/old_w
+            resize_ratio_y = height/old_h
+            new_width = int(self.Width*resize_ratio_x)
+            new_offset_x = int(self.OffsetX*resize_ratio_x)
+            new_height = int(self.Height*resize_ratio_y)
+            new_offset_y = int(self.OffsetY*resize_ratio_y)
+            self.Width, self.Height = self.camera.get_Size()
+            self.ROI_width = self.Width
+            self.ROI_height = self.Height
             self.ROI_offset_x = 0
             self.ROI_offset_y = 0
+            self.set_ROI(new_offset_x, new_offset_y, new_width, new_height)
         except toupcam.HRESULTException as ex:
-            err_type = hresult_checker(ex,'E_INVALIDARG','E_BUSY','E_ACCESDENIED')
+            err_type = hresult_checker(ex,'E_INVALIDARG','E_BUSY','E_ACCESDENIED', 'E_UNEXPECTED')
             if err_type == 'E_INVALIDARG':
                 print(f"Resolution ({width},{height}) not supported by camera")
             else:
                 print(f"Resolution cannot be set due to error: "+err_type)
-        self.set_ROI(0,0,0,0)
-        self._update_buffer_settings()
+        self._update_buffer_settings(self.Width, self.Height)
         if was_streaming:
             self.start_streaming()
 
@@ -466,20 +480,27 @@ class Camera(object):
         self.buf = bytes(bufsize)
 
     def get_temperature(self):
-        return self.camera.get_Temperature()/10
+        try:
+            return self.camera.get_Temperature()/10
+        except toupcam.HRESULTException as ex:
+            error_type = hresult_checker(ex)
+            print("Could not get temperature, error: "+error_type)
+            return 0
 
     def set_temperature(self,temperature):
         try:
             self.camera.put_Temperature(int(temperature*10))
-        except toupcam.HRESULTException as e:
-            print("Unable to set temperature: "+repr(e))
+        except toupcam.HRESULTException as ex:
+            error_type = hresult_checker(ex)
+            print("Unable to set temperature: "+error_type)
 
     def set_fan_speed(self,speed):
         if self.has_fan:
             try:
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
-            except toupcam.HRESULTException as e:
-                print("Unable to set fan speed: "+repr(e))
+            except toupcam.HRESULTException as ex:
+                error_type = hresult_checker(ex)
+                print("Unable to set fan speed: "+error_type)
         else:
             pass
 
@@ -739,6 +760,8 @@ class Camera_Simulation(object):
         self.HeightMax = 3000
         self.OffsetX = 0
         self.OffsetY = 0
+
+        self.brand = 'ToupTek'
 
     def open(self,index=0):
         pass

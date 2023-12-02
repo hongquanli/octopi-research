@@ -16,8 +16,20 @@ import pandas as pd
 
 from datetime import datetime
 
-
 from control._def import *
+
+class WrapperWindow(QMainWindow):
+    def __init__(self, content_widget, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCentralWidget(content_widget)
+        self.hide()
+
+    def closeEvent(self, event):
+        self.hide()
+        event.ignore()
+
+    def closeForReal(self, event):
+        super().closeEvent(event)
 
 class CollapsibleGroupBox(QGroupBox):
     def __init__(self, title):
@@ -449,8 +461,6 @@ class ObjectivesWidget(QWidget):
 
 class CameraSettingsWidget(QFrame):
 
-    signal_camera_set_temperature = Signal(float)
-
     def __init__(self, camera, include_gain_exposure_time = True, include_camera_temperature_setting = False, main=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -529,7 +539,6 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_offset_y.valueChanged.connect(self.set_ROI_offset)
         self.entry_ROI_height.valueChanged.connect(self.set_Height)
         self.entry_ROI_width.valueChanged.connect(self.set_Width)
-        self.entry_temperature.valueChanged.connect(self.signal_camera_set_temperature.emit)
 
         # layout
         grid_ctrl = QGridLayout()
@@ -540,11 +549,29 @@ class CameraSettingsWidget(QFrame):
             grid_ctrl.addWidget(self.entry_analogGain, 1,1)
         grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
         grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
+        try:
+            current_res = self.camera.resolution
+            current_res_string = "x".join([str(current_res[0]),str(current_res[1])])
+            res_options = [f"{res[0]}x{res[1]}" for res in self.camera.res_list]
+            self.dropdown_res = QComboBox()
+            self.dropdown_res.addItems(res_options)
+            self.dropdown_res.setCurrentText(current_res_string)
+
+            self.dropdown_res.currentTextChanged.connect(self.change_full_res)
+            grid_ctrl.addWidget(QLabel("Full Resolution"), 2,2)
+            grid_ctrl.addWidget(self.dropdown_res, 2,3)
+        except AttributeError:
+            pass
         if include_camera_temperature_setting:
             grid_ctrl.addWidget(QLabel('Set Temperature (C)'),3,0)
             grid_ctrl.addWidget(self.entry_temperature,3,1)
             grid_ctrl.addWidget(QLabel('Actual Temperature (C)'),3,2)
             grid_ctrl.addWidget(self.label_temperature_measured,3,3)
+            try:
+                self.entry_temperature.valueChanged.connect(self.set_temperature)
+                self.camera.set_temperature_reading_callback(self.update_measured_temperature)
+            except AttributeError:
+                pass
 
         hbox1 = QHBoxLayout()
         hbox1.addWidget(QLabel('ROI'))
@@ -571,24 +598,24 @@ class CameraSettingsWidget(QFrame):
         self.entry_analogGain.setValue(analog_gain)
 
     def set_Width(self):
-        width = (self.entry_ROI_width.value()//8)*8
+        width = int(self.entry_ROI_width.value()//8)*8
         self.entry_ROI_width.blockSignals(True)
         self.entry_ROI_width.setValue(width)
         self.entry_ROI_width.blockSignals(False)
         offset_x = (self.camera.WidthMax - self.entry_ROI_width.value())/2
-        offset_x = (offset_x//8)*8
+        offset_x = int(offset_x//8)*8
         self.entry_ROI_offset_x.blockSignals(True)
         self.entry_ROI_offset_x.setValue(offset_x)
         self.entry_ROI_offset_x.blockSignals(False)
         self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
     def set_Height(self):
-        height = (self.entry_ROI_height.value()//8)*8
+        height = int(self.entry_ROI_height.value()//8)*8
         self.entry_ROI_height.blockSignals(True)
         self.entry_ROI_height.setValue(height)
         self.entry_ROI_height.blockSignals(False)
         offset_y = (self.camera.HeightMax - self.entry_ROI_height.value())/2
-        offset_y = (offset_y//8)*8
+        offset_y = int(offset_y//8)*8
         self.entry_ROI_offset_y.blockSignals(True)
         self.entry_ROI_offset_y.setValue(offset_y)
         self.entry_ROI_offset_y.blockSignals(False)
@@ -597,8 +624,41 @@ class CameraSettingsWidget(QFrame):
     def set_ROI_offset(self):
     	self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
+    def set_temperature(self):
+        try:
+            self.camera.set_temperature(float(self.entry_temperature.value()))
+        except AttributeError:
+            pass
+
     def update_measured_temperature(self,temperature):
         self.label_temperature_measured.setNum(temperature)
+
+    def change_full_res(self, index):
+        res_strings = self.dropdown_res.currentText().split("x")
+        res_x = int(res_strings[0])
+        res_y = int(res_strings[1])
+        self.camera.set_resolution(res_x,res_y)
+        self.entry_ROI_offset_x.blockSignals(True)
+        self.entry_ROI_offset_y.blockSignals(True)
+        self.entry_ROI_height.blockSignals(True)
+        self.entry_ROI_width.blockSignals(True)
+
+        self.entry_ROI_height.setMaximum(self.camera.HeightMax)
+        self.entry_ROI_width.setMaximum(self.camera.WidthMax)
+
+        self.entry_ROI_offset_x.setMaximum(self.camera.WidthMax)
+        self.entry_ROI_offset_y.setMaximum(self.camera.HeightMax)
+        
+        self.entry_ROI_offset_x.setValue(int(8*self.camera.OffsetX//8))
+        self.entry_ROI_offset_y.setValue(int(8*self.camera.OffsetY//8))
+        self.entry_ROI_height.setValue(int(8*self.camera.Height//8))
+        self.entry_ROI_width.setValue(int(8*self.camera.Width//8))
+
+        self.entry_ROI_offset_x.blockSignals(False)
+        self.entry_ROI_offset_y.blockSignals(False)
+        self.entry_ROI_height.blockSignals(False)
+        self.entry_ROI_width.blockSignals(False)
+
 
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)

@@ -356,6 +356,16 @@ class OctopiGUI(QMainWindow):
             self.tabbedImageDisplayWindow.setFixedSize(width,height)
             self.tabbedImageDisplayWindow.show()
 
+        try:
+            self.cswWindow = widgets.WrapperWindow(self.cameraSettingWidget)
+        except AttributeError:
+            pass
+
+        try:
+            self.cswfcWindow = widgets.WrapperWindow(self.cameraSettingWidget_focus_camera)
+        except AttributeError:
+            pass
+
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
         self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
@@ -416,6 +426,7 @@ class OctopiGUI(QMainWindow):
 
             # widgets
             self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=False)
+
             self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
             self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
@@ -471,7 +482,6 @@ class OctopiGUI(QMainWindow):
 
 
     def closeEvent(self, event):
-
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
         while self.microcontroller.is_busy():
@@ -498,5 +508,15 @@ class OctopiGUI(QMainWindow):
             self.camera_focus.close()
             self.imageDisplayWindow_focus.close()
         self.microcontroller.close()
+
+        try:
+            self.cswWindow.closeForReal(event)
+        except AttributeError:
+            pass
+
+        try:
+            self.cswfcWindow.closeForReal(event)
+        except AttributeError:
+            pass
 
         event.accept()
