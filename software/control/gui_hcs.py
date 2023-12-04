@@ -94,18 +94,18 @@ class OctopiGUI(QMainWindow):
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight()
-            try:
+            if True:
                 if SUPPORT_LASER_AUTOFOCUS:
                     sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                    sn_camera_focus = camera_fc.Camera_Simulation(FOCUS_CAMERA_MODEL)
+                    self.camera = camera.Camera(sn=sn_camera_main,resolution=(3104,2084),rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
-                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
+                    self.camera_focus = camera_fc.Camera_Simulation(sn=sn_camera_focus)
                     self.camera_focus.open()
                 else:
                     self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
-            except:
+            else:
                 if SUPPORT_LASER_AUTOFOCUS:
                     self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
@@ -207,7 +207,8 @@ class OctopiGUI(QMainWindow):
                     print('z return timeout, the program will exit')
                     exit()
         '''
-
+        
+        '''
         # retract the objective
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -264,7 +265,8 @@ class OctopiGUI(QMainWindow):
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
-
+        '''
+	
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
@@ -471,7 +473,8 @@ class OctopiGUI(QMainWindow):
 
 
     def closeEvent(self, event):
-
+	
+        '''
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
         while self.microcontroller.is_busy():
@@ -485,6 +488,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.move_y_to(30)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
+        '''
 
         self.liveController.stop_live()
         self.camera.close()
