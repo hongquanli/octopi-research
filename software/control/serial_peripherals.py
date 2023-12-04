@@ -255,9 +255,17 @@ class LDI:
         self.serial_connection.write_and_check('set:'+channel+'='+intensity+'\r',"ok")
     
     def set_shutter(self,channel,state):
-    	channel = str(channel)
-    	state = str(state)
-    	self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")
+        channel = str(channel)
+        state = str(state)
+        self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")
 
     def get_shutter_state(self):
         self.serial_connection.write_and_check('shutter?\r','')
+
+    def set_active_channel(self,channel):
+        self.active_channel = channel
+
+    def set_active_channel_shutter(self,state):
+        channel = str(self.active_channel)
+        state = str(state)
+        self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")
