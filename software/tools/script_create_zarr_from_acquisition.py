@@ -38,6 +38,7 @@ def get_dimensions_for_dataset(dataset_folder_path, sensor_pixel_size_um_default
         'Ny':Ny,
         'Nz':Nz,
         'Nt':Nt,
+        'dt':dt,
         'dx': dx (in mm),
         'dy': dy (in mm),
         'dz': dz (in um),
@@ -130,11 +131,23 @@ def create_zarr_for_single_fov(dataset_folder_path, saving_path, x=0,y=0,sensor_
         os.mkdir(saving_path)
     except FileExistsError:
         pass
+    dimension_data = get_dimensions_for_dataset(dataset_folder_path, sensor_pixel_size_um, objective_magnification)
+    scale_xy = dimension_data["pixel_size_um"]
+    scale_z = dimension_data["dz"]
+    if scale_z == 0.0:
+        scale_z = 1.0
+    scale_t = dimension_data["dt"]
+    if scale_t == 0.0:
+        scale_t = 1.0
+    coord_transform=[{"type":"scale","scale":[scale_t,1.0,scale_z,scale_xy,scale_xy]}]
+
     fov_dask_array = create_dask_array_for_single_fov(dataset_folder_path, x,y, sensor_pixel_size_um, objective_magnification)
     xy_only_dims = fov_dask_array.shape[3:]
     store = parse_url(saving_path, mode="w").store
     root = zarr.group(store=store)
-    write_image(image=fov_dask_array, group=root, axes="tczyx",
+    write_image(image=fov_dask_array, group=root,
+            scaler = None, axes=["t","c","z","y","x"],
+            coordinate_transformations=[coord_transform],
             storage_options=dict(chunks=(1,1,1,*xy_only_dims)))
 
 if __name__ == "__main__":
@@ -153,8 +166,8 @@ if __name__ == "__main__":
         sensor_pixel_size = float(sys.argv[5])
         objective_magnification = float(sys.argv[6])
     except IndexError:
-        sensor_pixel_size=1.0
-        objective_magnification=1.0
+        sensor_pixel_size=1.85
+        objective_magnification=20.0
 
     create_zarr_for_single_fov(folderpath, saving_path,x,y, sensor_pixel_size, objective_magnification)
     print("OME-Zarr written to "+saving_path)
