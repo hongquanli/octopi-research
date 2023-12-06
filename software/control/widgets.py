@@ -329,31 +329,83 @@ class ObjectivesWidget(QWidget):
 
 class FocusMapWidget(QWidget):
 
-    def __init__(self, autofocusController):
+    def __init__(self, autofocusController, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.autofocusController = autofocusController
         self.init_ui()
-        # connect buttons to autofocus functions
 
     def init_ui(self):
         self.btn_add_to_focusmap = QPushButton("Add to focus map")
-        self.btn_enable_focusmap = QPushButton("Focus Map Disabled")
-        self.fmap_coord_1 = QLabel()
-        self.fmap_coord_2 = QLabel()
-        self.fmap_coord_3 = QLabel()
+        self.btn_enable_focusmap = QPushButton("Enable focus map")
+        self.fmap_coord_1 = QLabel("Focus Map Point 1: (xxx,yyy,zzz)")
+        self.fmap_coord_2 = QLabel("Focus Map Point 2: (xxx,yyy,zzz)")
+        self.fmap_coord_3 = QLabel("Focus Map Point 3: (xxx,yyy,zzz)")
+        layout = QVBoxLayout()
+        layout.addWidget(self.fmap_coord_1)
+        layout.addWidget(self.fmap_coord_2)
+        layout.addWidget(self.fmap_coord_3)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.btn_add_to_focusmap)
+        button_layout.addWidget(self.btn_enable_focusmap)
+
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+        self.btn_add_to_focusmap.clicked.connect(self.add_to_focusmap)
+        self.btn_enable_focusmap.clicked.connect(self.enable_focusmap)
 
     def disable_all_buttons(self):
-        pass
+        self.btn_add_to_focusmap.setEnabled(False)
+        self.btn_enable_focusmap.setEnabled(False)
 
     def enable_all_buttons(self):
-        pass
+        self.btn_add_to_focusmap.setEnabled(True)
+        self.btn_enable_focusmap.setEnabled(True)
 
     def update_focusmap_display(self):
-        pass
+        self.fmap_coord_1.setText("Focus Map Point 1: (xxx,yyy,zzz)")
+        self.fmap_coord_2.setText("Focus Map Point 2: (xxx,yyy,zzz)")
+        self.fmap_coord_3.setText("Focus Map Point 3: (xxx,yyy,zzz)")
+        try:
+            x,y,z = self.autofocusController.focus_map_coords[0]
+            self.fmap_coord_1.setText(f"Focus Map Point 1: ({x:.3f},{y:.3f},{z:.3f})")
+        except IndexError:
+            pass
+        try:
+            x,y,z = self.autofocusController.focus_map_coords[1]
+            self.fmap_coord_2.setText(f"Focus Map Point 2: ({x:.3f},{y:.3f},{z:.3f})")
+        except IndexError:
+            pass
+        try:
+            x,y,z = self.autofocusController.focus_map_coords[2]
+            self.fmap_coord_3.setText(f"Focus Map Point 3: ({x:.3f},{y:.3f},{z:.3f})")
+        except IndexError:
+            pass
 
-    def enable_focusmap(self, state):
-        pass
 
+
+    def enable_focusmap(self):
+        self.disable_all_buttons()
+        if self.autofocusController.use_focus_map == False:
+            self.autofocusController.set_focus_map_use(True)
+        else:
+            self.autofocusController.set_focus_map_use(False)
+        if self.autofocusController.use_focus_map:
+            self.btn_enable_focusmap.setText("Disable focus map")
+        else:
+            self.btn_enable_focusmap.setText("Enable focus map")
+        self.enable_all_buttons()
+
+    def add_to_focusmap(self):
+        self.disable_all_buttons()
+        try:
+            self.autofocusController.add_current_coords_to_focus_map()
+        except ValueError:
+            pass
+        self.update_focusmap_display()
+        self.enable_all_buttons()
 
 class CameraSettingsWidget(QFrame):
 
@@ -1168,7 +1220,7 @@ class AutoFocusWidget(QFrame):
         self.setLayout(self.grid)
         
         # connections
-        self.btn_autofocus.clicked.connect(self.autofocusController.autofocus)
+        self.btn_autofocus.clicked.connect(lambda : self.autofocusController.autofocus(False))
         self.entry_delta.valueChanged.connect(self.set_deltaZ)
         self.entry_N.valueChanged.connect(self.autofocusController.set_N)
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)

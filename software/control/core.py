@@ -1115,8 +1115,8 @@ class AutoFocusController(QObject):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
-    def autofocus(self):
-        if self.use_focus_map:
+    def autofocus(self, focus_map_override=False):
+        if self.use_focus_map and (not focus_map_override):
             self.autofocus_in_progress = True
             self.navigationController.microcontroller.wait_till_operation_is_completed()
             x = self.navigationController.x_pos_mm
@@ -1193,6 +1193,7 @@ class AutoFocusController(QObject):
 
     def wait_till_autofocus_has_completed(self):
         while self.autofocus_in_progress == True:
+            QApplication.processEvents()
             time.sleep(0.005)
         print('autofocus wait has completed, exit wait')
 
@@ -1201,7 +1202,7 @@ class AutoFocusController(QObject):
             print("Disabling focus map.")
             self.use_focus_map = False
             return
-        if len(self.focus_map_coords < 3):
+        if len(self.focus_map_coords) < 3:
             print("Not enough coordinates (less than 3) for focus map generation, disabling focus map.")
             self.use_focus_map = False
             return
@@ -1244,9 +1245,9 @@ class AutoFocusController(QObject):
             self.navigationController.move_to(coord[0],coord[1])
             self.navigationController.microcontroller.wait_till_operation_is_completed()
             print("Autofocusing")
-            self.autofocus()
+            self.autofocus(True)
             self.wait_till_autofocus_has_completed()
-            self.navigationController.microcontroller.wait_till_operation_is_completed()
+            #self.navigationController.microcontroller.wait_till_operation_is_completed()
             x = self.navigationController.x_pos_mm
             y = self.navigationController.y_pos_mm
             z = self.navigationController.z_pos_mm
@@ -1260,9 +1261,9 @@ class AutoFocusController(QObject):
             print("Replacing last coordinate on focus map.")
         self.navigationController.microcontroller.wait_till_operation_is_completed()
         print("Autofocusing")
-        self.autofocus()
+        self.autofocus(True)
         self.wait_till_autofocus_has_completed()
-        self.navigationController.microcontroller.wait_till_operation_is_completed()
+        #self.navigationController.microcontroller.wait_till_operation_is_completed()
         x = self.navigationController.x_pos_mm
         y = self.navigationController.y_pos_mm
         z = self.navigationController.z_pos_mm
@@ -1278,7 +1279,7 @@ class AutoFocusController(QObject):
         if len(self.focus_map_coords) >= 3:
             self.focus_map_coords.pop()
         self.focus_map_coords.append((x,y,z))
-        print("Added triple ({x},{y},{z}) to focus map")
+        print(f"Added triple ({x},{y},{z}) to focus map")
 
 
 class MultiPointWorker(QObject):
@@ -1500,8 +1501,9 @@ class MultiPointWorker(QObject):
                                 configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                                 config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                                 self.signal_current_configuration.emit(config_AF)
-                                self.autofocusController.autofocus()
-                                self.autofocusController.wait_till_autofocus_has_completed()
+                                if (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0) or self.autofocusController.use_focus_map:
+                                    self.autofocusController.autofocus()
+                                    self.autofocusController.wait_till_autofocus_has_completed()
                                 # upate z location of scan_coordinates_mm after AF
                                 if len(coordiante_mm) == 3:
                                     self.scan_coordinates_mm[coordinate_id,2] = self.navigationController.z_pos_mm
