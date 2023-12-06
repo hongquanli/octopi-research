@@ -337,6 +337,7 @@ class FocusMapWidget(QWidget):
     def init_ui(self):
         self.btn_add_to_focusmap = QPushButton("Add to focus map")
         self.btn_enable_focusmap = QPushButton("Enable focus map")
+        self.btn_clear_focusmap = QPushButton("Clear focus map")
         self.fmap_coord_1 = QLabel("Focus Map Point 1: (xxx,yyy,zzz)")
         self.fmap_coord_2 = QLabel("Focus Map Point 2: (xxx,yyy,zzz)")
         self.fmap_coord_3 = QLabel("Focus Map Point 3: (xxx,yyy,zzz)")
@@ -347,22 +348,34 @@ class FocusMapWidget(QWidget):
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.btn_add_to_focusmap)
-        button_layout.addWidget(self.btn_enable_focusmap)
+        button_layout.addWidget(self.btn_clear_focusmap)
 
         layout.addLayout(button_layout)
+        
+        layout.addWidget(self.btn_enable_focusmap)
 
         self.setLayout(layout)
 
         self.btn_add_to_focusmap.clicked.connect(self.add_to_focusmap)
         self.btn_enable_focusmap.clicked.connect(self.enable_focusmap)
+        self.btn_clear_focusmap.clicked.connect(self.clear_focusmap)
 
     def disable_all_buttons(self):
         self.btn_add_to_focusmap.setEnabled(False)
         self.btn_enable_focusmap.setEnabled(False)
+        self.btn_clear_focusmap.setEnabled(False)
 
     def enable_all_buttons(self):
         self.btn_add_to_focusmap.setEnabled(True)
         self.btn_enable_focusmap.setEnabled(True)
+        self.btn_clear_focusmap.setEnabled(True)
+
+    def clear_focusmap(self):
+        self.disable_all_buttons()
+        self.autofocusController.clear_focus_map()
+        self.update_focusmap_display()
+        self.btn_enable_focusmap.setText("Enable focus map")
+        self.enable_all_buttons()
 
     def update_focusmap_display(self):
         self.fmap_coord_1.setText("Focus Map Point 1: (xxx,yyy,zzz)")
