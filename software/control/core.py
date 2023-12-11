@@ -1529,6 +1529,8 @@ class MultiPointWorker(QObject):
                                         stitcher_tile_path = saving_path
                                     if self.multiPointController.do_stitch_tiles:
                                         try:
+                                            objectiveStore = self.parent.objectiveStore
+                                        try:
                                             stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
                                         except:
                                             self.multiPointController.tile_stitchers[stitcher_key] = Stitcher(stitcher_tiled_file_path, stitcher_stitched_file_path, stitcher_default_options, auto_run_ashlar=True, image_reader = self.multiPointController.stitcher_image_reader)
