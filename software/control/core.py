@@ -446,6 +446,8 @@ class LiveController(QObject):
         if self.is_live:
             self.is_live = False
             self.camera.is_live = False
+            if hasattr(self.camera,'stop_exposure'):
+                self.camera.stop_exposure()
             if self.trigger_mode == TriggerMode.SOFTWARE:
                 self._stop_triggerred_acquisition()
             # self.camera.stop_streaming() # 20210113 this line seems to cause problems when using af with multipoint

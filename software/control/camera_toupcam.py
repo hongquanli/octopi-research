@@ -158,6 +158,8 @@ class Camera(object):
             self.has_fan = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_FAN ) > 0
             self.has_TEC = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_TEC_ONOFF ) > 0
             self.has_low_noise_mode = ( self.devices[0].model.flag & toupcam.TOUPCAM_FLAG_LOW_NOISE ) > 0
+            if self.has_low_noise_mode:
+                self.camera.put_Option(toupcam.TOUPCAM_OPTION_LOW_NOISE,0)
 
             # RGB format: The output of every pixel contains 3 componants which stand for R/G/B value respectively. This output is a processed output from the internal color processing engine.
             # RAW format: In this format, the output is the raw data directly output from the sensor. The RAW format is for the users that want to skip the internal color processing and obtain the raw data for user-specific purpose. With the raw format output enabled, the functions that are related to the internal color processing will not work, such as Toupcam_put_Hue or Toupcam_AwbOnce function and so on
@@ -248,9 +250,9 @@ class Camera(object):
         #     self.camera.ExposureTime.set(camera_exposure_time)
 
     def set_analog_gain(self,analog_gain):
-        analog_gain = min(100,analog_gain)
+        analog_gain = max(1,analog_gain)
         self.analog_gain = analog_gain
-        # self.camera.put_ExpoAGain(analog_gain)
+        self.camera.put_ExpoAGain(int(analog_gain*100))
         # self.camera.Gain.set(analog_gain)
 
     def get_awb_ratios(self):
@@ -401,7 +403,7 @@ class Camera(object):
         self.camera.put_Temperature(int(temperature*10))
 
     def set_fan_speed(self,speed):
-        if self.self.has_fan:
+        if self.has_fan:
             self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
         else:
             pass
@@ -447,7 +449,7 @@ class Camera(object):
                 # print('trigger not sent - waiting for the last trigger to complete')
                 print("{:.3f}".format(time.time()-self._last_software_trigger_timestamp) + ' s since the last trigger')
 
-    def stop_trigger(self):
+    def stop_exposure(self):
         if self.is_streaming and self._software_trigger_sent == True:
             self.camera.Trigger(0)
             self._software_trigger_sent = False
@@ -589,9 +591,10 @@ class Camera_Simulation(object):
         self.current_frame = None
 
         self.callback_is_enabled = False
+        self.is_streaming = False
 
-        self.GAIN_MAX = 24
-        self.GAIN_MIN = 0
+        self.GAIN_MAX = 300
+        self.GAIN_MIN = 100
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
@@ -607,6 +610,13 @@ class Camera_Simulation(object):
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         self.pixel_format = 'MONO16'
+
+        self.Width = 3000
+        self.Height = 3000
+        self.WidthMax = 4000
+        self.HeightMax = 3000
+        self.OffsetX = 0
+        self.OffsetY = 0
 
     def open(self,index=0):
         pass
@@ -673,6 +683,9 @@ class Camera_Simulation(object):
     def set_hardware_triggered_acquisition(self):
         pass
 
+    def set_gain_mode(self,mode):
+        pass
+
     def send_trigger(self):
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
@@ -693,6 +706,12 @@ class Camera_Simulation(object):
             # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
         if self.new_image_callback_external is not None and self.callback_is_enabled:
             self.new_image_callback_external(self)
+
+    def stop_exposure(self):
+        if self.is_streaming and self._software_trigger_sent == True:
+            self._software_trigger_sent = False
+        else:
+            pass
 
     def read_frame(self):
         return self.current_frame
