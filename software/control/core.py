@@ -1502,7 +1502,7 @@ class MultiPointWorker(QObject):
                                     stitcher_key = str(config.name)+"_Z_"+str(k)
                                     stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.tiff') 
                                     stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.ome.tiff')
-                                    stitcher_default_options = {'align_channel':0,'maximum_shift':int(min(self.crop_width,self.crop_height)*0.05),'filter_sigma':1,'stdout':subprocess.STDOUT} # add to UI later
+                                    stitcher_default_options = {'align_channel':0,'maximum_shift':int(min(self.crop_width,self.crop_height)*0.05),'filter_sigma':1,'stdout':subprocess.STDOUT,'stderr':subprocess.STDOUT} # add to UI later
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1530,22 +1530,36 @@ class MultiPointWorker(QObject):
                                     if self.multiPointController.do_stitch_tiles:
                                         try:
                                             objectiveStore = self.parent.objectiveStore
+                                            current_objective = objectiveStore.current_objective
+                                            objective_info = objectiveStore.objectives_dict.get(current_objective, {})
+                                        except (AttributeError, KeyError):
+                                            objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+                                        try:
+                                            objective_magnification = float(objective_info['magnification'])
+                                        except (KeyError, ValueError):
+                                            objective_magnification = 1.0
+                                        pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+                                        pixel_size_xy = pixel_size_um/objective_magnification
                                         try:
                                             stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
                                         except:
                                             self.multiPointController.tile_stitchers[stitcher_key] = Stitcher(stitcher_tiled_file_path, stitcher_stitched_file_path, stitcher_default_options, auto_run_ashlar=True, image_reader = self.multiPointController.stitcher_image_reader)
                                             stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
                                             stitcher_of_interest.start_ometiff_writer()
+                                        try:
+                                            image_number_channels = image.shape[2]
+                                        except IndexError:
+                                            image_number_channels = 1
                                         tile_metadata = {
                                                 'Pixels': {
-                                                    'PhysicalSizeX': 1, # need to get microscope info for actual values for these, if they are necessary
+                                                    'PhysicalSizeX': pixel_size_xy, # need to get microscope info for actual values for these, if they are necessary
                                                     'PhysicalSizeXUnit': 'μm',
-                                                    'PhysicalSizeY': 1,
+                                                    'PhysicalSizeY': pixel_size_xy,
                                                     'PhysicalSizeYUnit': 'μm',
                                                     },
                                                 'Plane': {
-                                                    'PositionX':int((j if self.x_scan_direction==1 else self.NX-1-j)*self.crop_width),
-                                                    'PositionY':int(i*self.crop_height)
+                                                    'PositionX':[self.navigationController.x_pos_mm*1000.0]*image_number_channels,
+                                                    'PositionY':[self.navigationController.y_pos_mm*1000.0]*image_number_channels
                                                     }
                                                 }
                                         stitcher_of_interest.add_tile(stitcher_tile_path, tile_metadata)
@@ -1720,7 +1734,7 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
-        self.do_stitch_tiles = False
+        self.do_stitch_tiles = STITCH_TILES_WITH_ASHLAR
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR

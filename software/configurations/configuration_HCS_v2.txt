@@ -118,7 +118,7 @@ OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
                 '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
-DEFAULT_OBJECTIVE = '20x'
+DEFAULT_OBJECTIVE = '20x (Nikon)'
 TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
 DEFAULT_TRACKER = 'csrt'
 

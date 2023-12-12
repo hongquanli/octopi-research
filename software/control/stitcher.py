@@ -24,7 +24,7 @@ def ashlar(inputpath, outputpath, stdin=subprocess.DEVNULL, stdout=subprocess.DE
         Can be polled or waited for.
     """
     if shutil.which("ashlar") == None: # raise exception if ashlar can't be found
-        raise Exception("No command found")
+        raise RuntimeError("No command found")
     cmd_path = shutil.which("ashlar")
     cmd_list = [cmd_path, inputpath, "-o", outputpath]
     for k in kwargs.keys(): # input other args to ashlar

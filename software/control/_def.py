@@ -64,6 +64,8 @@ class Acquisition:
     DX = 0.9
     DY = 0.9
     DZ = 1.5
+    NX = 1
+    NY = 1
 
 class PosUpdate:
     INTERVAL_MS = 25
