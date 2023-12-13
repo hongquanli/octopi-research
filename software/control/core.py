@@ -2842,7 +2842,7 @@ class LaserAutofocusController(QObject):
     image_to_display = Signal(np.ndarray)
     signal_displacement_um = Signal(float)
 
-    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True):
+    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True, look_for_cache=True):
         QObject.__init__(self)
         self.microcontroller = microcontroller
         self.camera = camera
@@ -2860,8 +2860,34 @@ class LaserAutofocusController(QObject):
         self.has_two_interfaces = has_two_interfaces # e.g. air-glass and glass water, set to false when (1) using oil immersion (2) using 1 mm thick slide (3) using metal coated slide or Si wafer
         self.use_glass_top = use_glass_top
         self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
+        
+        self.look_for_cache = look_for_cache
 
-    def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference):
+        if look_for_cache:
+            cache_path = "cache/laser_af_reference_plane.txt"
+            try:
+                with open(cache_path, "r") as cache_file:
+                    for line in cache_file:
+                        value_list = line.split(",")
+                        x_offset = float(value_list[0])
+                        y_offset = float(value_list[1])
+                        width = int(value_list[2])
+                        height = int(value_list[3])
+                        pixel_to_um = float(value_list[4])
+                        x_reference = float(value_list[5])
+                        self.initialize_manual(x_offset,y_offset,width,height,pixel_to_um,x_reference)
+                        break
+            except (FileNotFoundError, ValueError,IndexError) as e:
+                print("Unable to read laser AF state cache, exception below:")
+                print(e)
+                pass
+
+    def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference, write_to_cache=True):
+        cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
+        if write_to_cache:
+            cache_path = Path("cache/laser_af_reference_plane.txt")
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(cache_string)
         # x_reference is relative to the full sensor
         self.pixel_to_um = pixel_to_um
         self.x_offset = int((x_offset//8)*8)
@@ -2937,6 +2963,35 @@ class LaserAutofocusController(QObject):
 
         # set reference
         self.x_reference = x1
+
+        if self.look_for_cache:
+            cache_path = "cache/laser_af_reference_plane.txt"
+            try:
+                x_offset = None
+                y_offset = None
+                width = None
+                height = None
+                pixel_to_um = None
+                x_reference = None
+                with open(cache_path, "r") as cache_file:
+                    for line in cache_file:
+                        value_list = line.split(",")
+                        x_offset = float(value_list[0])
+                        y_offset = float(value_list[1])
+                        width = int(value_list[2])
+                        height = int(value_list[3])
+                        pixel_to_um = self.pixel_to_um
+                        x_reference = self.x_reference+self.x_offset
+                        break
+                cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
+                cache_path = Path("cache/laser_af_reference_plane.txt")
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_text(cache_string)
+            except (FileNotFoundError, ValueError,IndexError) as e:
+                print("Unable to read laser AF state cache, exception below:")
+                print(e)
+                pass
+
 
     def measure_displacement(self):
         # turn on the laser

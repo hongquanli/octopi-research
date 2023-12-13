@@ -481,6 +481,7 @@ class CameraSettingsWidget(QFrame):
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
         else:
+            print("setting camera's default pixel format")
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
@@ -1343,7 +1344,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(6)
+        self.entry_NX.setValue(DEFAULT_MULTIPOINT_NX)
         self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
@@ -1358,7 +1359,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(3)
+        self.entry_NY.setValue(DEFAULT_MULTIPOINT_NY)
         self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
@@ -2781,7 +2782,8 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_set_reference.setCheckable(False)
         self.btn_set_reference.setChecked(False)
         self.btn_set_reference.setDefault(False)
-        self.btn_set_reference.setEnabled(False)
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_set_reference.setEnabled(False)
 
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -2790,7 +2792,8 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_measure_displacement.setCheckable(False)
         self.btn_measure_displacement.setChecked(False)
         self.btn_measure_displacement.setDefault(False)
-        self.btn_measure_displacement.setEnabled(False)
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_measure_displacement.setEnabled(False)
 
         self.entry_target = QDoubleSpinBox()
         self.entry_target.setMinimum(-100)
@@ -2804,8 +2807,9 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_move_to_target.setCheckable(False)
         self.btn_move_to_target.setChecked(False)
         self.btn_move_to_target.setDefault(False)
-        self.btn_move_to_target.setEnabled(False)
-
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_move_to_target.setEnabled(False)
+        
         self.grid = QGridLayout()
         self.grid.addWidget(self.btn_initialize,0,0,1,3)
         self.grid.addWidget(self.btn_set_reference,1,0,1,3)
