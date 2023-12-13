@@ -1963,8 +1963,8 @@ void set_top(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
         111, 110, 109, 108, 107, 106,
         112, 113, 114, 115,
         127, 126, 125, 124};
-  for (int i = 0; i < sizeof(LED_matrix_top); i++)
-    matrix[i].setRGB(r,g,b);
+  for (int i = 0; i < 64; i++)
+    matrix[LED_matrix_top[i]].setRGB(r,g,b);
 }
 
 void set_bottom(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
@@ -1982,8 +1982,8 @@ void set_bottom(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
         105, 104, 103, 102, 101, 100,
         116, 117, 118, 119,
         123, 122, 121, 120};
-  for (int i = 0; i < sizeof(LED_matrix_bottom); i++)
-    matrix[i].setRGB(r,g,b);
+  for (int i = 0; i < 64; i++)
+    matrix[LED_matrix_bottom[i]].setRGB(r,g,b);
 }
 
 void set_low_na(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
