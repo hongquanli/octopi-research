@@ -56,7 +56,7 @@ class ConfigEditorForAcquisitions(QDialog):
         self.save_to_file_button = QPushButton("Save to File")
         self.save_to_file_button.clicked.connect(self.save_to_file)
         self.load_config_button = QPushButton("Load Config from File")
-        self.load_config_button.clicked.connect(self.load_config_from_file)
+        self.load_config_button.clicked.connect(lambda: self.load_config_from_file(None))
 
         layout = QVBoxLayout()
         layout.addWidget(self.scroll_area)
@@ -135,7 +135,10 @@ class ConfigEditorForAcquisitions(QDialog):
                     option_name_in_xml = 'CameraSN'
                 else:
                     option_name_in_xml = option.replace("_"," ").title().replace(" ","")
-                widget = self.config_value_widgets[str(section.id)][option]
+                try:
+                    widget = self.config_value_widgets[str(section.id)][option]
+                except KeyError:
+                    continue
                 if type(widget) is QLineEdit:
                     self.config.update_configuration(section.id, option_name_in_xml, widget.text())
                 else:
