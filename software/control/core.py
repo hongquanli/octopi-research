@@ -1318,8 +1318,6 @@ class MultiPointWorker(QObject):
         # disable joystick button action
         self.navigationController.enable_joystick_button_action = False
 
-        self.reflection_af_initialized = False
-
         print('multipoint acquisition - time point ' + str(self.time_point+1))
         
         # for each time point, create a new folder
@@ -1413,12 +1411,11 @@ class MultiPointWorker(QObject):
                                     except:
                                         pass
                         else:
-                            # initialize laser autofocus
-                            if self.reflection_af_initialized==False:
+                            # initialize laser autofocus if it has not been done
+                            if self.laserAutofocusController.is_initialized==False:
                                 # initialize the reflection AF
                                 self.microscope.laserAutofocusController.initialize_auto()
-                                self.reflection_af_initialized = True
-                                # do contrast AF for the first FOV
+                                # do contrast AF for the first FOV (if contrast AF box is checked)
                                 if self.do_autofocus and ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) :
                                     configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                                     config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
