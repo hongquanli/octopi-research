@@ -32,7 +32,7 @@ def ashlar(inputpath, outputpath, stdin=subprocess.DEVNULL, stdout=subprocess.DE
         cmd_list.append(str(kwargs[k]))
     return subprocess.Popen(cmd_list, stdin=stdin, stdout=stdout, stderr=stderr)
 
-def default_image_reader(filepath):
+def default_image_reader(filepath, flip=None):
     """
     :brief: default image reader to pass to the ometiff writer, patterned after
         the example with Rinni's example_3x3 data
@@ -40,7 +40,13 @@ def default_image_reader(filepath):
     :return: ndarray with image data
     """
     img = cv2.imread(filepath)
-    img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+    if flip is not None:
+        if flip == 'Vertical':
+            img = cv2.flip(img,0)
+        elif flip == 'Horizontal':
+            img = cv2.flip(img,1)
+        elif flip == 'Both':
+            img = cv2.flip(img,-1)
     return img
 
 def queued_ometiff_writer(outputpath, file_queue, bigtiff= True,\

@@ -1378,6 +1378,8 @@ class MultiPointWorker(QObject):
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
             # along y
+            starting_x = self.navigationController.x_pos_mm*1000.0
+            starting_y = self.navigationController.y_pos_mm*1000.0
             for i in range(self.NY):
 
                 self.FOV_counter = 0 # for AF, so that AF at the beginning of each new row
@@ -1499,10 +1501,10 @@ class MultiPointWorker(QObject):
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
                                     stitcher_tile_path = None
                                     stitcher_of_interest = None
-                                    stitcher_key = str(config.name)+"_Z_"+str(k)
-                                    stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.tiff') 
-                                    stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.ome.tiff')
-                                    stitcher_default_options = {'align_channel':0,'maximum_shift':int(min(self.crop_width,self.crop_height)*0.05),'filter_sigma':1,'stdout':subprocess.STDOUT,'stderr':subprocess.STDOUT} # add to UI later
+                                    stitcher_key = str(config.name)+"_Z_"+str(k)+"_T_"+str(self.time_point)+"_COORD_"+coordiante_name
+                                    stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'_T_'+str(self.time_point)+'_COORD_'+coordiante_name+'.ome.tiff') 
+                                    stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'_T_'+str(self.time_point)+'_COORD_'+coordiante_name+'.ome.tiff')
+                                    stitcher_default_options = {'align_channel':1 if MULTIPOINT_BF_SAVING_OPTION=='Green Channel Only' else 0,'maximum_shift':min(self.crop_width,self.crop_height)*0.05,'filter_sigma':1,'stdout':subprocess.STDOUT,'stderr':subprocess.STDOUT} # add to UI later
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1536,10 +1538,13 @@ class MultiPointWorker(QObject):
                                             objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
                                         try:
                                             objective_magnification = float(objective_info['magnification'])
+                                            objective_tube_lens_mm = float(objective_info['tube_lens_f_mm'])
                                         except (KeyError, ValueError):
-                                            objective_magnification = 1.0
+                                            objective_magnification = 20.0
+                                            objective_tube_lens_mm = 180.0
                                         pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-                                        pixel_size_xy = pixel_size_um/objective_magnification
+                                        pixel_size_xy = pixel_size_um/(objective_magnification/(objective_tube_lens_mm/TUBE_LENS_MM))
+                                        stitcher_default_options['maximum_shift']=min(self.crop_width,self.crop_height)*0.05*pixel_size_xy
                                         try:
                                             stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
                                         except:
@@ -1547,21 +1552,22 @@ class MultiPointWorker(QObject):
                                             stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
                                             stitcher_of_interest.start_ometiff_writer()
                                         try:
-                                            image_number_channels = image.shape[2]
+                                            print(image.shape)
+                                            image_number_channels = int(image.shape[2])
                                         except IndexError:
-                                            image_number_channels = 1
+                                            print("image number channels has index error")
+                                            image_number_channels = 3
                                         tile_metadata = {
                                                 'Pixels': {
-                                                    'PhysicalSizeX': pixel_size_xy, # need to get microscope info for actual values for these, if they are necessary
-                                                    'PhysicalSizeXUnit': 'μm',
+                                                    'PhysicalSizeX': pixel_size_xy,
                                                     'PhysicalSizeY': pixel_size_xy,
-                                                    'PhysicalSizeYUnit': 'μm',
                                                     },
                                                 'Plane': {
-                                                    'PositionX':[self.navigationController.x_pos_mm*1000.0]*image_number_channels,
-                                                    'PositionY':[self.navigationController.y_pos_mm*1000.0]*image_number_channels
+                                                    'PositionX':[self.navigationController.x_pos_mm*1000.0-starting_x]*image_number_channels,
+                                                    'PositionY':[self.navigationController.y_pos_mm*1000.0-starting_y]*image_number_channels
                                                     }
                                                 }
+                                        print(tile_metadata)
                                         stitcher_of_interest.add_tile(stitcher_tile_path, tile_metadata)
                                     
 
@@ -1587,7 +1593,7 @@ class MultiPointWorker(QObject):
 
                                                             
                             # add the coordinate of the current location
-                            new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
+                            new_row = pd.DataFrame({'i':[i],'j':[j if self.x_scan_direction == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
                                                     'z (um)':[self.navigationController.z_pos_mm*1000]},
@@ -1706,7 +1712,7 @@ class MultiPointController(QObject):
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader = lambda path: default_image_reader(path, FLIP_IMAGE)):
         QObject.__init__(self)
 
         self.camera = camera
@@ -1734,7 +1740,7 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
-        self.do_stitch_tiles = STITCH_TILES_WITH_ASHLAR
+        self.do_stitch_tiles = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1780,6 +1786,10 @@ class MultiPointController(QObject):
         self.do_autofocus = flag
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
+
+    def set_stitch_tiles_flag(self,flag):
+        self.do_stitch_tiles=flag
+
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
