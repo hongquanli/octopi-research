@@ -1569,7 +1569,7 @@ class MultiPointWorker(QObject):
 
                                                             
                             # add the coordinate of the current location
-                            new_row = pd.DataFrame({'i':[i],'j':[self.NX-1-j],'k':[k],
+                            new_row = pd.DataFrame({'i':[i],'j':[j if self.x_scan_direction==1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
                                                     'z (um)':[self.navigationController.z_pos_mm*1000]},
