@@ -443,11 +443,24 @@ ENABLE_SPINNING_DISK_CONFOCAL=False
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
+CACHED_CONFIG_FILE_PATH = None
+try:
+    with open("cache/config_file_path.txt", 'r') as file:
+        for line in file:
+            CACHED_CONFIG_FILE_PATH = line
+            break
+except FileNotFoundError:
+    CACHED_CONFIG_FILE_PATH = None
+
 config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
-        print('multiple machine configuration files found, the program will exit')
-        exit()
+        if CACHED_CONFIG_FILE_PATH in config_files:
+            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            config_files = [CACHED_CONFIG_FILE_PATH]
+        else:
+            print('multiple machine configuration files found, the program will exit')
+            exit()
     print('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
@@ -474,6 +487,9 @@ if config_files:
             continue
         myclass = locals()[classkey]
         populate_class_from_dict(myclass,pop_items)
+    with open("cache/config_file_path.txt", 'w') as file:
+        file.write(config_files[0])
+    CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
     print('configuration*.ini file not found, defaulting to legacy configuration')
     config_files = glob.glob('.' + '/' + 'configuration*.txt')
