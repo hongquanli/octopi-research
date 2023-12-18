@@ -16,6 +16,26 @@ pip3 install lxml
 pip3 install numpy
 ```
 
+#### image stitching dependencies (optional)
+For optional image stitching using ImageJ, additionally run the following:
+```
+sudo apt-get update
+sudo apt-get install openjdk-11-jdk
+sudo apt-get install maven
+pip3 install pyimagej
+```
+
+Then, add the following line to the top of `/etc/environment` (needs to be edited with `sudo [your text editor]`):
+```
+JAVA_HOME=/usr/lib/jvm/default-java
+```
+Then, add the following lines to the top of `~/.bashrc` (or whichever file your terminal sources upon startup):
+```
+source /etc/environment
+export JAVA_HOME = $JAVA_HOME
+export PATH=$JAVA_HOME/bin:$PATH
+```
+
 ### install camera drivers
 If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
 
