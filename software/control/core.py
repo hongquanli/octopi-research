@@ -1504,7 +1504,7 @@ class MultiPointWorker(QObject):
                                     stitcher_key = str(config.name)+"_Z_"+str(k)+"_T_"+str(self.time_point)+"_COORD_"+coordiante_name
                                     stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'_T_'+str(self.time_point)+'_COORD_'+coordiante_name+'.ome.tiff') 
                                     stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'_T_'+str(self.time_point)+'_COORD_'+coordiante_name+'.ome.tiff')
-                                    stitcher_default_options = {'align_channel':1 if MULTIPOINT_BF_SAVING_OPTION=='Green Channel Only' else 0,'maximum_shift':min(self.crop_width,self.crop_height)*0.05,'filter_sigma':1,'stdout':subprocess.STDOUT,'stderr':subprocess.STDOUT} # add to UI later
+                                    stitcher_default_options = {'align_channel':1 if MULTIPOINT_BF_SAVING_OPTION=='Green Channel Only' else 0,'maximum_shift':min(self.crop_width,self.crop_height)*0.05,'filter_sigma':1,'output_channels':0 if "Fluorescence" not in config.name else "0 1 2" ,  'stdout':subprocess.STDOUT,'stderr':subprocess.STDOUT} # add to UI later
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
