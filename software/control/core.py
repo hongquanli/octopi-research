@@ -1224,7 +1224,7 @@ class AutoFocusController(QObject):
         self.focus_map_coords = []
         self.set_focus_map_use(False)
 
-    def gen_focus_map(coord1,coord2,coord3):
+    def gen_focus_map(self, coord1,coord2,coord3):
         """
         Navigate to 3 coordinates and get your focus-map coordinates
         by autofocusing there and saving the z-values.
@@ -1820,6 +1820,9 @@ class MultiPointController(QObject):
         self.do_autofocus = False
         self.do_reflection_af = False
         self.do_stitch_tiles = False
+        self.gen_focus_map = False
+        self.focus_map_storage = []
+        self.already_using_fmap = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1865,6 +1868,10 @@ class MultiPointController(QObject):
         self.do_autofocus = flag
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
+    def set_gen_focus_map_flag(self, flag):
+        self.gen_focus_map = flag
+        if not flag:
+            self.autofocusController.set_focus_map_use(False)
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
@@ -1948,6 +1955,38 @@ class MultiPointController(QObject):
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
+        if self.gen_focus_map and not self.do_reflection_af:
+            print("Generating focus map for multipoint grid")
+            starting_x_mm = self.navigationController.x_pos_mm
+            starting_y_mm = self.navigationController.y_pos_mm
+            fmap_Nx = max(2,self.NX)
+            fmap_Ny = max(2,self.NY)
+            fmap_dx = self.deltaX
+            fmap_dy = self.deltaY
+            if abs(fmap_dx) < 0.1 and fmap_dx != 0.0:
+                fmap_dx = 0.1*fmap_dx/(abs(fmap_dx))
+            elif fmap_dx == 0.0:
+                fmap_dx = 0.1
+            if abs(fmap_dy) < 0.1 and fmap_dy != 0.0:
+                 fmap_dy = 0.1*fmap_dy/(abs(fmap_dy))
+            elif fmap_dy == 0.0:
+                fmap_dy = 0.1
+            try:
+                self.focus_map_storage = []
+                self.already_using_fmap = self.autofocusController.use_focus_map
+                for x,y,z in self.autofocusController.focus_map_coords:
+                    self.focus_map_storage.append((x,y,z))
+                coord1 = (starting_x_mm, starting_y_mm)
+                coord2 = (starting_x_mm+fmap_Nx*fmap_dx,starting_y_mm)
+                coord3 = (starting_x_mm,starting_y_mm+fmap_Ny*fmap_dy)
+                self.autofocusController.gen_focus_map(coord1, coord2, coord3)
+                self.autofocusController.set_focus_map_use(True)
+                self.navigationController.move_to(starting_x_mm, starting_y_mm)
+                self.navigationController.microcontroller.wait_till_operation_is_completed()
+            except ValueError:
+                print("Invalid coordinates for focus map, aborting.")
+                return
+
         self.thread = QThread()
         # create a worker object
         self.processingHandler.start_processing()
@@ -1973,6 +2012,11 @@ class MultiPointController(QObject):
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
+        if self.gen_focus_map:
+            self.autofocusController.clear_focus_map()
+            for x,y,z in self.focus_map_storage:
+                self.autofocusController.focus_map_coords.append((x,y,z))
+            self.autofocusController.use_focus_map = self.already_using_fmap
         if self.do_stitch_tiles:
             for k in self.tile_stitchers.keys():
                 self.tile_stitchers[k].all_tiles_added()
