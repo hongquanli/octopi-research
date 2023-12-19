@@ -1412,7 +1412,7 @@ class MultiPointWorker(QObject):
                                         pass
                         else:
                             # initialize laser autofocus if it has not been done
-                            if self.laserAutofocusController.is_initialized==False:
+                            if self.microscope.laserAutofocusController.is_initialized==False:
                                 # initialize the reflection AF
                                 self.microscope.laserAutofocusController.initialize_auto()
                                 # do contrast AF for the first FOV (if contrast AF box is checked)
