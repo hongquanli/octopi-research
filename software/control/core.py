@@ -1425,8 +1425,14 @@ class MultiPointWorker(QObject):
                                 # set the current plane as reference
                                 self.microscope.laserAutofocusController.set_reference()
                             else:
-                                self.microscope.laserAutofocusController.move_to_target(0)
-                                self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+                                try:
+                                    self.microscope.laserAutofocusController.move_to_target(0)
+                                    self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                                except:
+                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
+                                    iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
+                                    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
                         if (self.NZ > 1):
                             # move to bottom of the z stack
@@ -2864,6 +2870,8 @@ class LaserAutofocusController(QObject):
         
         self.look_for_cache = look_for_cache
 
+        self.image = None # for saving the focus camera image for debugging when centroid cannot be found
+
         if look_for_cache:
             cache_path = "cache/laser_af_reference_plane.txt"
             try:
@@ -3100,6 +3108,7 @@ class LaserAutofocusController(QObject):
                 pass # to edit
             # read camera frame
             image = self.camera.read_frame()
+            self.image = image
             # optionally display the image
             if LASER_AF_DISPLAY_SPOT_IMAGE:
                 self.image_to_display.emit(image)
