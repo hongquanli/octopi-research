@@ -430,9 +430,11 @@ DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
-STITCH_TILES_WITH_ASHLAR = False
+STITCH_TILES_WITH_FIJI = False
 
 ENABLE_SPINNING_DISK_CONFOCAL=False
+
+INVERTED_OBJECTIVE = False
 
 ##########################################################
 #### start of loading machine specific configurations ####

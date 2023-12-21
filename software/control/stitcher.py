@@ -6,6 +6,22 @@ import queue
 import cv2
 import time
 
+STITCHING_MACRO = """
+run("Grid/Collection stitching", "type=[Filename defined position] order=[Defined by filename         ] grid_size_x=6 grid_size_y=6 tile_overlap=10 first_file_index_x=0 first_file_index_y=0 directory=/home/prakashlab/Desktop/stitching_tests/aureko_fl_488 file_names={y}_{x}.tiff output_textfile_name=TileConfiguration_grid.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=300 absolute_displacement_threshold=600 ignore_z_stage downsample_tiles computation_parameters=[Save memory (but be slower)] image_output=[Write to disk] output_directory=[/home/prakashlab/Desktop/stitching_tests/aureko_fl_488/Fluorescence 488 nm Ex] x=0.5 y=0.5 width=1500 height=1500 interpolation=Bicubic average");
+"""
+
+def compute_overlap_percent(deltaX, deltaY, image_width, image_height, pixel_size_xy, min_overlap=0):
+    """Helper function to calculate percent overlap between images in
+    a grid"""
+    shift_x = deltaX/pixel_size_xy
+    shift_y = deltaY/pixel_size_xy
+    overlap_x = max(0,int(image_width-shift_x))
+    overlap_y = max(0,int(image_height-shift_y))
+    overlap_x = overlap_x/image_width
+    overlap_y = overlap_y/image_height
+    overlap = max(int(min_overlap), int(overlap_x), int(overlap_y))
+    return overlap
+
 def ashlar(inputpath, outputpath, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs):
     """
     :brief Uses subprocess Popen to call ashlar with arguments

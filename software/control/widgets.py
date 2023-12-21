@@ -1441,7 +1441,7 @@ class MultiPointWidget(QFrame):
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        if STITCH_TILES_WITH_ASHLAR:
+        if STITCH_TILES_WITH_FIJI:
             grid_af.addWidget(self.checkbox_stitchTiles)
 
         grid_line3 = QHBoxLayout()
