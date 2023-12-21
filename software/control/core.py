@@ -9,7 +9,7 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 from control.processing_handler import ProcessingHandler
-from control.stitcher import Stitcher, default_image_reader
+from control.stitcher import compute_overlap_percent
 
 import control.utils as utils
 from control._def import *
@@ -1447,8 +1447,14 @@ class MultiPointWorker(QObject):
 
                         # z-stack
                         for k in range(self.NZ):
-
-                            file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+                            if self.multiPointController.do_stitch_tiles:
+                                sgn_i = -1 if self.deltaY >= 0 else 1
+                                if INVERTED_OBJECTIVE:
+                                    sgn_i = -sgn_i
+                            else:
+                                sgn_i = 1 if self.deltaY >= 0 else -1
+                            sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
+                            file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
@@ -1499,12 +1505,6 @@ class MultiPointWorker(QObject):
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                                    stitcher_tile_path = None
-                                    stitcher_of_interest = None
-                                    stitcher_key = str(config.name)+"_Z_"+str(k)+"_T_"+str(self.time_point)+"_COORD_"+coordiante_name
-                                    stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'_T_'+str(self.time_point)+'_COORD_'+coordiante_name+'.ome.tiff') 
-                                    stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'_T_'+str(self.time_point)+'_COORD_'+coordiante_name+'.ome.tiff')
-                                    stitcher_default_options = {'align_channel':1 if MULTIPOINT_BF_SAVING_OPTION=='Green Channel Only' else 0,'maximum_shift':min(self.crop_width,self.crop_height)*0.05,'filter_sigma':1,'output_channels':0 if "Fluorescence" not in config.name else "0 1 2" ,  'stdout':subprocess.STDOUT,'stderr':subprocess.STDOUT} # add to UI later
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1514,7 +1514,6 @@ class MultiPointWorker(QObject):
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
                                         iio.imwrite(saving_path,image)
-                                        stitcher_tile_path = saving_path
                                     else:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                         if self.camera.is_color:
@@ -1528,49 +1527,7 @@ class MultiPointWorker(QObject):
                                             else:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
-                                        stitcher_tile_path = saving_path
-                                    if self.multiPointController.do_stitch_tiles:
-                                        try:
-                                            objectiveStore = self.parent.objectiveStore
-                                            current_objective = objectiveStore.current_objective
-                                            objective_info = objectiveStore.objectives_dict.get(current_objective, {})
-                                        except (AttributeError, KeyError):
-                                            objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
-                                        try:
-                                            objective_magnification = float(objective_info['magnification'])
-                                            objective_tube_lens_mm = float(objective_info['tube_lens_f_mm'])
-                                        except (KeyError, ValueError):
-                                            objective_magnification = 20.0
-                                            objective_tube_lens_mm = 180.0
-                                        pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-                                        pixel_size_xy = pixel_size_um/(objective_magnification/(objective_tube_lens_mm/TUBE_LENS_MM))
-                                        stitcher_default_options['maximum_shift']=min(self.crop_width,self.crop_height)*0.05*pixel_size_xy
-                                        try:
-                                            stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
-                                        except:
-                                            self.multiPointController.tile_stitchers[stitcher_key] = Stitcher(stitcher_tiled_file_path, stitcher_stitched_file_path, stitcher_default_options, auto_run_ashlar=True, image_reader = self.multiPointController.stitcher_image_reader)
-                                            stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
-                                            stitcher_of_interest.start_ometiff_writer()
-                                        try:
-                                            print(image.shape)
-                                            image_number_channels = int(image.shape[2])
-                                        except IndexError:
-                                            print("image number channels has index error")
-                                            image_number_channels = 3
-                                        tile_metadata = {
-                                                'Pixels': {
-                                                    'PhysicalSizeX': pixel_size_xy,
-                                                    'PhysicalSizeY': pixel_size_xy,
-                                                    },
-                                                'Plane': {
-                                                    'PositionX':[self.navigationController.x_pos_mm*1000.0-starting_x]*image_number_channels,
-                                                    'PositionY':[self.navigationController.y_pos_mm*1000.0-starting_y]*image_number_channels
-                                                    }
-                                                }
-                                        print(tile_metadata)
-                                        stitcher_of_interest.add_tile(stitcher_tile_path, tile_metadata)
-                                    
-
+                                        
                                     current_round_images[config.name] = np.copy(image)
 
                                     QApplication.processEvents()
@@ -1593,7 +1550,7 @@ class MultiPointWorker(QObject):
 
                                                             
                             # add the coordinate of the current location
-                            new_row = pd.DataFrame({'i':[i],'j':[j if self.x_scan_direction == 1 else self.NX-1-j],'k':[k],
+                            new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
                                                     'z (um)':[self.navigationController.z_pos_mm*1000]},
@@ -1712,12 +1669,10 @@ class MultiPointController(QObject):
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader = lambda path: default_image_reader(path, FLIP_IMAGE)):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
 
         self.camera = camera
-        self.stitcher_image_reader = stitcher_image_reader
-        self.tile_stitchers = {}
         self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
@@ -1827,7 +1782,6 @@ class MultiPointController(QObject):
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
-        self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
             print(location_list)
@@ -1899,8 +1853,26 @@ class MultiPointController(QObject):
     def _on_acquisition_completed(self):
         # restore the previous selected mode
         if self.do_stitch_tiles:
-            for k in self.tile_stitchers.keys():
-                self.tile_stitchers[k].all_tiles_added()
+            try:
+                objectiveStore = self.parent.objectiveStore
+                current_objective = objectiveStore.current_objective
+                objective_info = objectiveStore.objectives_dict.get(current_objective, {})
+            except (AttributeError, KeyError):
+                objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+            try:
+                objective_magnification = float(objective_info['magnification'])
+                objective_tube_lens_mm = float(objective_info['tube_lens_f_mm'])
+            except (KeyError, ValueError):
+                objective_magnification = 20.0
+                objective_tube_lens_mm = 180.0
+            pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+            pixel_size_xy = pixel_size_um/(objective_magnification/(objective_tube_lens_mm/TUBE_LENS_MM))
+                                        
+            stitcher_maximum_shift = max(self.crop_width,self.crop_height)*0.05
+
+            overlap_percent = compute_overlap_percent(self.deltaX*1000.0, self.deltaY*1000.0, self.crop_width, self.crop_height, pixel_size_xy)
+
+
         self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
         # re-enable callback
