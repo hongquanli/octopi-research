@@ -2,6 +2,7 @@ import cv2
 import imagej, scyjava
 from control._def import JVM_MAX_MEMORY_GB
 import os
+import shutil
 from glob import glob
 
 def compute_overlap_percent(deltaX, deltaY, image_width, image_height, pixel_size_xy, min_overlap=0):
@@ -20,7 +21,7 @@ def compute_overlap_percent(deltaX, deltaY, image_width, image_height, pixel_siz
 class Stitcher:
     def __init__(self):
         scyjava.config.add_option('-Xmx'+str(int(JVM_MAX_MEMORY_GB))+'g')
-        self.ij = imagej.init('sc.fiji:fiji')
+        self.ij = imagej.init('sc.fiji:fiji', mode='headless')
 
     def stitch_single_channel(self, fovs_path, channel_name, z_index, coord_name='', overlap_percent=10, reg_threshold = 0.30, avg_displacement_threshold=2.50, abs_displacement_threshold=3.50, tile_downsampling=0.5):
         """
@@ -49,7 +50,7 @@ class Stitcher:
 
         stitching_filename_pattern = coord_name+"{y}_{x}_"+str(z_index)+"_"+channel_name+"."+file_ext
 
-        stitching_output_dir = 'COORD_'coord_name+"_Z_"+str(z_index)+"_"+channel_name+"_stitched/"
+        stitching_output_dir = 'COORD_'+coord_name+"_Z_"+str(z_index)+"_"+channel_name+"_stitched/"
 
         tile_conf_name = "TileConfiguration_COORD_"+coord_name+"_Z_"+str(z_index)+"_"+channel_name+".txt"
 
@@ -63,17 +64,16 @@ class Stitcher:
 
         tile_downsampled_width=int(sample_tile_shape[1]*tile_downsampling)
         tile_downsampled_height=int(sample_tile_shape[0]*tile_downsampling)
-
         stitching_params = {'type':'Filename defined position',
                 'order':'Defined by filename',
                 'fusion_mode':'Linear Blending',
-                'grid_size_x':grid_size_x,
-                'grid_size_y':grid_size_y,
-                'first_file_index_x':0,
-                'first_file_index_y':0,
+                'grid_size_x':str(grid_size_x),
+                'grid_size_y':str(grid_size_y),
+                'first_file_index_x':str(0),
+                'first_file_index_y':str(0),
                 'ignore_z_stage':True,
-                'downsample_tiles':True,
-                'tile_overlap':overlap_percent,
+                'downsample_tiles':False,
+                'tile_overlap':str(overlap_percent),
                 'directory':fovs_path,
                 'file_names':stitching_filename_pattern,
                 'output_textfile_name':tile_conf_name,
@@ -84,10 +84,14 @@ class Stitcher:
                 'compute_overlap':False,
                 'computation_parameters':'Save computation time (but use more RAM)',
                 'image_output':'Write to disk',
-                'output_directory':stitching_output_dir,
-                'x':tile_downsampling,
-                'y':tile_downsampling,
-                'width':tile_downsampled_width,
-                'height':tile_downsampled_height,
-                'interpolation':'Bicubic average'
+                'output_directory':stitching_output_dir #,
+                #'x':str(tile_downsampling),
+                #'y':str(tile_downsampling),
+                #'width':str(tile_downsampled_width),
+                #'height':str(tile_downsampled_height),
+                #'interpolation':'Bicubic average'
                 }
+
+        plugin = "Grid/Collection stitching"
+
+        self.ij.py.run_plugin(plugin, stitching_params)
