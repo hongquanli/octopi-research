@@ -436,6 +436,8 @@ ENABLE_SPINNING_DISK_CONFOCAL=False
 
 INVERTED_OBJECTIVE = False
 
+JVM_MAX_MEMORY_GB=4
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

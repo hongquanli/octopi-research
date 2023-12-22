@@ -9,10 +9,14 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 from control.processing_handler import ProcessingHandler
-from control.stitcher import compute_overlap_percent
+
 
 import control.utils as utils
 from control._def import *
+
+if STITCH_TILES_WITH_FIJI:
+    from control.stitcher import compute_overlap_percent
+
 import control.tracking as tracking
 try:
     from control.multipoint_custom_script_entry import *
