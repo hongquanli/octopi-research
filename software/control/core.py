@@ -10,7 +10,6 @@ from qtpy.QtGui import *
 
 from control.processing_handler import ProcessingHandler
 
-
 import control.utils as utils
 from control._def import *
 
