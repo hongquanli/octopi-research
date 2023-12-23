@@ -1056,6 +1056,7 @@ class AutofocusWorker(QObject):
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
             image = utils.crop_image(image,self.crop_width,self.crop_height)
+            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
             self.image_to_display.emit(image)
             QApplication.processEvents()
             timestamp_0 = time.time()
@@ -1322,8 +1323,6 @@ class MultiPointWorker(QObject):
         # disable joystick button action
         self.navigationController.enable_joystick_button_action = False
 
-        self.reflection_af_initialized = False
-
         print('multipoint acquisition - time point ' + str(self.time_point+1))
         
         # for each time point, create a new folder
@@ -1426,12 +1425,11 @@ class MultiPointWorker(QObject):
                                     except:
                                         pass
                         else:
-                            # initialize laser autofocus
-                            if self.reflection_af_initialized==False:
+                            # initialize laser autofocus if it has not been done
+                            if self.microscope.laserAutofocusController.is_initialized==False:
                                 # initialize the reflection AF
                                 self.microscope.laserAutofocusController.initialize_auto()
-                                self.reflection_af_initialized = True
-                                # do contrast AF for the first FOV
+                                # do contrast AF for the first FOV (if contrast AF box is checked)
                                 if self.do_autofocus and ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) :
                                     configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                                     config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
@@ -1441,8 +1439,14 @@ class MultiPointWorker(QObject):
                                 # set the current plane as reference
                                 self.microscope.laserAutofocusController.set_reference()
                             else:
-                                self.microscope.laserAutofocusController.move_to_target(0)
-                                self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+                                try:
+                                    self.microscope.laserAutofocusController.move_to_target(0)
+                                    self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                                except:
+                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
+                                    iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
+                                    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
                         if (self.NZ > 1):
                             # move to bottom of the z stack
@@ -2621,26 +2625,29 @@ class ImageArrayDisplayWindow(QMainWindow):
         self.graphics_widget_1.view = self.graphics_widget_1.addViewBox()
         self.graphics_widget_1.view.setAspectLocked(True)
         self.graphics_widget_1.img = pg.ImageItem(border='w')
-        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img)
+        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img) 
+        self.graphics_widget_1.view.invertY()
 
         self.graphics_widget_2 = pg.GraphicsLayoutWidget()
         self.graphics_widget_2.view = self.graphics_widget_2.addViewBox()
         self.graphics_widget_2.view.setAspectLocked(True)
         self.graphics_widget_2.img = pg.ImageItem(border='w')
         self.graphics_widget_2.view.addItem(self.graphics_widget_2.img)
+        self.graphics_widget_2.view.invertY()
 
         self.graphics_widget_3 = pg.GraphicsLayoutWidget()
         self.graphics_widget_3.view = self.graphics_widget_3.addViewBox()
         self.graphics_widget_3.view.setAspectLocked(True)
         self.graphics_widget_3.img = pg.ImageItem(border='w')
         self.graphics_widget_3.view.addItem(self.graphics_widget_3.img)
+        self.graphics_widget_3.view.invertY()
 
         self.graphics_widget_4 = pg.GraphicsLayoutWidget()
         self.graphics_widget_4.view = self.graphics_widget_4.addViewBox()
         self.graphics_widget_4.view.setAspectLocked(True)
         self.graphics_widget_4.img = pg.ImageItem(border='w')
         self.graphics_widget_4.view.addItem(self.graphics_widget_4.img)
-
+        self.graphics_widget_4.view.invertY()
         ## Layout
         layout = QGridLayout()
         layout.addWidget(self.graphics_widget_1, 0, 0)
@@ -2876,7 +2883,7 @@ class LaserAutofocusController(QObject):
     image_to_display = Signal(np.ndarray)
     signal_displacement_um = Signal(float)
 
-    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True):
+    def __init__(self,microcontroller,camera,liveController,navigationController,has_two_interfaces=True,use_glass_top=True, look_for_cache=True):
         QObject.__init__(self)
         self.microcontroller = microcontroller
         self.camera = camera
@@ -2894,8 +2901,36 @@ class LaserAutofocusController(QObject):
         self.has_two_interfaces = has_two_interfaces # e.g. air-glass and glass water, set to false when (1) using oil immersion (2) using 1 mm thick slide (3) using metal coated slide or Si wafer
         self.use_glass_top = use_glass_top
         self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
+        
+        self.look_for_cache = look_for_cache
 
-    def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference):
+        self.image = None # for saving the focus camera image for debugging when centroid cannot be found
+
+        if look_for_cache:
+            cache_path = "cache/laser_af_reference_plane.txt"
+            try:
+                with open(cache_path, "r") as cache_file:
+                    for line in cache_file:
+                        value_list = line.split(",")
+                        x_offset = float(value_list[0])
+                        y_offset = float(value_list[1])
+                        width = int(value_list[2])
+                        height = int(value_list[3])
+                        pixel_to_um = float(value_list[4])
+                        x_reference = float(value_list[5])
+                        self.initialize_manual(x_offset,y_offset,width,height,pixel_to_um,x_reference)
+                        break
+            except (FileNotFoundError, ValueError,IndexError) as e:
+                print("Unable to read laser AF state cache, exception below:")
+                print(e)
+                pass
+
+    def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference, write_to_cache=True):
+        cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
+        if write_to_cache:
+            cache_path = Path("cache/laser_af_reference_plane.txt")
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(cache_string)
         # x_reference is relative to the full sensor
         self.pixel_to_um = pixel_to_um
         self.x_offset = int((x_offset//8)*8)
@@ -2971,6 +3006,35 @@ class LaserAutofocusController(QObject):
 
         # set reference
         self.x_reference = x1
+
+        if self.look_for_cache:
+            cache_path = "cache/laser_af_reference_plane.txt"
+            try:
+                x_offset = None
+                y_offset = None
+                width = None
+                height = None
+                pixel_to_um = None
+                x_reference = None
+                with open(cache_path, "r") as cache_file:
+                    for line in cache_file:
+                        value_list = line.split(",")
+                        x_offset = float(value_list[0])
+                        y_offset = float(value_list[1])
+                        width = int(value_list[2])
+                        height = int(value_list[3])
+                        pixel_to_um = self.pixel_to_um
+                        x_reference = self.x_reference+self.x_offset
+                        break
+                cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
+                cache_path = Path("cache/laser_af_reference_plane.txt")
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_text(cache_string)
+            except (FileNotFoundError, ValueError,IndexError) as e:
+                print("Unable to read laser AF state cache, exception below:")
+                print(e)
+                pass
+
 
     def measure_displacement(self):
         # turn on the laser
@@ -3078,6 +3142,7 @@ class LaserAutofocusController(QObject):
                 pass # to edit
             # read camera frame
             image = self.camera.read_frame()
+            self.image = image
             # optionally display the image
             if LASER_AF_DISPLAY_SPOT_IMAGE:
                 self.image_to_display.emit(image)
