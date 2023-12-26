@@ -27,6 +27,37 @@ def stitch_slide_mp(*args, **kwargs):
     stitch_process.start()
     return stitch_process
     
+def migrate_tile_config(fovs_path, coord_name, channel_name_source, z_index_source, channel_name_target, z_index_target):
+    channel_name_source = channel_name_source.replace(" ", "_")
+    channel_name_target = channel_name_target.replace(" ","_")
+    
+    if z_index_source == z_index_target and channel_name_source == channel_name_target:
+        raise RuntimeError("Source and target for channel/z-index migration are the same!")
+
+    tile_conf_name_source = "TileConfiguration_COORD_"+coord_name+"_Z_"+str(z_index_source)+"_"+channel_name_source+".registered.txt"
+    tile_conf_name_target = "TileConfiguration_COORD_"+coord_name+"_Z_"+str(z_index_target)+"_"+channel_name_target+".registered.txt"
+    tile_config_source_path = os.path.join(fovs_path, tile_conf_name_source)
+        
+    if not os.path.isfile(tile_config_source_path):
+        tile_config_source_path = tile_config_source_path.replace(".registered.txt", ".txt")
+
+    assert os.path.isfile(tile_config_source_path)
+
+    tile_config_target_path = os.path.join(fovs_path, tile_conf_name_target)
+
+    tile_conf_target = open(tile_config_target_path, 'w')
+
+    with open(tile_config_source_path, 'r') as tile_conf_source:
+        for line in tile_conf_source:
+            if line.startswith("#") or line.startswith("dim") or len(line) <= 1:
+                tile_conf_target.write(line)
+                continue
+            line_to_write = line.replace("_"+str(z_index_source)+"_"+channel_name_source, "_"+str(z_index_target)+"_"+channel_name_target)
+            tile_conf_target.write(line_to_write)
+
+    tile_conf_target.close()
+
+    return tile_conf_name_target
 
 def stitch_slide(slide_path, time_indices, channels, z_indices, coord_names=[''], overlap_percent=10, reg_threshold=0.30, avg_displacement_threshold=2.50, abs_displacement_threshold=3.50, tile_downsampling=0.5, recompute_overlap=False, **kwargs):
     st = Stitcher()
@@ -44,10 +75,62 @@ class Stitcher:
     def stitch_single_time_point(self, slide_path, time_index, channels, z_indices, coord_names = [''], overlap_percent=10, reg_threshold=0.30, avg_displacement_threshold=2.50, abs_displacement_threshold=3.50, tile_downsampling=0.5, recompute_overlap=False, **kwargs):
         fovs_path = os.path.join(slide_path, str(time_index))
         for coord_name in coord_names:
+            already_registered = False
+            registered_z_index = None
+            registered_channel_name = None
             for channel_name in channels:
                 for z_index in z_indices:
-                    output_dir = self.stitch_single_channel(fovs_path, channel_name, z_index, coord_name, overlap_percent, reg_threshold, avg_displacement_threshold, abs_displacement_threshold, tile_downsampling, recompute_overlap)
-                    combine_stitched_channels(output_dir, **kwargs)
+                    if already_registered:
+                        migrate_tile_config(fovs_path, coord_name, registered_channel_name, registered_z_index, channel_name.replace(" ", "_"), z_index)
+                        output_dir = self.stitch_single_channel_from_tile_config(fovs_path, channel_name, z_index, coord_name)
+                        combine_stitched_channels(output_dir, **kwargs)
+                    else:
+                        output_dir = self.stitch_single_channel(fovs_path, channel_name, z_index, coord_name, overlap_percent, reg_threshold, avg_displacement_threshold, abs_displacement_threshold, tile_downsampling, recompute_overlap)
+                        combine_stitched_channels(output_dir, **kwargs)
+                    if not already_registered:
+                        already_registered = True
+                        registered_z_index = z_index
+                        registered_channel_name = channel_name.replace(" ", "_")
+
+
+    def stitch_single_channel_from_tile_config(self, fovs_path, channel_name, z_index, coord_name):
+        """
+        Stitches images using grid/collection stitching, reading registered
+        positions from a tile configuration path that has been migrated from an
+        already-registered channel/z-level at the same coordinate name
+        """
+        channel_name = channel_name.replace(" ", "_")
+        tile_conf_name = "TileConfiguration_COORD_"+coord_name+"_Z_"+str(z_index)+"_"+channel_name+".registered.txt"
+        assert os.path.isfile(os.path.join(fovs_path, tile_conf_name))
+
+        stitching_output_dir = 'COORD_'+coord_name+"_Z_"+str(z_index)+"_"+channel_name+"_stitched/"
+
+        stitching_output_dir = os.path.join(fovs_path,stitching_output_dir)
+
+        os.makedirs(stitching_output_dir, exist_ok=True)
+
+        stitching_params = {'type':'Positions from file',
+                'order':'Defined by TileConfiguration',
+                'fusion_mode':'Linear Blending',
+                'ignore_z_stage':True,
+                'downsample_tiles':False,
+                'directory':fovs_path,
+                'layout_file':tile_conf_name,
+                'fusion_method':'Linear Blending',
+                'regression_threshold':"0.30",
+                'max/avg_displacement_threshold':"2.50",
+                'absolute_displacement_threshold':"3.50",
+                'compute_overlap':False,
+                'computation_parameters':'Save computation time (but use more RAM)',
+                'image_output':'Write to disk',
+                'output_directory':stitching_output_dir 
+                }
+
+        plugin = "Grid/Collection stitching"
+
+        self.ij.py.run_plugin(plugin, stitching_params)
+
+        return stitching_output_dir
 
 
     def stitch_single_channel(self, fovs_path, channel_name, z_index, coord_name='', overlap_percent=10, reg_threshold = 0.30, avg_displacement_threshold=2.50, abs_displacement_threshold=3.50, tile_downsampling=0.5, recompute_overlap=False):
