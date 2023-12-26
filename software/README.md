@@ -104,10 +104,6 @@ The following aspects are specified in the configuration file:
 - whether tracking is enabled (`ENABLE_TRACKING`)
 - plate reader related definations (`class PLATE_READER`)
 
-### Enabling stitching
-If you want stitching on acquisition using PyImageJ, install the requisite dependencies (see above), and then set the `stitch_tiles_with_fiji` (or `STITCH_TILES_WITH_FIJI` if using a `.txt` configuration file) flag in your configuration file to `True`.
-
-
 ## Using the software
 Use one of the following to start the program
 ```

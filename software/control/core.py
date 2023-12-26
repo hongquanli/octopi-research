@@ -13,9 +13,6 @@ from control.processing_handler import ProcessingHandler
 import control.utils as utils
 from control._def import *
 
-if STITCH_TILES_WITH_FIJI:
-    from control.stitcher import compute_overlap_percent, stitch_slide_mp
-
 import control.tracking as tracking
 try:
     from control.multipoint_custom_script_entry import *
@@ -1287,8 +1284,6 @@ class MultiPointWorker(QObject):
                 break
             # run single time point
             self.run_single_time_point()
-            if self.time_point not in self.multiPointController.stitching_time_indices:
-                self.multiPointController.stitching_time_indices.append(self.time_point)
             self.time_point = self.time_point + 1
             # continous acquisition
             if self.dt == 0:
@@ -1331,7 +1326,6 @@ class MultiPointWorker(QObject):
 
         slide_path = os.path.join(self.base_path, self.experiment_ID)
 
-        self.multiPointController.stitching_slide_path = slide_path
 
         # create a dataframe to save coordinates
         self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
@@ -1375,8 +1369,6 @@ class MultiPointWorker(QObject):
                 # add '_' to the coordinate name
                 coordiante_name = coordiante_name + '_'
 
-            if coordiante_name not in self.multiPointController.stitching_coord_names:
-                self.multiPointController.stitching_coord_names.append(coordiante_name)
 
             self.x_scan_direction = 1
             self.dx_usteps = 0 # accumulated x displacement
@@ -1463,14 +1455,11 @@ class MultiPointWorker(QObject):
 
                         # z-stack
                         for k in range(self.NZ):
-                            if k not in self.multiPointController.stitching_z_indices:
-                                self.multiPointController.stitching_z_indices.append(k)
-                            if self.multiPointController.do_stitch_tiles:
-                                sgn_i = -1 if self.deltaY >= 0 else 1
-                                if INVERTED_OBJECTIVE:
-                                    sgn_i = -sgn_i
-                            else:
-                                sgn_i = 1 if self.deltaY >= 0 else -1
+                            
+                            # Ensure that i/y-indexing is always top to bottom
+                            sgn_i = -1 if self.deltaY >= 0 else 1
+                            if INVERTED_OBJECTIVE:
+                                sgn_i = -sgn_i
                             sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
                             file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
@@ -1480,8 +1469,6 @@ class MultiPointWorker(QObject):
                             current_round_images = {}
                             # iterate through selected modes
                             for config in self.selected_configurations:
-                                if config.name not in self.multiPointController.stitching_channels:
-                                    self.multiPointController.stitching_channels.append(config.name)
                                 if config.z_offset is not None: # perform z offset for config, assume
                                                                 # z_offset is in um
                                     if config.z_offset != 0.0:
@@ -1715,7 +1702,6 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
-        self.do_stitch_tiles = False
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -1726,14 +1712,6 @@ class MultiPointController(QObject):
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
         self.parent = parent
-
-        self.slide_stitching_process = None
-
-        self.stitching_slide_path = ""
-        self.stitching_time_indices = []
-        self.stitching_channels = []
-        self.stitching_z_indices = []
-        self.stitching_coord_names = []
 
         self.old_images_per_page = 1
         try:
@@ -1770,9 +1748,6 @@ class MultiPointController(QObject):
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
 
-    def set_stitch_tiles_flag(self,flag):
-        self.do_stitch_tiles=flag
-
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
@@ -1797,7 +1772,16 @@ class MultiPointController(QObject):
                 acquisition_parameters['objective'][k]=objective_info[k]
             acquisition_parameters['objective']['name']=current_objective
         except:
-            pass
+            try:
+                objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+                acquisition_parameters['objective'] = {}
+                for k in objective_info.keys():
+                    acquisition_parameters['objective'][k] = objective_info[k]
+                acquisition_parameters['objective']['name']=DEFAULT_OBJECTIVE
+            except:
+                pass
+        acquisition_parameters['sensor_pixel_size_um'] = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+        acquisition_parameters['tube_lens_mm'] = TUBE_LENS_MM
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
@@ -1853,11 +1837,6 @@ class MultiPointController(QObject):
             except:
                 pass
         
-        self.stitching_slide_path = ""
-        self.stitching_time_indices = []
-        self.stitching_channels = []
-        self.stitching_z_indices = []
-        self.stitching_coord_names = []
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
@@ -1886,33 +1865,6 @@ class MultiPointController(QObject):
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
-        # only attempt stitching if acquisition fully proceeded
-        if self.do_stitch_tiles and not self.abort_acqusition_requested:
-            if self.slide_stitching_process is not None:
-                self.slide_stitching_process.join()
-            try:
-                objectiveStore = self.parent.objectiveStore
-                current_objective = objectiveStore.current_objective
-                objective_info = objectiveStore.objectives_dict.get(current_objective, {})
-            except (AttributeError, KeyError):
-                objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
-            try:
-                objective_magnification = float(objective_info['magnification'])
-                objective_tube_lens_mm = float(objective_info['tube_lens_f_mm'])
-            except (KeyError, ValueError):
-                objective_magnification = 20.0
-                objective_tube_lens_mm = 180.0
-            pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-            pixel_size_xy = pixel_size_um/(objective_magnification/(objective_tube_lens_mm/TUBE_LENS_MM))
-                                        
-            stitcher_maximum_shift = max(self.crop_width,self.crop_height)*0.05
-
-            overlap_percent = compute_overlap_percent(self.deltaX*1000.0, self.deltaY*1000.0, self.crop_width, self.crop_height, pixel_size_xy)
-            
-            recompute_overlap = (abs(self.deltaX - self.deltaY) > 0.10) or (overlap_percent > 10)
-
-            self.slide_stitching_process = stitch_slide_mp(self.stitching_slide_path, self.stitching_time_indices, self.stitching_channels, self.stitching_z_indices, self.stitching_coord_names, overlap_percent=overlap_percent, reg_threshold=0.30, avg_displacement_threshold=stitcher_maximum_shift, abs_displacement_threshold=stitcher_maximum_shift*2, tile_downsampling=1.0, recompute_overlap=recompute_overlap)
-
         self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
         # re-enable callback

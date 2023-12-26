@@ -1,6 +1,5 @@
 import cv2
 import imagej, scyjava
-from control._def import JVM_MAX_MEMORY_GB
 import os
 import shutil
 import tifffile
@@ -8,16 +7,18 @@ from glob import glob
 import numpy as np
 import multiprocessing as mp
 
+JVM_MAX_MEMORY_GB = 4.0
+
 def compute_overlap_percent(deltaX, deltaY, image_width, image_height, pixel_size_xy, min_overlap=0):
     """Helper function to calculate percent overlap between images in
     a grid"""
     shift_x = deltaX/pixel_size_xy
     shift_y = deltaY/pixel_size_xy
-    overlap_x = max(0,int(image_width-shift_x))
-    overlap_y = max(0,int(image_height-shift_y))
+    overlap_x = max(0,image_width-shift_x)
+    overlap_y = max(0,image_height-shift_y)
     overlap_x = overlap_x*100.0/image_width
     overlap_y = overlap_y*100.0/image_height
-    overlap = max(int(min_overlap), int(overlap_x), int(overlap_y))
+    overlap = max(min_overlap, overlap_x, overlap_y)
     return overlap
 
 def stitch_slide_mp(*args, **kwargs):
