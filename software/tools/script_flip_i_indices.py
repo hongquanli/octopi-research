@@ -62,3 +62,4 @@ if __name__ == "__main__":
         print("Must provide a path to a slide folder.")
         exit()
     invert_y_in_slide(sys.argv[1])
+    print("Inverted all i/y-indices in "+sys.argv[1])
