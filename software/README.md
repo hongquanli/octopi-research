@@ -55,6 +55,7 @@ If using a compatible Toupcam camera on Linux, copy the file `software/drivers a
 (via `sudo cp`) before connecting the camera.
 </details>
 
+<details>
 <summary>Install CuPy (optional)</summary>
 
 From March 2023 w/ RTX3050
