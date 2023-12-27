@@ -294,9 +294,11 @@ class Camera(object):
         #     self.camera.ExposureTime.set(camera_exposure_time)
 
     def set_analog_gain(self,analog_gain):
-        analog_gain = max(1,analog_gain)
-        self.analog_gain = analog_gain
-        self.camera.put_ExpoAGain(int(analog_gain*100))
+        gain_min, gain_max, gain_default = self.camera.get_ExpoAGainRange()
+        analog_gain = min(gain_max, analog_gain*100)
+        analog_gain = max(gain_min, analog_gain*100)
+        self.analog_gain = analog_gain/100.0
+        self.camera.put_ExpoAGain(int(analog_gain))
         # self.camera.Gain.set(analog_gain)
 
     def get_awb_ratios(self):
