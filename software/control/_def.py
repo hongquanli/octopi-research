@@ -197,6 +197,11 @@ class CMD_EXECUTION_STATUS:
     CMD_EXECUTION_ERROR = 4
     ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED = 100
 
+class CAMERA_CONFIG:
+    ROI_OFFSET_X_DEFAULT = 0
+    ROI_OFFSET_Y_DEFAULT = 0
+    ROI_WIDTH_DEFAULT = 3104
+    ROI_HEIGHT_DEFAULT = 2084
 
 ###########################################################
 #### machine specific configurations - to be overridden ###
@@ -439,6 +444,10 @@ DO_FLUORESCENCE_RTP = False
 STITCH_TILES_WITH_ASHLAR = False
 
 ENABLE_SPINNING_DISK_CONFOCAL=False
+
+CAMERA_TYPE="Default"
+
+FOCUS_CAMERA_TYPE="Default"
 
 ##########################################################
 #### start of loading machine specific configurations ####
