@@ -49,8 +49,6 @@ cd torchvision
 sudo python3 setup.py install
 ```
 </details>
-
-<details>
 <details>
 <summary>Modify udev permissions for toupcam to work</summary>
 If using a compatible Toupcam camera on Linux, copy the file `software/drivers and libraries/toupcam/linux/udev/99-toupcam.rules` to `/etc/udev/rules.d`
