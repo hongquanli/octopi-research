@@ -213,8 +213,10 @@ def images_identical(im_1, im_2):
     return im_1.shape == im_2.shape and not (np.bitwise_xor(im_1,im_2).any())
 
 def combine_stitched_channels(stitched_image_folder_path, write_multiscale_tiff = False, pixel_size_um=1.0, tile_side_length=1024, subresolutions=3):
-    """Combines the three channel images created into one pyramidal
-    OME-TIFF"""
+    """Combines the three channel images created into one TIFF. Currently
+    not recommended to run this with multiscale TIFF enabled, combining
+    all channels/z-levels in one region of the acquisition into one OME-TIFF
+    to be done later."""
 
     c1 = cv2.imread(os.path.join(stitched_image_folder_path, "img_t1_z1_c1"))
 
