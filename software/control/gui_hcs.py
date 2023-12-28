@@ -264,7 +264,7 @@ class OctopiGUI(QMainWindow):
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
-
+        
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
@@ -486,8 +486,12 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
+        self.navigationController.move_to_cached_position()
 
     def closeEvent(self, event):
+
+        self.navigationController.cache_current_position()
+
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
         while self.microcontroller.is_busy():
