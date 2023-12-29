@@ -103,7 +103,7 @@ Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/supp
 <summary>Add udev rules for ToupTek cameras</summary>
 
 ```
-sudo cp drivers and libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/rules.d
+sudo cp drivers\ and\ libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/rules.d
 ```
 </details>
 
