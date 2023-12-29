@@ -2391,6 +2391,17 @@ class ImageDisplayWindow(QMainWindow):
         width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
         height = width
         self.setFixedSize(int(width),int(height))
+        self.graphics_widget.view.scene().sigMouseClicked.connect(self.mouse_clicked)
+
+    def mouse_clicked(self, evt):
+        pos = evt.pos()
+        view_coord = self.graphics_widget.view.mapSceneToView(pos)
+        image_coord = self.graphics_widget.img.mapFromView(view_coord)
+
+        x_pixel = int(image_coord.x())
+        y_pixel = int(image_coord.y())
+
+        print(f"Click: {x_pixel}, {y_pixel}")
 
     def display_image(self,image):
         if ENABLE_TRACKING:
