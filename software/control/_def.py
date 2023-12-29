@@ -409,6 +409,9 @@ FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field
 # controller version
 CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 
+#How to read Spinnaker nodemaps, options are INDIVIDUAL or VALUE
+CHOSEN_READ = 'INDIVIDUAL'
+
 # laser autofocus
 SUPPORT_LASER_AUTOFOCUS = False
 MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
