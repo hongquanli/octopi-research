@@ -141,6 +141,7 @@ class OctopiGUI(QMainWindow):
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
+        self.focusMapWidget = widgets.FocusMapWidget(self.autofocusController)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
@@ -150,6 +151,7 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+        self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
@@ -231,6 +233,7 @@ class OctopiGUI(QMainWindow):
 
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+
 
         self.navigationController.move_to_cached_position()
 

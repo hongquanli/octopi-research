@@ -462,6 +462,99 @@ class ObjectivesWidget(QWidget):
         self.objectiveStore.current_objective = selected_key
         #self.text_browser.setPlainText(text)
 
+class FocusMapWidget(QWidget):
+
+    def __init__(self, autofocusController, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.autofocusController = autofocusController
+        self.init_ui()
+
+    def init_ui(self):
+        self.btn_add_to_focusmap = QPushButton("Add to focus map")
+        self.btn_enable_focusmap = QPushButton("Enable focus map")
+        self.btn_clear_focusmap = QPushButton("Clear focus map")
+        self.fmap_coord_1 = QLabel("Focus Map Point 1: (xxx,yyy,zzz)")
+        self.fmap_coord_2 = QLabel("Focus Map Point 2: (xxx,yyy,zzz)")
+        self.fmap_coord_3 = QLabel("Focus Map Point 3: (xxx,yyy,zzz)")
+        layout = QVBoxLayout()
+        layout.addWidget(self.fmap_coord_1)
+        layout.addWidget(self.fmap_coord_2)
+        layout.addWidget(self.fmap_coord_3)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.btn_add_to_focusmap)
+        button_layout.addWidget(self.btn_clear_focusmap)
+
+        layout.addLayout(button_layout)
+        
+        layout.addWidget(self.btn_enable_focusmap)
+
+        self.setLayout(layout)
+
+        self.btn_add_to_focusmap.clicked.connect(self.add_to_focusmap)
+        self.btn_enable_focusmap.clicked.connect(self.enable_focusmap)
+        self.btn_clear_focusmap.clicked.connect(self.clear_focusmap)
+
+    def disable_all_buttons(self):
+        self.btn_add_to_focusmap.setEnabled(False)
+        self.btn_enable_focusmap.setEnabled(False)
+        self.btn_clear_focusmap.setEnabled(False)
+
+    def enable_all_buttons(self):
+        self.btn_add_to_focusmap.setEnabled(True)
+        self.btn_enable_focusmap.setEnabled(True)
+        self.btn_clear_focusmap.setEnabled(True)
+
+    def clear_focusmap(self):
+        self.disable_all_buttons()
+        self.autofocusController.clear_focus_map()
+        self.update_focusmap_display()
+        self.btn_enable_focusmap.setText("Enable focus map")
+        self.enable_all_buttons()
+
+    def update_focusmap_display(self):
+        self.fmap_coord_1.setText("Focus Map Point 1: (xxx,yyy,zzz)")
+        self.fmap_coord_2.setText("Focus Map Point 2: (xxx,yyy,zzz)")
+        self.fmap_coord_3.setText("Focus Map Point 3: (xxx,yyy,zzz)")
+        try:
+            x,y,z = self.autofocusController.focus_map_coords[0]
+            self.fmap_coord_1.setText(f"Focus Map Point 1: ({x:.3f},{y:.3f},{z:.3f})")
+        except IndexError:
+            pass
+        try:
+            x,y,z = self.autofocusController.focus_map_coords[1]
+            self.fmap_coord_2.setText(f"Focus Map Point 2: ({x:.3f},{y:.3f},{z:.3f})")
+        except IndexError:
+            pass
+        try:
+            x,y,z = self.autofocusController.focus_map_coords[2]
+            self.fmap_coord_3.setText(f"Focus Map Point 3: ({x:.3f},{y:.3f},{z:.3f})")
+        except IndexError:
+            pass
+
+
+
+    def enable_focusmap(self):
+        self.disable_all_buttons()
+        if self.autofocusController.use_focus_map == False:
+            self.autofocusController.set_focus_map_use(True)
+        else:
+            self.autofocusController.set_focus_map_use(False)
+        if self.autofocusController.use_focus_map:
+            self.btn_enable_focusmap.setText("Disable focus map")
+        else:
+            self.btn_enable_focusmap.setText("Enable focus map")
+        self.enable_all_buttons()
+
+    def add_to_focusmap(self):
+        self.disable_all_buttons()
+        try:
+            self.autofocusController.add_current_coords_to_focus_map()
+        except ValueError:
+            pass
+        self.update_focusmap_display()
+        self.enable_all_buttons()
+
 class CameraSettingsWidget(QFrame):
 
     def __init__(self, camera, include_gain_exposure_time = True, include_camera_temperature_setting = False, main=None, *args, **kwargs):
@@ -1324,7 +1417,7 @@ class AutoFocusWidget(QFrame):
         self.setLayout(self.grid)
         
         # connections
-        self.btn_autofocus.clicked.connect(self.autofocusController.autofocus)
+        self.btn_autofocus.clicked.connect(lambda : self.autofocusController.autofocus(False))
         self.entry_delta.valueChanged.connect(self.set_deltaZ)
         self.entry_N.valueChanged.connect(self.autofocusController.set_N)
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
@@ -1462,6 +1555,10 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus = QCheckBox('Contrast AF')
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
+        self.checkbox_genFocusMap = QCheckBox('Generate focus map')
+        self.checkbox_genFocusMap.setChecked(False)
+
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
@@ -1501,6 +1598,7 @@ class MultiPointWidget(QFrame):
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
+        grid_af.addWidget(self.checkbox_genFocusMap)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
 
@@ -1531,6 +1629,7 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
@@ -1609,6 +1708,7 @@ class MultiPointWidget(QFrame):
         self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         self.checkbox_withReflectionAutofocus.setEnabled(enabled)
+        self.checkbox_genFocusMap.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
