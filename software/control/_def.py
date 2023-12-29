@@ -69,6 +69,8 @@ class Acquisition:
     DX = 0.9
     DY = 0.9
     DZ = 1.5
+    NX = 1
+    NY = 1
 
 class PosUpdate:
     INTERVAL_MS = 25
@@ -314,7 +316,8 @@ OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
                 '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
                 '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
                 '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
-                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200}, 
+                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
+                '20x':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
                 '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
@@ -444,9 +447,10 @@ DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
-STITCH_TILES_WITH_ASHLAR = False
 
 ENABLE_SPINNING_DISK_CONFOCAL=False
+
+INVERTED_OBJECTIVE = False
 
 CAMERA_TYPE="Default"
 

@@ -1407,7 +1407,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(DEFAULT_MULTIPOINT_NX)
+        self.entry_NX.setValue(Acquisition.NX)
         self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
@@ -1422,7 +1422,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(DEFAULT_MULTIPOINT_NY)
+        self.entry_NY.setValue(Acquisition.NY)
         self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
@@ -1464,6 +1464,7 @@ class MultiPointWidget(QFrame):
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)

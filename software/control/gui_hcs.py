@@ -80,6 +80,8 @@ class OctopiGUI(QMainWindow):
         self.imageDisplayTabs = QTabWidget()
         self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
         self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+        
+        self.objectiveStore = core.ObjectiveStore()
 
         # load objects
         if is_simulation:
