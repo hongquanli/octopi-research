@@ -486,6 +486,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
+            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
     def closeEvent(self, event):
         # move the objective to a defined position upon exit

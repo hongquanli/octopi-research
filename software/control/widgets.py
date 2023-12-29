@@ -1001,7 +1001,10 @@ class NavigationWidget(QFrame):
         self.btn_home_X.setEnabled(HOMING_ENABLED_X)
         self.btn_zero_X = QPushButton('Zero X')
         self.btn_zero_X.setDefault(False)
-        
+     
+        self.checkbox_clickToMove = QCheckBox('Click to move')
+        self.checkbox_clickToMove.setChecked(False)
+
         self.label_Ypos = QLabel()
         self.label_Ypos.setNum(0)
         self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -1067,26 +1070,33 @@ class NavigationWidget(QFrame):
         grid_line2.addWidget(self.btn_moveZ_forward, 0,3)
         grid_line2.addWidget(self.btn_moveZ_backward, 0,4)
         
-        grid_line3 = QGridLayout()
+        grid_line3 = QHBoxLayout()
+
+        grid_line3_buttons = QGridLayout()
         if self.widget_configuration == 'full':
-            grid_line3.addWidget(self.btn_zero_X, 0,3)
-            grid_line3.addWidget(self.btn_zero_Y, 0,4)
-            grid_line3.addWidget(self.btn_zero_Z, 0,5)
-            grid_line3.addWidget(self.btn_home_X, 0,0)
-            grid_line3.addWidget(self.btn_home_Y, 0,1)
-            grid_line3.addWidget(self.btn_home_Z, 0,2)
+            grid_line3_buttons.addWidget(self.btn_zero_X, 0,3)
+            grid_line3_buttons.addWidget(self.btn_zero_Y, 0,4)
+            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,5)
+            grid_line3_buttons.addWidget(self.btn_home_X, 0,0)
+            grid_line3_buttons.addWidget(self.btn_home_Y, 0,1)
+            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2)
         elif self.widget_configuration == 'malaria':
-            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
+            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
+            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '384 well plate':
-            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
+            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
+            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '96 well plate':
-            grid_line3.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3.addWidget(self.btn_zero_Z, 0,3,1,1)
+            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
+            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
+
+        grid_line3.addLayout(grid_line3_buttons)
+
+        grid_line3.addWidget(self.checkbox_clickToMove)
+        
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -1112,6 +1122,8 @@ class NavigationWidget(QFrame):
         self.btn_zero_X.clicked.connect(self.zero_x)
         self.btn_zero_Y.clicked.connect(self.zero_y)
         self.btn_zero_Z.clicked.connect(self.zero_z)
+
+        self.checkbox_clickToMove.stateChanged.connect(self.navigationController.set_flag_click_to_move)
 
         self.btn_load_slide.clicked.connect(self.switch_position)
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");

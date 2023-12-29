@@ -566,9 +566,12 @@ class NavigationController(QObject):
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
 
-    def __init__(self,microcontroller):
+    def __init__(self,microcontroller, parent=None):
+        # parent should be set to OctopiGUI instance to enable updates
+        # to camera settings, e.g. binning, that would affect click-to-move
         QObject.__init__(self)
         self.microcontroller = microcontroller
+        self.parent = parent
         self.x_pos_mm = 0
         self.y_pos_mm = 0
         self.z_pos_mm = 0
@@ -577,6 +580,7 @@ class NavigationController(QObject):
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
+        self.click_to_move = False
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
         self.enable_joystick_button_action = True
 
@@ -587,6 +591,56 @@ class NavigationController(QObject):
         # self.timer_read_pos.setInterval(PosUpdate.INTERVAL_MS)
         # self.timer_read_pos.timeout.connect(self.update_pos)
         # self.timer_read_pos.start()
+
+    def set_flag_click_to_move(self, flag):
+        self.click_to_move = flag
+
+    def move_from_click(self, click_x, click_y):
+        if self.click_to_move:
+            try:
+                highest_res = (0,0)
+                for res in self.parent.camera.res_list:
+                    if res[0] > highest_res[0] or res[1] > higest_res[1]:
+                        highest_res = res
+                resolution = self.parent.camera.resolution
+
+                try:
+                    pixel_binning_x = highest_res[0]/resolution[0]
+                    pixel_binning_y = highest_res[1]/resolution[1]
+                    if pixel_binning_x < 1:
+                        pixel_binning_x = 1
+                    if pixel_binning_y < 1:
+                        pixel_binning_y = 1
+                except:
+                    pixel_binning_x=1
+                    pixel_binning_y=1
+            except AttributeError:
+                pixel_binning_x = 1
+                pixel_binning_y = 1
+
+            try:
+                current_objective = self.parent.objectiveStore.current_objective
+                objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
+            except (AttributeError, KeyError):
+                objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+            magnification = objective_info["magnification"]
+            objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
+            tube_lens_mm = TUBE_LENS_MM
+            pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+
+            pixel_size_xy = pixel_size_um/(magnification/(objective_tube_lens_mm/tube_lens_mm))
+
+            pixel_size_x = pixel_size_xy*pixel_binning_x
+            pixel_size_y = pixel_size_xy*pixel_binning_y
+
+            pixel_sign_x = 1
+            pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
+
+            delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
+            delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
+
+            self.move_x(delta_x)
+            self.move_y(delta_y)
 
     def move_x(self,delta):
         self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
@@ -2322,6 +2376,8 @@ class TrackingWorker(QObject):
 
 class ImageDisplayWindow(QMainWindow):
 
+    image_click_coordinates = Signal(int, int)
+
     def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
         super().__init__()
         self.setWindowTitle(window_title)
@@ -2393,15 +2449,27 @@ class ImageDisplayWindow(QMainWindow):
         self.setFixedSize(int(width),int(height))
         self.graphics_widget.view.scene().sigMouseClicked.connect(self.mouse_clicked)
 
+    def is_within_image(self, coordinates):
+        try:
+            image_width = self.graphics_widget.img.width()
+            image_height = self.graphics_widget.img.height()
+
+            return 0 <= coordinates.x() < image_width and 0 <= coordinates.y() < image_height
+        except:
+            return False
+
     def mouse_clicked(self, evt):
-        pos = evt.pos()
-        view_coord = self.graphics_widget.view.mapSceneToView(pos)
-        image_coord = self.graphics_widget.img.mapFromView(view_coord)
+        try:
+            pos = evt.pos()
+            view_coord = self.graphics_widget.view.mapSceneToView(pos)
+            image_coord = self.graphics_widget.img.mapFromView(view_coord)
+        except:
+            return
 
-        x_pixel = int(image_coord.x())
-        y_pixel = int(image_coord.y())
-
-        print(f"Click: {x_pixel}, {y_pixel}")
+        if self.is_within_image(image_coord):
+            x_pixel_centered = int(image_coord.x() - self.graphics_widget.img.width()/2)
+            y_pixel_centered = int(image_coord.y() - self.graphics_widget.img.height()/2)
+            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered)
 
     def display_image(self,image):
         if ENABLE_TRACKING:
