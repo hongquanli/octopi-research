@@ -1381,8 +1381,6 @@ class MultiPointWorker(QObject):
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
             # along y
-            starting_x = self.navigationController.x_pos_mm*1000.0
-            starting_y = self.navigationController.y_pos_mm*1000.0
             for i in range(self.NY):
 
                 self.FOV_counter = 0 # for AF, so that AF at the beginning of each new row
