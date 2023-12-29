@@ -192,8 +192,8 @@ class OctopiGUI(QMainWindow):
 			main_dockArea.addDock(dock_controlPanel,'right')
 			self.setCentralWidget(main_dockArea)
 			desktopWidget = QDesktopWidget()
-			height_min = 0.9*desktopWidget.height()
-			width_min = 0.96*desktopWidget.width()
+			height_min = int(0.9*desktopWidget.height())
+			width_min =int(0.96*desktopWidget.width())
 			self.setMinimumSize(width_min,height_min)
 		else:
 			self.setCentralWidget(self.centralWidget)
@@ -228,8 +228,6 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
 		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
-		self.cameraSettingWidget.signal_camera_set_temperature.connect(self.camera.set_temperature)
-		self.camera.set_temperature_reading_callback(self.cameraSettingWidget.update_measured_temperature)
 
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)

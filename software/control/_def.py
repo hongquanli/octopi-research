@@ -199,6 +199,11 @@ class CMD_EXECUTION_STATUS:
     CMD_EXECUTION_ERROR = 4
     ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED = 100
 
+class CAMERA_CONFIG:
+    ROI_OFFSET_X_DEFAULT = 0
+    ROI_OFFSET_Y_DEFAULT = 0
+    ROI_WIDTH_DEFAULT = 3104
+    ROI_HEIGHT_DEFAULT = 2084
 
 ###########################################################
 #### machine specific configurations - to be overridden ###
@@ -407,6 +412,9 @@ FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field
 # controller version
 CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 
+#How to read Spinnaker nodemaps, options are INDIVIDUAL or VALUE
+CHOSEN_READ = 'INDIVIDUAL'
+
 # laser autofocus
 SUPPORT_LASER_AUTOFOCUS = False
 MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
@@ -444,7 +452,9 @@ ENABLE_SPINNING_DISK_CONFOCAL=False
 
 INVERTED_OBJECTIVE = False
 
-JVM_MAX_MEMORY_GB=4
+CAMERA_TYPE="Default"
+
+FOCUS_CAMERA_TYPE="Default"
 
 ##########################################################
 #### start of loading machine specific configurations ####
