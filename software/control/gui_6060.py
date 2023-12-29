@@ -76,7 +76,7 @@ class OctopiGUI(QMainWindow):
         self.configurationManager = core.ConfigurationManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-        self.navigationController = core.NavigationController(self.microcontroller)
+        self.navigationController = core.NavigationController(self.microcontroller, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
