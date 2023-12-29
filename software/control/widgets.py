@@ -16,8 +16,20 @@ import pandas as pd
 
 from datetime import datetime
 
-
 from control._def import *
+
+class WrapperWindow(QMainWindow):
+    def __init__(self, content_widget, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCentralWidget(content_widget)
+        self.hide()
+
+    def closeEvent(self, event):
+        self.hide()
+        event.ignore()
+
+    def closeForReal(self, event):
+        super().closeEvent(event)
 
 class CollapsibleGroupBox(QGroupBox):
     def __init__(self, title):
@@ -56,7 +68,7 @@ class ConfigEditorForAcquisitions(QDialog):
         self.save_to_file_button = QPushButton("Save to File")
         self.save_to_file_button.clicked.connect(self.save_to_file)
         self.load_config_button = QPushButton("Load Config from File")
-        self.load_config_button.clicked.connect(self.load_config_from_file)
+        self.load_config_button.clicked.connect(lambda: self.load_config_from_file(None))
 
         layout = QVBoxLayout()
         layout.addWidget(self.scroll_area)
@@ -135,7 +147,10 @@ class ConfigEditorForAcquisitions(QDialog):
                     option_name_in_xml = 'CameraSN'
                 else:
                     option_name_in_xml = option.replace("_"," ").title().replace(" ","")
-                widget = self.config_value_widgets[str(section.id)][option]
+                try:
+                    widget = self.config_value_widgets[str(section.id)][option]
+                except KeyError:
+                    continue
                 if type(widget) is QLineEdit:
                     self.config.update_configuration(section.id, option_name_in_xml, widget.text())
                 else:
@@ -291,6 +306,126 @@ class ConfigEditorBackwardsCompatible(ConfigEditor):
             pass
         self.close()
 
+class SpinningDiskConfocalWidget(QWidget):
+    def __init__(self, xlight, config_manager=None):
+        super(SpinningDiskConfocalWidget,self).__init__()
+        
+        self.config_manager = config_manager
+
+        self.xlight = xlight
+
+        self.init_ui()
+        
+        self.dropdown_emission_filter.setCurrentText(str(self.xlight.get_emission_filter()))
+        self.dropdown_dichroic.setCurrentText(str(self.xlight.get_dichroic()))
+
+        self.dropdown_emission_filter.currentIndexChanged.connect(self.set_emission_filter)
+        self.dropdown_dichroic.currentIndexChanged.connect(self.set_dichroic)
+        
+        self.disk_position_state = self.xlight.get_disk_position()        
+
+        if self.disk_position_state == 1:
+            self.btn_toggle_widefield.setText("Switch to Widefield")
+
+        if self.config_manager is not None:
+            if self.disk_position_state ==1:
+                self.config_manager.config_filename = "confocal_configurations.xml"
+            else:
+                self.config_manager.config_filename = "widefield_configurations.xml"
+            self.config_manager.configurations = []    
+            self.config_manager.read_configurations()
+        
+        self.btn_toggle_widefield.clicked.connect(self.toggle_disk_position)
+
+        self.btn_toggle_motor.clicked.connect(self.toggle_motor)
+
+    def init_ui(self):
+        
+        emissionFilterLayout = QHBoxLayout()
+        emissionFilterLayout.addWidget(QLabel("Emission Filter Position"))
+
+        self.dropdown_emission_filter = QComboBox(self)
+        self.dropdown_emission_filter.addItems([str(i+1) for i in range(8)])
+
+        emissionFilterLayout.addWidget(self.dropdown_emission_filter)
+        
+
+        dichroicLayout = QHBoxLayout()
+        dichroicLayout.addWidget(QLabel("Dichroic Position"))
+
+        self.dropdown_dichroic = QComboBox(self)
+        self.dropdown_dichroic.addItems([str(i+1) for i in range(5)])
+
+        dichroicLayout.addWidget(self.dropdown_dichroic)
+
+        dropdownLayout = QVBoxLayout()
+
+        dropdownLayout.addLayout(dichroicLayout)
+        dropdownLayout.addLayout(emissionFilterLayout)
+        dropdownLayout.addStretch()
+        
+
+        self.btn_toggle_widefield = QPushButton("Switch to Confocal")
+
+        self.btn_toggle_motor = QPushButton("Disk Motor On")
+        self.btn_toggle_motor.setCheckable(True)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.btn_toggle_motor)
+
+        layout.addWidget(self.btn_toggle_widefield)
+        layout.addLayout(dropdownLayout)
+        self.setLayout(layout)
+
+    def disable_all_buttons(self):
+        self.dropdown_emission_filter.setEnabled(False)
+        self.dropdown_dichroic.setEnabled(False)
+        self.btn_toggle_widefield.setEnabled(False)
+        self.btn_toggle_motor.setEnabled(False)
+
+    def enable_all_buttons(self):
+        self.dropdown_emission_filter.setEnabled(True)
+        self.dropdown_dichroic.setEnabled(True)
+        self.btn_toggle_widefield.setEnabled(True)
+        self.btn_toggle_motor.setEnabled(True)
+
+    def toggle_disk_position(self):
+        self.disable_all_buttons()
+        if self.disk_position_state==1:
+            self.disk_position_state = self.xlight.set_disk_position(0)
+            self.btn_toggle_widefield.setText("Switch to Confocal")
+        else:
+            self.disk_position_state = self.xlight.set_disk_position(1)
+            self.btn_toggle_widefield.setText("Switch to Widefield")
+        if self.config_manager is not None:
+            if self.disk_position_state ==1:
+                self.config_manager.config_filename = "confocal_configurations.xml"
+            else:
+                self.config_manager.config_filename = "widefield_configurations.xml"
+            self.config_manager.configurations = []    
+            self.config_manager.read_configurations()
+        self.enable_all_buttons()
+
+    def toggle_motor(self):
+        self.disable_all_buttons()
+        if self.btn_toggle_motor.isChecked():
+            self.xlight.set_disk_motor_state(True)
+        else:
+            self.xlight.set_disk_motor_state(False)
+        self.enable_all_buttons()
+
+    def set_emission_filter(self, index):
+        self.disable_all_buttons()
+        selected_pos = self.dropdown_emission_filter.currentText()
+        self.xlight.set_emission_filter(selected_pos)
+        self.enable_all_buttons()
+    
+    def set_dichroic(self, index):
+        self.disable_all_buttons()
+        selected_pos = self.dropdown_dichroic.currentText()
+        self.xlight.set_dichroic(selected_pos)
+        self.enable_all_buttons()
+  
 class ObjectivesWidget(QWidget):
     def __init__(self, objective_store):
         super(ObjectivesWidget, self).__init__()
@@ -422,8 +557,6 @@ class FocusMapWidget(QWidget):
 
 class CameraSettingsWidget(QFrame):
 
-    signal_camera_set_temperature = Signal(float)
-
     def __init__(self, camera, include_gain_exposure_time = True, include_camera_temperature_setting = False, main=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -454,6 +587,7 @@ class CameraSettingsWidget(QFrame):
         if self.camera.pixel_format is not None:
             self.dropdown_pixelFormat.setCurrentText(self.camera.pixel_format)
         else:
+            print("setting camera's default pixel format")
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.dropdown_pixelFormat.setCurrentText(DEFAULT_PIXEL_FORMAT)
         # to do: load and save pixel format in configurations
@@ -502,7 +636,6 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_offset_y.valueChanged.connect(self.set_ROI_offset)
         self.entry_ROI_height.valueChanged.connect(self.set_Height)
         self.entry_ROI_width.valueChanged.connect(self.set_Width)
-        self.entry_temperature.valueChanged.connect(self.signal_camera_set_temperature.emit)
 
         # layout
         grid_ctrl = QGridLayout()
@@ -513,11 +646,29 @@ class CameraSettingsWidget(QFrame):
             grid_ctrl.addWidget(self.entry_analogGain, 1,1)
         grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
         grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
+        try:
+            current_res = self.camera.resolution
+            current_res_string = "x".join([str(current_res[0]),str(current_res[1])])
+            res_options = [f"{res[0]}x{res[1]}" for res in self.camera.res_list]
+            self.dropdown_res = QComboBox()
+            self.dropdown_res.addItems(res_options)
+            self.dropdown_res.setCurrentText(current_res_string)
+
+            self.dropdown_res.currentTextChanged.connect(self.change_full_res)
+            grid_ctrl.addWidget(QLabel("Full Resolution"), 2,2)
+            grid_ctrl.addWidget(self.dropdown_res, 2,3)
+        except AttributeError:
+            pass
         if include_camera_temperature_setting:
             grid_ctrl.addWidget(QLabel('Set Temperature (C)'),3,0)
             grid_ctrl.addWidget(self.entry_temperature,3,1)
             grid_ctrl.addWidget(QLabel('Actual Temperature (C)'),3,2)
             grid_ctrl.addWidget(self.label_temperature_measured,3,3)
+            try:
+                self.entry_temperature.valueChanged.connect(self.set_temperature)
+                self.camera.set_temperature_reading_callback(self.update_measured_temperature)
+            except AttributeError:
+                pass
 
         hbox1 = QHBoxLayout()
         hbox1.addWidget(QLabel('ROI'))
@@ -544,24 +695,24 @@ class CameraSettingsWidget(QFrame):
         self.entry_analogGain.setValue(analog_gain)
 
     def set_Width(self):
-        width = (self.entry_ROI_width.value()//8)*8
+        width = int(self.entry_ROI_width.value()//8)*8
         self.entry_ROI_width.blockSignals(True)
         self.entry_ROI_width.setValue(width)
         self.entry_ROI_width.blockSignals(False)
         offset_x = (self.camera.WidthMax - self.entry_ROI_width.value())/2
-        offset_x = (offset_x//8)*8
+        offset_x = int(offset_x//8)*8
         self.entry_ROI_offset_x.blockSignals(True)
         self.entry_ROI_offset_x.setValue(offset_x)
         self.entry_ROI_offset_x.blockSignals(False)
         self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
     def set_Height(self):
-        height = (self.entry_ROI_height.value()//8)*8
+        height = int(self.entry_ROI_height.value()//8)*8
         self.entry_ROI_height.blockSignals(True)
         self.entry_ROI_height.setValue(height)
         self.entry_ROI_height.blockSignals(False)
         offset_y = (self.camera.HeightMax - self.entry_ROI_height.value())/2
-        offset_y = (offset_y//8)*8
+        offset_y = int(offset_y//8)*8
         self.entry_ROI_offset_y.blockSignals(True)
         self.entry_ROI_offset_y.setValue(offset_y)
         self.entry_ROI_offset_y.blockSignals(False)
@@ -570,8 +721,41 @@ class CameraSettingsWidget(QFrame):
     def set_ROI_offset(self):
     	self.camera.set_ROI(self.entry_ROI_offset_x.value(),self.entry_ROI_offset_y.value(),self.entry_ROI_width.value(),self.entry_ROI_height.value())
 
+    def set_temperature(self):
+        try:
+            self.camera.set_temperature(float(self.entry_temperature.value()))
+        except AttributeError:
+            pass
+
     def update_measured_temperature(self,temperature):
         self.label_temperature_measured.setNum(temperature)
+
+    def change_full_res(self, index):
+        res_strings = self.dropdown_res.currentText().split("x")
+        res_x = int(res_strings[0])
+        res_y = int(res_strings[1])
+        self.camera.set_resolution(res_x,res_y)
+        self.entry_ROI_offset_x.blockSignals(True)
+        self.entry_ROI_offset_y.blockSignals(True)
+        self.entry_ROI_height.blockSignals(True)
+        self.entry_ROI_width.blockSignals(True)
+
+        self.entry_ROI_height.setMaximum(self.camera.HeightMax)
+        self.entry_ROI_width.setMaximum(self.camera.WidthMax)
+
+        self.entry_ROI_offset_x.setMaximum(self.camera.WidthMax)
+        self.entry_ROI_offset_y.setMaximum(self.camera.HeightMax)
+        
+        self.entry_ROI_offset_x.setValue(int(8*self.camera.OffsetX//8))
+        self.entry_ROI_offset_y.setValue(int(8*self.camera.OffsetY//8))
+        self.entry_ROI_height.setValue(int(8*self.camera.Height//8))
+        self.entry_ROI_width.setValue(int(8*self.camera.Width//8))
+
+        self.entry_ROI_offset_x.blockSignals(False)
+        self.entry_ROI_offset_y.blockSignals(False)
+        self.entry_ROI_height.blockSignals(False)
+        self.entry_ROI_width.blockSignals(False)
+
 
 class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
@@ -1316,7 +1500,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.setMinimum(1) 
         self.entry_NX.setMaximum(50) 
         self.entry_NX.setSingleStep(1)
-        self.entry_NX.setValue(6)
+        self.entry_NX.setValue(DEFAULT_MULTIPOINT_NX)
         self.entry_NX.setKeyboardTracking(False)
 
         self.entry_deltaY = QDoubleSpinBox()
@@ -1331,7 +1515,7 @@ class MultiPointWidget(QFrame):
         self.entry_NY.setMinimum(1) 
         self.entry_NY.setMaximum(50) 
         self.entry_NY.setSingleStep(1)
-        self.entry_NY.setValue(3)
+        self.entry_NY.setValue(DEFAULT_MULTIPOINT_NY)
         self.entry_NY.setKeyboardTracking(False)
 
         self.entry_deltaZ = QDoubleSpinBox()
@@ -2761,7 +2945,8 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_set_reference.setCheckable(False)
         self.btn_set_reference.setChecked(False)
         self.btn_set_reference.setDefault(False)
-        self.btn_set_reference.setEnabled(False)
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_set_reference.setEnabled(False)
 
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -2770,7 +2955,8 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_measure_displacement.setCheckable(False)
         self.btn_measure_displacement.setChecked(False)
         self.btn_measure_displacement.setDefault(False)
-        self.btn_measure_displacement.setEnabled(False)
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_measure_displacement.setEnabled(False)
 
         self.entry_target = QDoubleSpinBox()
         self.entry_target.setMinimum(-100)
@@ -2784,8 +2970,9 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_move_to_target.setCheckable(False)
         self.btn_move_to_target.setChecked(False)
         self.btn_move_to_target.setDefault(False)
-        self.btn_move_to_target.setEnabled(False)
-
+        if not self.laserAutofocusController.is_initialized:
+            self.btn_move_to_target.setEnabled(False)
+        
         self.grid = QGridLayout()
         self.grid.addWidget(self.btn_initialize,0,0,1,3)
         self.grid.addWidget(self.btn_set_reference,1,0,1,3)

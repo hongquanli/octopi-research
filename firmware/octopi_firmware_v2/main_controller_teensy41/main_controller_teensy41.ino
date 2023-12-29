@@ -353,6 +353,8 @@ static const int ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4;
 static const int ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5;
 static const int ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_TOP_HALF = 7;
+static const int ILLUMINATION_SOURCE_LED_ARRAY_BOTTOM_HALF = 8;
 static const int ILLUMINATION_SOURCE_405NM = 11;
 static const int ILLUMINATION_SOURCE_488NM = 12;
 static const int ILLUMINATION_SOURCE_638NM = 13;
@@ -367,6 +369,8 @@ CRGB matrix[NUM_LEDS];
 void set_all(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
 void set_left(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
 void set_right(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_top(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
+void set_bottom(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
 void set_low_na(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
 void set_left_dot(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
 void set_right_dot(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b);
@@ -398,6 +402,12 @@ void turn_on_illumination()
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:
       turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT,led_matrix_r,led_matrix_g,led_matrix_b);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_TOP_HALF:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_TOP_HALF,led_matrix_r,led_matrix_g,led_matrix_b);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_BOTTOM_HALF:
+      turn_on_LED_matrix_pattern(matrix,ILLUMINATION_SOURCE_LED_ARRAY_BOTTOM_HALF,led_matrix_r,led_matrix_g,led_matrix_b);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
       break;
@@ -442,6 +452,12 @@ void turn_off_illumination()
       clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:
+      clear_matrix(matrix);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_TOP_HALF:
+      clear_matrix(matrix);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_BOTTOM_HALF:
       clear_matrix(matrix);
       break;
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
@@ -1932,6 +1948,44 @@ void set_right(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
     matrix[i].setRGB(r,g,b);
 }
 
+void set_top(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
+{
+  static const int LED_matrix_top[] = {
+        0, 1, 2, 3,
+        15, 14, 13, 12,
+        16, 17, 18, 19, 20, 21,
+        39, 38, 37, 36, 35, 34,
+        40, 41, 42, 43, 44, 45,
+        63, 62, 61, 60, 59, 58,
+        64, 65, 66, 67, 68, 69,
+        87, 86, 85, 84, 83, 82,
+        88, 89, 90, 91, 92, 93,
+        111, 110, 109, 108, 107, 106,
+        112, 113, 114, 115,
+        127, 126, 125, 124};
+  for (int i = 0; i < 64; i++)
+    matrix[LED_matrix_top[i]].setRGB(r,g,b);
+}
+
+void set_bottom(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
+{
+  static const int LED_matrix_bottom[] = {
+        4, 5, 6, 7,
+        11, 10, 9, 8,
+        22, 23, 24, 25, 26, 27,
+        33, 32, 31, 30, 29, 28,
+        46, 47, 48, 49, 50, 51,
+        57, 56, 55, 54, 53, 52,
+        70, 71, 72, 73, 74, 75,
+        81, 80, 79, 78, 77, 76,
+        94, 95, 96, 97, 98, 99,
+        105, 104, 103, 102, 101, 100,
+        116, 117, 118, 119,
+        123, 122, 121, 120};
+  for (int i = 0; i < 64; i++)
+    matrix[LED_matrix_bottom[i]].setRGB(r,g,b);
+}
+
 void set_low_na(CRGB * matrix, uint8_t r, uint8_t g, uint8_t b)
 {
   // matrix[44].setRGB(r,g,b);
@@ -2008,6 +2062,12 @@ void turn_on_LED_matrix_pattern(CRGB * matrix, int pattern, uint8_t led_matrix_r
       break;
     case ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT:
       set_right_dot(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_TOP_HALF:
+      set_top(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
+      break;
+    case ILLUMINATION_SOURCE_LED_ARRAY_BOTTOM_HALF:
+      set_bottom(matrix, led_matrix_g*GREEN_ADJUSTMENT_FACTOR, led_matrix_r*RED_ADJUSTMENT_FACTOR, led_matrix_b*BLUE_ADJUSTMENT_FACTOR);
       break;
   }
   FastLED.show();

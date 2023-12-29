@@ -49,6 +49,11 @@ cd torchvision
 sudo python3 setup.py install
 ```
 </details>
+<details>
+<summary>Modify udev permissions for toupcam to work</summary>
+If using a compatible Toupcam camera on Linux, copy the file `software/drivers and libraries/toupcam/linux/udev/99-toupcam.rules` to `/etc/udev/rules.d`
+(via `sudo cp`) before connecting the camera.
+</details>
 
 <details>
 <summary>Install CuPy (optional)</summary>
@@ -68,6 +73,10 @@ https://developer.nvidia.com/cuda-downloads
 https://nvidia.github.io/cuda-python/install.html
 https://docs.cupy.dev/en/stable/install.html
 
+</details>
+<details>
+<summary>Installing drivers and libraries for FLIR camera support</summary>
+Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/) and download and install the Spinnaker package for your version of Ubuntu (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the "flirimaging" group). After this, download the Python Spinnaker package for the appropriate version of python from the same page, and install it in either your base environment or the environment you run microscopy software in by following the instructions in its README file.
 </details>
 
 ## Configuring the software

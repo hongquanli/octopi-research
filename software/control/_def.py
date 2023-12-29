@@ -9,11 +9,16 @@ def conf_attribute_reader(string_value):
     """
     :brief: standardized way for reading config entries
     that are strings, in priority order
-    dict/list (via json) -> int -> float -> string
+    None -> bool -> dict/list (via json) -> int -> float -> string
     REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN
     DOUBLE QUOTES
     """
     actualvalue = str(string_value).strip()
+    try:
+        if str(actualvalue) == "None":
+            return None
+    except:
+        pass
     try:
         if str(actualvalue) == "True" or str(actualvalue) == "true":
             return True
@@ -192,6 +197,11 @@ class CMD_EXECUTION_STATUS:
     CMD_EXECUTION_ERROR = 4
     ERROR_CODE_EMPTYING_THE_FLUDIIC_LINE_FAILED = 100
 
+class CAMERA_CONFIG:
+    ROI_OFFSET_X_DEFAULT = 0
+    ROI_OFFSET_Y_DEFAULT = 0
+    ROI_WIDTH_DEFAULT = 3104
+    ROI_HEIGHT_DEFAULT = 2084
 
 ###########################################################
 #### machine specific configurations - to be overridden ###
@@ -358,6 +368,9 @@ MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
 # MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
 
+DEFAULT_MULTIPOINT_NX=1
+DEFAULT_MULTIPOINT_NY=1
+
 ENABLE_FLEXIBLE_MULTIPOINT = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
@@ -396,6 +409,9 @@ FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field
 # controller version
 CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 
+#How to read Spinnaker nodemaps, options are INDIVIDUAL or VALUE
+CHOSEN_READ = 'INDIVIDUAL'
+
 # laser autofocus
 SUPPORT_LASER_AUTOFOCUS = False
 MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
@@ -429,6 +445,12 @@ SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
 STITCH_TILES_WITH_ASHLAR = False
+
+ENABLE_SPINNING_DISK_CONFOCAL=False
+
+CAMERA_TYPE="Default"
+
+FOCUS_CAMERA_TYPE="Default"
 
 ##########################################################
 #### start of loading machine specific configurations ####

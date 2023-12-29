@@ -13,7 +13,6 @@ from qtpy.QtGui import *
 import control.gui_hcs as gui
 
 from configparser import ConfigParser
-from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
 import glob
 
 parser = argparse.ArgumentParser()
@@ -57,6 +56,24 @@ if __name__ == "__main__":
         config_action = QAction("Microscope Settings", win)
         config_action.triggered.connect(lambda : show_config(cf_editor_parser, config_files[0], win))
         file_menu.addAction(config_action)
+    
+    try:
+        csw = win.cswWindow
+        if csw is not None:
+            csw_action = QAction("Camera Settings",win)
+            csw_action.triggered.connect(csw.show)
+            file_menu.addAction(csw_action)
+    except AttributeError:
+        pass
+
+    try:
+        csw_fc = win.cswfcWindow
+        if csw_fc is not None:
+            csw_fc_action = QAction("Camera Settings (Focus Camera)", win)
+            csw_fc_action.triggered.connect(csw_fc.show)
+            file_menu.addAction(csw_fc_action)
+    except AttributeError:
+        pass
     
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)
