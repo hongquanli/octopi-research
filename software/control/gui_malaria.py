@@ -73,7 +73,7 @@ class OctopiGUI(QMainWindow):
         self.configurationManager = core.ConfigurationManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-        self.navigationController = core.NavigationController(self.microcontroller)
+        self.navigationController = core.NavigationController(self.microcontroller, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
@@ -233,6 +233,8 @@ class OctopiGUI(QMainWindow):
 
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+        
+        self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
 
         self.navigationController.move_to_cached_position()

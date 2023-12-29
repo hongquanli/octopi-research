@@ -456,6 +456,8 @@ CAMERA_TYPE="Default"
 
 FOCUS_CAMERA_TYPE="Default"
 
+INVERTED_OBJECTIVE = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
