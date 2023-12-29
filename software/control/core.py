@@ -588,6 +588,27 @@ class NavigationController(QObject):
         # self.timer_read_pos.timeout.connect(self.update_pos)
         # self.timer_read_pos.start()
 
+    def move_to_cached_position(self):
+        if not os.path.isfile("cache/last_coords.txt"):
+            return
+        with open("cache/last_coords.txt","r") as f:
+            for line in f:
+                try:
+                    x,y,z = line.strip("\n").strip().split(",")
+                    x = float(x)
+                    y = float(y)
+                    z = float(z)
+                    self.move_to(x,y)
+                    self.move_z_to(z)
+                    break
+                except:
+                    pass
+                break
+
+    def cache_current_position(self):
+        with open("cache/last_coords.txt","w") as f:
+            f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
+
     def move_x(self,delta):
         self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
 
@@ -1412,7 +1433,7 @@ class MultiPointWorker(QObject):
                                         pass
                         else:
                             # initialize laser autofocus if it has not been done
-                            if self.laserAutofocusController.is_initialized==False:
+                            if self.microscope.laserAutofocusController.is_initialized==False:
                                 # initialize the reflection AF
                                 self.microscope.laserAutofocusController.initialize_auto()
                                 # do contrast AF for the first FOV (if contrast AF box is checked)
@@ -1425,8 +1446,14 @@ class MultiPointWorker(QObject):
                                 # set the current plane as reference
                                 self.microscope.laserAutofocusController.set_reference()
                             else:
-                                self.microscope.laserAutofocusController.move_to_target(0)
-                                self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash 
+                                try:
+                                    self.microscope.laserAutofocusController.move_to_target(0)
+                                    self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                                except:
+                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
+                                    iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
+                                    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
                         if (self.NZ > 1):
                             # move to bottom of the z stack
@@ -2864,6 +2891,8 @@ class LaserAutofocusController(QObject):
         
         self.look_for_cache = look_for_cache
 
+        self.image = None # for saving the focus camera image for debugging when centroid cannot be found
+
         if look_for_cache:
             cache_path = "cache/laser_af_reference_plane.txt"
             try:
@@ -3100,6 +3129,7 @@ class LaserAutofocusController(QObject):
                 pass # to edit
             # read camera frame
             image = self.camera.read_frame()
+            self.image = image
             # optionally display the image
             if LASER_AF_DISPLAY_SPOT_IMAGE:
                 self.image_to_display.emit(image)

@@ -8,12 +8,45 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+from control._def import *
+
 # app specific libraries
 import control.widgets as widgets
-import control.camera as camera
+
+if CAMERA_TYPE == "Toupcam":
+    try:
+        import control.camera_toupcam as camera
+    except:
+        print("Problem importing Toupcam, defaulting to default camera")
+        import control.camera as camera
+elif CAMERA_TYPE == "FLIR":
+    try:
+        import control.camera_flir as camera
+    except:
+        print("Problem importing FLIR camera, defaulting to default camera")
+        import control.camera as camera
+else:
+    import control.camera as camera
+
+if FOCUS_CAMERA_TYPE == "Toupcam":
+    try:
+        import control.camera_toupcam as camera_fc
+    except:
+        print("Problem importing Toupcam for focus, defaulting to default camera")
+        import control.camera as camera_fc
+elif FOCUS_CAMERA_TYPE == "FLIR":
+    try:
+        import control.camera_flir as camera_fc
+    except:
+        print("Problem importing FLIR camera for focus, defaulting to default camera")
+        import control.camera as camera_fc
+else:
+    import control.camera as camera_fc
+
+
+
 import control.core as core
 import control.microcontroller as microcontroller
-from control._def import *
 
 import control.serial_peripherals as serial_peripherals
 
@@ -54,7 +87,7 @@ class OctopiGUI(QMainWindow):
                 self.xlight = serial_peripherals.XLight_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                self.camera_focus = camera.Camera_Simulation()
+                self.camera_focus = camera_fc.Camera_Simulation()
             else:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
@@ -64,10 +97,10 @@ class OctopiGUI(QMainWindow):
             try:
                 if SUPPORT_LASER_AUTOFOCUS:
                     sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMERA_MODEL)
+                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
                     self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
-                    self.camera_focus = camera.Camera(sn=sn_camera_focus)
+                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
                     self.camera_focus.open()
                 else:
                     self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
@@ -231,7 +264,7 @@ class OctopiGUI(QMainWindow):
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
-
+        
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
@@ -244,7 +277,10 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.spinningDiskConfocalWidget = widgets.SpinningDiskConfocalWidget(self.xlight, self.configurationManager)
 
-        self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
+        if CAMERA_TYPE == "Toupcam":
+            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=True, include_camera_temperature_setting = True)
+        else:
+            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=True, include_camera_temperature_setting=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
@@ -323,6 +359,16 @@ class OctopiGUI(QMainWindow):
             self.tabbedImageDisplayWindow.setFixedSize(width,height)
             self.tabbedImageDisplayWindow.show()
 
+        try:
+            self.cswWindow = widgets.WrapperWindow(self.cameraSettingWidget)
+        except AttributeError:
+            pass
+
+        try:
+            self.cswfcWindow = widgets.WrapperWindow(self.cameraSettingWidget_focus_camera)
+        except AttributeError:
+            pass
+
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
         self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
@@ -382,7 +428,11 @@ class OctopiGUI(QMainWindow):
             self.camera_focus.start_streaming()
 
             # widgets
-            self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=False)
+            if FOCUS_CAMERA_TYPE == "Toupcam":
+                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=True, include_camera_temperature_setting = True)
+            else:
+                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time=True, include_camera_temperature_setting=False)
+
             self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
             self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
@@ -436,8 +486,11 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
+        self.navigationController.move_to_cached_position()
 
     def closeEvent(self, event):
+
+        self.navigationController.cache_current_position()
 
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
@@ -465,5 +518,15 @@ class OctopiGUI(QMainWindow):
             self.camera_focus.close()
             self.imageDisplayWindow_focus.close()
         self.microcontroller.close()
+
+        try:
+            self.cswWindow.closeForReal(event)
+        except AttributeError:
+            pass
+
+        try:
+            self.cswfcWindow.closeForReal(event)
+        except AttributeError:
+            pass
 
         event.accept()
