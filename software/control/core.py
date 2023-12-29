@@ -9,10 +9,10 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 from control.processing_handler import ProcessingHandler
-from control.stitcher import Stitcher, default_image_reader
 
 import control.utils as utils
 from control._def import *
+
 import control.tracking as tracking
 try:
     from control.multipoint_custom_script_entry import *
@@ -1447,6 +1447,9 @@ class MultiPointWorker(QObject):
         current_path = os.path.join(self.base_path,self.experiment_ID,str(self.time_point))
         os.mkdir(current_path)
 
+        slide_path = os.path.join(self.base_path, self.experiment_ID)
+
+
         # create a dataframe to save coordinates
         self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
 
@@ -1488,6 +1491,7 @@ class MultiPointWorker(QObject):
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
                 coordiante_name = coordiante_name + '_'
+
 
             self.x_scan_direction = 1
             self.dx_usteps = 0 # accumulated x displacement
@@ -1573,8 +1577,13 @@ class MultiPointWorker(QObject):
 
                         # z-stack
                         for k in range(self.NZ):
-
-                            file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j) + '_' + str(k)
+                            
+                            # Ensure that i/y-indexing is always top to bottom
+                            sgn_i = -1 if self.deltaY >= 0 else 1
+                            if INVERTED_OBJECTIVE:
+                                sgn_i = -sgn_i
+                            sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
+                            file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
@@ -1625,12 +1634,6 @@ class MultiPointWorker(QObject):
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-                                    stitcher_tile_path = None
-                                    stitcher_of_interest = None
-                                    stitcher_key = str(config.name)+"_Z_"+str(k)
-                                    stitcher_tiled_file_path = os.path.join(current_path, "stitch_input_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.tiff') 
-                                    stitcher_stitched_file_path = os.path.join(current_path,"stitch_output_"+str(config.name).replace(' ','_')+"_Z_"+str(k)+'.ome.tiff')
-                                    stitcher_default_options = {'align_channel':0,'maximum_shift':int(min(self.crop_width,self.crop_height)*0.05),'filter_sigma':1,'stdout':subprocess.STDOUT} # add to UI later
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1640,7 +1643,6 @@ class MultiPointWorker(QObject):
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
                                         iio.imwrite(saving_path,image)
-                                        stitcher_tile_path = saving_path
                                     else:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                         if self.camera.is_color:
@@ -1654,29 +1656,7 @@ class MultiPointWorker(QObject):
                                             else:
                                                 image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
                                         cv2.imwrite(saving_path,image)
-                                        stitcher_tile_path = saving_path
-                                    if self.multiPointController.do_stitch_tiles:
-                                        try:
-                                            stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
-                                        except:
-                                            self.multiPointController.tile_stitchers[stitcher_key] = Stitcher(stitcher_tiled_file_path, stitcher_stitched_file_path, stitcher_default_options, auto_run_ashlar=True, image_reader = self.multiPointController.stitcher_image_reader)
-                                            stitcher_of_interest = self.multiPointController.tile_stitchers[stitcher_key]
-                                            stitcher_of_interest.start_ometiff_writer()
-                                        tile_metadata = {
-                                                'Pixels': {
-                                                    'PhysicalSizeX': 1, # need to get microscope info for actual values for these, if they are necessary
-                                                    'PhysicalSizeXUnit': 'μm',
-                                                    'PhysicalSizeY': 1,
-                                                    'PhysicalSizeYUnit': 'μm',
-                                                    },
-                                                'Plane': {
-                                                    'PositionX':int((j if self.x_scan_direction==1 else self.NX-1-j)*self.crop_width),
-                                                    'PositionY':int(i*self.crop_height)
-                                                    }
-                                                }
-                                        stitcher_of_interest.add_tile(stitcher_tile_path, tile_metadata)
-                                    
-
+                                        
                                     current_round_images[config.name] = np.copy(image)
 
                                     QApplication.processEvents()
@@ -1699,7 +1679,7 @@ class MultiPointWorker(QObject):
 
                                                             
                             # add the coordinate of the current location
-                            new_row = pd.DataFrame({'i':[i],'j':[j if self.x_scan_direction==1 else self.NX-1-j],'k':[k],
+                            new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
                                                     'z (um)':[self.navigationController.z_pos_mm*1000]},
@@ -1818,12 +1798,10 @@ class MultiPointController(QObject):
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
 
-    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None, stitcher_image_reader =default_image_reader):
+    def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
 
         self.camera = camera
-        self.stitcher_image_reader = stitcher_image_reader
-        self.tile_stitchers = {}
         self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
@@ -1846,7 +1824,6 @@ class MultiPointController(QObject):
         self.deltat = 0
         self.do_autofocus = False
         self.do_reflection_af = False
-        self.do_stitch_tiles = False
         self.gen_focus_map = False
         self.focus_map_storage = []
         self.already_using_fmap = False
@@ -1923,7 +1900,16 @@ class MultiPointController(QObject):
                 acquisition_parameters['objective'][k]=objective_info[k]
             acquisition_parameters['objective']['name']=current_objective
         except:
-            pass
+            try:
+                objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+                acquisition_parameters['objective'] = {}
+                for k in objective_info.keys():
+                    acquisition_parameters['objective'][k] = objective_info[k]
+                acquisition_parameters['objective']['name']=DEFAULT_OBJECTIVE
+            except:
+                pass
+        acquisition_parameters['sensor_pixel_size_um'] = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+        acquisition_parameters['tube_lens_mm'] = TUBE_LENS_MM
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
@@ -1936,7 +1922,6 @@ class MultiPointController(QObject):
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
-        self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
             print(location_list)
@@ -1979,6 +1964,7 @@ class MultiPointController(QObject):
                 self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
             except:
                 pass
+        
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a QThread object
@@ -2044,9 +2030,6 @@ class MultiPointController(QObject):
             for x,y,z in self.focus_map_storage:
                 self.autofocusController.focus_map_coords.append((x,y,z))
             self.autofocusController.use_focus_map = self.already_using_fmap
-        if self.do_stitch_tiles:
-            for k in self.tile_stitchers.keys():
-                self.tile_stitchers[k].all_tiles_added()
         self.signal_current_configuration.emit(self.configuration_before_running_multipoint)
 
         # re-enable callback

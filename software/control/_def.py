@@ -69,6 +69,8 @@ class Acquisition:
     DX = 0.9
     DY = 0.9
     DZ = 1.5
+    NX = 1
+    NY = 1
 
 class PosUpdate:
     INTERVAL_MS = 25
@@ -314,7 +316,8 @@ OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
                 '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
                 '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
                 '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
-                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200}, 
+                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
+                '20x':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
                 '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
@@ -444,9 +447,10 @@ DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
-STITCH_TILES_WITH_ASHLAR = False
 
 ENABLE_SPINNING_DISK_CONFOCAL=False
+
+INVERTED_OBJECTIVE = False
 
 CAMERA_TYPE="Default"
 
@@ -455,11 +459,24 @@ FOCUS_CAMERA_TYPE="Default"
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
+CACHED_CONFIG_FILE_PATH = None
+try:
+    with open("cache/config_file_path.txt", 'r') as file:
+        for line in file:
+            CACHED_CONFIG_FILE_PATH = line
+            break
+except FileNotFoundError:
+    CACHED_CONFIG_FILE_PATH = None
+
 config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
-        print('multiple machine configuration files found, the program will exit')
-        exit()
+        if CACHED_CONFIG_FILE_PATH in config_files:
+            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            config_files = [CACHED_CONFIG_FILE_PATH]
+        else:
+            print('multiple machine configuration files found, the program will exit')
+            exit()
     print('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
@@ -486,6 +503,9 @@ if config_files:
             continue
         myclass = locals()[classkey]
         populate_class_from_dict(myclass,pop_items)
+    with open("cache/config_file_path.txt", 'w') as file:
+        file.write(config_files[0])
+    CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
     print('configuration*.ini file not found, defaulting to legacy configuration')
     config_files = glob.glob('.' + '/' + 'configuration*.txt')
