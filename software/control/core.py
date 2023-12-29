@@ -641,6 +641,26 @@ class NavigationController(QObject):
 
             self.move_x(delta_x)
             self.move_y(delta_y)
+    def move_to_cached_position(self):
+        if not os.path.isfile("cache/last_coords.txt"):
+            return
+        with open("cache/last_coords.txt","r") as f:
+            for line in f:
+                try:
+                    x,y,z = line.strip("\n").strip().split(",")
+                    x = float(x)
+                    y = float(y)
+                    z = float(z)
+                    self.move_to(x,y)
+                    self.move_z_to(z)
+                    break
+                except:
+                    pass
+                break
+
+    def cache_current_position(self):
+        with open("cache/last_coords.txt","w") as f:
+            f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
 
     def move_x(self,delta):
         self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))

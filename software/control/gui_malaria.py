@@ -231,10 +231,13 @@ class OctopiGUI(QMainWindow):
 
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
-
+        
         self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
+        self.navigationController.move_to_cached_position()
+
     def closeEvent(self, event):
+        self.navigationController.cache_current_position()
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
         self.navigationController.home()

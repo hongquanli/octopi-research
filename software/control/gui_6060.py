@@ -158,6 +158,7 @@ class OctopiGUI(QMainWindow):
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
 
+
         # load widgets
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
@@ -261,8 +262,10 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
         self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+        self.navigationController.move_to_cached_position()
 
     def closeEvent(self, event):
+        self.navigationController.cache_current_position()
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
         self.navigationController.home()
