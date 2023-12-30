@@ -461,6 +461,7 @@ INVERTED_OBJECTIVE = False
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
+os.makedirs("cache/", exist_ok=True)
 CACHED_CONFIG_FILE_PATH = None
 try:
     with open("cache/config_file_path.txt", 'r') as file:
