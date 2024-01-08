@@ -2597,8 +2597,11 @@ class ImageDisplayWindow(QMainWindow):
         width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
         height = width
         self.setFixedSize(int(width),int(height))
-        self.graphics_widget.view.scene().sigMouseClicked.connect(self.mouse_clicked)
-
+        if self.show_LUT:
+            self.graphics_widget.view.getView().scene().sigMouseClicked.connect(self.mouse_clicked)
+        else:
+            self.graphics_widget.view.scene().sigMouseClicked.connect(self.mouse_clicked)
+        
     def is_within_image(self, coordinates):
         try:
             image_width = self.graphics_widget.img.width()
@@ -2611,7 +2614,10 @@ class ImageDisplayWindow(QMainWindow):
     def mouse_clicked(self, evt):
         try:
             pos = evt.pos()
-            view_coord = self.graphics_widget.view.mapSceneToView(pos)
+            if self.show_LUT:
+                view_coord = self.graphics_widget.view.getView().mapSceneToView(pos)
+            else:
+                view_coord = self.graphics_widget.view.mapSceneToView(pos)
             image_coord = self.graphics_widget.img.mapFromView(view_coord)
         except:
             return
@@ -2619,7 +2625,7 @@ class ImageDisplayWindow(QMainWindow):
         if self.is_within_image(image_coord):
             x_pixel_centered = int(image_coord.x() - self.graphics_widget.img.width()/2)
             y_pixel_centered = int(image_coord.y() - self.graphics_widget.img.height()/2)
-            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered)
+            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered) 
 
     def display_image(self,image):
         if ENABLE_TRACKING:
