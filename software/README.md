@@ -1,22 +1,15 @@
 ## Setting up the environments
-
-### install software dependencies
+Run the following script in terminal to clone the repo and set up the environment
 ```
-sudo rm /var/lib/apt/lists/lock
-sudo apt-get update
-sudo apt-get install python3-pip
-sudo apt-get install python3-pyqtgraph
-sudo apt-get install python3-pyqt5
-sudo apt-get install git
-git clone https://github.com/hongquanli/octopi-research.git
-pip3 install qtpy pyserial pandas imageio pyqt5-tools pyqtgraph scipy tensorrt crc==1.3.0
-python3 -m pip install --upgrade --user setuptools==58.3.0
-pip3 install opencv-python opencv-contrib-python
-pip3 install lxml
-pip3 install numpy
+wget https://raw.githubusercontent.com/hongquanli/octopi-research/master/software/setup_22.04.sh
+chmod +x setup_22.04.sh
+./setup_22.04.sh
 ```
+Reboot the computer to finish the installation.
 
-#### image stitching dependencies (optional)
+## Optional or Hardware-specific dependencies
+
+### image stitching dependencies (optional)
 For optional image stitching using ImageJ, additionally run the following:
 ```
 sudo apt-get update
@@ -39,18 +32,6 @@ export JAVA_HOME = $JAVA_HOME
 export PATH=$JAVA_HOME/bin:$PATH
 ```
 
-### install camera drivers
-If you're using Daheng cameras, follow instructions in the `drivers and libraries/daheng camera` folder
-
-If you're using The Imaging Source cameras, follow instructions on https://github.com/TheImagingSource/tiscamera 
-
-### enable access to serial ports without sudo
-
-```
-sudo usermod -aG dialout $USER
-```
-Reboot the computer for the setting to take effect.
-
 <details>
 <summary>Jetson Nano Instructions (last modified: July 2020)</summary>
 
@@ -71,11 +52,6 @@ git clone --branch torchvision v0.6.0 https://github.com/pytorch/vision torchvis
 cd torchvision
 sudo python3 setup.py install
 ```
-</details>
-<details>
-<summary>Modify udev permissions for toupcam to work</summary>
-If using a compatible Toupcam camera on Linux, copy the file `software/drivers and libraries/toupcam/linux/udev/99-toupcam.rules` to `/etc/udev/rules.d`
-(via `sudo cp`) before connecting the camera.
 </details>
 
 <details>
@@ -99,7 +75,15 @@ https://docs.cupy.dev/en/stable/install.html
 </details>
 <details>
 <summary>Installing drivers and libraries for FLIR camera support</summary>
-Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/) and download and install the Spinnaker package for your version of Ubuntu (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the "flirimaging" group). After this, download the Python Spinnaker package for the appropriate version of python from the same page, and install it in either your base environment or the environment you run microscopy software in by following the instructions in its README file.
+Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/), register and download "Spinnaker 3.1.0.79 for Ubuntu 22.04" and "Spinnaker 3.1.0.79 for Ubuntu 22.04 Python" (choose 64-bit AMD if you're not using an ARM-based CPU). Install the Spinnaker package (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the "flirimaging" group) and the python package.
+</details>
+
+<details>
+<summary>Add udev rules for ToupTek cameras</summary>
+
+```
+sudo cp drivers\ and\ libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/rules.d
+```
 </details>
 
 ## Configuring the software

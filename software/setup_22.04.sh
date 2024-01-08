@@ -11,10 +11,12 @@ sudo apt install python3-pyqtgraph python3-pyqt5 -y
 sudo apt-get install git -y
 cd ~/Desktop
 git clone https://github.com/hongquanli/octopi-research.git
+cd octopi-research/software
+mkdir cache
 
 # install libraries 
-pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy 
-pip3 install opencv-python-headless
+pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile
+pip3 install opencv-python-headless opencv-contrib-python-headless
 
 # install camera drivers
 cd ~/Desktop/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.1911.9122
