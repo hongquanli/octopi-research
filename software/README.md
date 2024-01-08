@@ -75,7 +75,7 @@ https://docs.cupy.dev/en/stable/install.html
 </details>
 <details>
 <summary>Installing drivers and libraries for FLIR camera support</summary>
-Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/) and download and install the Spinnaker package for your version of Ubuntu (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the "flirimaging" group). After this, download the Python Spinnaker package for the appropriate version of python from the same page, and install it in either your base environment or the environment you run microscopy software in by following the instructions in its README file.
+Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/), register and download Spinnaker 3.1.0.79 for Ubuntu 22.04 Python. Install the Spinnaker package (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the "flirimaging" group).
 </details>
 
 <details>
