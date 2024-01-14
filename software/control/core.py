@@ -1504,7 +1504,7 @@ class MultiPointWorker(QObject):
 
 
         # create a dataframe to save coordinates
-        self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)'])
+        self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
 
         n_regions = len(self.scan_coordinates_mm)
 
@@ -1735,7 +1735,8 @@ class MultiPointWorker(QObject):
                             new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
-                                                    'z (um)':[self.navigationController.z_pos_mm*1000]},
+                                                    'z (um)':[self.navigationController.z_pos_mm*1000],
+                                                    'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')},
                                                     )
                             self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
