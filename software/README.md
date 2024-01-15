@@ -54,24 +54,13 @@ sudo cp drivers\ and\ libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/ru
 </details>
 
 ## Configuring the software
-Create a `configuration.txt` file in the software folder to set up variables for a specific machine. The file is loaded by [`control/_def.py`](https://github.com/hongquanli/octopi-research/blob/master/software/control/_def.py) There should be only one `configuration*.txt` file in the software folder. You may edit the [`configuration_example.txt` file](https://github.com/hongquanli/octopi-research/blob/master/software/configuration_example.txt) and rename it.
-
-The following aspects are specified in the configuration file:
-- stage movement signs (what is forward vs backward) (e.g. `STAGE_MOVEMENT_SIGN_X`)
-- stage motor and lead screw specs (in particular screw pitch, e.g. `SCREW_PITCH_X_MM`)
-- whether encoders are used and encoder-related settings (e.g. `USE_ENCODER_X`)
-- whether homing is enabled for a particular axis (e.g. `HOMING_ENABLED_X`)
-- whether tracking is enabled (`ENABLE_TRACKING`)
-- plate reader related definations (`class PLATE_READER`)
+Copy the .ini file associated with the microscope configuration to the software folder. Make modifications as needed (e.g. `camera_type`, `support_laser_autofocus`,`focus_camera_exposure_time_ms`)
 
 ## Using the software
-Use one of the following to start the program
 ```
-python3 main.py
-python3 main_malaria.py
 python3 main_hcs.py
 ```
 To start the program when no hardware is connected, use
 ```
-python3 main.py --simulation
+python3 main_hcs.py --simulation
 ```
