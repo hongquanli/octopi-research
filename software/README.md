@@ -9,7 +9,8 @@ Reboot the computer to finish the installation.
 
 ## Optional or Hardware-specific dependencies
 
-### image stitching dependencies (optional)
+<details>
+<summary>image stitching dependencies (optional)</summary>
 For optional image stitching using ImageJ, additionally run the following:
 ```
 sudo apt-get update
@@ -31,51 +32,17 @@ source /etc/environment
 export JAVA_HOME = $JAVA_HOME
 export PATH=$JAVA_HOME/bin:$PATH
 ```
-
-<details>
-<summary>Jetson Nano Instructions (last modified: July 2020)</summary>
-
-### (optional) install pytorch and torchvision on Jetson Nano
-Follow instructions on https://forums.developer.nvidia.com/t/pytorch-for-jetson-nano-version-1-5-0-now-available/72048
-
-```
-sudo apt-get install libhdf5-serial-dev hdf5-tools libhdf5-dev zlib1g-dev zip libjpeg8-dev liblapack-dev libblas-dev gfortran
-sudo apt-get install python3-pip libopenblas-base libopenmpi-dev 
-pip3 install -U pip testresources setuptools
-pip3 install Cython
-wget https://nvidia.box.com/shared/static/3ibazbiwtkl181n95n9em3wtrca7tdzp.whl -o torch-1.5.0-cp36-cp36m-linux_aarch64.whl
-pip3 install torch-1.5.0-cp36-cp36m-linux_aarch64.whl
-```
-```
-sudo apt-get install libjpeg-dev zlib1g-dev
-git clone --branch torchvision v0.6.0 https://github.com/pytorch/vision torchvision   # see below for version of torchvision to download
-cd torchvision
-sudo python3 setup.py install
-```
 </details>
 
-<details>
-<summary>Install CuPy (optional)</summary>
-
-From March 2023 w/ RTX3050
-```
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
-sudo dpkg -i cuda-keyring_1.0-1_all.deb
-sudo apt-get update
-sudo apt-get -y install cuda
-
-pip3 install cupy-cuda12x
-pip3 install cuda-python
-```
-For latest instructions, refer to 
-https://developer.nvidia.com/cuda-downloads
-https://nvidia.github.io/cuda-python/install.html
-https://docs.cupy.dev/en/stable/install.html
-
-</details>
 <details>
 <summary>Installing drivers and libraries for FLIR camera support</summary>
-Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/), register and download "Spinnaker 3.1.0.79 for Ubuntu 22.04" and "Spinnaker 3.1.0.79 for Ubuntu 22.04 Python" (choose 64-bit AMD if you're not using an ARM-based CPU). Install the Spinnaker package (follow the instructions in the README, and when prompted by the install script, add root and the user launching the microscopy software to the "flirimaging" group) and the python package.
+Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/) and register.
+
+Open the software/drivers and libraries/flir folder in terminal and run the following
+```
+sh ./install_spinnaker.sh
+sh ./install_PySpin.sh
+```
 </details>
 
 <details>
