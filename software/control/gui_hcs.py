@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import time
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
@@ -121,9 +122,11 @@ class OctopiGUI(QMainWindow):
 
         # reset the MCU
         self.microcontroller.reset()
+        time.sleep(0.5)
 
         # reinitialize motor drivers and DAC (in particular for V2.1 driver board where PG is not functional)
         self.microcontroller.initialize_drivers()
+        time.sleep(0.5)
 
         # configure the actuators
         self.microcontroller.configure_actuators()
@@ -220,6 +223,12 @@ class OctopiGUI(QMainWindow):
                 print('z homing timeout, the program will exit')
                 exit()
         print('objective retracted')
+
+        # enable PID
+        self.microcontroller.configure_stage_pid(2, transitions_per_revolution=3000, flip_direction=True)
+        self.microcontroller.turn_on_stage_pid(2)
+        time.sleep(0.5)
+
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
         # home XY, set zero and set software limit
@@ -266,7 +275,7 @@ class OctopiGUI(QMainWindow):
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
-        
+
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
@@ -509,6 +518,9 @@ class OctopiGUI(QMainWindow):
         self.navigationController.move_y_to(30)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
+
+        # stop PID control
+        self.microcontroller.turn_off_stage_pid(2)
 
         self.liveController.stop_live()
         self.camera.close()

@@ -84,11 +84,6 @@ class Microcontroller():
         self.send_command(cmd)
         print('reset the microcontroller') # debug
 
-    def getinfo(self):
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.GETINFO
-        self.send_command(cmd)
-
     def initialize_drivers(self):
         self._cmd_id = 0
         cmd = bytearray(self.tx_buffer_length)
@@ -661,8 +656,6 @@ class Microcontroller():
             self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
 
-            #print(msg[19:23])
-            
             self.button_and_switch_state = msg[18]
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
