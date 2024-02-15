@@ -226,3 +226,45 @@ class XLight:
         current_pos = self.serial_connection.write_and_check("rN\r","rN")
         self.disk_motor_state = bool(int(current_pos[2]))
         return self.disk_motor_state
+
+class LDI:
+    """Wrapper for communicating with LDI over serial"""
+    def __init__(self, SN="00000001"):
+        """
+        Provide serial number (default is that of the device
+        cephla already has) for device-finding purposes. Otherwise, all
+        XLight devices should use the same serial protocol
+        """
+        self.serial_connection = SerialDevice(SN=SN,baudrate=9600,
+                bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
+                parity=serial.PARITY_NONE, 
+                xonxoff=False,rtscts=False,dsrdtr=False)
+        self.serial_connection.open_ser()
+    
+    def run(self):
+        self.serial_connection.write_and_check("run!\r","ok")
+
+    def set_intensity(self,channel,intensity):
+        channel = str(channel)
+        intensity = "{:.2f}".format(intensity)
+        print('set:'+channel+'='+intensity+'\r')
+        self.serial_connection.write_and_check('set:'+channel+'='+intensity+'\r',"ok")
+        print('active channel: ' + str(self.active_channel))
+    
+    def set_shutter(self,channel,state):
+        channel = str(channel)
+        state = str(state)
+        self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")
+
+    def get_shutter_state(self):
+        self.serial_connection.write_and_check('shutter?\r','')
+
+    def set_active_channel(self,channel):
+        self.active_channel = channel
+        print('[set active channel to ' + str(channel) + ']')
+
+    def set_active_channel_shutter(self,state):
+        channel = str(self.active_channel)
+        state = str(state)
+        print('shutter:'+channel+'='+state+'\r')
+        self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")
