@@ -42,6 +42,8 @@ import imageio as iio
 
 import subprocess
 
+import control.celesta as celesta
+
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
         self.objectives_dict = objectives_dict
@@ -416,20 +418,36 @@ class LiveController(QObject):
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
+        self.celesta = celesta.CELESTA(ip = '192.168.201.200')
+        self.activte_celesta_channel = None
+
     # illumination control
     def turn_on_illumination(self):
-        self.microcontroller.turn_on_illumination()
+        if 'Fluorescence' in self.currentConfiguration.name:
+            self.celesta.setLaserOnOff(self.activte_celesta_channel,True)
+        else:
+            self.microcontroller.turn_on_illumination()
         self.illumination_on = True
 
     def turn_off_illumination(self):
-        self.microcontroller.turn_off_illumination()
+        if 'Fluorescence' in self.currentConfiguration.name:
+            self.celesta.setLaserOnOff(self.activte_celesta_channel,False)
+        else:
+            self.microcontroller.turn_off_illumination()
         self.illumination_on = False
 
     def set_illumination(self,illumination_source,intensity):
         if illumination_source < 10: # LED matrix
             self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
-            self.microcontroller.set_illumination(illumination_source,intensity)
+            if 'Fluorescence' in self.currentConfiguration.name:
+                laser_id = illumination_source-20
+                print('set active channel to ' + str(laser_id))
+                self.activte_celesta_channel = int(laser_id)
+                print('set intensity')
+                self.celesta.set_intensity(self.activte_celesta_channel,intensity*10)
+            else:
+                self.microcontroller.set_illumination(illumination_source,intensity)
 
     def start_live(self):
         self.is_live = True
