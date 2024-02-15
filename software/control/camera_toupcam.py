@@ -81,7 +81,7 @@ class Camera(object):
     def _TDIBWIDTHBYTES(w):
         return (w * 24 + 31) // 32 * 4
 
-    def __init__(self,sn=None,resolution=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+    def __init__(self,sn=None,resolution=(3104,2084),is_global_shutter=False,rotate_image_angle=None,flip_image=None):
 
         # many to be purged
         self.sn = sn
