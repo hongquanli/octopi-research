@@ -29,13 +29,12 @@ class CELESTA(object):
         """
         self.on = False
         self.ip = kwds.get('ip', '192.168.201.200')
-        self.laser_id = str(kwds.get('laser_id', 0))
         [self.pmin, self.pmax] = 0,1000
         try:
             # See if the system returns back the right IP.
             self.message = self.getIP()
             assert (self.message['message'] == 'A IP '+self.ip)
-            assert (int(self.laser_id)<self.getNumberLasers())
+            self.n_lasers = self.getNumberLasers()
             self.live = True
         except:
             print(traceback.format_exc())
@@ -45,8 +44,9 @@ class CELESTA(object):
         if self.live:
             [self.pmin, self.pmax] = self.getPowerRange()
             self.setExtControl(True)
-            if (not self.getLaserOnOff()):
-                self.setLaserOnOff(False)
+            for i in range(self.n_lasers:)
+                if (not self.getLaserOnOff(i)):
+                    self.setLaserOnOff(i,False)
 
     def getNumberLasers(self):
         """Return the number of lasers the current lumencor system can control"""
@@ -55,12 +55,12 @@ class CELESTA(object):
             return len(self.message['message'].split(' '))-2
         return 0
 
-    def getColor(self):
+    def getColor(self,laser_id):
         """Returns the color of the current laser"""
         self.message = lumencor_httpcommand(command ='GET CHMAP', ip=self.ip)
         colors = self.message['message'].split(' ')[2:]
         print(colors)
-        return colors[int(self.laser_id)]
+        return colors[int(laser_id)]
 
     def getIP(self):
         self.message = lumencor_httpcommand(command = 'GET IP', ip=self.ip)
@@ -84,11 +84,11 @@ class CELESTA(object):
             ttl_enable = '0'
         self.message = lumencor_httpcommand(command = 'SET TTLENABLE '+ttl_enable,ip=self.ip)
 
-    def getLaserOnOff(self):
+    def getLaserOnOff(self,laser_id):
         """
         Return True/False the laser is on/off.
         """
-        self.message = lumencor_httpcommand(command = 'GET CH '+self.laser_id, ip=self.ip)
+        self.message = lumencor_httpcommand(command = 'GET CH '+laser_id, ip=self.ip)
         response = self.message['message']
         self.on = response[-1]=='1'
         return self.on
@@ -103,35 +103,35 @@ class CELESTA(object):
             max_int = float(self.message['message'].split(' ')[-1])
         return [0, max_int]
 
-    def getPower(self):
+    def getPower(self,laser_id):
         """
         Return the current laser power.
         """
-        self.message = lumencor_httpcommand(command = 'GET CHINT '+self.laser_id, ip=self.ip)
+        self.message = lumencor_httpcommand(command = 'GET CHINT '+laser_id, ip=self.ip)
         response = self.message['message']
         power = float(response.split(' ')[-1])
         return power
 
-    def setLaserOnOff(self, on):
+    def setLaserOnOff(self, laser_id, on):
         """
         Turn the laser on/off.
         """
         if on:
-            self.message = lumencor_httpcommand(command = 'SET CH '+self.laser_id+' 1', ip=self.ip)
+            self.message = lumencor_httpcommand(command = 'SET CH '+laser_id+' 1', ip=self.ip)
             self.on = True
         else:
-            self.message = lumencor_httpcommand(command = 'SET CH '+self.laser_id+' 0', ip=self.ip)
+            self.message = lumencor_httpcommand(command = 'SET CH '+laser_id+' 0', ip=self.ip)
             self.on = False
         print("Turning On/Off", self.on, self.message)
 
-    def setPower(self, power_in_mw):
+    def setPower(self, laser_id, power_in_mw):
         """
         power_in_mw - The desired laser power in mW.
         """
         print("Setting Power", power_in_mw, self.message)
         if power_in_mw > self.pmax:
             power_in_mw = self.pmax
-        self.message = lumencor_httpcommand(command ='SET CHINT '+self.laser_id+' '+ str(int(power_in_mw)), ip=self.ip)
+        self.message = lumencor_httpcommand(command ='SET CHINT '+laser_id+' '+ str(int(power_in_mw)), ip=self.ip)
         if self.message['message'][0]=='A':
             return True
         return False
@@ -141,8 +141,9 @@ class CELESTA(object):
         Turn the laser off.
         """
         if self.live:
-            self.setPower(0)
-            self.setLaserOnOff(False)
+            for i in range(self.n_lasers):
+                self.setPower(i,0)
+                self.setLaserOnOff(i,False)
 
     def getStatus(self):
         """
