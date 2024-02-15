@@ -1,10 +1,12 @@
-#!/usr/bin/env python
 """
 Generic Lumencor laser control via HTTP (ethernet connection).
 Bogdan 3/19
+
+revised HL 2/2024
 """
 import urllib.request
 import traceback
+
 def lumencor_httpcommand(command = 'GET IP',ip = '192.168.201.200'):
     """
     Sends commands to the lumencor system via http.
@@ -16,7 +18,7 @@ def lumencor_httpcommand(command = 'GET IP',ip = '192.168.201.200'):
         message = eval(response.read()) # the default is conveniently JSON so eval creates dictionary
     return message
 
-class LumencorLaser(object):
+class CELESTA(object):
     """
     This controls a lumencor object (default: Celesta) using HTTP.
     Please connect the provided cat5e, RJ45 ethernet cable between the PC and Lumencor system.
@@ -45,21 +47,25 @@ class LumencorLaser(object):
             self.setExtControl(True)
             if (not self.getLaserOnOff()):
                 self.setLaserOnOff(False)
+
     def getNumberLasers(self):
         """Return the number of lasers the current lumencor system can control"""
         self.message = lumencor_httpcommand(command ='GET CHMAP', ip=self.ip)
         if self.message['message'][0]=='A':
             return len(self.message['message'].split(' '))-2
         return 0
+
     def getColor(self):
         """Returns the color of the current laser"""
         self.message = lumencor_httpcommand(command ='GET CHMAP', ip=self.ip)
         colors = self.message['message'].split(' ')[2:]
         print(colors)
         return colors[int(self.laser_id)]
+
     def getIP(self):
         self.message = lumencor_httpcommand(command = 'GET IP', ip=self.ip)
         return self.message
+
     def getExtControl(self):
         """
         Return True/False the lasers can be controlled with TTL.
@@ -67,6 +73,7 @@ class LumencorLaser(object):
         self.message = lumencor_httpcommand(command = 'GET TTLENABLE', ip=self.ip)
         response = self.message['message']
         return response[-1]=='1'
+
     def setExtControl(self, mode):
         """
         Turn on/off external TTL control mode.
@@ -76,7 +83,7 @@ class LumencorLaser(object):
         else:
             ttl_enable = '0'
         self.message = lumencor_httpcommand(command = 'SET TTLENABLE '+ttl_enable,ip=self.ip)
-        
+
     def getLaserOnOff(self):
         """
         Return True/False the laser is on/off.
@@ -116,6 +123,7 @@ class LumencorLaser(object):
             self.message = lumencor_httpcommand(command = 'SET CH '+self.laser_id+' 0', ip=self.ip)
             self.on = False
         print("Turning On/Off", self.on, self.message)
+
     def setPower(self, power_in_mw):
         """
         power_in_mw - The desired laser power in mW.
@@ -127,6 +135,7 @@ class LumencorLaser(object):
         if self.message['message'][0]=='A':
             return True
         return False
+
     def shutDown(self):
         """
         Turn the laser off.
@@ -134,26 +143,12 @@ class LumencorLaser(object):
         if self.live:
             self.setPower(0)
             self.setLaserOnOff(False)
+
     def getStatus(self):
         """
         Get the status
         """
         return self.live
-
-
-#
-# Testing
-#
-if (__name__ == "__main__"):
-    import time
-    obj = LumencorLaser(laser_id=0,ip = '192.168.201.200')
-    if obj.getStatus():
-        print(obj.getPowerRange())
-        print(obj.getLaserOnOff())
-        obj.setLaserOnOff(True)
-        obj.setPower(20.0)
-        time.sleep(0.1)
-        obj.shutDown()
 
 #
 # The MIT License
