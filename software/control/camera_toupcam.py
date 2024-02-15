@@ -110,8 +110,8 @@ class Camera(object):
         self.callback_is_enabled = False
         self.is_streaming = False
 
-        self.GAIN_MAX = 100
-        self.GAIN_MIN = 1
+        self.GAIN_MAX = 40
+        self.GAIN_MIN = 0
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
@@ -294,11 +294,12 @@ class Camera(object):
         #     self.camera.ExposureTime.set(camera_exposure_time)
 
     def set_analog_gain(self,analog_gain):
-        gain_min, gain_max, gain_default = self.camera.get_ExpoAGainRange()
-        analog_gain = min(gain_max, analog_gain*100)
-        analog_gain = max(gain_min, analog_gain*100)
-        self.analog_gain = analog_gain/100.0
-        self.camera.put_ExpoAGain(int(analog_gain))
+        analog_gain = min(self.GAIN_MAX,analog_gain)
+        analog_gain = max(self.GAIN_MIN,analog_gain)
+        self.analog_gain = analog_gain
+        # gain_min, gain_max, gain_default = self.camera.get_ExpoAGainRange() # remove from set_analog_gain
+        # for touptek cameras gain is 100-10000 (for 1x - 100x)
+        self.camera.put_ExpoAGain(int(100*(10**(analog_gain/20))))
         # self.camera.Gain.set(analog_gain)
 
     def get_awb_ratios(self):
@@ -737,8 +738,8 @@ class Camera_Simulation(object):
         self.callback_is_enabled = False
         self.is_streaming = False
 
-        self.GAIN_MAX = 300
-        self.GAIN_MIN = 100
+        self.GAIN_MAX = 40
+        self.GAIN_MIN = 0
         self.GAIN_STEP = 1
         self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
