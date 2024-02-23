@@ -37,6 +37,9 @@ class Microcontroller():
         self.z_pos = 0 # unit: microstep or encoder resolution
         self.theta_pos = 0 # unit: microstep or encoder resolution
         self.button_and_switch_state = 0
+        self.x_enc = 0
+        self.y_enc = 0
+        self.z_enc = 0
         self.joystick_button_pressed = 0
         self.signal_joystick_button_pressed_event = False
         self.switch_state = 0
@@ -156,6 +159,7 @@ class Microcontroller():
     def move_x_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
+        print(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
             n_microsteps_partial_abs = (2**32)/2 - 1
@@ -211,6 +215,7 @@ class Microcontroller():
     def move_y_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
+        print(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
         while n_microsteps_abs >= (2**32)/2:
             n_microsteps_partial_abs = (2**32)/2 - 1
@@ -452,9 +457,10 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.CONFIGURE_STAGE_PID
         cmd[2] = axis
+        cmd[3] = int(flip_direction)
         payload = self._int_to_payload(transitions_per_revolution,2)
-        cmd[3] = (payload >> 8) & 0xff
-        cmd[4] = payload & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
         self.send_command(cmd)
 
     def turn_on_stage_pid(self, axis):
@@ -627,6 +633,7 @@ class Microcontroller():
             - Z pos (4 bytes)
             - Theta (4 bytes)
             - buttons and switches (1 byte)
+            - encoder x, y, z (4 byte each)
             - reserved (4 bytes)
             - CRC (1 byte)
             '''
@@ -656,6 +663,11 @@ class Microcontroller():
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             
             self.button_and_switch_state = msg[18]
+            # Remove reading encoder
+            #self.x_enc = self._payload_to_int(msg[19:23],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            #self.y_enc = self._payload_to_int(msg[23:27],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            #self.z_enc = self._payload_to_int(msg[27:31],MicrocontrollerDef.N_BYTES_POS) # unit: encoder resolution
+            
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
             joystick_button_pressed = tmp > 0
@@ -672,6 +684,9 @@ class Microcontroller():
 
     def get_pos(self):
         return self.x_pos, self.y_pos, self.z_pos, self.theta_pos
+    
+    def get_enc(self):
+        return self.x_enc, self.y_enc, self.z_enc
 
     def get_button_and_switch_state(self):
         return self.button_and_switch_state
