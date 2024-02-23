@@ -1776,8 +1776,8 @@ void tmc4361A_init_PID(TMC4361ATypeDef *tmc4361A, uint32_t target_tolerance, uin
 
   // Write the PID parameters
   tmc4361A_writeInt(tmc4361A, TMC4361A_PID_P_WR, pid_p & TMC4361A_PID_P_MASK);
-  tmc4361A_writeInt(tmc4361A, TMC4361A_PID_I_WR, pid_d & TMC4361A_PID_I_MASK);
-  tmc4361A_writeInt(tmc4361A, TMC4361A_PID_D_WR, pid_p & TMC4361A_PID_D_MASK);
+  tmc4361A_writeInt(tmc4361A, TMC4361A_PID_I_WR, pid_i & TMC4361A_PID_I_MASK);
+  tmc4361A_writeInt(tmc4361A, TMC4361A_PID_D_WR, pid_d & TMC4361A_PID_D_MASK);
 
   tmc4361A_writeInt(tmc4361A, TMC4361A_PID_DV_CLIP_WR, pid_dclip & TMC4361A_PID_DV_CLIP_MASK);
 

@@ -1371,7 +1371,7 @@ void loop() {
           else if (axis == 1)
             tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 4096, 2);
           else
-            tmc4361A_init_PID(&tmc4361[axis], 25, 25, 512, 64, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
+            tmc4361A_init_PID(&tmc4361[axis], 25, 25, (1<<14), 0, 2, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
           break;
         }
         case ENABLE_STAGE_PID:
