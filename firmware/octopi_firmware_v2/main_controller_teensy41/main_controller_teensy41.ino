@@ -265,6 +265,10 @@ volatile bool flag_send_pos_update = false;
 static const int interval_send_pos_update = 10000; // in us
 elapsedMicros us_since_last_pos_update;
 
+//kevin
+static const int interval_check_position = 10000; // in us
+elapsedMicros us_since_last_check_position;
+
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
 /***************************************************************************************************/
@@ -1841,22 +1845,28 @@ void loop() {
     
   }
 
-  // check if commanded position has been reached
-  if(X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x])==X_commanded_target_position && !is_homing_X) // homing is handled separately
-  {
-    X_commanded_movement_in_progress = false;
-    mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+  // keep checking position process at suitable frequence
+  if(us_since_last_check_position > interval_check_position) {
+	  us_since_last_check_position = 0;
+
+	  // check if commanded position has been reached
+	  if(X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x])==X_commanded_target_position && !is_homing_X) // homing is handled separately
+	  {
+		X_commanded_movement_in_progress = false;
+		mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+	  }
+	  if(Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y])==Y_commanded_target_position && !is_homing_Y)
+	  {
+		Y_commanded_movement_in_progress = false;
+		mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+	  }
+	  if(Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z])==Z_commanded_target_position && !is_homing_Z)
+	  {
+		Z_commanded_movement_in_progress = false;
+		mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+	  }
   }
-  if(Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y])==Y_commanded_target_position && !is_homing_Y)
-  {
-    Y_commanded_movement_in_progress = false;
-    mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
-  }
-  if(Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z])==Z_commanded_target_position && !is_homing_Z)
-  {
-    Z_commanded_movement_in_progress = false;
-    mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
-  }
+
 
   // at limit
   if(X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
