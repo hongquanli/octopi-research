@@ -66,6 +66,10 @@ typedef struct
   //TClosedLoopConfig closedLoopConfig;
   uint8_t status;
   ConfigurationTypeDef *cover;
+
+  int target_tolerance;
+  int pid_tolerance;
+
 } TMC4361ATypeDef;
 
 typedef void (*tmc4361A_callback)(TMC4361ATypeDef*, ConfigState);

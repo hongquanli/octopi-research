@@ -1849,23 +1849,22 @@ void loop() {
 	  us_since_last_check_position = 0;
 
 	  // check if commanded position has been reached
-	  if(X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x])==X_commanded_target_position && !is_homing_X) // homing is handled separately
+  	  if (X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x]) == X_commanded_target_position && !is_homing_X && !tmc4361A_isRunning(&tmc4361[x], stage_PID_enabled[x])) // homing is handled separately
 	  {
 		X_commanded_movement_in_progress = false;
 		mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
 	  }
-	  if(Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y])==Y_commanded_target_position && !is_homing_Y)
+  	  if (Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y]) == Y_commanded_target_position && !is_homing_Y && !tmc4361A_isRunning(&tmc4361[y], stage_PID_enabled[y]))
 	  {
 		Y_commanded_movement_in_progress = false;
 		mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
 	  }
-	  if(Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z])==Z_commanded_target_position && !is_homing_Z)
+      if (Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z]) == Z_commanded_target_position && !is_homing_Z && !tmc4361A_isRunning(&tmc4361[z], stage_PID_enabled[z]))
 	  {
 		Z_commanded_movement_in_progress = false;
 		mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
 	  }
   }
-
 
   // at limit
   if (X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately

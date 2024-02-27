@@ -34,7 +34,7 @@
       tmc4361A_stop:                    Halt operation by setting the target position to the current position
           Arguments: TMC4361ATypeDef *tmc4361A
       tmc4361A_isRunning:               Returns true if the motor is moving
-          Arguments: TMC4361ATypeDef *tmc4361A
+          Arguments: TMC4361ATypeDef *tmc4361A, bool pid_enable
       tmc4361A_xmmToMicrosteps:         Convert from millimeters to units microsteps for position and jerk values
           Arguments: TMC4361ATypeDef *tmc4361A, float mm
       tmc4361A_xmicrostepsTomm:         Convert from microsteps to units millimeters for position and jerk values
@@ -1447,6 +1447,7 @@ void tmc4361A_stop(TMC4361ATypeDef *tmc4361A) {
 
   ARGUMENTS:
       TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+	  bool pid_enable: true: if this aix enable pid control, else: false
 
   RETURNS:
       bool moving: true if moving, false otherwise
@@ -1464,20 +1465,25 @@ void tmc4361A_stop(TMC4361ATypeDef *tmc4361A) {
   DEPENDENCIES: tmc4316A.h
   -----------------------------------------------------------------------------
 */
-bool tmc4361A_isRunning(TMC4361ATypeDef *tmc4361A) {
+bool tmc4361A_isRunning(TMC4361ATypeDef *tmc4361A, bool pid_enable) {
   int32_t stat_reg = tmc4361A_readInt(tmc4361A, TMC4361A_STATUS);
 
-  // We aren't running if target is reached OR (velocity = 0 and acceleration == 0)
-  if ((stat_reg & TMC4361A_TARGET_REACHED_MASK) != 0) {
-    return true;
+  if (pid_enable) {
+  	  int32_t pid_err  = abs(tmc4361A_readInt(tmc4361A, TMC4361A_PID_E_RD));
+	  // We aren't running if target is reached OR (velocity = 0 and acceleration == 0)
+	  if (((stat_reg & TMC4361A_TARGET_REACHED_MASK) == 1) && ((stat_reg & (TMC4361A_VEL_STATE_F_MASK | TMC4361A_RAMP_STATE_F_MASK))==0) && (pid_err < tmc4361A->target_tolerance)) {
+		  return false;
+	  }
   }
-  stat_reg &= (TMC4361A_VEL_STATE_F_MASK | TMC4361A_RAMP_STATE_F_MASK);
-  if (stat_reg == 0) {
-    return true;
+  else {
+	  // We aren't running if target is reached OR (velocity = 0 and acceleration == 0)
+	  if (((stat_reg & TMC4361A_TARGET_REACHED_MASK) == 1) && ((stat_reg & (TMC4361A_VEL_STATE_F_MASK | TMC4361A_RAMP_STATE_F_MASK))==0)) {
+		  return false;
+	  }
   }
 
-  // Otherwise, return false
-  return false;
+  // Otherwise, return true
+  return true;
 }
 
 /*
@@ -1785,6 +1791,9 @@ void tmc4361A_init_PID(TMC4361ATypeDef *tmc4361A, uint32_t target_tolerance, uin
   datagram = ((pid_iclip << TMC4361A_PID_I_CLIP_SHIFT) & TMC4361A_PID_I_CLIP_MASK) + ((pid_d_clkdiv << TMC4361A_PID_D_CLKDIV_SHIFT) & TMC4361A_PID_D_CLKDIV_MASK);
   tmc4361A_writeInt(tmc4361A, TMC4361A_PID_I_CLIP_WR, datagram);
 
+  // save paramters
+  tmc4361A->target_tolerance = target_tolerance;
+  tmc4361A->pid_tolerance = pid_tolerance;
   return;
 }
 
