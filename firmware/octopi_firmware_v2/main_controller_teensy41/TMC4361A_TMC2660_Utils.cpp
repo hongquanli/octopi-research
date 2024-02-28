@@ -2011,3 +2011,61 @@ int8_t tmc4361A_move_no_stick(TMC4361ATypeDef *tmc4361A, int32_t x_pos, int32_t 
 
   return tmc4361A_moveTo_no_stick(tmc4361A, target, backup_amount, err_thresh, timeout_ms);
 }
+
+/*
+  -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_config_init_stallGuard() initializes stall prevention on the TMC4316A and TMC2660
+
+  OPERATION:   First, check if arugments are within bounds. If the argument exceed the bounds, constrain them before writing the values, and note that this function failed.
+               We then write the sensitivitity to the TMC2660.
+               
+
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+      int8_t sensitivity: Value from -64 to +63 indicating sensitivity to stall condition. Larger values are less sensitive.
+      bool filter_en: Set true to use filter (more accurate, slower).
+      uint32_t vstall_lim: 24-bit value. The internal ramp velocity is set immediately to 0 whenever a stall is detected and |VACTUAL| >VSTALL_LIMIT.
+
+  RETURNS: 
+      bool success: return true if there were no errors
+
+  INPUTS / OUTPUTS: Sends signals over SPI
+  
+  LOCAL VARIABLES: None
+
+  SHARED VARIABLES: 
+      TMC4361ATypeDef *tmc4361A: Values are read from the struct
+
+  GLOBAL VARIABLES: None
+
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+int16_t tmc4361A_config_init_stallGuard(TMC4361ATypeDef *tmc4361A, int8_t sensitivity, bool filter_en, uint32_t vstall_lim){
+  // First, ensure values are within limits
+  bool success = true;
+  if((sensitivity > 63) || (sensitivity < -64) || (vstall_lim >= (1<<24))){
+    success = false;
+  }
+  sensitivity = constrain(sensitivity, -64, 63);
+  vstall_lim = constrain(vstall_lim, 0, ((1<<24)-1));
+  // Mask the high bit
+  sensitivity = sensitivity & 0x7F;
+  // Build the datagram
+  uint32_t datagram = 0;
+  datagram = filter_en ? SFILT : 0;
+  datagram |= SGCSCONF;
+  datagram |= (sensitivity << 8);
+  datagram |= tmc4361A->cscaleParam[CSCALE_IDX];
+  // Next, write to the TMC2660 - write to the "cover_0.3 *10^6 /(200*256)low" register
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, datagram);
+  // Enable stall detection on the TMC4316A
+  // set vstall limit
+  tmc4361A_writeInt(tmc4361A, TMC4361A_VSTALL_LIMIT_WR, vstall_lim);
+  // enable stop on stall
+  tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_STOP_ON_STALL_MASK);
+  // disable drive after stall
+  tmc4361A_rstBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_DRV_AFTER_STALL_MASK);
+
+  return success;
+}

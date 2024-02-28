@@ -738,6 +738,9 @@ void setup() {
   // strobe timer
   strobeTimer.begin(ISR_strobeTimer, strobeTimer_interval_us);
 
+  // motor stall prevention
+  tmc4361A_config_init_stallGuard(&tmc4361[x], 12, true, 1);
+  tmc4361A_config_init_stallGuard(&tmc4361[y], 12, true, 1);
 }
 
 /***************************************************************************************************/
