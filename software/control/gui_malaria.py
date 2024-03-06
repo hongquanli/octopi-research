@@ -94,6 +94,10 @@ class OctopiGUI(QMainWindow):
                 exit()
         print('objective retracted')
 
+        # set axis pid control enable
+        self.navigationController.set_axis_pid_control_enable(PID_ENABLED_X, PID_ENABLED_Y, PID_ENABLED_Z)
+        time.sleep(0.5)
+
         # homing, set zero and set software limit
         self.navigationController.set_x_limit_pos_mm(100)
         self.navigationController.set_x_limit_neg_mm(-100)
@@ -244,6 +248,8 @@ class OctopiGUI(QMainWindow):
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
         self.navigationController.home()
+        self.navigationController.unset_axis_pid_control_enable()
+
         self.liveController.stop_live()
         self.camera.close()
         self.imageSaver.close()

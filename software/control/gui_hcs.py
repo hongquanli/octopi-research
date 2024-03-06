@@ -224,9 +224,8 @@ class OctopiGUI(QMainWindow):
                 exit()
         print('objective retracted')
 
-        # enable PID
-        self.microcontroller.configure_stage_pid(2, transitions_per_revolution=3000, flip_direction=True)
-        self.microcontroller.turn_on_stage_pid(2)
+        # set axis pid control enable
+        self.navigationController.set_axis_pid_control_enable(PID_ENABLED_X, PID_ENABLED_Y, PID_ENABLED_Z)
         time.sleep(0.5)
 
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
@@ -519,8 +518,7 @@ class OctopiGUI(QMainWindow):
         while self.microcontroller.is_busy():
             time.sleep(0.005)
 
-        # stop PID control
-        self.microcontroller.turn_off_stage_pid(2)
+        self.navigationController.unset_axis_pid_control_enable()
 
         self.liveController.stop_live()
         self.camera.close()

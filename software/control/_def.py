@@ -281,6 +281,10 @@ MAX_ACCELERATION_X_mm = 500
 MAX_ACCELERATION_Y_mm = 500
 MAX_ACCELERATION_Z_mm = 20
 
+PID_ENABLED_X = False
+PID_ENABLED_Y = False
+PID_ENABLED_Z = False
+
 # end of actuator specific configurations
 
 SCAN_STABILIZATION_TIME_MS_X = 160
