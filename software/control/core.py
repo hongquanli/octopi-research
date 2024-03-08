@@ -1769,8 +1769,8 @@ class MultiPointWorker(QObject):
 
                         if self.NZ > 1:
                             # move z back
+                            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
                             if Z_STACKING_CONFIG == 'FROM CENTER':
-                                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
                                 self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
                                 self.wait_till_operation_is_completed()
                                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
