@@ -504,6 +504,14 @@ class Camera(object):
         self.camera.put_Option(toupcam.TOUPCAM_OPTION_TRIGGER,2)
         self.frame_ID_offset_hardware_trigger = None
         self.trigger_mode = TriggerMode.HARDWARE
+
+        # select trigger source to GPIO0
+        try:
+            self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 1)
+        except toupcam.HRESULTException as ex:
+            error_type = hresult_checker(ex)
+            print("Unable to select trigger source: " + error_type)
+
         # self.update_camera_exposure_time()
 
     def set_gain_mode(self,mode):
