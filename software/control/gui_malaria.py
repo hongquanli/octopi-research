@@ -96,11 +96,11 @@ class OctopiGUI(QMainWindow):
 
         # set encoder arguments
         if HAS_ENCODER_X == True:
-            self.navigationController.set_encoder_arguments(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
+            self.navigationController.configure_encoder(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
         if HAS_ENCODER_Y == True:
-            self.navigationController.set_encoder_arguments(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
+            self.navigationController.configure_encoder(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
         if HAS_ENCODER_Z == True:
-            self.navigationController.set_encoder_arguments(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
+            self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
 
         # set axis pid control enable
         self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
