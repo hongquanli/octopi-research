@@ -797,7 +797,7 @@ class NavigationController(QObject):
         self.move_x_to(x_mm)
         self.move_y_to(y_mm)
 
-    def set_encoder_arguments(self, axis, revolution, direction)
+    def set_encoder_arguments(self, axis, revolution, direction):
         self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=revolution, flip_direction=direction)
 
     def set_pid_control_enable(self, axis, enable_flag):
