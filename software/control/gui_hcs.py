@@ -528,7 +528,7 @@ class OctopiGUI(QMainWindow):
         while self.microcontroller.is_busy():
             time.sleep(0.005)
 
-        self.navigationController.unset_axis_pid_control_enable()
+        self.navigationController.turnoff_axis_pid_control()
 
         self.liveController.stop_live()
         self.camera.close()

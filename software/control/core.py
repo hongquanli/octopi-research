@@ -806,7 +806,7 @@ class NavigationController(QObject):
         else:
             self.microcontroller.turn_off_stage_pid(axis)
 
-    def unset_axis_pid_control_enable(self):
+    def turnoff_axis_pid_control(self):
         for i in range(len(self.pid_enable_flag)):
             if self.pid_enable_flag[i] is True:
                 self.microcontroller.turn_off_stage_pid(i)

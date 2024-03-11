@@ -258,7 +258,7 @@ class OctopiGUI(QMainWindow):
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
         self.navigationController.home()
-        self.navigationController.unset_axis_pid_control_enable()
+        self.navigationController.turnoff_axis_pid_control()
 
         self.liveController.stop_live()
         self.camera.close()
