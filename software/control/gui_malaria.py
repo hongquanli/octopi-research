@@ -94,6 +94,20 @@ class OctopiGUI(QMainWindow):
                 exit()
         print('objective retracted')
 
+        # set encoder arguments
+        if HAS_ENCODER_X == True:
+            self.navigationController.configure_encoder(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
+        if HAS_ENCODER_Y == True:
+            self.navigationController.configure_encoder(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
+        if HAS_ENCODER_Z == True:
+            self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
+
+        # set axis pid control enable
+        self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
+        self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
+        self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
+        time.sleep(0.5)
+
         # homing, set zero and set software limit
         self.navigationController.set_x_limit_pos_mm(100)
         self.navigationController.set_x_limit_neg_mm(-100)
@@ -244,6 +258,8 @@ class OctopiGUI(QMainWindow):
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
         self.navigationController.home()
+        self.navigationController.unset_axis_pid_control_enable()
+
         self.liveController.stop_live()
         self.camera.close()
         self.imageSaver.close()

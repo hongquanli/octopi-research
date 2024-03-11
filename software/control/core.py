@@ -566,6 +566,9 @@ class NavigationController(QObject):
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
 
+    # x y z axis pid enable flag
+    pid_enable_flag = [False, False, False]
+
     def __init__(self,microcontroller, parent=None):
         # parent should be set to OctopiGUI instance to enable updates
         # to camera settings, e.g. binning, that would affect click-to-move
@@ -792,6 +795,21 @@ class NavigationController(QObject):
     def move_to(self,x_mm,y_mm):
         self.move_x_to(x_mm)
         self.move_y_to(y_mm)
+
+    def configure_encoder(self, axis, transitions_per_revolution,flip_direction):
+        self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=int(transitions_per_revolution), flip_direction=flip_direction)
+
+    def set_pid_control_enable(self, axis, enable_flag):
+        self.pid_enable_flag[axis] = enable_flag;
+        if self.pid_enable_flag[axis] is True:
+            self.microcontroller.turn_on_stage_pid(axis)
+        else:
+            self.microcontroller.turn_off_stage_pid(axis)
+
+    def unset_axis_pid_control_enable(self):
+        for i in range(len(self.pid_enable_flag)):
+            if self.pid_enable_flag[i] is True:
+                self.microcontroller.turn_off_stage_pid(i)
 
 class SlidePositionControlWorker(QObject):
     

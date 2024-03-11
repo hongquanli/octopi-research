@@ -452,9 +452,10 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.CONFIGURE_STAGE_PID
         cmd[2] = axis
+        cmd[3] = int(flip_direction)
         payload = self._int_to_payload(transitions_per_revolution,2)
-        cmd[3] = (payload >> 8) & 0xff
-        cmd[4] = payload & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
         self.send_command(cmd)
 
     def turn_on_stage_pid(self, axis):
@@ -654,7 +655,7 @@ class Microcontroller():
             self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            
+
             self.button_and_switch_state = msg[18]
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)

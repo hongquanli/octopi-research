@@ -281,6 +281,26 @@ MAX_ACCELERATION_X_mm = 500
 MAX_ACCELERATION_Y_mm = 500
 MAX_ACCELERATION_Z_mm = 20
 
+# config encoder arguments
+HAS_ENCODER_X = False
+HAS_ENCODER_Y = False
+HAS_ENCODER_Z = False
+
+# enable PID control
+ENABLE_PID_X  = False
+ENABLE_PID_Y  = False
+ENABLE_PID_Z  = False
+
+# flip direction True or False
+ENCODER_FLIP_DIR_X = True
+ENCODER_FLIP_DIR_Y = True
+ENCODER_FLIP_DIR_Z = True
+
+# distance for each count (um)
+ENCODER_RESOLUTION_UM_X = 0.05
+ENCODER_RESOLUTION_UM_Y = 0.05
+ENCODER_RESOLUTION_UM_Z = 0.1
+
 # end of actuator specific configurations
 
 SCAN_STABILIZATION_TIME_MS_X = 160
