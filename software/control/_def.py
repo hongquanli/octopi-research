@@ -286,14 +286,14 @@ PID_ENABLED_Y = False
 PID_ENABLED_Z = False
 
 # flip direction True or False
-PID_ARG_ENCODER_FLIP_DIR_X = True
-PID_ARG_ENCODER_FLIP_DIR_Y = True
-PID_ARG_ENCODER_FLIP_DIR_Z = True
+ENCODER_FLIP_DIR_X = True
+ENCODER_FLIP_DIR_Y = True
+ENCODER_FLIP_DIR_Z = True
 
 # distance for each count (um)
-PID_ARG_ENCODER_COUNT_X = 0.1
-PID_ARG_ENCODER_COUNT_Y = 0.1 
-PID_ARG_ENCODER_COUNT_Z = 0.1
+ENCODER_COUNT_X = 0.1
+ENCODER_COUNT_Y = 0.1
+ENCODER_COUNT_Z = 0.1
 
 # end of actuator specific configurations
 
