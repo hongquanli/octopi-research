@@ -94,10 +94,18 @@ class OctopiGUI(QMainWindow):
                 exit()
         print('objective retracted')
 
+        # set encoder arguments
+        if HAS_ENCODER_X == True:
+            self.navigationController.set_encoder_arguments(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
+        if HAS_ENCODER_Y == True:
+            self.navigationController.set_encoder_arguments(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
+        if HAS_ENCODER_Z == True:
+            self.navigationController.set_encoder_arguments(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
+
         # set axis pid control enable
-        self.navigationController.set_pid_control_enable(0, PID_ENABLED_X, (SCREW_PITCH_X_MM * 1000) / ENCODER_COUNT_X, ENCODER_FLIP_DIR_X)
-        self.navigationController.set_pid_control_enable(1, PID_ENABLED_Y, (SCREW_PITCH_Y_MM * 1000) / ENCODER_COUNT_Y, ENCODER_FLIP_DIR_Y)
-        self.navigationController.set_pid_control_enable(2, PID_ENABLED_Z, (SCREW_PITCH_Z_MM * 1000) / ENCODER_COUNT_Z, ENCODER_FLIP_DIR_Z)
+        self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
+        self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
+        self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
         time.sleep(0.5)
 
         # homing, set zero and set software limit

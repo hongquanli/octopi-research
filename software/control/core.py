@@ -797,26 +797,26 @@ class NavigationController(QObject):
         self.move_x_to(x_mm)
         self.move_y_to(y_mm)
 
-    def set_pid_control_enable(self, axis, enable_flag, revolution, direction):
+    def set_encoder_arguments(self, axis, revolution, direction)
+        self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=revolution, flip_direction=direction)
+
+    def set_pid_control_enable(self, axis, enable_flag):
         # x axis
         if axis == 0:
             self.x_pid_enable_flag = enable_flag;
             if self.x_pid_enable_flag is True:
-                self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=revolution, flip_direction=direction)
                 self.microcontroller.turn_on_stage_pid(axis)
 
         # y axis
         if axis == 1:
             self.y_pid_enable_flag = enable_flag;
             if self.y_pid_enable_flag is True:
-                self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=revolution, flip_direction=direction)
                 self.microcontroller.turn_on_stage_pid(axis)
 
         # z axis
         if axis == 2:
             self.z_pid_enable_flag = enable_flag;
             if self.z_pid_enable_flag is True:
-                self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=revolution, flip_direction=direction)
                 self.microcontroller.turn_on_stage_pid(axis)
 
     def unset_axis_pid_control_enable(self):
