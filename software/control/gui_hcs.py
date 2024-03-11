@@ -225,7 +225,9 @@ class OctopiGUI(QMainWindow):
         print('objective retracted')
 
         # set axis pid control enable
-        self.navigationController.set_axis_pid_control_enable(PID_ENABLED_X, PID_ENABLED_Y, PID_ENABLED_Z)
+        self.navigationController.set_pid_control_enable(0, PID_ENABLED_X, (SCREW_PITCH_X_MM * 1000) / PID_ARG_ENCODER_COUNT_X, PID_ARG_ENCODER_FLIP_DIR_X)
+        self.navigationController.set_pid_control_enable(1, PID_ENABLED_Y, (SCREW_PITCH_Y_MM * 1000) / PID_ARG_ENCODER_COUNT_Y, PID_ARG_ENCODER_FLIP_DIR_Y)
+        self.navigationController.set_pid_control_enable(2, PID_ENABLED_Z, (SCREW_PITCH_Z_MM * 1000) / PID_ARG_ENCODER_COUNT_Z, PID_ARG_ENCODER_FLIP_DIR_Z)
         time.sleep(0.5)
 
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
