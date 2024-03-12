@@ -451,9 +451,11 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
-    def _update_buffer_settings(self):
+    def _update_buffer_settings(self, width=None, height=None):
         # resize the buffer
-        width, height = self.camera.get_Size()
+        if width is None or height is None:
+            width, height = self.camera.get_Size()
+
         self.width = width
         self.height = height
         # calculate buffer size
