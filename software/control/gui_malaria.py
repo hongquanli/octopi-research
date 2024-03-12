@@ -95,17 +95,18 @@ class OctopiGUI(QMainWindow):
         print('objective retracted')
 
         # set encoder arguments
+        # set axis pid control enable
+        # only ENABLE_PID_X and HAS_ENCODER_X are both enable, can be enable to PID
         if HAS_ENCODER_X == True:
             self.navigationController.configure_encoder(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
+            self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
         if HAS_ENCODER_Y == True:
             self.navigationController.configure_encoder(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
+            self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
         if HAS_ENCODER_Z == True:
             self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
+            self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
 
-        # set axis pid control enable
-        self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
-        self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
-        self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
         time.sleep(0.5)
 
         # homing, set zero and set software limit
