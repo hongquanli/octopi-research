@@ -1,5 +1,6 @@
 import platform
 import serial
+import sys
 import serial.tools.list_ports
 import time
 import numpy as np
@@ -56,8 +57,11 @@ class Microcontroller():
             if sn is not None:
                 controller_ports = [ p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
             else:
-                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
-        
+                if sys.platform == 'win32':
+                    controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Microsoft']
+                else:
+                    controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
+
         if not controller_ports:
             raise IOError("no controller found")
         if len(controller_ports) > 1:
