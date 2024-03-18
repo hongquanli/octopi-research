@@ -539,6 +539,7 @@ class OctopiGUI(QMainWindow):
             self.imageArrayDisplayWindow.close()
             self.tabbedImageDisplayWindow.close()
         if SUPPORT_LASER_AUTOFOCUS:
+            self.liveController_focus_camera.stop_live()
             self.camera_focus.close()
             self.imageDisplayWindow_focus.close()
         self.microcontroller.close()
