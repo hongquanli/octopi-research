@@ -811,6 +811,9 @@ class NavigationController(QObject):
             if self.pid_enable_flag[i] is True:
                 self.microcontroller.turn_off_stage_pid(i)
 
+    def get_pid_control_flag(self, axis):
+        return self.pid_enable_flag[axis]
+
 class SlidePositionControlWorker(QObject):
     
     finished = Signal()
@@ -996,11 +999,15 @@ class SlidePositionControlWorker(QObject):
 
         # restore z
         if self.slidePositionController.objective_retracted:
-            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-            self.navigationController.microcontroller.move_z_to_usteps(self.slidePositionController.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
-            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-            self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            if self.navigationController.get_pid_control_flag(2) is False:
+                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                self.navigationController.microcontroller.move_z_to_usteps(self.slidePositionController.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
+            else:
+                self.navigationController.microcontroller.move_z_to_usteps(self.slidePositionController.z_pos)
+                self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             self.slidePositionController.objective_retracted = False
             print('z position restored')
         
@@ -1119,11 +1126,15 @@ class AutofocusWorker(QObject):
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
         # can be moved to the firmware
-        _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-z_af_offset_usteps)
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-        self.wait_till_operation_is_completed()
+        if self.navigationController.get_pid_control_flag(2) is False:
+            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+            self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-z_af_offset_usteps)
+            self.wait_till_operation_is_completed()
+            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+            self.wait_till_operation_is_completed()
+        else:
+            self.navigationController.move_z_usteps(-z_af_offset_usteps)
+            self.wait_till_operation_is_completed()
 
         steps_moved = 0
         for i in range(self.N):
@@ -1163,12 +1174,19 @@ class AutofocusWorker(QObject):
         # self.wait_till_operation_is_completed()
 
         # maneuver for achiving uniform step size and repeatability when using open-loop control
-        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-steps_moved*self.deltaZ_usteps)
-        # determine the in-focus position
-        idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_z_usteps(_usteps_to_clear_backlash+(idx_in_focus+1)*self.deltaZ_usteps)
-        self.wait_till_operation_is_completed()
+        if self.navigationController.get_pid_control_flag(2) is False:
+            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+            self.navigationController.move_z_usteps(-_usteps_to_clear_backlash-steps_moved*self.deltaZ_usteps)
+            # determine the in-focus position
+            idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+            self.wait_till_operation_is_completed()
+            self.navigationController.move_z_usteps(_usteps_to_clear_backlash+(idx_in_focus+1)*self.deltaZ_usteps)
+            self.wait_till_operation_is_completed()
+        else:
+            # determine the in-focus position
+            idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
+            self.navigationController.move_z_usteps((idx_in_focus+1)*self.deltaZ_usteps-steps_moved*self.deltaZ_usteps)
+            self.wait_till_operation_is_completed()
 
         # move to the calculated in-focus position
         # self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
@@ -1550,11 +1568,12 @@ class MultiPointWorker(QObject):
                         self.navigationController.move_z_to(coordiante_mm[2])
                         self.wait_till_operation_is_completed()
                         # remove backlash
-                        _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                        self.navigationController.move_z_usteps(-_usteps_to_clear_backlash) # to-do: combine this with the above
-                        self.wait_till_operation_is_completed()
-                        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                        self.wait_till_operation_is_completed()
+                        if self.navigationController.get_pid_control_flag(2) is False:
+                            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                            self.navigationController.move_z_usteps(-_usteps_to_clear_backlash) # to-do: combine this with the above
+                            self.wait_till_operation_is_completed()
+                            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                            self.wait_till_operation_is_completed()
                 else:
                     self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
@@ -1625,8 +1644,11 @@ class MultiPointWorker(QObject):
                                 self.microscope.laserAutofocusController.set_reference()
                             else:
                                 try:
-                                    self.microscope.laserAutofocusController.move_to_target(0)
-                                    self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                                    if self.navigationController.get_pid_control_flag(2) is False:
+                                        self.microscope.laserAutofocusController.move_to_target(0)
+                                        self.microscope.laserAutofocusController.move_to_target(0) # for stepper in open loop mode, repeat the operation to counter backlash
+                                    else:
+                                        self.microscope.laserAutofocusController.move_to_target(0)
                                 except:
                                     file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
                                     saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
@@ -1768,11 +1790,17 @@ class MultiPointWorker(QObject):
                                 self.wait_till_operation_is_completed()
                                 self.navigationController.move_y_usteps(-self.dy_usteps)
                                 self.wait_till_operation_is_completed()
-                                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                                self.navigationController.move_z_usteps(-self.dz_usteps-_usteps_to_clear_backlash)
-                                self.wait_till_operation_is_completed()
-                                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                                self.wait_till_operation_is_completed()
+
+                                if self.navigationController.get_pid_control_flag(2) is False:
+                                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                                    self.navigationController.move_z_usteps(-self.dz_usteps-_usteps_to_clear_backlash)
+                                    self.wait_till_operation_is_completed()
+                                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                                    self.wait_till_operation_is_completed()
+                                else:
+                                    self.navigationController.move_z_usteps(-self.dz_usteps)
+                                    self.wait_till_operation_is_completed()
+
                                 self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
                                 self.navigationController.enable_joystick_button_action = True
                                 return
@@ -1788,17 +1816,28 @@ class MultiPointWorker(QObject):
                         if self.NZ > 1:
                             # move z back
                             if Z_STACKING_CONFIG == 'FROM CENTER':
-                                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                                self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
-                                self.wait_till_operation_is_completed()
-                                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                                self.wait_till_operation_is_completed()
+                                if self.navigationController.get_pid_control_flag(2) is False:
+                                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                                    self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
+                                    self.wait_till_operation_is_completed()
+                                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                                    self.wait_till_operation_is_completed()
+                                else:
+                                    self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
+                                    self.wait_till_operation_is_completed()
+
                                 self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
                             else:
-                                self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1) - _usteps_to_clear_backlash)
-                                self.wait_till_operation_is_completed()
-                                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                                self.wait_till_operation_is_completed()
+                                if self.navigationController.get_pid_control_flag(2) is False:
+                                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                                    self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1) - _usteps_to_clear_backlash)
+                                    self.wait_till_operation_is_completed()
+                                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                                    self.wait_till_operation_is_completed()
+                                else:
+                                    self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
+                                    self.wait_till_operation_is_completed()
+
                                 self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
                         # update FOV counter
@@ -1848,11 +1887,15 @@ class MultiPointWorker(QObject):
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
                 # move z back
-                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.microcontroller.move_z_to_usteps(z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
+                if self.navigationController.get_pid_control_flag(2) is False:
+                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                    self.navigationController.microcontroller.move_z_to_usteps(z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
+                    self.wait_till_operation_is_completed()
+                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                    self.wait_till_operation_is_completed()
+                else:
+                    self.navigationController.microcontroller.move_z_to_usteps(z_pos)
+                    self.wait_till_operation_is_completed()
 
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
