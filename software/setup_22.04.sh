@@ -15,7 +15,7 @@ cd octopi-research/software
 mkdir cache
 
 # install libraries 
-pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile
+pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile scipy
 pip3 install opencv-python-headless opencv-contrib-python-headless
 
 # install camera drivers

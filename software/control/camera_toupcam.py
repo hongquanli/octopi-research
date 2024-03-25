@@ -61,7 +61,7 @@ class Camera(object):
                 raw_image = np.frombuffer(self.buf, dtype='uint8')
             elif self.pixel_size_byte == 2:
                 raw_image = np.frombuffer(self.buf, dtype='uint16')
-            self.current_frame = raw_image.reshape(self.height,self.width)
+            self.current_frame = raw_image.reshape(self.Height,self.Width)
 
         # for debugging
         #print(self.current_frame.shape)
@@ -397,7 +397,7 @@ class Camera(object):
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_RGB,1)
 
-        self._update_buffer_settings(self.Width, self.Height)
+        self._update_buffer_settings()
 
         if was_streaming:
             self.start_streaming()
@@ -447,18 +447,20 @@ class Camera(object):
                 print(f"Resolution ({width},{height}) not supported by camera")
             else:
                 print(f"Resolution cannot be set due to error: "+err_type)
-        self._update_buffer_settings(self.Width, self.Height)
+        self._update_buffer_settings()
         if was_streaming:
             self.start_streaming()
 
     def _update_buffer_settings(self):
         # resize the buffer
         width, height = self.camera.get_Size()
-        self.width = width
-        self.height = height
+
+        self.Width = width
+        self.Height = height
+
         # calculate buffer size
         if (self.data_format == 'RGB') & (self.pixel_size_byte != 4):
-            bufsize = _TDIBWIDTHBYTES(self.width * self.pixel_size_byte * 8) * height
+            bufsize = _TDIBWIDTHBYTES(width * self.pixel_size_byte * 8) * height
         else:
             bufsize = width * self.pixel_size_byte * height
         print('image size: {} x {}, bufsize = {}'.format(width, height, bufsize))
@@ -670,7 +672,7 @@ class Camera(object):
             except toupcam.HRESULTException as ex:
                 err_type = hresult_checker(ex,'E_INVALIDARG')
                 print("ROI bounds invalid, not changing ROI.")
-            self._update_buffer_settings(self.Width, self.Height)
+            self._update_buffer_settings()
         if was_streaming:
             self.start_streaming()
 

@@ -5,6 +5,8 @@ import argparse
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
+import sys
+
 # qt libraries
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
@@ -80,4 +82,4 @@ if __name__ == "__main__":
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)
     win.show()
-    app.exec_() #sys.exit(app.exec_())
+    sys.exit(app.exec_())
