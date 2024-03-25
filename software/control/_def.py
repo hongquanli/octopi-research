@@ -117,7 +117,6 @@ class CMD_SET:
     SET_ILLUMINATION_LED_MATRIX = 13
     ACK_JOYSTICK_BUTTON_PRESSED = 14
     ANALOG_WRITE_ONBOARD_DAC = 15
-    SET_GAIN_VALUE = 16
     MOVETO_X = 6
     MOVETO_Y = 7
     MOVETO_Z = 8
@@ -372,17 +371,6 @@ class SLIDE_POSITION:
     SCANNING_X_MM = 3
     SCANNING_Y_MM = 3
 
-class OUTPUT_GAINS:
-    REFDIV = False
-    CHANNEL0_GAIN = False
-    CHANNEL1_GAIN = False
-    CHANNEL2_GAIN = False
-    CHANNEL3_GAIN = False
-    CHANNEL4_GAIN = False
-    CHANNEL5_GAIN = False
-    CHANNEL6_GAIN = False
-    CHANNEL7_GAIN = True
-
 SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S = 10
 SLIDE_POTISION_SWITCHING_HOME_EVERYTIME = False
 
@@ -487,6 +475,8 @@ INVERTED_OBJECTIVE = False
 CAMERA_TYPE="Default"
 
 FOCUS_CAMERA_TYPE="Default"
+
+INVERTED_OBJECTIVE = False
 
 ##########################################################
 #### start of loading machine specific configurations ####

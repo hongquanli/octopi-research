@@ -285,9 +285,6 @@ class OctopiGUI(QMainWindow):
                 print('z return timeout, the program will exit')
                 exit()
 
-        # set output's gains
-        self.navigationController.set_output_gains()
-
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use

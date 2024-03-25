@@ -573,13 +573,6 @@ class Microcontroller():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
-    def set_gain_value(self, div, gains):
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.SET_GAIN_VALUE
-        cmd[2] = div
-        cmd[3] = gains
-        self.send_command(cmd)
-
     def set_pin_level(self,pin,level):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_PIN_LEVEL
@@ -969,13 +962,6 @@ class Microcontroller_Simulation():
         cmd[2] = dac
         cmd[3] = (value >> 8) & 0xff
         cmd[4] = value & 0xff
-        self.send_command(cmd)
-
-    def set_gain_value(self, div, gains):
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.SET_GAIN_VALUE
-        cmd[2] = div
-        cmd[3] = gains
         self.send_command(cmd)
 
     def read_received_packet(self):

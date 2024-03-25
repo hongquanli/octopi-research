@@ -813,23 +813,6 @@ class NavigationController(QObject):
 
     def get_pid_control_flag(self, axis):
         return self.pid_enable_flag[axis]
-    
-    def set_output_gains(self):
-        def makegains(value, index):
-            reval = 1 if value is True else 0
-            return reval << index
-
-        div = 1 if OUTPUT_GAINS.REFDIV is True else 0
-        gains = makegains(OUTPUT_GAINS.CHANNEL0_GAIN, 0) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL1_GAIN, 1) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL2_GAIN, 2) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL3_GAIN, 3) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL4_GAIN, 4) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL5_GAIN, 5) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL6_GAIN, 6) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL7_GAIN, 7) 
-        self.microcontroller.set_gain_value(div, gains)
-
 
 class SlidePositionControlWorker(QObject):
     
