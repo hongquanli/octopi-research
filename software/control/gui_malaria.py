@@ -134,6 +134,9 @@ class OctopiGUI(QMainWindow):
                 print('z return timeout, the program will exit')
                 exit()
 
+        # set output's gains
+        self.navigationController.set_output_gains()
+
         # set software limit
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
