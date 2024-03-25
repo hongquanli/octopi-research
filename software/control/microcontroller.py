@@ -573,6 +573,13 @@ class Microcontroller():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
+    def set_gain_value(self, div, gains):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
+        cmd[2] = div
+        cmd[3] = gains
+        self.send_command(cmd)
+
     def set_pin_level(self,pin,level):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_PIN_LEVEL
@@ -709,6 +716,37 @@ class Microcontroller():
         if signed >= 256**number_of_bytes/2:
             signed = signed - 256**number_of_bytes
         return signed
+    
+    def set_output_gains(self):
+        def makegains(value, index):
+            reval = 1 if value is True else 0
+            return reval << index
+
+        div = 1 if OUTPUT_GAINS.REFDIV is True else 0
+        gains = makegains(OUTPUT_GAINS.CHANNEL0_GAIN, 0) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL1_GAIN, 1) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL2_GAIN, 2) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL3_GAIN, 3) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL4_GAIN, 4) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL5_GAIN, 5) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL6_GAIN, 6) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL7_GAIN, 7) 
+        self.set_gain_value(div, gains)
+
+    def set_illumination_intensity_factor(self):
+        global ILLUMINATION_INTENSITY_FACTOR
+
+        if ILLUMINATION_INTENSITY_FACTOR > 1:
+            ILLUMINATION_INTENSITY_FACTOR = 1
+
+        if ILLUMINATION_INTENSITY_FACTOR < 0:
+            ILLUMINATION_INTENSITY_FACTOR = 0.01
+
+        factor = round(ILLUMINATION_INTENSITY_FACTOR, 2) * 100
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
+        cmd[2] = int(factor)
+        self.send_command(cmd)
 
 class Microcontroller_Simulation():
     def __init__(self,parent=None):
@@ -964,6 +1002,13 @@ class Microcontroller_Simulation():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
+    def set_gain_value(self, div, gains):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
+        cmd[2] = div
+        cmd[3] = gains
+        self.send_command(cmd)
+
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
             # only for simulation - update the command execution status
@@ -1092,3 +1137,31 @@ class Microcontroller_Simulation():
                 print('Error - microcontroller timeout, the program will exit')
                 sys.exit(0)
 
+    def set_output_gains(self):
+        def makegains(value, index):
+            reval = 1 if value is True else 0
+            return reval << index
+
+        div = 1 if OUTPUT_GAINS.REFDIV is True else 0
+        gains = makegains(OUTPUT_GAINS.CHANNEL0_GAIN, 0) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL1_GAIN, 1) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL2_GAIN, 2) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL3_GAIN, 3) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL4_GAIN, 4) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL5_GAIN, 5) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL6_GAIN, 6) 
+        gains += makegains(OUTPUT_GAINS.CHANNEL7_GAIN, 7) 
+        self.set_gain_value(div, gains)
+
+    def set_illumination_intensity_factor(self):
+        if ILLUMINATION_INTENSITY_FACTOR > 1:
+            ILLUMINATION_INTENSITY_FACTOR = 1
+
+        if ILLUMINATION_INTENSITY_FACTOR < 0:
+            ILLUMINATION_INTENSITY_FACTOR = 0.01
+
+        factor = ILLUMINATION_INTENSITY_FACTOR * 100
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
+        cmd[2] = factor
+        self.send_command(cmd)

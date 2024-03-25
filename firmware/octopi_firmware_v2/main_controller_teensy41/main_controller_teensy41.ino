@@ -50,6 +50,8 @@ static const int SET_ILLUMINATION = 12;
 static const int SET_ILLUMINATION_LED_MATRIX = 13;
 static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
 static const int ANALOG_WRITE_ONBOARD_DAC = 15;
+static const int SET_DAC80508_REFDIV_GAIN = 16;
+static const int SET_ILLUMINATION_INTENSITY_FACTOR = 17;
 static const int SET_LIM_SWITCH_POLARITY = 20;
 static const int CONFIGURE_STEPPER_DRIVER = 21;
 static const int SET_MAX_VELOCITY_ACCELERATION = 22;
@@ -152,16 +154,22 @@ const uint8_t DAC8050x_DAC_ADDR = 0x08;
 const uint8_t DAC8050x_GAIN_ADDR = 0x04;
 const uint8_t DAC8050x_CONFIG_ADDR = 0x03;
 
-void set_DAC8050x_gain()
+void set_DAC8050x_gain(uint8_t div, uint8_t gains) 
 {
   uint16_t value = 0;
-  value = (0x00 << 8) + 0x80; // REFDIV-E = 0 (no div), BUFF0-GAIN = 0 (no gain) for channel 0-6, 2 for channel 7
+  value = (div << 8) + gains; 
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE2));
   digitalWrite(DAC8050x_CS_pin, LOW);
   SPI.transfer(DAC8050x_GAIN_ADDR);
   SPI.transfer16(value);
   digitalWrite(DAC8050x_CS_pin, HIGH);
   SPI.endTransaction();
+}
+
+// REFDIV-E = 0 (no div), BUFF7-GAIN = 0 (no gain) 1 for channel 0-6, 2 for channel 7
+void set_DAC8050x_default_gain()
+{
+  set_DAC8050x_gain(0x00, 0x80);
 }
 
 void set_DAC8050x_config()
@@ -337,6 +345,7 @@ void onJoystickPacketReceived(const uint8_t* buffer, size_t size)
 /***************************************************************************************************/
 int illumination_source = 0;
 uint16_t illumination_intensity = 65535;
+float illumination_intensity_factor = 0.6;
 uint8_t led_matrix_r = 0;
 uint8_t led_matrix_g = 0;
 uint8_t led_matrix_b = 0;
@@ -487,7 +496,7 @@ void turn_off_illumination()
 void set_illumination(int source, uint16_t intensity)
 {
   illumination_source = source;
-  illumination_intensity = intensity * 0.6;
+  illumination_intensity = intensity * illumination_intensity_factor;
   switch (source)
   {
     case ILLUMINATION_SOURCE_405NM:
@@ -722,7 +731,7 @@ void setup() {
    *********************************************************************************************************/
   // DAC init
   set_DAC8050x_config();
-  set_DAC8050x_gain();
+  set_DAC8050x_default_gain();
 
   // led matrix
   FastLED.addLeds<APA102, LED_MATRIX_DATA_PIN, LED_MATRIX_CLOCK_PIN, BGR, 1>(matrix, NUM_LEDS);  // 1 MHz clock rate
@@ -1341,7 +1350,22 @@ void loop() {
             int dac = buffer_rx[2];
             uint16_t value = ( uint16_t(buffer_rx[3]) * 256 + uint16_t(buffer_rx[4]) );
             set_DAC8050x_output(dac, value);
+			break;
           }
+		case SET_DAC80508_REFDIV_GAIN:
+		  {
+			uint8_t div   = buffer_rx[2];
+			uint8_t gains = buffer_rx[3];
+			set_DAC8050x_gain(div, gains);
+			break;
+		  }
+		case SET_ILLUMINATION_INTENSITY_FACTOR:
+		  {
+			uint8_t factor   = uint8_t(buffer_rx[2]);
+			if (factor > 100) factor = 100;
+			illumination_intensity_factor = float(factor) / 100;
+			break;
+		  }
         case SET_STROBE_DELAY:
           {
             strobe_delay[buffer_rx[2]] = uint32_t(buffer_rx[3]) * 16777216 + uint32_t(buffer_rx[4]) * 65536 + uint32_t(buffer_rx[5]) * 256 + uint32_t(buffer_rx[6]);
@@ -1433,7 +1457,7 @@ void loop() {
             tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
             // DAC init
             set_DAC8050x_config();
-            set_DAC8050x_gain();
+            set_DAC8050x_default_gain();
             break;
           }
         case RESET:

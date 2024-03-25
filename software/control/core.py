@@ -814,6 +814,7 @@ class NavigationController(QObject):
     def get_pid_control_flag(self, axis):
         return self.pid_enable_flag[axis]
 
+
 class SlidePositionControlWorker(QObject):
     
     finished = Signal()

@@ -134,6 +134,12 @@ class OctopiGUI(QMainWindow):
                 print('z return timeout, the program will exit')
                 exit()
 
+        # set output's gains
+        self.microcontroller.set_output_gains()
+
+        # set illumination intensity factor
+        self.microcontroller.set_illumination_intensity_factor()
+
         # set software limit
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
