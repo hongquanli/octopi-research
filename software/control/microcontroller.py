@@ -717,32 +717,17 @@ class Microcontroller():
             signed = signed - 256**number_of_bytes
         return signed
     
-    def set_output_gains(self):
-        def makegains(value, index):
-            reval = 1 if value is True else 0
-            return reval << index
-
-        div = 1 if OUTPUT_GAINS.REFDIV is True else 0
-        gains = makegains(OUTPUT_GAINS.CHANNEL0_GAIN, 0) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL1_GAIN, 1) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL2_GAIN, 2) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL3_GAIN, 3) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL4_GAIN, 4) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL5_GAIN, 5) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL6_GAIN, 6) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL7_GAIN, 7) 
+    def set_output_gains(self, div, gains):
         self.set_gain_value(div, gains)
 
-    def set_illumination_intensity_factor(self):
-        global ILLUMINATION_INTENSITY_FACTOR
+    def set_illumination_intensity_factor(self, illumination_intensity_factor):
+        if illumination_intensity_factor > 1:
+            illumination_intensity_factor = 1
 
-        if ILLUMINATION_INTENSITY_FACTOR > 1:
-            ILLUMINATION_INTENSITY_FACTOR = 1
+        if illumination_intensity_factor < 0:
+            illumination_intensity_factor = 0.01
 
-        if ILLUMINATION_INTENSITY_FACTOR < 0:
-            ILLUMINATION_INTENSITY_FACTOR = 0.01
-
-        factor = round(ILLUMINATION_INTENSITY_FACTOR, 2) * 100
+        factor = round(illumination_intensity_factor, 2) * 100
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
         cmd[2] = int(factor)
@@ -1137,30 +1122,17 @@ class Microcontroller_Simulation():
                 print('Error - microcontroller timeout, the program will exit')
                 sys.exit(0)
 
-    def set_output_gains(self):
-        def makegains(value, index):
-            reval = 1 if value is True else 0
-            return reval << index
-
-        div = 1 if OUTPUT_GAINS.REFDIV is True else 0
-        gains = makegains(OUTPUT_GAINS.CHANNEL0_GAIN, 0) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL1_GAIN, 1) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL2_GAIN, 2) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL3_GAIN, 3) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL4_GAIN, 4) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL5_GAIN, 5) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL6_GAIN, 6) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL7_GAIN, 7) 
+    def set_output_gains(self, div, gains):
         self.set_gain_value(div, gains)
 
-    def set_illumination_intensity_factor(self):
-        if ILLUMINATION_INTENSITY_FACTOR > 1:
-            ILLUMINATION_INTENSITY_FACTOR = 1
+    def set_illumination_intensity_factor(self, illumination_intensity_factor):
+        if illumination_intensity_factor > 1:
+            illumination_intensity_factor = 1
 
-        if ILLUMINATION_INTENSITY_FACTOR < 0:
-            ILLUMINATION_INTENSITY_FACTOR = 0.01
+        if illumination_intensity_factor < 0:
+            illumination_intensity_factor = 0.01
 
-        factor = ILLUMINATION_INTENSITY_FACTOR * 100
+        factor = illumination_intensity_factor * 100
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
         cmd[2] = factor
