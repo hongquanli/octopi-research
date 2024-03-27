@@ -573,7 +573,7 @@ class Microcontroller():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
-    def set_gain_value(self, div, gains):
+    def configure_dac80508_refdiv_and_gain(self, div, gains):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
         cmd[2] = div
@@ -717,10 +717,7 @@ class Microcontroller():
             signed = signed - 256**number_of_bytes
         return signed
     
-    def set_output_gains(self, div, gains):
-        self.set_gain_value(div, gains)
-
-    def set_illumination_intensity_factor(self, illumination_intensity_factor):
+    def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
         if illumination_intensity_factor > 1:
             illumination_intensity_factor = 1
 
@@ -987,7 +984,7 @@ class Microcontroller_Simulation():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
-    def set_gain_value(self, div, gains):
+    def configure_dac80508_refdiv_and_gain(self, div, gains):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
         cmd[2] = div
@@ -1122,10 +1119,7 @@ class Microcontroller_Simulation():
                 print('Error - microcontroller timeout, the program will exit')
                 sys.exit(0)
 
-    def set_output_gains(self, div, gains):
-        self.set_gain_value(div, gains)
-
-    def set_illumination_intensity_factor(self, illumination_intensity_factor):
+    def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
         if illumination_intensity_factor > 1:
             illumination_intensity_factor = 1
 

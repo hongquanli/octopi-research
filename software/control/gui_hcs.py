@@ -296,11 +296,11 @@ class OctopiGUI(QMainWindow):
         gains += OUTPUT_GAINS.CHANNEL5_GAIN << 5 
         gains += OUTPUT_GAINS.CHANNEL6_GAIN << 6 
         gains += OUTPUT_GAINS.CHANNEL7_GAIN << 7 
-        self.microcontroller.set_output_gains(div, gains)
+        self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
 
         # set illumination intensity factor
         global ILLUMINATION_INTENSITY_FACTOR
-        self.microcontroller.set_illumination_intensity_factor(ILLUMINATION_INTENSITY_FACTOR)
+        self.microcontroller.set_dac80508_scaling_factor_for_illumination(ILLUMINATION_INTENSITY_FACTOR)
 
         # open the camera
         # camera start streaming
