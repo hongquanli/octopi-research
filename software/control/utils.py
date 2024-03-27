@@ -138,8 +138,3 @@ def interpolate_plane(triple1, triple2, triple3, point):
 
     return z
 
-def makegains(value, index):
-    reval = 1 if value is True else 0
-    return reval << index
-
-

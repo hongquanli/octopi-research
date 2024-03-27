@@ -14,7 +14,6 @@ from control._def import *
 # app specific libraries
 import control.widgets as widgets
 
-from control.utils import makegains
 
 if CAMERA_TYPE == "Toupcam":
     try:
@@ -289,14 +288,14 @@ class OctopiGUI(QMainWindow):
 
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0
-        gains = makegains(OUTPUT_GAINS.CHANNEL0_GAIN, 0) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL1_GAIN, 1) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL2_GAIN, 2) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL3_GAIN, 3) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL4_GAIN, 4) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL5_GAIN, 5) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL6_GAIN, 6) 
-        gains += makegains(OUTPUT_GAINS.CHANNEL7_GAIN, 7) 
+        gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0 
+        gains += OUTPUT_GAINS.CHANNEL1_GAIN << 1 
+        gains += OUTPUT_GAINS.CHANNEL2_GAIN << 2 
+        gains += OUTPUT_GAINS.CHANNEL3_GAIN << 3 
+        gains += OUTPUT_GAINS.CHANNEL4_GAIN << 4 
+        gains += OUTPUT_GAINS.CHANNEL5_GAIN << 5 
+        gains += OUTPUT_GAINS.CHANNEL6_GAIN << 6 
+        gains += OUTPUT_GAINS.CHANNEL7_GAIN << 7 
         self.microcontroller.set_output_gains(div, gains)
 
         # set illumination intensity factor
