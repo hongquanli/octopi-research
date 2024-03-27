@@ -573,6 +573,13 @@ class Microcontroller():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
+    def configure_dac80508_refdiv_and_gain(self, div, gains):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
+        cmd[2] = div
+        cmd[3] = gains
+        self.send_command(cmd)
+
     def set_pin_level(self,pin,level):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_PIN_LEVEL
@@ -709,6 +716,19 @@ class Microcontroller():
         if signed >= 256**number_of_bytes/2:
             signed = signed - 256**number_of_bytes
         return signed
+    
+    def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
+        if illumination_intensity_factor > 1:
+            illumination_intensity_factor = 1
+
+        if illumination_intensity_factor < 0:
+            illumination_intensity_factor = 0.01
+
+        factor = round(illumination_intensity_factor, 2) * 100
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
+        cmd[2] = int(factor)
+        self.send_command(cmd)
 
 class Microcontroller_Simulation():
     def __init__(self,parent=None):
@@ -964,6 +984,13 @@ class Microcontroller_Simulation():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
+    def configure_dac80508_refdiv_and_gain(self, div, gains):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
+        cmd[2] = div
+        cmd[3] = gains
+        self.send_command(cmd)
+
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
             # only for simulation - update the command execution status
@@ -1092,3 +1119,15 @@ class Microcontroller_Simulation():
                 print('Error - microcontroller timeout, the program will exit')
                 sys.exit(0)
 
+    def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
+        if illumination_intensity_factor > 1:
+            illumination_intensity_factor = 1
+
+        if illumination_intensity_factor < 0:
+            illumination_intensity_factor = 0.01
+
+        factor = illumination_intensity_factor * 100
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
+        cmd[2] = factor
+        self.send_command(cmd)

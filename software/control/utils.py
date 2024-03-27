@@ -138,5 +138,3 @@ def interpolate_plane(triple1, triple2, triple3, point):
 
     return z
 
-
-

@@ -134,6 +134,22 @@ class OctopiGUI(QMainWindow):
                 print('z return timeout, the program will exit')
                 exit()
 
+        # set output's gains
+        div = 1 if OUTPUT_GAINS.REFDIV is True else 0
+        gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0 
+        gains += OUTPUT_GAINS.CHANNEL1_GAIN << 1 
+        gains += OUTPUT_GAINS.CHANNEL2_GAIN << 2 
+        gains += OUTPUT_GAINS.CHANNEL3_GAIN << 3 
+        gains += OUTPUT_GAINS.CHANNEL4_GAIN << 4 
+        gains += OUTPUT_GAINS.CHANNEL5_GAIN << 5 
+        gains += OUTPUT_GAINS.CHANNEL6_GAIN << 6 
+        gains += OUTPUT_GAINS.CHANNEL7_GAIN << 7 
+        self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
+
+        # set illumination intensity factor
+        global ILLUMINATION_INTENSITY_FACTOR
+        self.microcontroller.set_dac80508_scaling_factor_for_illumination(ILLUMINATION_INTENSITY_FACTOR)
+
         # set software limit
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
