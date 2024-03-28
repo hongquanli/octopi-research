@@ -253,7 +253,7 @@ class ImageSaver(QObject):
     def start_new_experiment(self,experiment_ID,add_timestamp=True):
         if add_timestamp:
             # generate unique experiment ID
-            self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+            self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')
         else:
             self.experiment_ID = experiment_ID
         self.recording_start_time = time.time()
@@ -1777,7 +1777,7 @@ class MultiPointWorker(QObject):
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
                                                     'z (um)':[self.navigationController.z_pos_mm*1000],
-                                                    'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')},
+                                                    'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
                                                     )
                             self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
@@ -2002,7 +2002,7 @@ class MultiPointController(QObject):
 
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')
         self.recording_start_time = time.time()
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
@@ -2311,7 +2311,7 @@ class TrackingController(QObject):
 
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')
         self.recording_start_time = time.time()
         # create a new folder
         try:
@@ -2449,7 +2449,7 @@ class TrackingWorker(QObject):
 
         # save metadata
         self.txt_file = open( os.path.join(self.base_path,self.experiment_ID,"metadata.txt"), "w+")
-        self.txt_file.write('t0: ' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f') + '\n')
+        self.txt_file.write('t0: ' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f') + '\n')
         self.txt_file.write('objective: ' + self.trackingController.objective + '\n')
         self.txt_file.close()
 
