@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 import argparse
 os.environ["QT_API"] = "pyqt5"
 import qtpy
@@ -27,4 +28,4 @@ if __name__ == "__main__":
     else:
         win = gui.OctopiGUI()
     win.show()
-    app.exec_() #sys.exit(app.exec_())
+    sys.exit(app.exec_())

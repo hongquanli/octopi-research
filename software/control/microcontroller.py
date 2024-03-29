@@ -657,7 +657,7 @@ class Microcontroller():
                 print('! cmd checksum error, resending command')
                 if self.retry > 10:
                     print('!! resending command failed for more than 10 times, the program will exit')
-                    sys.exit(0)
+                    sys.exit(1)
                 else:
                     self.resend_last_command()
             # print('command id ' + str(self._cmd_id) + '; mcu command ' + str(self._cmd_id_mcu) + ' status: ' + str(msg[1]) )
@@ -700,7 +700,7 @@ class Microcontroller():
             time.sleep(0.02)
             if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
                 print('Error - microcontroller timeout, the program will exit')
-                sys.exit(0)
+                sys.exit(1)
 
     def _int_to_payload(self,signed_int,number_of_bytes):
         if signed_int >= 0:
@@ -1117,7 +1117,7 @@ class Microcontroller_Simulation():
             time.sleep(0.02)
             if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
                 print('Error - microcontroller timeout, the program will exit')
-                sys.exit(0)
+                sys.exit(1)
 
     def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
         if illumination_intensity_factor > 1:

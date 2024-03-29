@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import numpy as np
 from pathlib import Path
@@ -301,7 +302,7 @@ ENCODER_FLIP_DIR_Z = True
 # distance for each count (um)
 ENCODER_RESOLUTION_UM_X = 0.05
 ENCODER_RESOLUTION_UM_Y = 0.05
-ENCODER_RESOLUTION_UM_Z = 0.1
+ENCODER_RESOLUTION_UM_Z = 0.005
 
 # end of actuator specific configurations
 
@@ -511,7 +512,7 @@ if config_files:
             config_files = [CACHED_CONFIG_FILE_PATH]
         else:
             print('multiple machine configuration files found, the program will exit')
-            exit()
+            sys.exit(1)
     print('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
@@ -547,12 +548,12 @@ else:
     if config_files:
         if len(config_files) > 1:
             print('multiple machine configuration files found, the program will exit')
-            exit()
+            sys.exit(1)
         print('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
         print('machine-specific configuration not present, the program will exit')
-        exit()
+        sys.exit(1)
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################

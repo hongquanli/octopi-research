@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
@@ -836,7 +837,7 @@ class SlidePositionControlWorker(QObject):
                 print('Error - slide position switching timeout, the program will exit')
                 self.navigationController.move_x(0)
                 self.navigationController.move_y(0)
-                exit()
+                sys.exit(1)
 
     def move_to_slide_loading_position(self):
         was_live = self.liveController.is_live
