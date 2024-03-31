@@ -440,13 +440,24 @@ class LiveController(QObject):
         if illumination_source < 10: # LED matrix
             self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
+            # update illumination
             if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+                # set LDI active channel
                 print('set active channel to ' + str(illumination_source))
                 self.ldi.set_active_channel(int(illumination_source))
+                # set intensity for active channel
                 print('set intensity')
                 self.ldi.set_intensity(int(illumination_source),intensity)
             else:
                 self.microcontroller.set_illumination(illumination_source,intensity)
+
+            # set emission filter position
+            if 'Fluorescence' in self.currentConfiguration.name:
+                try:
+                    self.microscope.xlight.set_emission_filter(EMISSION_FILTER_MAPPING[illumination_source])
+                except Exception as e:
+                    print('not setting emission filter position due to ' + str(e))
+
 
     def start_live(self):
         self.is_live = True
