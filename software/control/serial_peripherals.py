@@ -73,7 +73,7 @@ class SerialDevice:
                 self.serial = serial.Serial(self.port,**kwargs)
 
 
-    def write_and_check(self, command, expected_response, max_attempts=3, attempt_delay=1, check_prefix=True):
+    def write_and_check(self, command, expected_response, max_attempts=8, attempt_delay=1, check_prefix=True):
         # Write a command and check the response
         for attempt in range(max_attempts):
             self.serial.write(command.encode())
@@ -145,13 +145,13 @@ class XLight_Simulation:
 
 class XLight:
     """Wrapper for communicating with CrestOptics X-Light devices over serial"""
-    def __init__(self, SN="A106QADU"):
+    def __init__(self, SN="B00031BE"):
         """
         Provide serial number (default is that of the device
         cephla already has) for device-finding purposes. Otherwise, all
         XLight devices should use the same serial protocol
         """
-        self.serial_connection = SerialDevice(SN=SN,baudrate=9600,
+        self.serial_connection = SerialDevice(SN=SN,baudrate=115200,
                 bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
                 parity=serial.PARITY_NONE, 
                 xonxoff=False,rtscts=False,dsrdtr=False)
@@ -252,7 +252,9 @@ class LDI:
     def set_intensity(self,channel,intensity):
         channel = str(channel)
         intensity = "{:.2f}".format(intensity)
+        print('set:'+channel+'='+intensity+'\r')
         self.serial_connection.write_and_check('set:'+channel+'='+intensity+'\r',"ok")
+        print('active channel: ' + str(self.active_channel))
     
     def set_shutter(self,channel,state):
         channel = str(channel)
@@ -264,8 +266,10 @@ class LDI:
 
     def set_active_channel(self,channel):
         self.active_channel = channel
+        print('[set active channel to ' + str(channel) + ']')
 
     def set_active_channel_shutter(self,state):
         channel = str(self.active_channel)
         state = str(state)
+        print('shutter:'+channel+'='+state+'\r')
         self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")

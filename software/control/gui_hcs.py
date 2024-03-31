@@ -94,13 +94,16 @@ class OctopiGUI(QMainWindow):
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight()
+            if USE_LDI_SERIAL_CONTROL:
+                self.ldi = serial_peripherals.LDI()
+                self.ldi.run()
             if True:
                 if SUPPORT_LASER_AUTOFOCUS:
                     sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera_fc.Camera_Simulation(FOCUS_CAMERA_MODEL)
+                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
                     self.camera = camera.Camera(sn=sn_camera_main,resolution=(3104,2084),rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
-                    self.camera_focus = camera_fc.Camera_Simulation(sn=sn_camera_focus)
+                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
                     self.camera_focus.open()
                 else:
                     self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
@@ -126,10 +129,11 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations123.xml')
+        print('load channel_configurations123.xml')
 
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
-        self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
+        self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,self)
         self.navigationController = core.NavigationController(self.microcontroller)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
@@ -208,7 +212,6 @@ class OctopiGUI(QMainWindow):
                     exit()
         '''
         
-        '''
         # retract the objective
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -265,7 +268,6 @@ class OctopiGUI(QMainWindow):
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
-        '''
 	
         # open the camera
         # camera start streaming
@@ -293,7 +295,7 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
         self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
@@ -404,7 +406,7 @@ class OctopiGUI(QMainWindow):
             # controllers
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
             self.streamHandler_focus_camera = core.StreamHandler()
-            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
+            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,self,control_illumination=False,for_displacement_measurement=True)
             self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
             self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
