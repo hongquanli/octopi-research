@@ -96,6 +96,9 @@ class SerialDevice:
 
         raise RuntimeError("Max attempts reached without receiving expected response.")
 
+    def write(self, command):
+        self.serial.write(command.encode())
+
     def close(self):
         # Close the serial connection
         self.serial.close()
@@ -145,7 +148,7 @@ class XLight_Simulation:
 
 class XLight:
     """Wrapper for communicating with CrestOptics X-Light devices over serial"""
-    def __init__(self, SN="B00031BE"):
+    def __init__(self, SN, sleep_time_for_wheel = 0.25):
         """
         Provide serial number (default is that of the device
         cephla already has) for device-finding purposes. Otherwise, all
@@ -156,8 +159,10 @@ class XLight:
                 parity=serial.PARITY_NONE, 
                 xonxoff=False,rtscts=False,dsrdtr=False)
         self.serial_connection.open_ser()
+
+        self.sleep_time_for_wheel = sleep_time_for_wheel
     
-    def set_emission_filter(self,position,extraction=False):
+    def set_emission_filter(self,position,extraction=False,validate=True,sleep_time_for_wheel):
         if str(position) not in ["1","2","3","4","5","6","7","8"]:
             raise ValueError("Invalid emission filter wheel position!")
         position_to_write = str(position)
@@ -165,8 +170,14 @@ class XLight:
         if extraction:
             position_to_write+="m"
 
-        current_pos = self.serial_connection.write_and_check("B"+position_to_write+"\r","B"+position_to_read)
-        self.emission_wheel_pos = int(current_pos[1])
+        if validate:
+            current_pos = self.serial_connection.write_and_check("B"+position_to_write+"\r","B"+position_to_read)
+            self.emission_wheel_pos = int(current_pos[1])
+        else:
+            self.serial_connection.write("B"+position_to_write+"\r")
+            time.sleep(self.sleep_time_for_wheel)
+            self.emission_wheel_pos = position
+
         return self.emission_wheel_pos
 
     def get_emission_filter(self):
@@ -186,12 +197,10 @@ class XLight:
         self.dichroic_wheel_pos = int(current_pos[1])
         return self.dichroic_wheel_pos
 
-
     def get_dichroic(self):
         current_pos = self.serial_connection.write_and_check("rC\r","rC")
         self.dichroic_wheel_pos = int(current_pos[2])
         return self.dichroic_wheel_pos
-
 
     def set_disk_position(self,position):
         if str(position) not in ["0","1","2","wide field","confocal"]:

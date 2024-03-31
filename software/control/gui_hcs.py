@@ -93,7 +93,7 @@ class OctopiGUI(QMainWindow):
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.xlight = serial_peripherals.XLight()
+                self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER,XLIGHT_SLEEP_TIME_FOR_WHEEL)
             if USE_LDI_SERIAL_CONTROL:
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()

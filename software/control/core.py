@@ -454,7 +454,7 @@ class LiveController(QObject):
             # set emission filter position
             if 'Fluorescence' in self.currentConfiguration.name:
                 try:
-                    self.microscope.xlight.set_emission_filter(EMISSION_FILTER_MAPPING[illumination_source])
+                    self.microscope.xlight.set_emission_filter(EMISSION_FILTER_MAPPING[illumination_source],XLIGHT_VALIDATE_WHEEL_POS)
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
 
