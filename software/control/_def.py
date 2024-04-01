@@ -441,6 +441,14 @@ CAMERA_TYPE="Default"
 
 FOCUS_CAMERA_TYPE="Default"
 
+USE_LDI_SERIAL_CONTROL = True
+ENABLE_SPINNING_DISK_CONFOCAL = True
+
+EMISSION_FILTER_MAPPING = {405:1,470:2,555:3,640:4,730:5}
+XLIGHT_SERIAL_NUMBER = "B00031BE"
+XLIGHT_SLEEP_TIME_FOR_WHEEL = 0.25
+XLIGHT_VALIDATE_WHEEL_POS = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
@@ -532,12 +540,3 @@ elif WELLPLATE_FORMAT == 6:
     WELL_SPACING_MM = 39.2
     A1_X_MM = 24.55
     A1_Y_MM = 23.01
-
-
-USE_LDI_SERIAL_CONTROL = True
-ENABLE_SPINNING_DISK_CONFOCAL = True
-
-EMISSION_FILTER_MAPPING = {405:1,470:2,555:3,640:4,730:5}
-XLIGHT_SERIAL_NUMBER = "B00031BE"
-XLIGHT_SLEEP_TIME_FOR_WHEEL = 0.25
-XLIGHT_VALIDATE_WHEEL_POS = False

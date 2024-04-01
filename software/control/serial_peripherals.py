@@ -162,7 +162,7 @@ class XLight:
 
         self.sleep_time_for_wheel = sleep_time_for_wheel
     
-    def set_emission_filter(self,position,extraction=False,validate=True,sleep_time_for_wheel):
+    def set_emission_filter(self,position,extraction=False,validate=True):
         if str(position) not in ["1","2","3","4","5","6","7","8"]:
             raise ValueError("Invalid emission filter wheel position!")
         position_to_write = str(position)
