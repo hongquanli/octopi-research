@@ -491,6 +491,8 @@ CAMERA_TYPE="Default"
 
 FOCUS_CAMERA_TYPE="Default"
 
+LASER_AF_CHARACTERIZATION_MODE=False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
