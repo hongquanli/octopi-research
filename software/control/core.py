@@ -645,6 +645,7 @@ class NavigationController(QObject):
 
             self.move_x(delta_x)
             self.move_y(delta_y)
+
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
             return

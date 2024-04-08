@@ -241,6 +241,7 @@ class OctopiGUI(QMainWindow):
         time.sleep(0.5)
 
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+        self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
 
         # home XY, set zero and set software limit
         print('home xy')
