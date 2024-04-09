@@ -302,7 +302,7 @@ ENCODER_FLIP_DIR_Z = True
 # distance for each count (um)
 ENCODER_RESOLUTION_UM_X = 0.05
 ENCODER_RESOLUTION_UM_Y = 0.05
-ENCODER_RESOLUTION_UM_Z = 0.005
+ENCODER_RESOLUTION_UM_Z = 0.1
 
 # end of actuator specific configurations
 
@@ -573,7 +573,7 @@ if ENABLE_TRACKING:
 if WELLPLATE_FORMAT == 384:
     WELL_SIZE_MM = 3.3
     WELL_SPACING_MM = 4.5
-    NUMBER_OF_SKIP = 0
+    NUMBER_OF_SKIP = 1
     A1_X_MM = 12.05
     A1_Y_MM = 9.05
 elif WELLPLATE_FORMAT == 96:
