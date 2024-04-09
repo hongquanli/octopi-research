@@ -84,7 +84,6 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-
        
         # to do
         if USE_NAPARI_FOR_MULTIPOINT:
@@ -93,6 +92,7 @@ class OctopiGUI(QMainWindow):
             self.napariViewer_multiPoint.setLiveViewLayers(['test'])
             self.imageDisplayTabs.addTab(self.napariViewer_multiPoint, "Multichannel Acquisition")
         else:
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
         
         self.objectiveStore = core.ObjectiveStore()
