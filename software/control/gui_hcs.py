@@ -131,7 +131,7 @@ class OctopiGUI(QMainWindow):
                     self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
                 print('! camera not detected, using simulated camera !')
-            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         # reset the MCU
         self.microcontroller.reset()

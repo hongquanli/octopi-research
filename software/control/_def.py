@@ -496,6 +496,11 @@ LASER_AF_CHARACTERIZATION_MODE=False
 USE_NAPARI_FOR_LIVE_VIEW = False
 USE_NAPARI_FOR_MULTIPOINT = False
 
+CONTROLLER_SN = None
+
+SUPPORT_LED_DOME = False
+LED_DOME_SN = None
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
