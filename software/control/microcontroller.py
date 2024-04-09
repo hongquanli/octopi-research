@@ -1129,5 +1129,5 @@ class Microcontroller_Simulation():
         factor = illumination_intensity_factor * 100
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
-        cmd[2] = factor
+        cmd[2] = int(factor)
         self.send_command(cmd)
