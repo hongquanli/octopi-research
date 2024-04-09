@@ -14,6 +14,7 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
+import control.ImSwitch.napariViewerWidget as napariViewerWidget
 
 
 if CAMERA_TYPE == "Toupcam":
@@ -69,20 +70,31 @@ class OctopiGUI(QMainWindow):
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # load window
-        if ENABLE_TRACKING:
-            self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-            self.imageDisplayWindow.show_ROI_selector()
-        else:
-            self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
-        self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
-        # self.imageDisplayWindow.show()
-        # self.imageArrayDisplayWindow.show()
-
         # image display windows
         self.imageDisplayTabs = QTabWidget()
-        self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-        self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+
+        # napari viewer
+        if USE_NAPARI_FOR_LIVE_VIEW:
+            self.napariViewer_live = napariViewerWidget.ImageWidget()
+            self.napariViewer_live.setLiveViewLayers(['Live'])
+            self.imageDisplayTabs.addTab(self.napariViewer_live, "Live View")
+        else:
+            if ENABLE_TRACKING:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow.show_ROI_selector()
+            else:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+       
+        # to do
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() # to remove
+            self.napariViewer_multiPoint = napariViewerWidget.ImageWidget()
+            self.napariViewer_multiPoint.setLiveViewLayers(['test'])
+            self.imageDisplayTabs.addTab(self.napariViewer_multiPoint, "Multichannel Acquisition")
+        else:
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
         
         self.objectiveStore = core.ObjectiveStore()
 
@@ -147,73 +159,6 @@ class OctopiGUI(QMainWindow):
         self.imageSaver = core.ImageSaver()
         self.imageDisplay = core.ImageDisplay()
         self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
-        '''
-        if HOMING_ENABLED_Z:
-            # retract the objective
-            self.navigationController.home_z()
-            # wait for the operation to finish
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('z homing timeout, the program will exit')
-                    sys.exit(1)
-            print('objective retracted')
-
-        if HOMING_ENABLED_Z and HOMING_ENABLED_X and HOMING_ENABLED_Y:
-            # self.navigationController.set_x_limit_pos_mm(100)
-            # self.navigationController.set_x_limit_neg_mm(-100)
-            # self.navigationController.set_y_limit_pos_mm(100)
-            # self.navigationController.set_y_limit_neg_mm(-100)
-            # self.navigationController.home_xy() 
-            # for the new design, need to home y before home x; x also needs to be at > + 10 mm when homing y
-            self.navigationController.move_x(12)
-            while self.microcontroller.is_busy(): # to do, add a blocking option move_x()
-                time.sleep(0.005)
-
-            self.navigationController.home_y()
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('y homing timeout, the program will exit')
-                    sys.exit(1)
-
-            self.navigationController.home_x()
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('x homing timeout, the program will exit')
-                    sys.exit(1)
-
-            print('xy homing completed')
-
-            # move to (20 mm, 20 mm)
-            self.navigationController.move_x(20)
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-            self.navigationController.move_y(20)
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-
-            self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
-            self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
-            self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
-            self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
-            self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
-
-        if HOMING_ENABLED_Z:
-            # move the objective back
-            self.navigationController.move_z(DEFAULT_Z_POS_MM)
-            # wait for the operation to finish
-            t0 = time.time() 
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 5:
-                    print('z return timeout, the program will exit')
-                    sys.exit(1)
-        '''
 
         # retract the objective
         self.navigationController.home_z()
@@ -410,10 +355,18 @@ class OctopiGUI(QMainWindow):
 
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
-        self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+        if USE_NAPARI_FOR_LIVE_VIEW:
+            self.streamHandler.image_to_display.connect(lambda x: self.napariViewer_live.setImage('Live',x))
+            self.autofocusController.image_to_display.connect(lambda x: self.napariViewer_live.setImage('Live',x))
+            self.multipointController.image_to_display.connect(lambda x: self.napariViewer_live.setImage('Live',x))
+        else:
+            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
+            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)            
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
+        self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
-        self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
@@ -421,15 +374,14 @@ class OctopiGUI(QMainWindow):
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-        self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-        self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
-        self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+        if not USE_NAPARI_FOR_LIVE_VIEW:
+            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
         # load vs scan position switching
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -525,7 +477,8 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
-        self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+        if not USE_NAPARI_FOR_LIVE_VIEW:
+            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
         self.navigationController.move_to_cached_position()
 

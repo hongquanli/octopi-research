@@ -493,6 +493,11 @@ CAMERA_TYPE="Default"
 
 FOCUS_CAMERA_TYPE="Default"
 
+LASER_AF_CHARACTERIZATION_MODE=False
+
+USE_NAPARI_FOR_LIVE_VIEW = False
+USE_NAPARI_FOR_MULTIPOINT = False
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################

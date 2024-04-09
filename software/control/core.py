@@ -1683,6 +1683,11 @@ class MultiPointWorker(QObject):
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
+                            # laser af characterization mode
+                            if LASER_AF_CHARACTERIZATION_MODE:
+                                image = self.microscope.laserAutofocusController.get_image()
+                                saving_path = os.path.join(current_path, file_ID + '_laser af camera' + '.bmp')
+                                iio.imwrite(saving_path,image)
 
                             current_round_images = {}
                             # iterate through selected modes
@@ -3424,4 +3429,16 @@ class LaserAutofocusController(QObject):
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
-        
+
+    def get_image(self):
+        # turn on the laser
+        self.microcontroller.turn_on_AF_laser()
+        self.wait_till_operation_is_completed()
+        # send trigger, grab image and display image
+        self.camera.send_trigger()
+        image = self.camera.read_frame()
+        self.image_to_display.emit(image)
+        # turn off the laser
+        self.microcontroller.turn_off_AF_laser()
+        self.wait_till_operation_is_completed()
+        return image

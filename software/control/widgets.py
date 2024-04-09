@@ -3090,20 +3090,21 @@ class WellSelectionWidget(QTableWidget):
 
         # make the outer cells not selectable if using 96 and 384 well plates
         if self.format == 384:
-            for i in range(self.rows):
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(i,0,item)
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(i,self.columns-1,item)
-            for j in range(self.columns):
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(0,j,item)
-                item = QTableWidgetItem()
-                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                self.setItem(self.rows-1,j,item)
+            if NUMBER_OF_SKIP == 1:
+                for i in range(self.rows):
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(i,0,item)
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(i,self.columns-1,item)
+                for j in range(self.columns):
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(0,j,item)
+                    item = QTableWidgetItem()
+                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+                    self.setItem(self.rows-1,j,item)
         elif self.format == 96:
             if NUMBER_OF_SKIP == 1:
                 for i in range(self.rows):
