@@ -276,6 +276,9 @@ elapsedMicros us_since_last_pos_update;
 static const int interval_check_position = 10000; // in us
 elapsedMicros us_since_last_check_position;
 
+static const int interval_send_joystick_update = 30000; // in us
+elapsedMicros us_since_last_joystick_update;
+
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
 /***************************************************************************************************/
@@ -1747,41 +1750,42 @@ void loop() {
 
   if (flag_read_joystick)
   {
-    // read x joystick
-    if (!X_commanded_movement_in_progress && !is_homing_X && !is_preparing_for_homing_X) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
-    {
-      // joystick at motion position
-      if (abs(joystick_delta_x) > 0)
-      {
-        tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x / 32768.0)*MAX_VELOCITY_X_mm ) );
-      }
-      // joystick at rest position
-      else
-      {
-        if (enable_offset_velocity)
-          tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x ) );
-        else
-          tmc4361A_stop(&tmc4361[x]); // tmc4361A_setSpeed( &tmc4361[x], 0 ) causes problems for zeroing
-      }
-    }
+	if (us_since_last_joystick_update > interval_send_joystick_update)
+	{
+	  us_since_last_joystick_update = 0;
 
-    // read y joystick
-    if (!Y_commanded_movement_in_progress && !is_homing_Y && !is_preparing_for_homing_Y)
-    {
-      // joystick at motion position
-      if (abs(joystick_delta_y) > 0)
-      {
-        tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y / 32768.0)*MAX_VELOCITY_Y_mm ) );
-      }
-      // joystick at rest position
-      else
-      {
-        if (enable_offset_velocity)
-          tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y ) );
-        else
-          tmc4361A_stop(&tmc4361[y]); // tmc4361A_setSpeed( &tmc4361[y], 0 ) causes problems for zeroing
-      }
-    }
+	  // read x joystick
+	  if (!X_commanded_movement_in_progress && !is_homing_X && !is_preparing_for_homing_X) //if(stepper_X.distanceToGo()==0) // only read joystick when computer commanded travel has finished - doens't work
+	  {
+	    // joystick at motion position
+	    if (abs(joystick_delta_x) > 0)
+	  	  tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x / 32768.0)*MAX_VELOCITY_X_mm ) );
+	    // joystick at rest position
+	    else
+	    {
+	  	  if (enable_offset_velocity)
+	  	    tmc4361A_setSpeed( &tmc4361[x], tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x ) );
+	  	  else
+		    tmc4361A_stop(&tmc4361[x]); // tmc4361A_setSpeed( &tmc4361[x], 0 ) causes problems for zeroing
+	      }
+	  }
+
+	  // read y joystick
+	  if (!Y_commanded_movement_in_progress && !is_homing_Y && !is_preparing_for_homing_Y)
+	  {
+	    // joystick at motion position
+	    if (abs(joystick_delta_y) > 0)
+	  	  tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y / 32768.0)*MAX_VELOCITY_Y_mm ) );
+	    // joystick at rest position
+	    else
+	    {
+	  	  if (enable_offset_velocity)
+	  	    tmc4361A_setSpeed( &tmc4361[y], tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y ) );
+	  	  else
+	  	    tmc4361A_stop(&tmc4361[y]); // tmc4361A_setSpeed( &tmc4361[y], 0 ) causes problems for zeroing
+	    }
+	  }
+	}
 
     // set the read joystick flag to false
     flag_read_joystick = false;
