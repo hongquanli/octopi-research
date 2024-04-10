@@ -42,6 +42,8 @@ import imageio as iio
 
 import subprocess
 
+import control.serial_peripherals as serial_peripherals
+
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
         self.objectives_dict = objectives_dict
@@ -416,18 +418,53 @@ class LiveController(QObject):
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            # to do: add error handling
+            self.led_array = serial_peripherals.SciMicroscopyLEDArray(SCIMICROSCOPY_LED_ARRAY_SN,SCIMICROSCOPY_LED_ARRAY_DISTANCE)
+            self.led_array.set_NA(SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA)
+
     # illumination control
     def turn_on_illumination(self):
-        self.microcontroller.turn_on_illumination()
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+            self.led_array.turn_on_illumination()
+        else:
+            self.microcontroller.turn_on_illumination()
         self.illumination_on = True
 
     def turn_off_illumination(self):
-        self.microcontroller.turn_off_illumination()
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+            self.led_array.turn_off_illumination()
+        else:
+            self.microcontroller.turn_off_illumination()
         self.illumination_on = False
 
     def set_illumination(self,illumination_source,intensity):
         if illumination_source < 10: # LED matrix
-            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+            if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+                # set color
+                if 'BF LED matrix full_R' in self.currentConfiguration.name:
+                    self.led_array.set_color((1,0,0))
+                elif 'BF LED matrix full_G' in self.currentConfiguration.name:
+                    self.led_array.set_color((0,1,0))
+                elif 'BF LED matrix full_B' in self.currentConfiguration.name:
+                    self.led_array.set_color((0,0,1))
+                else:
+                    self.led_array.set_color(SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR)
+                # set intensity
+                self.led_array.set_brightness(intensity)
+                # set mode
+                if 'BF LED matrix left half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.l')
+                if 'BF LED matrix right half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.r')
+                if 'BF LED matrix top half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.t')
+                if 'BF LED matrix bottom half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.b')
+                if 'BF LED matrix full' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('bf')
+            else:
+                self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
             self.microcontroller.set_illumination(illumination_source,intensity)
 
