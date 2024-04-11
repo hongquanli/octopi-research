@@ -502,7 +502,7 @@ SUPPORT_SCIMICROSCOPY_LED_ARRAY = False
 SCIMICROSCOPY_LED_ARRAY_SN = None
 SCIMICROSCOPY_LED_ARRAY_DISTANCE = 50
 SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA = 0.8
-SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = (1,1,1)
+SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = [1,1,1]
 
 ##########################################################
 #### start of loading machine specific configurations ####
