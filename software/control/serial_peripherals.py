@@ -334,7 +334,7 @@ class SciMicroscopyLEDArray:
         self.illumination = illumination
 
     def clear(self):
-        self.serial_connection.write_and_check('x','-==-',read_delay=0.01,print_response=False)
+        self.serial_connection.write_and_check('x\r','-==-',read_delay=0.01,print_response=False)
 
     def turn_on_illumination(self):
         if self.illumination is not None:
