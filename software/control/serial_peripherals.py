@@ -283,7 +283,7 @@ class LDI:
 
 class SciMicroscopyLEDArray:
     """Wrapper for communicating with SciMicroscopy over serial"""
-    def __init__(self, SN, array_distance = 50):
+    def __init__(self, SN, array_distance = 50, turn_on_delay = 0.03):
         """
         Provide serial number
         """
@@ -294,8 +294,10 @@ class SciMicroscopyLEDArray:
         self.serial_connection.open_ser()
         self.check_about()
         self.set_distance(array_distance)
+        self.set_brightness(1)
 
         self.illumination = None
+        self.turn_on_delay = turn_on_delay
 
     def write(self,command):
         self.serial_connection.write_and_check(command+'\r','',read_delay=0.01,print_response=True)
@@ -339,6 +341,6 @@ class SciMicroscopyLEDArray:
     def turn_on_illumination(self):
         if self.illumination is not None:
             self.serial_connection.write_and_check(f'{self.illumination}\r','-==-',read_delay=0.01,print_response=False)
-
+            time.sleep(self.turn_on_delay)
     def turn_off_illumination(self):
         self.clear()
