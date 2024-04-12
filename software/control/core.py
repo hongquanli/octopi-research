@@ -1763,13 +1763,16 @@ class MultiPointWorker(QObject):
                                     # tunr of the illumination if using software trigger
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_off_illumination()
+
                                     # process the image -  @@@ to move to camera
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                     # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1794,6 +1797,42 @@ class MultiPointWorker(QObject):
                                         cv2.imwrite(saving_path,image)
                                         
                                     current_round_images[config.name] = np.copy(image)
+
+                                    # dpc generation
+                                    keys_to_check = ['BF LED matrix left half', 'BF LED matrix right half', 'BF LED matrix top half', 'BF LED matrix bottom half']
+                                    if all(key in current_round_images for key in keys_to_check):
+                                        # generate dpc
+                                        pass
+
+                                    # RGB generation
+                                    keys_to_check = ['BF LED matrix full_R', 'BF LED matrix full_G', 'BF LED matrix full_B']
+                                    if all(key in current_round_images for key in keys_to_check):
+                                        print('constructing RGB image')
+                                        size = current_round_images['BF LED matrix full_R'].shape
+                                        print(size)
+                                        rgb_image = np.zeros((*size, 3),dtype=current_round_images['BF LED matrix full_R'].dtype)
+                                        print(current_round_images['BF LED matrix full_R'].dtype)
+                                        print(rgb_image.shape)
+                                        print(rgb_image)
+                                        rgb_image[:, :, 0] = current_round_images['BF LED matrix full_R']
+                                        rgb_image[:, :, 1] = current_round_images['BF LED matrix full_G']
+                                        rgb_image[:, :, 2] = current_round_images['BF LED matrix full_B']
+
+                                        # send image to display
+                                        image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                                        if USE_NAPARI_FOR_LIVE_VIEW:
+                                            self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
+                                        else:
+                                            self.image_to_display.emit(image_to_display)
+                                        # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
+
+                                        # write the image
+                                        if rgb_image.dtype == np.uint16:
+                                            saving_path = os.path.join(current_path, file_ID + '_RGB.tiff')
+                                            iio.imwrite(saving_path,rgb_image)
+                                        else:
+                                            saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
+                                            iio.imwrite(saving_path,rgb_image)
 
                                     QApplication.processEvents()
                                 else:
