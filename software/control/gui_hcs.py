@@ -86,12 +86,10 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
        
-        # to do
         if USE_NAPARI_FOR_MULTIPOINT:
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() # to remove
-            self.napariViewer_multiPoint = napariViewerWidget.ImageWidget()
-            self.napariViewer_multiPoint.setLiveViewLayers(['test'])
-            self.imageDisplayTabs.addTab(self.napariViewer_multiPoint, "Multichannel Acquisition")
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
@@ -366,7 +364,8 @@ class OctopiGUI(QMainWindow):
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)            
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-        self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+        if not USE_NAPARI_FOR_MULTIPOINT:
+            self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
@@ -394,6 +393,12 @@ class OctopiGUI(QMainWindow):
         # display the FOV in the viewer
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
 
         # (double) click to move to a well
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
@@ -462,8 +467,7 @@ class OctopiGUI(QMainWindow):
                 laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
                 laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
-            # self.imageDisplayWindow_focus.widget
-            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-based Focus")
+            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
 
             # connections
             self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)

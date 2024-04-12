@@ -3439,7 +3439,6 @@ class LaserAutofocusController(QObject):
                 print(e)
                 pass
 
-
     def measure_displacement(self):
         # turn on the laser
         self.microcontroller.turn_on_AF_laser()
