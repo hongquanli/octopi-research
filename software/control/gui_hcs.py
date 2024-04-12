@@ -103,6 +103,7 @@ class OctopiGUI(QMainWindow):
                 self.xlight = serial_peripherals.XLight_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
                 self.camera_focus = camera_fc.Camera_Simulation()
             else:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
