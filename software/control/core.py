@@ -1439,6 +1439,7 @@ class MultiPointWorker(QObject):
     image_to_display = Signal(np.ndarray)
     spectrum_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
+    image_to_display_tiled_preview = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
@@ -1490,6 +1491,8 @@ class MultiPointWorker(QObject):
         self.t_dpc = []
         self.t_inf = []
         self.t_over=[]
+
+        self.tiled_preview = None
         
 
     def update_stats(self, new_stats):
@@ -1835,6 +1838,8 @@ class MultiPointWorker(QObject):
                                             iio.imwrite(saving_path,rgb_image)
 
                                     QApplication.processEvents()
+
+                                # USB spectrometer
                                 else:
                                     if self.usb_spectrometer != None:
                                         for l in range(N_SPECTRUM_PER_POINT):
@@ -1852,7 +1857,28 @@ class MultiPointWorker(QObject):
                                         self.wait_till_operation_is_completed()
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-                                                            
+                            # tiled preview
+                            if SHOW_TILED_PREVIEW and 'BF LED matrix full' in current_round_images:
+                                # initialize the variable
+                                if self.tiled_preview is None:
+                                    size = current_round_images['BF LED matrix full'].shape
+                                    if len(size) == 2:
+                                        self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR)),dtype=current_round_images['BF LED matrix full'].dtype)
+                                    else:
+                                        self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR),size[2]),dtype=current_round_images['BF LED matrix full'].dtype)
+                                # downsample the image
+                                I = current_round_images['BF LED matrix full']
+                                width = int(I.shape[1]/PRVIEW_DOWNSAMPLE_FACTOR)
+                                height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
+                                I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
+                                # populate the tiled_preview
+                                if sgn_j == 1:
+                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, j*width:(j+1)*width, ] = I
+                                else:
+                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, (self.NX-j-1)*width:(self.NX-j)*width, ] = I
+                                # emit the result
+                                self.image_to_display_tiled_preview.emit(self.tiled_preview)
+
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
@@ -1991,6 +2017,7 @@ class MultiPointController(QObject):
     acquisitionFinished = Signal()
     image_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
+    image_to_display_tiled_preview = Signal(np.ndarray)
     spectrum_to_display = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
@@ -2213,6 +2240,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
+        self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
         self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
@@ -2263,6 +2291,9 @@ class MultiPointController(QObject):
 
     def slot_image_to_display(self,image):
         self.image_to_display.emit(image)
+
+    def slot_image_to_display_tiled_preview(self,image):
+        self.image_to_display_tiled_preview.emit(image)
 
     def slot_spectrum_to_display(self,data):
         self.spectrum_to_display.emit(data)

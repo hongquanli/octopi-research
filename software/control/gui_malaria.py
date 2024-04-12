@@ -34,6 +34,8 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayWindow.show_ROI_selector()
         else:
             self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+        if SHOW_TILED_PREVIEW:
+            self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
         self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
         # self.imageDisplayWindow.show()
         # self.imageArrayDisplayWindow.show()
@@ -42,6 +44,8 @@ class OctopiGUI(QMainWindow):
         self.imageDisplayTabs = QTabWidget()
         self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
         self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+        if SHOW_TILED_PREVIEW:
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # load objects
         if is_simulation:
@@ -251,6 +255,8 @@ class OctopiGUI(QMainWindow):
         self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+        if SHOW_TILED_PREVIEW:
+            self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
