@@ -1789,15 +1789,11 @@ class MultiPointWorker(QObject):
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                         if self.camera.is_color:
                                             if 'BF LED matrix' in config.name:
-                                                if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
-                                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                                elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                                if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                            else:
-                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                        cv2.imwrite(saving_path,image)
+                                        iio.imwrite(saving_path,image)
                                         
                                     current_round_images[config.name] = np.copy(image)
 
@@ -2197,8 +2193,8 @@ class MultiPointController(QObject):
             print("Generating focus map for multipoint grid")
             starting_x_mm = self.navigationController.x_pos_mm
             starting_y_mm = self.navigationController.y_pos_mm
-            fmap_Nx = max(2,self.NX)
-            fmap_Ny = max(2,self.NY)
+            fmap_Nx = max(2,self.NX-1)
+            fmap_Ny = max(2,self.NY-1)
             fmap_dx = self.deltaX
             fmap_dy = self.deltaY
             if abs(fmap_dx) < 0.1 and fmap_dx != 0.0:

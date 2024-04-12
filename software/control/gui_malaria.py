@@ -128,16 +128,6 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
         self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
 
-        # raise the objective
-        self.navigationController.move_z(DEFAULT_Z_POS_MM)
-        # wait for the operation to finish
-        t0 = time.time() 
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 5:
-                print('z return timeout, the program will exit')
-                exit()
-
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0
         gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0 
