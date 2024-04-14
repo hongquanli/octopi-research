@@ -1896,8 +1896,9 @@ void loop() {
   // at limit
   if (X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
   {
+	uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[x]);
     // if( tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW )
-    if ( ( X_direction == LEFT_DIR && tmc4361A_readSwitchEvent(&tmc4361[x]) == LEFT_SW ) || ( X_direction == RGHT_DIR && tmc4361A_readSwitchEvent(&tmc4361[x]) == RGHT_SW ) )
+    if ( ( X_direction == LEFT_DIR && event == LEFT_SW ) || ( X_direction == RGHT_DIR && event == RGHT_SW ) )
     {
       X_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
@@ -1905,8 +1906,9 @@ void loop() {
   }
   if (Y_commanded_movement_in_progress && !is_homing_Y) // homing is handled separately
   {
+	uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[y]);
     //if( tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW )
-    if ( ( Y_direction == LEFT_DIR && tmc4361A_readSwitchEvent(&tmc4361[y]) == LEFT_SW ) || ( Y_direction == RGHT_DIR && tmc4361A_readSwitchEvent(&tmc4361[y]) == RGHT_SW ) )
+    if ( ( Y_direction == LEFT_DIR && event == LEFT_SW ) || ( Y_direction == RGHT_DIR && event == RGHT_SW ) )
     {
       Y_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
@@ -1914,8 +1916,9 @@ void loop() {
   }
   if (Z_commanded_movement_in_progress && !is_homing_Z) // homing is handled separately
   {
+	uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[z]);
     // if( tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW )
-    if ( ( Z_direction == LEFT_DIR && tmc4361A_readSwitchEvent(&tmc4361[z]) == LEFT_SW ) || ( Z_direction == RGHT_DIR && tmc4361A_readSwitchEvent(&tmc4361[z]) == RGHT_SW ) )
+    if ( ( Z_direction == LEFT_DIR && event == LEFT_SW ) || ( Z_direction == RGHT_DIR && event == RGHT_SW ) )
     {
       Z_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;

@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import numpy as np
 from pathlib import Path
@@ -393,6 +394,7 @@ class SOFTWARE_POS_LIMIT:
     Y_POSITIVE = 56
     Y_NEGATIVE = -0.5
     Z_POSITIVE = 6
+    Z_NEGATIVE = 0.05
 
 SHOW_AUTOLEVEL_BTN = False
 AUTOLEVEL_DEFAULT_SETTING = False
@@ -528,7 +530,7 @@ if config_files:
             config_files = [CACHED_CONFIG_FILE_PATH]
         else:
             print('multiple machine configuration files found, the program will exit')
-            exit()
+            sys.exit(1)
     print('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
@@ -564,12 +566,12 @@ else:
     if config_files:
         if len(config_files) > 1:
             print('multiple machine configuration files found, the program will exit')
-            exit()
+            sys.exit(1)
         print('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
         print('machine-specific configuration not present, the program will exit')
-        exit()
+        sys.exit(1)
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################

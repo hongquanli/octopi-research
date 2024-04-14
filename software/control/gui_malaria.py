@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
@@ -95,7 +96,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('z homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         print('objective retracted')
 
         # set encoder arguments

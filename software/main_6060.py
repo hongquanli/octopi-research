@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 import glob
 import argparse
 os.environ["QT_API"] = "pyqt5"
@@ -60,4 +61,4 @@ if __name__ == "__main__":
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)
     win.show()
-    app.exec_() #sys.exit(app.exec_())
+    sys.exit(app.exec_())

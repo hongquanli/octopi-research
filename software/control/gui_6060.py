@@ -2,6 +2,7 @@
 import os 
 os.environ["QT_API"] = "pyqt5"
 import qtpy
+import sys
 
 # qt libraries
 from qtpy.QtCore import *
@@ -94,7 +95,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('z homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         print('objective retracted')
 
         # homing
@@ -109,14 +110,14 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('y homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         self.navigationController.home_x()
         t0 = time.time()
         while self.microcontroller.is_busy():
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('x homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         print('homing finished')
 
         # set software limit
@@ -141,7 +142,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
-                exit()
+                sys.exit(1)
 
         # set software limit
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)

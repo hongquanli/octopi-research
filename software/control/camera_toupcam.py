@@ -1,3 +1,4 @@
+import sys
 import argparse
 import cv2
 import time
@@ -8,6 +9,7 @@ from control._def import *
 import threading
 import control.toupcam as toupcam
 from control.toupcam_exceptions import hresult_checker
+
 
 def get_sn_by_model(model_name):
     try:
@@ -229,11 +231,11 @@ class Camera(object):
                         self.camera.StartPullModeWithCallback(self._event_callback, self)
                     except toupcam.HRESULTException as ex:
                         print('failed to start camera, hr=0x{:x}'.format(ex.hr))
-                        exit()
+                        sys.exit(1)
                 self._toupcam_pullmode_started = True
             else:
                 print('failed to open camera')
-                exit()
+                sys.exit(1)
         else:
             print('no camera found')
 
@@ -332,7 +334,7 @@ class Camera(object):
             except toupcam.HRESULTException as ex:
                 print('failed to start camera, hr: '+hresult_checker(ex))
                 self.close()
-                exit()
+                sys.exit(1)
         print('  start streaming')
         self.is_streaming = True
 

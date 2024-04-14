@@ -2765,7 +2765,7 @@ class MultiCameraRecordingWidget(QFrame):
             self.lineEdit_experimentID.setEnabled(False)
             self.btn_setSavingDir.setEnabled(False)
             experiment_ID = self.lineEdit_experimentID.text()
-            experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+            experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')
             os.mkdir(os.path.join(self.save_dir_base,experiment_ID))
             for channel in self.channels:
                 self.imageSaver[channel].start_new_experiment(os.path.join(experiment_ID,channel),add_timestamp=False)

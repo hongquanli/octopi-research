@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 import time
 os.environ["QT_API"] = "pyqt5"
 import qtpy
@@ -168,7 +169,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('z homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         print('objective retracted')
 
         # set encoder arguments
@@ -186,6 +187,7 @@ class OctopiGUI(QMainWindow):
         time.sleep(0.5)
 
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+        self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
 
         # home XY, set zero and set software limit
         print('home xy')
@@ -201,7 +203,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('y homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         self.navigationController.zero_y()
         # home x
         self.navigationController.home_x()
@@ -210,7 +212,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('y homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
