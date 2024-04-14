@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 os.environ["QT_API"] = "pyqt5"
 import qtpy
 
@@ -92,7 +93,7 @@ class OctopiGUI(QMainWindow):
 			time.sleep(0.005)
 			if time.time() - t0 > 10:
 				print('y homing timeout, the program will exit')
-				exit()
+				sys.exit(1)
 		
 		self.navigationController.home_x()
 		t0 = time.time()
@@ -100,7 +101,7 @@ class OctopiGUI(QMainWindow):
 			time.sleep(0.005)
 			if time.time() - t0 > 10:
 				print('x homing timeout, the program will exit')
-				exit()
+				sys.exit(1)
 		'''
 		'''
 		self.slidePositionController.move_to_slide_scanning_position()
@@ -116,7 +117,7 @@ class OctopiGUI(QMainWindow):
 			time.sleep(0.005)
 			if time.time() - t0 > 10:
 				print('z homing timeout, the program will exit')
-				exit()
+				sys.exit(1)
 		print('objective retracted')
 		self.navigationController.move_z(DEFAULT_Z_POS_MM)
 
@@ -228,8 +229,6 @@ class OctopiGUI(QMainWindow):
 		self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
 		self.liveControlWidget.update_camera_settings()
 		self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
-		self.cameraSettingWidget.signal_camera_set_temperature.connect(self.camera.set_temperature)
-		self.camera.set_temperature_reading_callback(self.cameraSettingWidget.update_measured_temperature)
 
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
 		self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)

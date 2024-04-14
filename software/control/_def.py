@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import numpy as np
 from pathlib import Path
@@ -9,11 +10,16 @@ def conf_attribute_reader(string_value):
     """
     :brief: standardized way for reading config entries
     that are strings, in priority order
-    dict/list (via json) -> int -> float -> string
+    None -> bool -> dict/list (via json) -> int -> float -> string
     REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN
     DOUBLE QUOTES
     """
     actualvalue = str(string_value).strip()
+    try:
+        if str(actualvalue) == "None":
+            return None
+    except:
+        pass
     try:
         if str(actualvalue) == "True" or str(actualvalue) == "true":
             return True
@@ -64,6 +70,8 @@ class Acquisition:
     DX = 0.9
     DY = 0.9
     DZ = 1.5
+    NX = 1
+    NY = 1
 
 class PosUpdate:
     INTERVAL_MS = 25
@@ -110,6 +118,8 @@ class CMD_SET:
     SET_ILLUMINATION_LED_MATRIX = 13
     ACK_JOYSTICK_BUTTON_PRESSED = 14
     ANALOG_WRITE_ONBOARD_DAC = 15
+    SET_DAC80508_REFDIV_GAIN = 16
+    SET_ILLUMINATION_INTENSITY_FACTOR = 17
     MOVETO_X = 6
     MOVETO_Y = 7
     MOVETO_Z = 8
@@ -274,6 +284,26 @@ MAX_ACCELERATION_X_mm = 500
 MAX_ACCELERATION_Y_mm = 500
 MAX_ACCELERATION_Z_mm = 20
 
+# config encoder arguments
+HAS_ENCODER_X = False
+HAS_ENCODER_Y = False
+HAS_ENCODER_Z = False
+
+# enable PID control
+ENABLE_PID_X  = False
+ENABLE_PID_Y  = False
+ENABLE_PID_Z  = False
+
+# flip direction True or False
+ENCODER_FLIP_DIR_X = True
+ENCODER_FLIP_DIR_Y = True
+ENCODER_FLIP_DIR_Z = True
+
+# distance for each count (um)
+ENCODER_RESOLUTION_UM_X = 0.05
+ENCODER_RESOLUTION_UM_Y = 0.05
+ENCODER_RESOLUTION_UM_Z = 0.1
+
 # end of actuator specific configurations
 
 SCAN_STABILIZATION_TIME_MS_X = 160
@@ -309,7 +339,8 @@ OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
                 '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
                 '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
                 '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
-                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200}, 
+                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
+                '20x':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
                 '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
@@ -343,6 +374,17 @@ class SLIDE_POSITION:
     SCANNING_X_MM = 3
     SCANNING_Y_MM = 3
 
+class OUTPUT_GAINS:
+    REFDIV = False
+    CHANNEL0_GAIN = False
+    CHANNEL1_GAIN = False
+    CHANNEL2_GAIN = False
+    CHANNEL3_GAIN = False
+    CHANNEL4_GAIN = False
+    CHANNEL5_GAIN = False
+    CHANNEL6_GAIN = False
+    CHANNEL7_GAIN = True
+
 SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S = 10
 SLIDE_POTISION_SWITCHING_HOME_EVERYTIME = False
 
@@ -352,6 +394,7 @@ class SOFTWARE_POS_LIMIT:
     Y_POSITIVE = 56
     Y_NEGATIVE = -0.5
     Z_POSITIVE = 6
+    Z_NEGATIVE = 0.05
 
 SHOW_AUTOLEVEL_BTN = False
 AUTOLEVEL_DEFAULT_SETTING = False
@@ -362,6 +405,9 @@ MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
 MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
 # MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
+
+DEFAULT_MULTIPOINT_NX=1
+DEFAULT_MULTIPOINT_NY=1
 
 ENABLE_FLEXIBLE_MULTIPOINT = False
 
@@ -401,6 +447,9 @@ FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field
 # controller version
 CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 
+#How to read Spinnaker nodemaps, options are INDIVIDUAL or VALUE
+CHOSEN_READ = 'INDIVIDUAL'
+
 # laser autofocus
 SUPPORT_LASER_AUTOFOCUS = False
 MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
@@ -433,30 +482,69 @@ DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
-STITCH_TILES_WITH_ASHLAR = False
 
 ENABLE_SPINNING_DISK_CONFOCAL=False
+
+INVERTED_OBJECTIVE = False
+
+ILLUMINATION_INTENSITY_FACTOR = 0.6
 
 CAMERA_TYPE="Default"
 
 FOCUS_CAMERA_TYPE="Default"
 
-USE_LDI_SERIAL_CONTROL = True
+# Spinning disk confocal integration
 ENABLE_SPINNING_DISK_CONFOCAL = True
+USE_LDI_SERIAL_CONTROL = True
 
-EMISSION_FILTER_MAPPING = {405:1,470:2,555:3,640:4,730:5}
+XLIGHT_EMISSION_FILTER_MAPPING = {405:1,470:2,555:3,640:4,730:5}
 XLIGHT_SERIAL_NUMBER = "B00031BE"
 XLIGHT_SLEEP_TIME_FOR_WHEEL = 0.25
 XLIGHT_VALIDATE_WHEEL_POS = False
 
+# Laser AF characterization mode
+LASER_AF_CHARACTERIZATION_MODE=False
+
+# Napari integration
+USE_NAPARI_FOR_LIVE_VIEW = False
+USE_NAPARI_FOR_MULTIPOINT = False
+
+# Controller SN (needed when using multiple teensy-based connections)
+CONTROLLER_SN = None
+
+# Sci microscopy
+SUPPORT_SCIMICROSCOPY_LED_ARRAY = False
+SCIMICROSCOPY_LED_ARRAY_SN = None
+SCIMICROSCOPY_LED_ARRAY_DISTANCE = 50
+SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA = 0.8
+SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = [1,1,1]
+SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the camera (in seconds)
+
+# Tiled preview
+SHOW_TILED_PREVIEW = True
+PRVIEW_DOWNSAMPLE_FACTOR = 5
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
+CACHED_CONFIG_FILE_PATH = None
+try:
+    with open("cache/config_file_path.txt", 'r') as file:
+        for line in file:
+            CACHED_CONFIG_FILE_PATH = line
+            break
+except FileNotFoundError:
+    CACHED_CONFIG_FILE_PATH = None
+
 config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
-        print('multiple machine configuration files found, the program will exit')
-        exit()
+        if CACHED_CONFIG_FILE_PATH in config_files:
+            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            config_files = [CACHED_CONFIG_FILE_PATH]
+        else:
+            print('multiple machine configuration files found, the program will exit')
+            sys.exit(1)
     print('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
@@ -483,18 +571,21 @@ if config_files:
             continue
         myclass = locals()[classkey]
         populate_class_from_dict(myclass,pop_items)
+    with open("cache/config_file_path.txt", 'w') as file:
+        file.write(config_files[0])
+    CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
     print('configuration*.ini file not found, defaulting to legacy configuration')
     config_files = glob.glob('.' + '/' + 'configuration*.txt')
     if config_files:
         if len(config_files) > 1:
             print('multiple machine configuration files found, the program will exit')
-            exit()
+            sys.exit(1)
         print('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
         print('machine-specific configuration not present, the program will exit')
-        exit()
+        sys.exit(1)
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################

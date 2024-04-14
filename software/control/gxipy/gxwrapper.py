@@ -13,7 +13,10 @@ if sys.platform == 'linux2' or sys.platform == 'linux':
         print("Cannot find libgxiapi.so.")
 else:
     try:
-        dll = WinDLL('GxIAPI.dll')
+        if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (sys.version_info.major > 3):
+            dll = WinDLL('GxIAPI.dll', winmode=0)
+        else:
+            dll = WinDLL('GxIAPI.dll')
     except OSError:
         print('Cannot find GxIAPI.dll.')
 

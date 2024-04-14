@@ -2,6 +2,7 @@
 import os 
 os.environ["QT_API"] = "pyqt5"
 import qtpy
+import sys
 
 # qt libraries
 from qtpy.QtCore import *
@@ -76,7 +77,7 @@ class OctopiGUI(QMainWindow):
         self.configurationManager = core.ConfigurationManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-        self.navigationController = core.NavigationController(self.microcontroller)
+        self.navigationController = core.NavigationController(self.microcontroller, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
@@ -94,7 +95,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('z homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         print('objective retracted')
 
         # homing
@@ -109,14 +110,14 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('y homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         self.navigationController.home_x()
         t0 = time.time()
         while self.microcontroller.is_busy():
             time.sleep(0.005)
             if time.time() - t0 > 10:
                 print('x homing timeout, the program will exit')
-                exit()
+                sys.exit(1)
         print('homing finished')
 
         # set software limit
@@ -141,7 +142,7 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.005)
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
-                exit()
+                sys.exit(1)
 
         # set software limit
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
@@ -157,6 +158,7 @@ class OctopiGUI(QMainWindow):
         self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
+
 
         # load widgets
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
@@ -260,7 +262,11 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
+        self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+        self.navigationController.move_to_cached_position()
+
     def closeEvent(self, event):
+        self.navigationController.cache_current_position()
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
         self.navigationController.home()

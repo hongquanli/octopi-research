@@ -195,11 +195,16 @@ def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coor
             multiPointWorker.wait_till_operation_is_completed()
             multiPointWorker.navigationController.move_y_usteps(-multiPointWorker.dy_usteps)
             multiPointWorker.wait_till_operation_is_completed()
-            _usteps_to_clear_backlash = max(160,20*multiPointWorker.navigationController.z_microstepping)
-            multiPointWorker.navigationController.move_z_usteps(-multiPointWorker.dz_usteps-_usteps_to_clear_backlash)
-            multiPointWorker.wait_till_operation_is_completed()
-            multiPointWorker.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-            multiPointWorker.wait_till_operation_is_completed()
+            if multiPointWorker.navigationController.get_pid_control_flag(2) is False:
+                _usteps_to_clear_backlash = max(160,20*multiPointWorker.navigationController.z_microstepping)
+                multiPointWorker.navigationController.move_z_usteps(-multiPointWorker.dz_usteps-_usteps_to_clear_backlash)
+                multiPointWorker.wait_till_operation_is_completed()
+                multiPointWorker.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                multiPointWorker.wait_till_operation_is_completed()
+            else:
+                multiPointWorker.navigationController.move_z_usteps(-multiPointWorker.dz_usteps)
+                multiPointWorker.wait_till_operation_is_completed()
+
             multiPointWorker.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
             multiPointWorker.navigationController.enable_joystick_button_action = True
             return
@@ -215,17 +220,28 @@ def multipoint_custom_script_entry(multiPointWorker,time_point,current_path,coor
     if multiPointWorker.NZ > 1:
         # move z back
         if Z_STACKING_CONFIG == 'FROM CENTER':
-            _usteps_to_clear_backlash = max(160,20*multiPointWorker.navigationController.z_microstepping)
-            multiPointWorker.navigationController.move_z_usteps( -multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1) + multiPointWorker.deltaZ_usteps*round((multiPointWorker.NZ-1)/2) - _usteps_to_clear_backlash)
-            multiPointWorker.wait_till_operation_is_completed()
-            multiPointWorker.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-            multiPointWorker.wait_till_operation_is_completed()
+            if multiPointWorker.navigationController.get_pid_control_flag(2) is False:
+                _usteps_to_clear_backlash = max(160,20*multiPointWorker.navigationController.z_microstepping)
+                multiPointWorker.navigationController.move_z_usteps( -multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1) + multiPointWorker.deltaZ_usteps*round((multiPointWorker.NZ-1)/2) - _usteps_to_clear_backlash)
+                multiPointWorker.wait_till_operation_is_completed()
+                multiPointWorker.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                multiPointWorker.wait_till_operation_is_completed()
+            else:
+                multiPointWorker.navigationController.move_z_usteps( -multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1) + multiPointWorker.deltaZ_usteps*round((multiPointWorker.NZ-1)/2) )
+                multiPointWorker.wait_till_operation_is_completed()
+
             multiPointWorker.dz_usteps = multiPointWorker.dz_usteps - multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1) + multiPointWorker.deltaZ_usteps*round((multiPointWorker.NZ-1)/2)
         else:
-            multiPointWorker.navigationController.move_z_usteps(-multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1) - _usteps_to_clear_backlash)
-            multiPointWorker.wait_till_operation_is_completed()
-            multiPointWorker.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-            multiPointWorker.wait_till_operation_is_completed()
+            if multiPointWorker.navigationController.get_pid_control_flag(2) is False:
+                _usteps_to_clear_backlash = max(160,20*multiPointWorker.navigationController.z_microstepping)
+                multiPointWorker.navigationController.move_z_usteps(-multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1) - _usteps_to_clear_backlash)
+                multiPointWorker.wait_till_operation_is_completed()
+                multiPointWorker.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                multiPointWorker.wait_till_operation_is_completed()
+            else:
+                multiPointWorker.navigationController.move_z_usteps(-multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1))
+                multiPointWorker.wait_till_operation_is_completed()
+
             multiPointWorker.dz_usteps = multiPointWorker.dz_usteps - multiPointWorker.deltaZ_usteps*(multiPointWorker.NZ-1)
 
     # update FOV counter

@@ -142,7 +142,7 @@ class OctopiGUI(QMainWindow):
 			desktopWidget = QDesktopWidget()
 			height_min = 0.9*desktopWidget.height()
 			width_min = 0.96*desktopWidget.width()
-			self.setMinimumSize(width_min,height_min)
+			self.setMinimumSize(int(width_min),int(height_min))
 		else:
 			self.setCentralWidget(self.centralWidget)
 			self.tabbedImageDisplayWindow = QMainWindow()

@@ -149,7 +149,7 @@ class TwoCamerasPDAFCalibrationController(QObject):
         self.base_path = path
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d %H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d %H-%M-%S.%f')
         self.recording_start_time = time.time()
         # create a new folder
         try:

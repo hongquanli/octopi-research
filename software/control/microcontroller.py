@@ -1,5 +1,6 @@
 import platform
 import serial
+import sys
 import serial.tools.list_ports
 import time
 import numpy as np
@@ -56,8 +57,11 @@ class Microcontroller():
             if sn is not None:
                 controller_ports = [ p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
             else:
-                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
-        
+                if sys.platform == 'win32':
+                    controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Microsoft']
+                else:
+                    controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
+
         if not controller_ports:
             raise IOError("no controller found")
         if len(controller_ports) > 1:
@@ -452,9 +456,10 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.CONFIGURE_STAGE_PID
         cmd[2] = axis
+        cmd[3] = int(flip_direction)
         payload = self._int_to_payload(transitions_per_revolution,2)
-        cmd[3] = (payload >> 8) & 0xff
-        cmd[4] = payload & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
         self.send_command(cmd)
 
     def turn_on_stage_pid(self, axis):
@@ -568,6 +573,13 @@ class Microcontroller():
         cmd[4] = value & 0xff
         self.send_command(cmd)
 
+    def configure_dac80508_refdiv_and_gain(self, div, gains):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
+        cmd[2] = div
+        cmd[3] = gains
+        self.send_command(cmd)
+
     def set_pin_level(self,pin,level):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_PIN_LEVEL
@@ -645,7 +657,7 @@ class Microcontroller():
                 print('! cmd checksum error, resending command')
                 if self.retry > 10:
                     print('!! resending command failed for more than 10 times, the program will exit')
-                    exit()
+                    sys.exit(1)
                 else:
                     self.resend_last_command()
             # print('command id ' + str(self._cmd_id) + '; mcu command ' + str(self._cmd_id_mcu) + ' status: ' + str(msg[1]) )
@@ -654,7 +666,7 @@ class Microcontroller():
             self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            
+
             self.button_and_switch_state = msg[18]
             # joystick button
             tmp = self.button_and_switch_state & (1 << BIT_POS_JOYSTICK_BUTTON)
@@ -688,7 +700,7 @@ class Microcontroller():
             time.sleep(0.02)
             if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
                 print('Error - microcontroller timeout, the program will exit')
-                exit()
+                sys.exit(1)
 
     def _int_to_payload(self,signed_int,number_of_bytes):
         if signed_int >= 0:
@@ -704,6 +716,19 @@ class Microcontroller():
         if signed >= 256**number_of_bytes/2:
             signed = signed - 256**number_of_bytes
         return signed
+    
+    def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
+        if illumination_intensity_factor > 1:
+            illumination_intensity_factor = 1
+
+        if illumination_intensity_factor < 0:
+            illumination_intensity_factor = 0.01
+
+        factor = round(illumination_intensity_factor, 2) * 100
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
+        cmd[2] = int(factor)
+        self.send_command(cmd)
 
 class Microcontroller_Simulation():
     def __init__(self,parent=None):
@@ -850,6 +875,28 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
 
+    def configure_stage_pid(self, axis, transitions_per_revolution, flip_direction=False):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.CONFIGURE_STAGE_PID
+        cmd[2] = axis
+        cmd[3] = int(flip_direction)
+        payload = self._int_to_payload(transitions_per_revolution,2)
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
+        self.send_command(cmd)
+
+    def turn_on_stage_pid(self, axis):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.ENABLE_STAGE_PID
+        cmd[2] = axis
+        self.send_command(cmd)
+
+    def turn_off_stage_pid(self, axis):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.DISABLE_STAGE_PID
+        cmd[2] = axis
+        self.send_command(cmd)
+
     def set_lim(self,limit_code,usteps):
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
@@ -935,6 +982,13 @@ class Microcontroller_Simulation():
         cmd[2] = dac
         cmd[3] = (value >> 8) & 0xff
         cmd[4] = value & 0xff
+        self.send_command(cmd)
+
+    def configure_dac80508_refdiv_and_gain(self, div, gains):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_DAC80508_REFDIV_GAIN
+        cmd[2] = div
+        cmd[3] = gains
         self.send_command(cmd)
 
     def read_received_packet(self):
@@ -1063,5 +1117,17 @@ class Microcontroller_Simulation():
             time.sleep(0.02)
             if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
                 print('Error - microcontroller timeout, the program will exit')
-                exit()
+                sys.exit(1)
 
+    def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
+        if illumination_intensity_factor > 1:
+            illumination_intensity_factor = 1
+
+        if illumination_intensity_factor < 0:
+            illumination_intensity_factor = 0.01
+
+        factor = illumination_intensity_factor * 100
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_ILLUMINATION_INTENSITY_FACTOR
+        cmd[2] = int(factor)
+        self.send_command(cmd)

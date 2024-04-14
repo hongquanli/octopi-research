@@ -1,5 +1,6 @@
 # set QT_API environment variable
 import os 
+import sys
 import glob
 import argparse
 os.environ["QT_API"] = "pyqt5"
@@ -15,6 +16,8 @@ import control.gui_6060 as gui
 
 from configparser import ConfigParser
 from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
+
+from control._def import CACHED_CONFIG_FILE_PATH
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action = 'store_true')
@@ -33,10 +36,7 @@ if __name__ == "__main__":
     cf_editor_parser = ConfigParser()
     config_files = glob.glob('.' + '/' + 'configuration*.ini')
     if config_files:
-        if len(config_files) > 1:
-            print('multiple machine configuration files found, the program will exit')
-            exit()
-        cf_editor_parser.read(config_files[0])
+        cf_editor_parser.read(CACHED_CONFIG_FILE_PATH)
     else:
         print('configuration*.ini file not found, defaulting to legacy configuration')
         legacy_config = True
@@ -61,4 +61,4 @@ if __name__ == "__main__":
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)
     win.show()
-    app.exec_() #sys.exit(app.exec_())
+    sys.exit(app.exec_())

@@ -138,7 +138,7 @@ class SpectrumSaver(QObject):
     def start_new_experiment(self,experiment_ID,add_timestamp=True):
         if add_timestamp:
             # generate unique experiment ID
-            self.experiment_ID = experiment_ID + '_spectrum_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+            self.experiment_ID = experiment_ID + '_spectrum_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')
         else:
             self.experiment_ID = experiment_ID
         self.recording_start_time = time.time()
