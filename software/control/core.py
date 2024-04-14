@@ -21,6 +21,8 @@ try:
 except:
     pass
 
+import control.serial_peripherals as serial_peripherals
+
 from queue import Queue
 from threading import Thread, Lock
 import time
@@ -391,8 +393,9 @@ class Configuration:
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
+    def __init__(self,camera,microcontroller,configurationManager,microscope,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
+        self.microscope = microscope
         self.camera = camera
         self.microcontroller = microcontroller
         self.configurationManager = configurationManager
@@ -419,6 +422,9 @@ class LiveController(QObject):
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
+        if USE_LDI_SERIAL_CONTROL:
+            self.ldi = serial_peripherals.LDI()
+      
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
             # to do: add error handling
             self.led_array = serial_peripherals.SciMicroscopyLEDArray(SCIMICROSCOPY_LED_ARRAY_SN,SCIMICROSCOPY_LED_ARRAY_DISTANCE,SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY)
@@ -426,14 +432,18 @@ class LiveController(QObject):
 
     # illumination control
     def turn_on_illumination(self):
-        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+            self.ldi.set_active_channel_shutter(1)
+        elif SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
             self.led_array.turn_on_illumination()
         else:
             self.microcontroller.turn_on_illumination()
         self.illumination_on = True
 
     def turn_off_illumination(self):
-        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+            self.ldi.set_active_channel_shutter(0)
+        elif SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
             self.led_array.turn_off_illumination()
         else:
             self.microcontroller.turn_off_illumination()
@@ -467,7 +477,24 @@ class LiveController(QObject):
             else:
                 self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
-            self.microcontroller.set_illumination(illumination_source,intensity)
+            # update illumination
+            if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+                # set LDI active channel
+                print('set active channel to ' + str(illumination_source))
+                self.ldi.set_active_channel(int(illumination_source))
+                # set intensity for active channel
+                print('set intensity')
+                self.ldi.set_intensity(int(illumination_source),intensity)
+            else:
+                self.microcontroller.set_illumination(illumination_source,intensity)
+
+            # set emission filter position
+            if 'Fluorescence' in self.currentConfiguration.name:
+                try:
+                    self.microscope.xlight.set_emission_filter(EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
+                except Exception as e:
+                    print('not setting emission filter position due to ' + str(e))
+
 
     def start_live(self):
         self.is_live = True
@@ -3062,8 +3089,10 @@ class ConfigurationManager(QObject):
         self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
     def read_configurations(self):
+        print('read config')
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
+            print('genenrate default config files')
         self.config_xml_tree = ET.parse(self.config_filename)
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
