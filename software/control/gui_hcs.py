@@ -104,6 +104,7 @@ class OctopiGUI(QMainWindow):
                 self.xlight = serial_peripherals.XLight_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
                 self.camera_focus = camera_fc.Camera_Simulation()
             else:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
@@ -132,7 +133,7 @@ class OctopiGUI(QMainWindow):
                     self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
                 print('! camera not detected, using simulated camera !')
-            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         # reset the MCU
         self.microcontroller.reset()
@@ -215,6 +216,12 @@ class OctopiGUI(QMainWindow):
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
+        self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+        self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+        self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+        self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+        self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+
         # move to scanning position
         self.navigationController.move_x(20)
         while self.microcontroller.is_busy():
@@ -222,16 +229,6 @@ class OctopiGUI(QMainWindow):
         self.navigationController.move_y(20)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
-
-        # move z
-        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
-        # wait for the operation to finish
-        t0 = time.time() 
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 5:
-                print('z return timeout, the program will exit')
-                sys.exit(1)
 
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0

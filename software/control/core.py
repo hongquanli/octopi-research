@@ -43,6 +43,8 @@ import imageio as iio
 
 import subprocess
 
+import control.serial_peripherals as serial_peripherals
+
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
         self.objectives_dict = objectives_dict
@@ -417,18 +419,53 @@ class LiveController(QObject):
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            # to do: add error handling
+            self.led_array = serial_peripherals.SciMicroscopyLEDArray(SCIMICROSCOPY_LED_ARRAY_SN,SCIMICROSCOPY_LED_ARRAY_DISTANCE,SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY)
+            self.led_array.set_NA(SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA)
+
     # illumination control
     def turn_on_illumination(self):
-        self.microcontroller.turn_on_illumination()
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+            self.led_array.turn_on_illumination()
+        else:
+            self.microcontroller.turn_on_illumination()
         self.illumination_on = True
 
     def turn_off_illumination(self):
-        self.microcontroller.turn_off_illumination()
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+            self.led_array.turn_off_illumination()
+        else:
+            self.microcontroller.turn_off_illumination()
         self.illumination_on = False
 
     def set_illumination(self,illumination_source,intensity):
         if illumination_source < 10: # LED matrix
-            self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+            if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+                # set color
+                if 'BF LED matrix full_R' in self.currentConfiguration.name:
+                    self.led_array.set_color((1,0,0))
+                elif 'BF LED matrix full_G' in self.currentConfiguration.name:
+                    self.led_array.set_color((0,1,0))
+                elif 'BF LED matrix full_B' in self.currentConfiguration.name:
+                    self.led_array.set_color((0,0,1))
+                else:
+                    self.led_array.set_color(SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR)
+                # set intensity
+                self.led_array.set_brightness(intensity)
+                # set mode
+                if 'BF LED matrix left half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.l')
+                if 'BF LED matrix right half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.r')
+                if 'BF LED matrix top half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.t')
+                if 'BF LED matrix bottom half' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('dpc.b')
+                if 'BF LED matrix full' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('bf')
+            else:
+                self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
             self.microcontroller.set_illumination(illumination_source,intensity)
 
@@ -1404,6 +1441,7 @@ class MultiPointWorker(QObject):
     image_to_display = Signal(np.ndarray)
     spectrum_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
+    image_to_display_tiled_preview = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
@@ -1455,6 +1493,8 @@ class MultiPointWorker(QObject):
         self.t_dpc = []
         self.t_inf = []
         self.t_over=[]
+
+        self.tiled_preview = None
         
 
     def update_stats(self, new_stats):
@@ -1728,13 +1768,16 @@ class MultiPointWorker(QObject):
                                     # tunr of the illumination if using software trigger
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_off_illumination()
+
                                     # process the image -  @@@ to move to camera
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
                                     # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
+
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+
                                     if image.dtype == np.uint16:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.tiff')
                                         if self.camera.is_color:
@@ -1748,19 +1791,53 @@ class MultiPointWorker(QObject):
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
                                         if self.camera.is_color:
                                             if 'BF LED matrix' in config.name:
-                                                if MULTIPOINT_BF_SAVING_OPTION == 'Raw':
-                                                    image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                                elif MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
+                                                if MULTIPOINT_BF_SAVING_OPTION == 'RGB2GRAY':
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                            else:
-                                                image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                                        cv2.imwrite(saving_path,image)
+                                        iio.imwrite(saving_path,image)
                                         
                                     current_round_images[config.name] = np.copy(image)
 
+                                    # dpc generation
+                                    keys_to_check = ['BF LED matrix left half', 'BF LED matrix right half', 'BF LED matrix top half', 'BF LED matrix bottom half']
+                                    if all(key in current_round_images for key in keys_to_check):
+                                        # generate dpc
+                                        pass
+
+                                    # RGB generation
+                                    keys_to_check = ['BF LED matrix full_R', 'BF LED matrix full_G', 'BF LED matrix full_B']
+                                    if all(key in current_round_images for key in keys_to_check):
+                                        print('constructing RGB image')
+                                        size = current_round_images['BF LED matrix full_R'].shape
+                                        print(size)
+                                        rgb_image = np.zeros((*size, 3),dtype=current_round_images['BF LED matrix full_R'].dtype)
+                                        print(current_round_images['BF LED matrix full_R'].dtype)
+                                        print(rgb_image.shape)
+                                        print(rgb_image)
+                                        rgb_image[:, :, 0] = current_round_images['BF LED matrix full_R']
+                                        rgb_image[:, :, 1] = current_round_images['BF LED matrix full_G']
+                                        rgb_image[:, :, 2] = current_round_images['BF LED matrix full_B']
+
+                                        # send image to display
+                                        image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                                        if USE_NAPARI_FOR_LIVE_VIEW:
+                                            self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
+                                        else:
+                                            self.image_to_display.emit(image_to_display)
+                                        # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
+
+                                        # write the image
+                                        if rgb_image.dtype == np.uint16:
+                                            saving_path = os.path.join(current_path, file_ID + '_RGB.tiff')
+                                            iio.imwrite(saving_path,rgb_image)
+                                        else:
+                                            saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
+                                            iio.imwrite(saving_path,rgb_image)
+
                                     QApplication.processEvents()
+
+                                # USB spectrometer
                                 else:
                                     if self.usb_spectrometer != None:
                                         for l in range(N_SPECTRUM_PER_POINT):
@@ -1778,7 +1855,28 @@ class MultiPointWorker(QObject):
                                         self.wait_till_operation_is_completed()
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-                                                            
+                            # tiled preview
+                            if SHOW_TILED_PREVIEW and 'BF LED matrix full' in current_round_images:
+                                # initialize the variable
+                                if self.tiled_preview is None:
+                                    size = current_round_images['BF LED matrix full'].shape
+                                    if len(size) == 2:
+                                        self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR)),dtype=current_round_images['BF LED matrix full'].dtype)
+                                    else:
+                                        self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR),size[2]),dtype=current_round_images['BF LED matrix full'].dtype)
+                                # downsample the image
+                                I = current_round_images['BF LED matrix full']
+                                width = int(I.shape[1]/PRVIEW_DOWNSAMPLE_FACTOR)
+                                height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
+                                I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
+                                # populate the tiled_preview
+                                if sgn_j == 1:
+                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, j*width:(j+1)*width, ] = I
+                                else:
+                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, (self.NX-j-1)*width:(self.NX-j)*width, ] = I
+                                # emit the result
+                                self.image_to_display_tiled_preview.emit(self.tiled_preview)
+
                             # add the coordinate of the current location
                             new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
@@ -1917,6 +2015,7 @@ class MultiPointController(QObject):
     acquisitionFinished = Signal()
     image_to_display = Signal(np.ndarray)
     image_to_display_multi = Signal(np.ndarray,int)
+    image_to_display_tiled_preview = Signal(np.ndarray)
     spectrum_to_display = Signal(np.ndarray)
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
@@ -2096,8 +2195,8 @@ class MultiPointController(QObject):
             print("Generating focus map for multipoint grid")
             starting_x_mm = self.navigationController.x_pos_mm
             starting_y_mm = self.navigationController.y_pos_mm
-            fmap_Nx = max(2,self.NX)
-            fmap_Ny = max(2,self.NY)
+            fmap_Nx = max(2,self.NX-1)
+            fmap_Ny = max(2,self.NY-1)
             fmap_dx = self.deltaX
             fmap_dy = self.deltaY
             if abs(fmap_dx) < 0.1 and fmap_dx != 0.0:
@@ -2139,6 +2238,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
+        self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
         self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
@@ -2189,6 +2289,9 @@ class MultiPointController(QObject):
 
     def slot_image_to_display(self,image):
         self.image_to_display.emit(image)
+
+    def slot_image_to_display_tiled_preview(self,image):
+        self.image_to_display_tiled_preview.emit(image)
 
     def slot_spectrum_to_display(self,data):
         self.spectrum_to_display.emit(data)

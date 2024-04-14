@@ -498,6 +498,18 @@ LASER_AF_CHARACTERIZATION_MODE=False
 USE_NAPARI_FOR_LIVE_VIEW = False
 USE_NAPARI_FOR_MULTIPOINT = False
 
+CONTROLLER_SN = None
+
+SUPPORT_SCIMICROSCOPY_LED_ARRAY = False
+SCIMICROSCOPY_LED_ARRAY_SN = None
+SCIMICROSCOPY_LED_ARRAY_DISTANCE = 50
+SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA = 0.8
+SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = [1,1,1]
+SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the camera (in seconds)
+
+SHOW_TILED_PREVIEW = True
+PRVIEW_DOWNSAMPLE_FACTOR = 5
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
