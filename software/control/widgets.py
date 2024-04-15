@@ -1745,15 +1745,18 @@ class MultiPointWidget2(QFrame):
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
 
-    def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
+    def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, scanCoordinates=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.last_used_locations = None
+        self.last_used_location_ids = None
         self.multipointController = multipointController
         self.configurationManager = configurationManager
         self.navigationController = navigationController
         self.navigationViewer = navigationViewer
+        self.scanCoordinates = scanCoordinates
         self.base_path_is_set = False
         self.location_list = np.empty((0, 3), dtype=float)
+        self.location_ids = np.empty((0,), dtype=str)
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.acquisition_in_place=False
@@ -1785,6 +1788,13 @@ class MultiPointWidget2(QFrame):
 
         self.btn_export_locations = QPushButton('Export Location List')
         self.btn_import_locations = QPushButton('Import Location List')
+
+        # editable points table
+        self.table_location_list = QTableWidget()
+        self.table_location_list.setColumnCount(4)
+        header_labels = ['x', 'y', 'z', 'ID']
+        self.table_location_list.setHorizontalHeaderLabels(header_labels)
+        self.btn_show_table_location_list = QPushButton('Show Location List')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -1872,6 +1882,7 @@ class MultiPointWidget2(QFrame):
         grid_line4.addWidget(QLabel('Location List'),0,0)
         grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
         grid_line4.addWidget(self.btn_clear,0,3)
+        grid_line4.addWidget(self.btn_show_table_location_list,0,4)
 
         grid_line3point5 = QGridLayout()
         grid_line3point5.addWidget(self.btn_add,0,0)
@@ -1953,6 +1964,10 @@ class MultiPointWidget2(QFrame):
         self.btn_export_locations.clicked.connect(self.export_location_list)
         self.btn_import_locations.clicked.connect(self.import_location_list)
 
+        self.table_location_list.cellClicked.connect(self.cell_was_clicked)
+        self.table_location_list.cellChanged.connect(self.cell_was_changed)
+        self.btn_show_table_location_list.clicked.connect(self.table_location_list.show)
+
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
@@ -2027,16 +2042,23 @@ class MultiPointWidget2(QFrame):
             return
         self.clear_only_location_list()
 
-        for row in self.last_used_locations:
+        for row, row_ind in zip(self.last_used_locations, self.last_used_location_ids):
             x = row[0]
             y = row[1]
             z = row[2]
+            name = row_ind[0]
             if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
                 location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
                 self.dropdown_location_list.addItem(location_str)
+                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                self.location_ids = np.append(self.location_ids, name)
+                self.table_location_list.insertRow(self.table_location_list.rowCount())
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(z*1000,1))))
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
                 index = self.dropdown_location_list.count() - 1
                 self.dropdown_location_list.setCurrentIndex(index)
-                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
                 print(self.location_list)
                 self.navigationViewer.register_fov_to_image(x,y)
             else:
@@ -2048,6 +2070,7 @@ class MultiPointWidget2(QFrame):
     def acquisition_is_finished(self):
         if not self.acquisition_in_place:
             self.last_used_locations = self.location_list.copy()
+            self.last_used_location_ids = self.location_ids.copy()
         else:
             self.clear()
             self.acquisition_in_place = False
@@ -2082,27 +2105,55 @@ class MultiPointWidget2(QFrame):
         x = self.navigationController.x_pos_mm
         y = self.navigationController.y_pos_mm
         z = self.navigationController.z_pos_mm
+        name = 'None'
+        if self.scanCoordinates is not None:
+            name = self.create_point_id()
+        if name is None:
+            return
+        
         if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
             location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
             self.dropdown_location_list.addItem(location_str)
             index = self.dropdown_location_list.count() - 1
             self.dropdown_location_list.setCurrentIndex(index)
             self.location_list = np.vstack((self.location_list, [[self.navigationController.x_pos_mm,self.navigationController.y_pos_mm,self.navigationController.z_pos_mm]]))
+            self.location_ids = np.append(self.location_ids, name)
             print(self.location_list)
+            self.table_location_list.insertRow(self.table_location_list.rowCount())
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(1000*z,1))))
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
             self.navigationViewer.register_fov_to_image(x,y)
         else:
             print("Duplicate values not added based on x and y.")
             #to-do: update z coordinate
 
+    def create_point_id(self):
+        self.scanCoordinates.get_selected_wells()
+        if len(self.scanCoordinates.name) == 0:
+            print('Select a well first.')
+            return None
+        
+        name = self.scanCoordinates.name[0]
+        location_split_names = [int(x.split('-')[1]) for x in self.location_ids if x.split('-')[0] == name]
+        if len(location_split_names) > 0:
+            new_id = f'{name}-{np.max(location_split_names)+1}'
+        else:
+            new_id = f'{name}-0'
+        return new_id
+
     def remove_location(self):
         index = self.dropdown_location_list.currentIndex()
         if index >=0:
             self.dropdown_location_list.removeItem(index)
+            self.table_location_list.removeRow(index)
             x = self.location_list[index,0]
             y = self.location_list[index,1]
             z = self.location_list[index,2]
             self.navigationViewer.deregister_fov_to_image(x,y)
             self.location_list = np.delete(self.location_list, index, axis=0)
+            self.location_ids = np.delete(self.location_ids, index, axis=0)
             if len(self.location_list) == 0:
                 self.navigationViewer.clear_slide()
             print(self.location_list)
@@ -2132,8 +2183,16 @@ class MultiPointWidget2(QFrame):
 
     def clear(self):
         self.location_list = np.empty((0, 3), dtype=float)
+        self.location_ids = np.empty((0,), dtype=str)
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
+        self.table_location_list.setRowCount(0)
+
+    def clear_only_location_list(self):
+        self.location_list = np.empty((0,3),dtype=float)
+        self.location_ids = np.empty((0,),dtype=str)
+        self.dropdown_location_list.clear()
+        self.table_location_list.setRowCount(0)
 
     def clear_only_location_list(self):
         self.location_list = np.empty((0,3),dtype=float)
@@ -2148,6 +2207,26 @@ class MultiPointWidget2(QFrame):
                 self.navigationController.move_x_to(x)
                 self.navigationController.move_y_to(y)
                 self.navigationController.move_z_to(z)
+                self.table_location_list.selectRow(index)
+
+    def cell_was_clicked(self,row,column):
+
+        self.dropdown_location_list.setCurrentIndex(row)
+
+    def cell_was_changed(self,row,column):
+        x = self.table_location_list.item(row,column).text()
+        if column < 2:
+            x = float(x)
+            self.location_list[row,column] = x
+        elif column == 2:
+            z = float(x)/1000
+            self.location_list[row,column] = z
+        else:
+            self.location_ids[row] = x
+
+        location_str = 'x: ' + str(round(self.location_list[row,0],3)) + ' mm, y: ' + str(round(self.location_list[row,1],3)) + ' mm, z: ' + str(1000*round(self.location_list[row,2],3)) + ' um'
+        self.dropdown_location_list.setItemText(row, location_str)
+        self.go_to(row)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_A and event.modifiers() == Qt.ControlModifier:
@@ -2164,6 +2243,7 @@ class MultiPointWidget2(QFrame):
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Location List", '', "CSV Files (*.csv);;All Files (*)")
         if file_path:
             location_list_df = pd.DataFrame(self.location_list,columns=['x (mm)','y (mm)', 'z (um)'])
+            location_list_df['ID'] = self.location_ids
             location_list_df['i'] = 0
             location_list_df['j'] = 0
             location_list_df['k'] = 0
@@ -2179,17 +2259,28 @@ class MultiPointWidget2(QFrame):
             except KeyError:
                 print("Improperly formatted location list being imported")
                 return
+            if 'ID' in location_list_df.columns:
+                location_list_df_relevant['ID'] = location_list_df['ID'].astype(str)
+            else:
+                location_list_df_relevant['ID'] = 'None'
             self.clear_only_location_list()
             for index, row in location_list_df_relevant.iterrows():
                 x = row['x (mm)']
                 y = row['y (mm)']
                 z = row['z (um)']
+                name = row['ID']
                 if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
                     location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
                     self.dropdown_location_list.addItem(location_str)
                     index = self.dropdown_location_list.count() - 1
                     self.dropdown_location_list.setCurrentIndex(index)
                     self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                    self.location_ids = np.append(self.location_ids, name)
+                    self.table_location_list.insertRow(self.table_location_list.rowCount())
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(1000*z,1))))
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
                     self.navigationViewer.register_fov_to_image(x,y)
                 else:
                     print("Duplicate values not added based on x and y.")
