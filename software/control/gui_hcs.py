@@ -278,14 +278,14 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
-        self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
-        self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
+        self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+
+        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+        self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
