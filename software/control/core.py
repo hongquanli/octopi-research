@@ -393,9 +393,9 @@ class Configuration:
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager,microscope,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
+    def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
-        self.microscope = microscope
+        self.microscope = parent
         self.camera = camera
         self.microcontroller = microcontroller
         self.configurationManager = configurationManager
@@ -491,7 +491,7 @@ class LiveController(QObject):
             # set emission filter position
             if 'Fluorescence' in self.currentConfiguration.name:
                 try:
-                    self.microscope.xlight.set_emission_filter(EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
+                    self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
 
