@@ -1472,6 +1472,8 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
+    napari_layers_update = Signal(np.ndarray, int, int, int, str)
+    napari_layers_init = Signal(int, int, object)
 
     signal_update_stats = Signal(object)
 
@@ -1663,6 +1665,8 @@ class MultiPointWorker(QObject):
             if Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
+            init_napari_layers = False
+
             # along y
             for i in range(self.NY):
 
@@ -1743,9 +1747,13 @@ class MultiPointWorker(QObject):
                             
                             # Ensure that i/y-indexing is always top to bottom
                             sgn_i = -1 if self.deltaY >= 0 else 1
-                            if INVERTED_OBJECTIVE:
+                            if INVERTED_OBJECTIVE: # to do
                                 sgn_i = -sgn_i
                             sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
+
+                            real_i = self.NY-1-i if sgn_i == -1 else i
+                            real_j = j if sgn_j == 1 else self.NX-1-j
+
                             file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
@@ -1823,7 +1831,7 @@ class MultiPointWorker(QObject):
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
                                         iio.imwrite(saving_path,image)
-                                        
+
                                     current_round_images[config.name] = np.copy(image)
 
                                     # dpc generation
@@ -1861,6 +1869,12 @@ class MultiPointWorker(QObject):
                                         else:
                                             saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
                                             iio.imwrite(saving_path,rgb_image)
+
+                                    if not init_napari_layers:
+                                        print("initialze layers")
+                                        init_napari_layers = True
+                                        self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
+                                    self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
 
                                     QApplication.processEvents()
 
@@ -2047,6 +2061,8 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    napari_layers_update = Signal(np.ndarray, int, int, int, str)
+    napari_layers_init = Signal(int, int, object)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
@@ -2269,6 +2285,8 @@ class MultiPointController(QObject):
         self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
+        self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
+        self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
         # self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.thread.quit)
         # start the thread
@@ -2331,6 +2349,12 @@ class MultiPointController(QObject):
 
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
+
+    def slot_napari_layers_update(self, image, i, j, k, channel):
+        self.napari_layers_update.emit(image, i, j, k, channel)
+
+    def slot_napari_layers_init(self, image_height, image_width, dtype):
+        self.napari_layers_init.emit(image_height, image_width, dtype)
 
 
 class TrackingController(QObject):

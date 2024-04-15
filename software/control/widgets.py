@@ -13,6 +13,7 @@ from qtpy.QtGui import *
 import pyqtgraph as pg
 
 import pandas as pd
+import napari
 
 from datetime import datetime
 
@@ -1476,6 +1477,10 @@ class StatsDisplayWidget(QFrame):
 
 
 class MultiPointWidget(QFrame):
+
+    signal_acquisition_channels = Signal(list)
+    signal_acquisition_shape = Signal(int, int, int)
+
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
@@ -1645,6 +1650,7 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+        self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
 
     def set_deltaX(self,value):
         mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
@@ -1670,6 +1676,10 @@ class MultiPointWidget(QFrame):
         self.multipointController.set_base_path(save_dir_base)
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
+
+    def emit_selected_channels(self):
+        selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
+        self.signal_acquisition_channels.emit(selected_channels)
 
     def toggle_acquisition(self,pressed):
         if self.base_path_is_set == False:
@@ -1731,6 +1741,10 @@ class MultiPointWidget(QFrame):
         self.btn_startAcquisition.setEnabled(True)
 
 class MultiPointWidget2(QFrame):
+
+    signal_acquisition_channels = Signal(list)
+    signal_acquisition_shape = Signal(int, int, int)
+
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.last_used_locations = None
@@ -1928,6 +1942,7 @@ class MultiPointWidget2(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+        self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
 
         self.btn_add.clicked.connect(self.add_location)
         self.btn_remove.clicked.connect(self.remove_location)
@@ -1967,6 +1982,10 @@ class MultiPointWidget2(QFrame):
         self.multipointController.set_base_path(save_dir_base)
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
+
+    def emit_selected_channels(self):
+        selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
+        self.signal_acquisition_channels.emit(selected_channels)
 
     def toggle_acquisition(self,pressed):
         if self.base_path_is_set == False:
