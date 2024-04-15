@@ -272,7 +272,10 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-
+        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+        self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=self.scanCoordinates)
+        
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
@@ -282,10 +285,6 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
         self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-
-        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
-        self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=self.scanCoordinates)
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
