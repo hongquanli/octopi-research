@@ -246,8 +246,10 @@ class OctopiGUI(QMainWindow):
         self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+
         if SHOW_TILED_PREVIEW:
             self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
+            self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
