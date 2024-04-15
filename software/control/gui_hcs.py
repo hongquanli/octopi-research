@@ -364,7 +364,12 @@ class OctopiGUI(QMainWindow):
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)            
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-        if not USE_NAPARI_FOR_MULTIPOINT:
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+        else:
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
@@ -393,12 +398,6 @@ class OctopiGUI(QMainWindow):
         # display the FOV in the viewer
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
-
-        if USE_NAPARI_FOR_MULTIPOINT:
-            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
-            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
 
         # (double) click to move to a well
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
