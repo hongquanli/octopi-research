@@ -2214,16 +2214,21 @@ class MultiPointWidget2(QFrame):
         self.dropdown_location_list.setCurrentIndex(row)
 
     def cell_was_changed(self,row,column):
-        x = self.table_location_list.item(row,column).text()
+        x= self.location_list[row,0]
+        y= self.location_list[row,1]
+        self.navigationViewer.deregister_fov_to_image(x,y)
+    
+        val_edit = self.table_location_list.item(row,column).text()
         if column < 2:
-            x = float(x)
-            self.location_list[row,column] = x
+            val_edit = float(val_edit)
+            self.location_list[row,column] = val_edit
         elif column == 2:
-            z = float(x)/1000
+            z = float(val_edit)/1000
             self.location_list[row,column] = z
         else:
-            self.location_ids[row] = x
-
+            self.location_ids[row] = val_edit
+        
+        self.navigationViewer.register_fov_to_image(self.location_list[row,0], self.location_list[row,1])
         location_str = 'x: ' + str(round(self.location_list[row,0],3)) + ' mm, y: ' + str(round(self.location_list[row,1],3)) + ' mm, z: ' + str(1000*round(self.location_list[row,2],3)) + ' um'
         self.dropdown_location_list.setItemText(row, location_str)
         self.go_to(row)
