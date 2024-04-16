@@ -3289,6 +3289,8 @@ class ScanCoordinates(object):
         # clear the previous selection
         self.coordinates_mm = []
         self.name = []
+        if len(selected_wells) == 0:
+            return
         # populate the coordinates
         rows = np.unique(selected_wells[:,0])
         _increasing = True
