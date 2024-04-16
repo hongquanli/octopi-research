@@ -670,6 +670,7 @@ int8_t tmc4361A_setVirtualLimit(TMC4361ATypeDef *tmc4361A, int dir, int32_t limi
       TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
       uint8_t polarity:          Polarity of the switch - 0 if active low, 1 if active high
       uint8_t which:             Which switch to use as home
+      uint16_t safety_margin:	 safty margin of home pointer around
 
   RETURNS: None
 
@@ -685,7 +686,7 @@ int8_t tmc4361A_setVirtualLimit(TMC4361ATypeDef *tmc4361A, int dir, int32_t limi
   DEPENDENCIES: tmc4316A.h
   -----------------------------------------------------------------------------
 */
-void tmc4361A_enableHomingLimit(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uint8_t which) {
+void tmc4361A_enableHomingLimit(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uint8_t which, uint16_t safety_margin) {
   if (which == LEFT_SW) {
     if (polarity != 0) {
       // If the left switch is active high, HOME_REF = 0 indicates positive direction in reference to X_HOME
@@ -711,7 +712,7 @@ void tmc4361A_enableHomingLimit(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uin
     tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_STOP_RIGHT_IS_HOME_MASK);
   }
   // have a safety margin around home
-  tmc4361A_setBits(tmc4361A, TMC4361A_HOME_SAFETY_MARGIN, 1 << 2);
+  tmc4361A_setBits(tmc4361A, TMC4361A_HOME_SAFETY_MARGIN, safety_margin);
 
   return;
 }

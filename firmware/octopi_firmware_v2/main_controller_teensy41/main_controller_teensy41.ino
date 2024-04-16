@@ -60,6 +60,7 @@ static const int SET_OFFSET_VELOCITY = 24;
 static const int CONFIGURE_STAGE_PID = 25;
 static const int ENABLE_STAGE_PID = 26;
 static const int DISABLE_STAGE_PID = 27;
+static const int SET_HOME_SAFETY_MERGIN = 28;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
 static const int SET_PIN_LEVEL = 41;
@@ -261,6 +262,9 @@ long Z_NEG_LIMIT = Z_NEG_LIMIT_MM * steps_per_mm_Z;
 
 // PID
 bool stage_PID_enabled[N_MOTOR];
+
+// home safety margin
+uint16_t home_safety_margin[4] = {4, 4, 4, 4};
 
 /***************************************************************************************************/
 /******************************************** timing ***********************************************/
@@ -725,9 +729,9 @@ void setup() {
   */
 
   // homing switch settings
-  tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
-  tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
-  tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
+  tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x], home_safety_margin[x]);
+  tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y], home_safety_margin[y]);
+  tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z], home_safety_margin[z]);
 
   /*********************************************************************************************************
    ***************************************** TMC4361A + TMC2660 end ****************************************
@@ -946,6 +950,37 @@ void loop() {
             }
             break;
           }
+		case SET_HOME_SAFETY_MERGIN:
+		  {
+            switch (buffer_rx[2])
+            {
+              case AXIS_X:
+                {
+                  uint16_t margin = (uint16_t(buffer_rx[3]) << 8) + uint16_t(buffer_rx[4]);
+				  float home_safety_margin_mm = float(margin) / 1000.0;
+				  home_safety_margin[x] = tmc4361A_xmmToMicrosteps(&tmc4361[x], home_safety_margin_mm);
+  				  tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x], home_safety_margin[x]);
+                  break;
+                }
+              case AXIS_Y:
+                {
+                  uint16_t margin = (uint16_t(buffer_rx[3]) << 8) + uint16_t(buffer_rx[4]);
+				  float home_safety_margin_mm = float(margin) / 1000.0;
+				  home_safety_margin[y] = tmc4361A_xmmToMicrosteps(&tmc4361[y], home_safety_margin_mm);
+  				  tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y], home_safety_margin[y]);
+                  break;
+                }
+              case AXIS_Z:
+                {
+                  uint16_t margin = (uint16_t(buffer_rx[3]) << 8) + uint16_t(buffer_rx[4]);
+				  float home_safety_margin_mm = float(margin) / 1000.0;
+				  home_safety_margin[z] = tmc4361A_xmmToMicrosteps(&tmc4361[z], home_safety_margin_mm);
+  				  tmc4361A_enableHomingLimit(&tmc4361[z], lft_sw_pol[z], TMC4361_homing_sw[z], home_safety_margin[z]);
+                  break;
+                }
+            }
+            break;
+		  }
         case CONFIGURE_STEPPER_DRIVER:
           {
             switch (buffer_rx[2])
@@ -1454,10 +1489,12 @@ void loop() {
               tmc4361[i].rampParam[DFINAL_IDX] = 0;
               tmc4361A_sRampInit(&tmc4361[i]);
             }
+
             // homing switch settings
-            tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x]);
-            tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y]);
-            tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z]);
+			tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x], home_safety_margin[x]);
+			tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y], home_safety_margin[y]);
+			tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z], home_safety_margin[z]);
+
             // DAC init
             set_DAC8050x_config();
             set_DAC8050x_default_gain();

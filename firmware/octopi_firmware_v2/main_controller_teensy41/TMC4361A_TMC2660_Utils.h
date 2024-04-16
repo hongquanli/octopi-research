@@ -49,7 +49,7 @@ float   tmc4361A_vmicrostepsTomm(TMC4361ATypeDef *tmc4361A, int32_t microsteps);
 int32_t tmc4361A_ammToMicrosteps(TMC4361ATypeDef *tmc4361A, float mm);
 float   tmc4361A_amicrostepsTomm(TMC4361ATypeDef *tmc4361A, int32_t microsteps);
 void tmc4361A_enableLimitSwitch(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uint8_t which, uint8_t flipped);
-void tmc4361A_enableHomingLimit(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uint8_t which);
+void tmc4361A_enableHomingLimit(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uint8_t which, uint16_t safety_margin);
 uint8_t tmc4361A_readLimitSwitches(TMC4361ATypeDef *tmc4361A);
 void tmc4361A_setHome(TMC4361ATypeDef *tmc4361A);
 void tmc4361A_moveToExtreme(TMC4361ATypeDef *tmc4361A, int32_t vel, int8_t dir);
