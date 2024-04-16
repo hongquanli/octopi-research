@@ -1480,6 +1480,7 @@ class MultiPointWidget(QFrame):
 
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
+    signal_acquisition_dz_um = Signal(float)
 
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1704,6 +1705,7 @@ class MultiPointWidget(QFrame):
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
             self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
+            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
@@ -1745,6 +1747,7 @@ class MultiPointWidget2(QFrame):
 
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
+    signal_acquisition_dz_um = Signal(float)
 
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2016,6 +2019,7 @@ class MultiPointWidget2(QFrame):
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
             self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
+            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
@@ -2714,6 +2718,8 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.uint8
         self.channels = []
         self.Nz = 1
+        self.dz_um = 1
+        self.pixel_size_um = 1
         self.layers_initialized = False
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
@@ -2728,6 +2734,12 @@ class NapariMultiChannelWidget(QWidget):
         
     def initLayersShape(self, Nx, Ny, Nz):
         self.Nz = Nz
+
+    def set_dz_um(self,dz_um):
+        self.dz_um = dz_um
+
+    def set_pixel_size_um(self,pixel_size_um):
+        self.pixel_size_um = pixel_size_um
 
     def initChannels(self, channels):
         self.channels = channels
@@ -2750,7 +2762,7 @@ class NapariMultiChannelWidget(QWidget):
                   'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno'] #todo : add to config file
         for i, channel in enumerate(self.channels):
             canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
-            self.viewer.add_image(canvas, name=channel, visible=True, rgb=False, 
+            self.viewer.add_image(canvas, name=channel, scale=(self.dz_um,self.pixel_size_um, self.pixel_size_um), visible=True, rgb=False,
                                   colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
         
         self.layers_initialized = True

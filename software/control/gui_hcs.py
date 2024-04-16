@@ -87,8 +87,9 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
        
         if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() # to remove
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
+            self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60) # for 60x, IMX571, 2x2 binning, to change to using objective and camera config
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
@@ -367,8 +368,10 @@ class OctopiGUI(QMainWindow):
         if USE_NAPARI_FOR_MULTIPOINT:
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multiPointWidget.signal_acquisition_dz_um.connect(self.napariMultiChannelWidget.set_dz_um)
             self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multiPointWidget2.signal_acquisition_dz_um.connect(self.napariMultiChannelWidget.set_dz_um)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
         else:
