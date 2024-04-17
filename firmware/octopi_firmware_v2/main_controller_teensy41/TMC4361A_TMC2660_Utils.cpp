@@ -933,7 +933,7 @@ void tmc4361A_moveToExtreme(TMC4361ATypeDef *tmc4361A, int32_t vel, int8_t dir) 
   -----------------------------------------------------------------------------
 */
 void tmc4361A_sRampInit(TMC4361ATypeDef *tmc4361A) {
-  tmc4361A_setBits(tmc4361A, TMC4361A_RAMPMODE, 0b110); // positioning mode, s-shaped ramp
+  tmc4361A_setBits(tmc4361A, TMC4361A_RAMPMODE, TMC4361A_RAMP_POSITION | TMC4361A_RAMP_SSHAPE); // positioning mode, s-shaped ramp
   tmc4361A_rstBits(tmc4361A, TMC4361A_GENERAL_CONF, TMC4361A_USE_ASTART_AND_VSTART_MASK); // keep astart, vstart = 0
   tmc4361A_writeInt(tmc4361A, TMC4361A_BOW1, tmc4361A->rampParam[BOW1_IDX]); // determines the value which increases the absolute acceleration value.
   tmc4361A_writeInt(tmc4361A, TMC4361A_BOW2, tmc4361A->rampParam[BOW2_IDX]); // determines the value which decreases the absolute acceleration value.
@@ -1083,8 +1083,9 @@ void tmc4361A_setMaxSpeed(TMC4361ATypeDef *tmc4361A, int32_t velocity) {
   -----------------------------------------------------------------------------
 */
 void tmc4361A_setSpeed(TMC4361ATypeDef *tmc4361A, int32_t velocity) {
+  tmc4361A->velocity_mode = true;
   tmc4361A_readInt(tmc4361A, TMC4361A_EVENTS); // clear register
-  tmc4361A_rstBits(tmc4361A, TMC4361A_RAMPMODE, 0b100); // no velocity ramp
+  tmc4361A_rstBits(tmc4361A, TMC4361A_RAMPMODE, TMC4361A_RAMP_POSITION | TMC4361A_RAMP_HOLD); // no velocity ramp
   tmc4361A_writeInt(tmc4361A, TMC4361A_VMAX, velocity);
   return;
 }
@@ -1211,8 +1212,11 @@ int8_t tmc4361A_setMaxAcceleration(TMC4361ATypeDef *tmc4361A, uint32_t accelerat
   -----------------------------------------------------------------------------
 */
 int8_t tmc4361A_moveTo(TMC4361ATypeDef *tmc4361A, int32_t x_pos) {
-  // ensure we are in positioning mode with S-shaped ramp
-  tmc4361A_sRampInit(tmc4361A);
+  if(tmc4361A->velocity_mode) {
+    // ensure we are in positioning mode with S-shaped ramp
+    tmc4361A_sRampInit(tmc4361A);
+    tmc4361A->velocity_mode = false;
+  }
 
   if (x_pos < tmc4361A->xmin || x_pos > tmc4361A->xmax) {
     return ERR_OUT_OF_RANGE;
@@ -1409,6 +1413,7 @@ int8_t tmc4361A_setCurrentPosition(TMC4361ATypeDef *tmc4361A, int32_t position) 
   tmc4361A_writeInt(tmc4361A, TMC4361A_XACTUAL, position);
   tmc4361A_moveTo(tmc4361A, position);
 
+  tmc4361A->velocity_mode = true;
   return err;
 }
 
