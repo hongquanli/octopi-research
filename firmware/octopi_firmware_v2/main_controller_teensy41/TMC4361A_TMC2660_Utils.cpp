@@ -1212,15 +1212,16 @@ int8_t tmc4361A_setMaxAcceleration(TMC4361ATypeDef *tmc4361A, uint32_t accelerat
   -----------------------------------------------------------------------------
 */
 int8_t tmc4361A_moveTo(TMC4361ATypeDef *tmc4361A, int32_t x_pos) {
+  if (x_pos < tmc4361A->xmin || x_pos > tmc4361A->xmax) {
+    return ERR_OUT_OF_RANGE;
+  }
+
   if(tmc4361A->velocity_mode) {
     // ensure we are in positioning mode with S-shaped ramp
     tmc4361A_sRampInit(tmc4361A);
     tmc4361A->velocity_mode = false;
   }
 
-  if (x_pos < tmc4361A->xmin || x_pos > tmc4361A->xmax) {
-    return ERR_OUT_OF_RANGE;
-  }
   // Read events before and after to clear the register
   tmc4361A_readInt(tmc4361A, TMC4361A_EVENTS);
   tmc4361A_writeInt(tmc4361A, TMC4361A_X_TARGET, x_pos);
