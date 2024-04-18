@@ -911,6 +911,9 @@ class NavigationController(QObject):
         self.scan_begin_position_x = x
         self.scan_begin_position_y = y
 
+    def set_axis_PID_arguments(self, axis, pid_p, pid_i, pid_d):
+        self.microcontroller.set_pid_arguments(axis, pid_p, pid_i, pid_d)
+
 class SlidePositionControlWorker(QObject):
     
     finished = Signal()

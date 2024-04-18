@@ -133,6 +133,7 @@ class CMD_SET:
     ENABLE_STAGE_PID = 26
     DISABLE_STAGE_PID = 27
     SET_HOME_SAFETY_MERGIN = 28
+    SET_PID_ARGUMENTS = 29
     SEND_HARDWARE_TRIGGER = 30
     SET_STROBE_DELAY = 31
     SET_PIN_LEVEL = 41
@@ -294,6 +295,19 @@ HAS_ENCODER_Z = False
 ENABLE_PID_X  = False
 ENABLE_PID_Y  = False
 ENABLE_PID_Z  = False
+
+# PID arguments
+PID_P_X = int(1<<12)
+PID_I_X = int(0)
+PID_D_X = int(0)
+
+PID_P_Y = int(1<<12)
+PID_I_Y = int(0)
+PID_D_Y = int(0)
+
+PID_P_Z = int(1<<12)
+PID_I_Z = int(0)
+PID_D_Z = int(1)
 
 # flip direction True or False
 ENCODER_FLIP_DIR_X = True

@@ -61,6 +61,7 @@ static const int CONFIGURE_STAGE_PID = 25;
 static const int ENABLE_STAGE_PID = 26;
 static const int DISABLE_STAGE_PID = 27;
 static const int SET_HOME_SAFETY_MERGIN = 28;
+static const int SET_PID_ARGUMENTS = 29;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
 static const int SET_PIN_LEVEL = 41;
@@ -262,6 +263,14 @@ long Z_NEG_LIMIT = Z_NEG_LIMIT_MM * steps_per_mm_Z;
 
 // PID
 bool stage_PID_enabled[N_MOTOR];
+
+// PID arguments
+typedef struct pid_arguments {
+	uint16_t 	p;
+	uint8_t 	i; 
+	uint8_t 	d; 
+} PID_ARGUMENTS;
+PID_ARGUMENTS axis_pid_arg[N_MOTOR];
 
 // home safety margin
 uint16_t home_safety_margin[4] = {4, 4, 4, 4};
@@ -656,8 +665,13 @@ void setup() {
    ************************************** TMC4361A + TMC2660 beginning *************************************
    *********************************************************************************************************/
   // PID
-  for (int i = 0; i < N_MOTOR; i++)
+  for (int i = 0; i < N_MOTOR; i++) {
     stage_PID_enabled[i] = 0;
+
+	axis_pid_arg[i].p = (1<<12);
+	axis_pid_arg[i].i = 0;
+	axis_pid_arg[i].d = 0;
+  }
 
   // clock
   pinMode(pin_TMC4361_CLK, OUTPUT);
@@ -980,6 +994,19 @@ void loop() {
                 }
             }
             break;
+		  }
+		case SET_PID_ARGUMENTS:
+		  {
+			int axis = buffer_rx[2];
+			uint16_t p = (uint16_t(buffer_rx[3]) << 8) + uint16_t(buffer_rx[4]);
+			uint8_t  i = uint8_t(buffer_rx[5]);
+			uint8_t  d = uint8_t(buffer_rx[6]);
+
+			axis_pid_arg[axis].p = p; 
+			axis_pid_arg[axis].i = i;
+			axis_pid_arg[axis].d = d;
+
+		  	break;
 		  }
         case CONFIGURE_STEPPER_DRIVER:
           {
@@ -1435,11 +1462,11 @@ void loop() {
             tmc4361A_init_ABN_encoder(&tmc4361[axis], transitions_per_revolution, 32, 4, 512, flip_direction);
             // Init PID. target reach tolerance, position error tolerance, P, I, and D coefficients, max speed, winding limit, derivative update rate
             if (axis == z)
-              tmc4361A_init_PID(&tmc4361[axis], 25, 25, (1<<14), 0, 2, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
+              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
             else if (axis == y)
-              tmc4361A_init_PID(&tmc4361[axis], 25, 25, 8192, 131072, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 32767, 2);
+              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 32767, 2);
             else
-              tmc4361A_init_PID(&tmc4361[axis], 25, 25, 8192, 131072, 0, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 32767, 2);
+              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 32767, 2);
             break;
           }
         case ENABLE_STAGE_PID:

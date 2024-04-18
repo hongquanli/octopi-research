@@ -474,6 +474,18 @@ class Microcontroller():
         cmd[2] = axis
         self.send_command(cmd)
 
+    def set_pid_arguments(self, axis, pid_p, pid_i, pid_d):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_PID_ARGUMENTS
+        cmd[2] = int(axis)
+
+        cmd[3] = (int(pid_p) >> 8) & 0xff
+        cmd[4] = int(pid_p) & 0xff
+
+        cmd[5] = int(pid_i)
+        cmd[6] = int(pid_d)
+        self.send_command(cmd)
+
     def set_lim(self,limit_code,usteps):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LIM
@@ -913,6 +925,18 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.DISABLE_STAGE_PID
         cmd[2] = axis
+        self.send_command(cmd)
+
+    def set_pid_arguments(self, axis, pid_p, pid_i, pid_d):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_PID_ARGUMENTS
+        cmd[2] = int(axis)
+
+        cmd[3] = (int(pid_p) >> 8) & 0xff
+        cmd[4] = int(pid_p) & 0xff
+
+        cmd[5] = int(pid_i)
+        cmd[6] = int(pid_d)
         self.send_command(cmd)
 
     def set_lim(self,limit_code,usteps):
