@@ -207,6 +207,18 @@ def generate_default_configuration(filename):
     mode_16.set('PixelFormat','default')
     mode_16.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
 
+    mode_21 = ET.SubElement(top,'mode')
+    mode_21.set('ID','21')
+    mode_21.set('Name','BF LED matrix full_RGB')
+    mode_21.set('ExposureTime','12')
+    mode_21.set('AnalogGain','0')
+    mode_21.set('IlluminationSource','0')
+    mode_21.set('IlluminationIntensity','5')
+    mode_21.set('CameraSN','')
+    mode_21.set('ZOffset','0.0')
+    mode_21.set('PixelFormat','default')
+    mode_21.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+
     mode_20 = ET.SubElement(top,'mode')
     mode_20.set('ID','20')
     mode_20.set('Name','USB Spectrometer')

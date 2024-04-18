@@ -2724,7 +2724,7 @@ class NapariStitchingWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
-    def initLayers(self, image_height, image_width, image_dtype):
+    def initLayers(self, image_height, image_width, image_dtype,rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
         self.image_width = image_width
@@ -2741,8 +2741,11 @@ class NapariStitchingWidget(QWidget):
         colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
                   'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno']
         for i, channel in enumerate(self.channels):
-            canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
-            self.viewer.add_image(canvas, name=channel, visible=True, rgb=False, 
+            if rgb == True:
+                canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
+            else:
+                canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
+            self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
                                   colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
         
         self.layers_initialized = True
@@ -2840,7 +2843,7 @@ class NapariMultiChannelWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
-    def initLayers(self, image_height, image_width, image_dtype):
+    def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
         self.image_width = image_width
@@ -2857,8 +2860,11 @@ class NapariMultiChannelWidget(QWidget):
         colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
                   'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno'] #todo : add to config file
         for i, channel in enumerate(self.channels):
-            canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
-            self.viewer.add_image(canvas, name=channel, scale=(self.dz_um,self.pixel_size_um, self.pixel_size_um), visible=True, rgb=False,
+            if rgb == True:
+                canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
+            else:
+                canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
+            self.viewer.add_image(canvas, name=channel, scale=(self.dz_um,self.pixel_size_um, self.pixel_size_um), visible=True, rgb=rgb,
                                   colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
         
         self.layers_initialized = True
