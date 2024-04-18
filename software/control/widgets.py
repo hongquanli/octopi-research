@@ -2111,11 +2111,9 @@ class MultiPointWidget2(QFrame):
         x = self.navigationController.x_pos_mm
         y = self.navigationController.y_pos_mm
         z = self.navigationController.z_pos_mm
-        name = 'None'
+        name = ''
         if self.scanCoordinates is not None:
             name = self.create_point_id()
-        if name is None:
-            return
         
         if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
             location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
@@ -2123,8 +2121,8 @@ class MultiPointWidget2(QFrame):
             index = self.dropdown_location_list.count() - 1
             self.dropdown_location_list.setCurrentIndex(index)
             self.location_list = np.vstack((self.location_list, [[self.navigationController.x_pos_mm,self.navigationController.y_pos_mm,self.navigationController.z_pos_mm]]))
-            self.location_ids = np.append(self.location_ids, name)
             print(self.location_list)
+            self.location_ids = np.append(self.location_ids, name)
             self.table_location_list.insertRow(self.table_location_list.rowCount())
             self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
             self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))

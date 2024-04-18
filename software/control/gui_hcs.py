@@ -275,7 +275,7 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=self.scanCoordinates)
+        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
         
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
