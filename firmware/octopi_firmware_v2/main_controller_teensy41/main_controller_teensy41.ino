@@ -292,6 +292,8 @@ elapsedMicros us_since_last_check_position;
 static const int interval_send_joystick_update = 30000; // in us
 elapsedMicros us_since_last_joystick_update;
 
+static const int interval_check_limit = 20000; // in us
+elapsedMicros us_since_last_check_limit;
 /***************************************************************************************************/
 /******************************************* joystick **********************************************/
 /***************************************************************************************************/
@@ -771,6 +773,12 @@ void setup() {
   // motor stall prevention
   tmc4361A_config_init_stallGuard(&tmc4361[x], 12, true, 1);
   tmc4361A_config_init_stallGuard(&tmc4361[y], 12, true, 1);
+
+  // initialize timer value
+  us_since_last_pos_update = 5000;
+  us_since_last_check_position = 3000;
+  us_since_last_joystick_update = 3000;
+  us_since_last_check_limit = 2000;
 }
 
 /***************************************************************************************************/
@@ -1961,38 +1969,41 @@ void loop() {
 	  }
   }
 
-  // at limit
-  if (X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
-  {
-	uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[x]);
-    // if( tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW )
-    if ( ( X_direction == LEFT_DIR && event == LEFT_SW ) || ( X_direction == RGHT_DIR && event == RGHT_SW ) )
-    {
-      X_commanded_movement_in_progress = false;
-      mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
-    }
-  }
-  if (Y_commanded_movement_in_progress && !is_homing_Y) // homing is handled separately
-  {
-	uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[y]);
-    //if( tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW )
-    if ( ( Y_direction == LEFT_DIR && event == LEFT_SW ) || ( Y_direction == RGHT_DIR && event == RGHT_SW ) )
-    {
-      Y_commanded_movement_in_progress = false;
-      mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
-    }
-  }
-  if (Z_commanded_movement_in_progress && !is_homing_Z) // homing is handled separately
-  {
-	uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[z]);
-    // if( tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW )
-    if ( ( Z_direction == LEFT_DIR && event == LEFT_SW ) || ( Z_direction == RGHT_DIR && event == RGHT_SW ) )
-    {
-      Z_commanded_movement_in_progress = false;
-      mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
-    }
-  }
+  if (us_since_last_check_limit > interval_check_limit) {
+	us_since_last_check_limit = 0;
 
+  	// at limit
+    if (X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
+    {
+      uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[x]);
+      // if( tmc4361A_readLimitSwitches(&tmc4361[x])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[x])==RGHT_SW )
+      if ( ( X_direction == LEFT_DIR && event == LEFT_SW ) || ( X_direction == RGHT_DIR && event == RGHT_SW ) )
+      {
+        X_commanded_movement_in_progress = false;
+        mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+      }
+    }
+    if (Y_commanded_movement_in_progress && !is_homing_Y) // homing is handled separately
+    {
+      uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[y]);
+      //if( tmc4361A_readLimitSwitches(&tmc4361[y])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[y])==RGHT_SW )
+      if ( ( Y_direction == LEFT_DIR && event == LEFT_SW ) || ( Y_direction == RGHT_DIR && event == RGHT_SW ) )
+      {
+        Y_commanded_movement_in_progress = false;
+        mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+      }
+    }
+    if (Z_commanded_movement_in_progress && !is_homing_Z) // homing is handled separately
+    {
+      uint8_t event = tmc4361A_readSwitchEvent(&tmc4361[z]);
+      // if( tmc4361A_readLimitSwitches(&tmc4361[z])==LEFT_SW || tmc4361A_readLimitSwitches(&tmc4361[z])==RGHT_SW )
+      if ( ( Z_direction == LEFT_DIR && event == LEFT_SW ) || ( Z_direction == RGHT_DIR && event == RGHT_SW ) )
+      {
+        Z_commanded_movement_in_progress = false;
+        mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+      }
+    }
+  }
 }
 
 /***************************************************
