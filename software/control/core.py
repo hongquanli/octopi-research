@@ -21,6 +21,8 @@ try:
 except:
     pass
 
+import control.serial_peripherals as serial_peripherals
+
 from queue import Queue
 from threading import Thread, Lock
 import time
@@ -391,8 +393,9 @@ class Configuration:
 
 class LiveController(QObject):
 
-    def __init__(self,camera,microcontroller,configurationManager,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
+    def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
+        self.microscope = parent
         self.camera = camera
         self.microcontroller = microcontroller
         self.configurationManager = configurationManager
@@ -419,6 +422,9 @@ class LiveController(QObject):
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
 
+        if USE_LDI_SERIAL_CONTROL:
+            self.ldi = serial_peripherals.LDI()
+      
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
             # to do: add error handling
             self.led_array = serial_peripherals.SciMicroscopyLEDArray(SCIMICROSCOPY_LED_ARRAY_SN,SCIMICROSCOPY_LED_ARRAY_DISTANCE,SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY)
@@ -426,14 +432,18 @@ class LiveController(QObject):
 
     # illumination control
     def turn_on_illumination(self):
-        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+            self.ldi.set_active_channel_shutter(1)
+        elif SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
             self.led_array.turn_on_illumination()
         else:
             self.microcontroller.turn_on_illumination()
         self.illumination_on = True
 
     def turn_off_illumination(self):
-        if SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
+        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+            self.ldi.set_active_channel_shutter(0)
+        elif SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
             self.led_array.turn_off_illumination()
         else:
             self.microcontroller.turn_off_illumination()
@@ -467,7 +477,24 @@ class LiveController(QObject):
             else:
                 self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
-            self.microcontroller.set_illumination(illumination_source,intensity)
+            # update illumination
+            if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+                # set LDI active channel
+                print('set active channel to ' + str(illumination_source))
+                self.ldi.set_active_channel(int(illumination_source))
+                # set intensity for active channel
+                print('set intensity')
+                self.ldi.set_intensity(int(illumination_source),intensity)
+            else:
+                self.microcontroller.set_illumination(illumination_source,intensity)
+
+            # set emission filter position
+            if 'Fluorescence' in self.currentConfiguration.name:
+                try:
+                    self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
+                except Exception as e:
+                    print('not setting emission filter position due to ' + str(e))
+
 
     def start_live(self):
         self.is_live = True
@@ -1505,6 +1532,8 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
+    napari_layers_update = Signal(np.ndarray, int, int, int, str)
+    napari_layers_init = Signal(int, int, object, bool)
 
     signal_update_stats = Signal(object)
 
@@ -1696,6 +1725,8 @@ class MultiPointWorker(QObject):
             if Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
+            init_napari_layers = False
+
             # along y
             for i in range(self.NY):
 
@@ -1776,9 +1807,13 @@ class MultiPointWorker(QObject):
                             
                             # Ensure that i/y-indexing is always top to bottom
                             sgn_i = -1 if self.deltaY >= 0 else 1
-                            if INVERTED_OBJECTIVE:
+                            if INVERTED_OBJECTIVE: # to do
                                 sgn_i = -sgn_i
                             sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
+
+                            real_i = self.NY-1-i if sgn_i == -1 else i
+                            real_j = j if sgn_j == 1 else self.NX-1-j
+
                             file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
@@ -1800,7 +1835,7 @@ class MultiPointWorker(QObject):
                                         self.wait_till_operation_is_completed()
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-                                if 'USB Spectrometer' not in config.name:
+                                if 'USB Spectrometer' not in config.name and 'RGB' not in config.name:
                                     # update the current configuration
                                     self.signal_current_configuration.emit(config)
                                     self.wait_till_operation_is_completed()
@@ -1856,7 +1891,7 @@ class MultiPointWorker(QObject):
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
                                         iio.imwrite(saving_path,image)
-                                        
+
                                     current_round_images[config.name] = np.copy(image)
 
                                     # dpc generation
@@ -1895,7 +1930,78 @@ class MultiPointWorker(QObject):
                                             saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
                                             iio.imwrite(saving_path,rgb_image)
 
+                                    if not init_napari_layers:
+                                        print("initialze layers")
+                                        init_napari_layers = True
+                                        self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
+                                    self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
+
                                     QApplication.processEvents()
+
+                                # RGB
+                                elif 'RGB' in config.name:
+                                    # go through the channels
+                                    channels = ['BF LED matrix full_R','BF LED matrix full_G','BF LED matrix full_B']
+                                    images = {}
+                                    # for config_ in [config_ for config_ in self.configurationManager.configurations if config_.name in channels]:
+                                    for config_ in self.configurationManager.configurations:
+                                        if config_.name in channels:
+                                            # update the current configuration
+                                            self.signal_current_configuration.emit(config)
+                                            self.wait_till_operation_is_completed()
+                                            # trigger acquisition (including turning on the illumination)
+                                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                                self.liveController.turn_on_illumination()
+                                                self.wait_till_operation_is_completed()
+                                                self.camera.send_trigger()
+                                            elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
+                                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                                            # read camera frame
+                                            image = self.camera.read_frame()
+                                            if image is None:
+                                                print('self.camera.read_frame() returned None')
+                                                continue
+                                            # tunr of the illumination if using software trigger
+                                            if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
+                                                self.liveController.turn_off_illumination()
+                                            # process the image -  @@@ to move to camera
+                                            image = utils.crop_image(image,self.crop_width,self.crop_height)
+                                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+                                            # add the image to dictionary
+                                            images[config_.name] = np.copy(image)
+                                    # R G B -> RGB
+                                    print('constructing RGB image')
+                                    size = images['BF LED matrix full_R'].shape
+                                    # print(size)
+                                    rgb_image = np.zeros((*size, 3),dtype=images['BF LED matrix full_R'].dtype)
+                                    # print(images['BF LED matrix full_R'].dtype)
+                                    # print(rgb_image.shape)
+                                    rgb_image[:, :, 0] = images['BF LED matrix full_R']
+                                    rgb_image[:, :, 1] = images['BF LED matrix full_G']
+                                    rgb_image[:, :, 2] = images['BF LED matrix full_B']
+
+                                    # send image to display
+                                    image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                                    if USE_NAPARI_FOR_LIVE_VIEW:
+                                        self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
+                                    else:
+                                        self.image_to_display.emit(image_to_display)
+                                    # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
+
+                                    # write the image
+                                    if rgb_image.dtype == np.uint16:
+                                        saving_path = os.path.join(current_path, file_ID + '_RGB.tiff')
+                                        iio.imwrite(saving_path,rgb_image)
+                                    else:
+                                        saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
+                                        iio.imwrite(saving_path,rgb_image)
+
+                                    if not init_napari_layers:
+                                        print("initialze layers")
+                                        init_napari_layers = True
+                                        print(rgb_image.dtype)
+                                        self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
+                                    self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
 
                                 # USB spectrometer
                                 else:
@@ -2080,6 +2186,8 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    napari_layers_update = Signal(np.ndarray, int, int, int, str)
+    napari_layers_init = Signal(int, int, object, bool)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
@@ -2305,6 +2413,8 @@ class MultiPointController(QObject):
         self.multiPointWorker.spectrum_to_display.connect(self.slot_spectrum_to_display)
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
+        self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
+        self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
         # self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.thread.quit)
         # start the thread
@@ -2367,6 +2477,12 @@ class MultiPointController(QObject):
 
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
+
+    def slot_napari_layers_update(self, image, i, j, k, channel):
+        self.napari_layers_update.emit(image, i, j, k, channel)
+
+    def slot_napari_layers_init(self, image_height, image_width, dtype, rgb):
+        self.napari_layers_init.emit(image_height, image_width, dtype, rgb)
 
 
 class TrackingController(QObject):
@@ -3125,8 +3241,10 @@ class ConfigurationManager(QObject):
         self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
     def read_configurations(self):
+        print('read config')
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
+            print('genenrate default config files')
         self.config_xml_tree = ET.parse(self.config_filename)
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
@@ -3299,6 +3417,8 @@ class ScanCoordinates(object):
         # clear the previous selection
         self.coordinates_mm = []
         self.name = []
+        if len(selected_wells) == 0:
+            return
         # populate the coordinates
         rows = np.unique(selected_wells[:,0])
         _increasing = True
@@ -3472,7 +3592,6 @@ class LaserAutofocusController(QObject):
                 print("Unable to read laser AF state cache, exception below:")
                 print(e)
                 pass
-
 
     def measure_displacement(self):
         # turn on the laser

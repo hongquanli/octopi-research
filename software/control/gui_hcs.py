@@ -86,12 +86,11 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
        
-        # to do
         if USE_NAPARI_FOR_MULTIPOINT:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() # to remove
-            self.napariViewer_multiPoint = napariViewerWidget.ImageWidget()
-            self.napariViewer_multiPoint.setLiveViewLayers(['test'])
-            self.imageDisplayTabs.addTab(self.napariViewer_multiPoint, "Multichannel Acquisition")
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
+            self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60) # for 60x, IMX571, 2x2 binning, to change to using objective and camera config
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
@@ -111,8 +110,11 @@ class OctopiGUI(QMainWindow):
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.xlight = serial_peripherals.XLight()
-            try:
+                self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER,XLIGHT_SLEEP_TIME_FOR_WHEEL)
+            if USE_LDI_SERIAL_CONTROL:
+                self.ldi = serial_peripherals.LDI()
+                self.ldi.run()
+            if True:
                 if SUPPORT_LASER_AUTOFOCUS:
                     sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
                     sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
@@ -123,7 +125,7 @@ class OctopiGUI(QMainWindow):
                 else:
                     self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
-            except:
+            else:
                 if SUPPORT_LASER_AUTOFOCUS:
                     self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                     self.camera.open()
@@ -147,9 +149,10 @@ class OctopiGUI(QMainWindow):
         self.microcontroller.configure_actuators()
 
         self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        print('load channel_configurations.xml')
 
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
-        self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
+        self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
         self.navigationController = core.NavigationController(self.microcontroller, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
@@ -273,20 +276,19 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager)
-
+        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+        self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
+        
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
-        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
-        self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
+        self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
@@ -365,7 +367,17 @@ class OctopiGUI(QMainWindow):
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)            
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-        self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multiPointWidget.signal_acquisition_dz_um.connect(self.napariMultiChannelWidget.set_dz_um)
+            self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+            self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multiPointWidget2.signal_acquisition_dz_um.connect(self.napariMultiChannelWidget.set_dz_um)
+            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+        else:
+            self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
@@ -406,7 +418,7 @@ class OctopiGUI(QMainWindow):
             # controllers
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
             self.streamHandler_focus_camera = core.StreamHandler()
-            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
+            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,self,control_illumination=False,for_displacement_measurement=True)
             self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
             self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
@@ -461,8 +473,7 @@ class OctopiGUI(QMainWindow):
                 laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
                 laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
-            # self.imageDisplayWindow_focus.widget
-            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-based Focus")
+            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
 
             # connections
             self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)

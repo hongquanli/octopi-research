@@ -13,6 +13,7 @@ from qtpy.QtGui import *
 import pyqtgraph as pg
 
 import pandas as pd
+import napari
 
 from datetime import datetime
 
@@ -1476,6 +1477,11 @@ class StatsDisplayWidget(QFrame):
 
 
 class MultiPointWidget(QFrame):
+
+    signal_acquisition_channels = Signal(list)
+    signal_acquisition_shape = Signal(int, int, int)
+    signal_acquisition_dz_um = Signal(float)
+
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
@@ -1645,6 +1651,7 @@ class MultiPointWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+        self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
 
     def set_deltaX(self,value):
         mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
@@ -1671,6 +1678,10 @@ class MultiPointWidget(QFrame):
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
 
+    def emit_selected_channels(self):
+        selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
+        self.signal_acquisition_channels.emit(selected_channels)
+
     def toggle_acquisition(self,pressed):
         if self.base_path_is_set == False:
             self.btn_startAcquisition.setChecked(False)
@@ -1693,6 +1704,8 @@ class MultiPointWidget(QFrame):
             self.multipointController.set_NY(self.entry_NY.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
+            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
+            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
@@ -1731,15 +1744,23 @@ class MultiPointWidget(QFrame):
         self.btn_startAcquisition.setEnabled(True)
 
 class MultiPointWidget2(QFrame):
-    def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, *args, **kwargs):
+
+    signal_acquisition_channels = Signal(list)
+    signal_acquisition_shape = Signal(int, int, int)
+    signal_acquisition_dz_um = Signal(float)
+
+    def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, scanCoordinates=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.last_used_locations = None
+        self.last_used_location_ids = None
         self.multipointController = multipointController
         self.configurationManager = configurationManager
         self.navigationController = navigationController
         self.navigationViewer = navigationViewer
+        self.scanCoordinates = scanCoordinates
         self.base_path_is_set = False
         self.location_list = np.empty((0, 3), dtype=float)
+        self.location_ids = np.empty((0,), dtype=str)
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.acquisition_in_place=False
@@ -1771,6 +1792,13 @@ class MultiPointWidget2(QFrame):
 
         self.btn_export_locations = QPushButton('Export Location List')
         self.btn_import_locations = QPushButton('Import Location List')
+
+        # editable points table
+        self.table_location_list = QTableWidget()
+        self.table_location_list.setColumnCount(4)
+        header_labels = ['x', 'y', 'z', 'ID']
+        self.table_location_list.setHorizontalHeaderLabels(header_labels)
+        self.btn_show_table_location_list = QPushButton('Show Location List')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -1858,6 +1886,7 @@ class MultiPointWidget2(QFrame):
         grid_line4.addWidget(QLabel('Location List'),0,0)
         grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
         grid_line4.addWidget(self.btn_clear,0,3)
+        grid_line4.addWidget(self.btn_show_table_location_list,0,4)
 
         grid_line3point5 = QGridLayout()
         grid_line3point5.addWidget(self.btn_add,0,0)
@@ -1928,6 +1957,7 @@ class MultiPointWidget2(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+        self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
 
         self.btn_add.clicked.connect(self.add_location)
         self.btn_remove.clicked.connect(self.remove_location)
@@ -1937,6 +1967,10 @@ class MultiPointWidget2(QFrame):
         self.btn_load_last_executed.clicked.connect(self.load_last_used_locations)
         self.btn_export_locations.clicked.connect(self.export_location_list)
         self.btn_import_locations.clicked.connect(self.import_location_list)
+
+        self.table_location_list.cellClicked.connect(self.cell_was_clicked)
+        self.table_location_list.cellChanged.connect(self.cell_was_changed)
+        self.btn_show_table_location_list.clicked.connect(self.table_location_list.show)
 
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
@@ -1968,6 +2002,10 @@ class MultiPointWidget2(QFrame):
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
 
+    def emit_selected_channels(self):
+        selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
+        self.signal_acquisition_channels.emit(selected_channels)
+
     def toggle_acquisition(self,pressed):
         if self.base_path_is_set == False:
             self.btn_startAcquisition.setChecked(False)
@@ -1995,6 +2033,8 @@ class MultiPointWidget2(QFrame):
             self.multipointController.set_NY(self.entry_NY.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
+            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
+            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
@@ -2008,16 +2048,23 @@ class MultiPointWidget2(QFrame):
             return
         self.clear_only_location_list()
 
-        for row in self.last_used_locations:
+        for row, row_ind in zip(self.last_used_locations, self.last_used_location_ids):
             x = row[0]
             y = row[1]
             z = row[2]
+            name = row_ind[0]
             if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
                 location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
                 self.dropdown_location_list.addItem(location_str)
+                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                self.location_ids = np.append(self.location_ids, name)
+                self.table_location_list.insertRow(self.table_location_list.rowCount())
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(z*1000,1))))
+                self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
                 index = self.dropdown_location_list.count() - 1
                 self.dropdown_location_list.setCurrentIndex(index)
-                self.location_list = np.vstack((self.location_list, [[x,y,z]]))
                 print(self.location_list)
                 self.navigationViewer.register_fov_to_image(x,y)
             else:
@@ -2029,6 +2076,7 @@ class MultiPointWidget2(QFrame):
     def acquisition_is_finished(self):
         if not self.acquisition_in_place:
             self.last_used_locations = self.location_list.copy()
+            self.last_used_location_ids = self.location_ids.copy()
         else:
             self.clear()
             self.acquisition_in_place = False
@@ -2063,6 +2111,10 @@ class MultiPointWidget2(QFrame):
         x = self.navigationController.x_pos_mm
         y = self.navigationController.y_pos_mm
         z = self.navigationController.z_pos_mm
+        name = ''
+        if self.scanCoordinates is not None:
+            name = self.create_point_id()
+        
         if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
             location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
             self.dropdown_location_list.addItem(location_str)
@@ -2070,20 +2122,42 @@ class MultiPointWidget2(QFrame):
             self.dropdown_location_list.setCurrentIndex(index)
             self.location_list = np.vstack((self.location_list, [[self.navigationController.x_pos_mm,self.navigationController.y_pos_mm,self.navigationController.z_pos_mm]]))
             print(self.location_list)
+            self.location_ids = np.append(self.location_ids, name)
+            self.table_location_list.insertRow(self.table_location_list.rowCount())
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(1000*z,1))))
+            self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
             self.navigationViewer.register_fov_to_image(x,y)
         else:
             print("Duplicate values not added based on x and y.")
             #to-do: update z coordinate
 
+    def create_point_id(self):
+        self.scanCoordinates.get_selected_wells()
+        if len(self.scanCoordinates.name) == 0:
+            print('Select a well first.')
+            return None
+        
+        name = self.scanCoordinates.name[0]
+        location_split_names = [int(x.split('-')[1]) for x in self.location_ids if x.split('-')[0] == name]
+        if len(location_split_names) > 0:
+            new_id = f'{name}-{np.max(location_split_names)+1}'
+        else:
+            new_id = f'{name}-0'
+        return new_id
+
     def remove_location(self):
         index = self.dropdown_location_list.currentIndex()
         if index >=0:
             self.dropdown_location_list.removeItem(index)
+            self.table_location_list.removeRow(index)
             x = self.location_list[index,0]
             y = self.location_list[index,1]
             z = self.location_list[index,2]
             self.navigationViewer.deregister_fov_to_image(x,y)
             self.location_list = np.delete(self.location_list, index, axis=0)
+            self.location_ids = np.delete(self.location_ids, index, axis=0)
             if len(self.location_list) == 0:
                 self.navigationViewer.clear_slide()
             print(self.location_list)
@@ -2113,8 +2187,16 @@ class MultiPointWidget2(QFrame):
 
     def clear(self):
         self.location_list = np.empty((0, 3), dtype=float)
+        self.location_ids = np.empty((0,), dtype=str)
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
+        self.table_location_list.setRowCount(0)
+
+    def clear_only_location_list(self):
+        self.location_list = np.empty((0,3),dtype=float)
+        self.location_ids = np.empty((0,),dtype=str)
+        self.dropdown_location_list.clear()
+        self.table_location_list.setRowCount(0)
 
     def clear_only_location_list(self):
         self.location_list = np.empty((0,3),dtype=float)
@@ -2129,6 +2211,31 @@ class MultiPointWidget2(QFrame):
                 self.navigationController.move_x_to(x)
                 self.navigationController.move_y_to(y)
                 self.navigationController.move_z_to(z)
+                self.table_location_list.selectRow(index)
+
+    def cell_was_clicked(self,row,column):
+
+        self.dropdown_location_list.setCurrentIndex(row)
+
+    def cell_was_changed(self,row,column):
+        x= self.location_list[row,0]
+        y= self.location_list[row,1]
+        self.navigationViewer.deregister_fov_to_image(x,y)
+    
+        val_edit = self.table_location_list.item(row,column).text()
+        if column < 2:
+            val_edit = float(val_edit)
+            self.location_list[row,column] = val_edit
+        elif column == 2:
+            z = float(val_edit)/1000
+            self.location_list[row,column] = z
+        else:
+            self.location_ids[row] = val_edit
+        
+        self.navigationViewer.register_fov_to_image(self.location_list[row,0], self.location_list[row,1])
+        location_str = 'x: ' + str(round(self.location_list[row,0],3)) + ' mm, y: ' + str(round(self.location_list[row,1],3)) + ' mm, z: ' + str(1000*round(self.location_list[row,2],3)) + ' um'
+        self.dropdown_location_list.setItemText(row, location_str)
+        self.go_to(row)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_A and event.modifiers() == Qt.ControlModifier:
@@ -2145,6 +2252,7 @@ class MultiPointWidget2(QFrame):
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Location List", '', "CSV Files (*.csv);;All Files (*)")
         if file_path:
             location_list_df = pd.DataFrame(self.location_list,columns=['x (mm)','y (mm)', 'z (um)'])
+            location_list_df['ID'] = self.location_ids
             location_list_df['i'] = 0
             location_list_df['j'] = 0
             location_list_df['k'] = 0
@@ -2160,22 +2268,620 @@ class MultiPointWidget2(QFrame):
             except KeyError:
                 print("Improperly formatted location list being imported")
                 return
+            if 'ID' in location_list_df.columns:
+                location_list_df_relevant['ID'] = location_list_df['ID'].astype(str)
+            else:
+                location_list_df_relevant['ID'] = 'None'
             self.clear_only_location_list()
             for index, row in location_list_df_relevant.iterrows():
                 x = row['x (mm)']
                 y = row['y (mm)']
                 z = row['z (um)']
+                name = row['ID']
                 if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
                     location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' um'
                     self.dropdown_location_list.addItem(location_str)
                     index = self.dropdown_location_list.count() - 1
                     self.dropdown_location_list.setCurrentIndex(index)
                     self.location_list = np.vstack((self.location_list, [[x,y,z]]))
+                    self.location_ids = np.append(self.location_ids, name)
+                    self.table_location_list.insertRow(self.table_location_list.rowCount())
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,0, QTableWidgetItem(str(round(x,3))))
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(1000*z,1))))
+                    self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
                     self.navigationViewer.register_fov_to_image(x,y)
                 else:
                     print("Duplicate values not added based on x and y.")
             print(self.location_list)
 
+
+class StitcherWidget(QFrame):
+
+    def __init__(self, configurationManager, *args, **kwargs): #multiPointWidget, multiPointWidget2,*args, **kwargs):
+        super(StitcherWidget, self).__init__(*args, **kwargs)
+        self.configurationManager = configurationManager
+        #self.multiPointWidget = multiPointWidget
+        #self.multiPointWidget2 = self.MultiPointWidget2
+        self.output_path = ""
+        self.contrast_limits = None
+
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)  # Set frame style
+        #self.layout = QGridLayout(self)  # Initialize layout with self as the parent
+        self.layout = QVBoxLayout(self)
+        self.topLayout = QHBoxLayout()
+        self.colLayout1 = QVBoxLayout()
+        self.colLayout2 = QVBoxLayout()
+
+
+        # Apply flatfield correction checkbox
+        self.applyFlatfieldCheck = QCheckBox("Apply Flatfield Correction")
+        self.colLayout2.addWidget(self.applyFlatfieldCheck)
+
+        # Output format dropdown
+        self.outputFormatLabel = QLabel('Select Output Format:', self)
+        self.outputFormatCombo = QComboBox(self)
+        self.outputFormatCombo.addItem("OME-ZARR")
+        self.outputFormatCombo.addItem("OME-TIFF")
+        self.colLayout1.addWidget(self.outputFormatLabel)
+        self.colLayout1.addWidget(self.outputFormatCombo)
+
+        # Use registration checkbox
+        self.useRegistrationCheck = QCheckBox("Use Registration")
+        self.useRegistrationCheck.toggled.connect(self.onRegistrationCheck)
+        self.colLayout2.addWidget(self.useRegistrationCheck)
+
+        # Select Registartion Channel
+        self.registrationChannelLabel = QLabel("Select Registration Channel:", self)
+        self.registrationChannelLabel.setVisible(False)
+        self.colLayout2.addWidget(self.registrationChannelLabel)
+        self.registrationChannelCombo = QComboBox(self)
+        #self.registrationChannelCombo.setEnabled(False)
+        self.registrationChannelLabel.setVisible(False)
+        self.registrationChannelCombo.setVisible(False)
+        #for microscope_configuration in self.configurationManager.configurations:
+        #    self.registrationChannelCombo.addItems([microscope_configuration.name])
+        self.colLayout2.addWidget(self.registrationChannelCombo)
+        ### todo: make sure selected channel is one of the selected modes (check if in multipointcontroller channels selected)
+        
+        self.topLayout.addLayout(self.colLayout1)
+        self.topLayout.addLayout(self.colLayout2)
+        self.layout.addLayout(self.topLayout)
+
+        # Button to view output in Napari
+        self.viewOutputButton = QPushButton("View Output in Napari")
+        self.viewOutputButton.setEnabled(False)  # Initially disabled
+        self.viewOutputButton.setVisible(False)
+        self.viewOutputButton.clicked.connect(self.viewOutputNapari)
+        self.layout.addWidget(self.viewOutputButton)
+
+        # Progress bar
+        self.progressBar = QProgressBar()
+        self.layout.addWidget(self.progressBar)
+        self.progressBar.setVisible(False)  # Initially hidden
+
+        # Status label
+        self.statusLabel = QLabel("Status: Image Acquisition")
+        self.layout.addWidget(self.statusLabel)
+        self.statusLabel.setVisible(False)
+
+    def onRegistrationCheck(self, checked):
+        #self.registrationChannelCombo.setEnabled(checked)
+        self.registrationChannelLabel.setVisible(checked)
+        self.registrationChannelCombo.setVisible(checked)
+        if checked:
+            self.colLayout2.removeWidget(self.applyFlatfieldCheck)
+            self.colLayout1.insertWidget(0, self.applyFlatfieldCheck)
+        else:
+            self.colLayout1.removeWidget(self.applyFlatfieldCheck)
+            self.colLayout2.insertWidget(0, self.applyFlatfieldCheck)
+
+    def updateRegistrationChannels(self, selected_channels):
+        self.registrationChannelCombo.clear()  # Clear existing items
+        self.registrationChannelCombo.addItems(selected_channels)
+
+    def gettingFlatfields(self):
+        self.statusLabel.setText('Status: Calculating Flatfield Images...')
+        self.viewOutputButton.setVisible(False)
+        self.viewOutputButton.setStyleSheet("")
+        self.progressBar.setValue(0)
+        self.statusLabel.setVisible(True)
+        self.progressBar.setVisible(True)
+
+    def startingStitching(self):
+        self.statusLabel.setText('Status: Stitching Acquisition Images...')
+        self.viewOutputButton.setVisible(False)
+        self.progressBar.setValue(0)
+        self.statusLabel.setVisible(True)
+        self.progressBar.setVisible(True)
+
+    def updateProgressBar(self, value, total):
+        self.progressBar.setMaximum(total)
+        self.progressBar.setValue(value)
+        self.progressBar.setVisible(True)
+
+    def startingSaving(self):
+        self.statusLabel.setText('Status: Saving Stitched Image...')
+        self.progressBar.setRange(0, 0)  # indeterminate mode.
+        self.statusLabel.setVisible(True)
+        self.progressBar.setVisible(True)
+
+    def finishedSaving(self, output_path, dtype):
+        self.statusLabel.setVisible(False)
+        self.progressBar.setVisible(False)
+        self.viewOutputButton.setVisible(True)
+        self.viewOutputButton.setStyleSheet("background-color: #C2C2FF")
+        self.viewOutputButton.setEnabled(True)
+        try: 
+            self.viewOutputButton.clicked.disconnect()
+        except TypeError:
+            pass
+        self.viewOutputButton.clicked.connect(self.viewOutputNapari)
+
+        if np.issubdtype(dtype, np.integer):  # Check if dtype is an integer type
+            contrast_limits = (np.iinfo(dtype).min, np.iinfo(dtype).max) 
+        elif np.issubdtype(dtype, np.floating):  # floating point type
+            contrast_limits = (0.0, 1.0)
+        else:
+            contrast_limits = None
+            raise ValueError("Unsupported dtype")
+
+        self.output_path = output_path
+        self.contrast_limits = contrast_limits
+        print("Stitching completed.")
+        print(output_path)
+        print(dtype)
+
+    def viewOutputNapari(self):
+        try:
+            napari_viewer = napari.Viewer()
+            if ".ome.zarr" in self.output_path:
+                napari_viewer.open(self.output_path, plugin='napari-ome-zarr', contrast_limits=self.contrast_limits)
+            else:
+                napari_viewer.open(self.output_path, contrast_limits=self.contrast_limits)
+
+            colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
+                      'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno'] #etc
+            for i, layer in enumerate(napari_viewer.layers):
+                #layer.contrast_limits = self.contrast_limits
+                layer.colormap = colors[i]
+            # napari.run()  # Start the Napari event loop
+        except Exception as e:
+            QMessageBox.critical(self, "Error Opening in Napari", str(e))
+
+
+class StitchingPreviewWidget(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.canvases = {}  # Stores the canvas for each z-plane and channel
+        self.canvasInitialized = False
+        self.image_width = 0
+        self.image_height = 0 
+        self.Nz = 1
+        self.Ny = 1
+        self.Nx = 1
+        self.channels = []
+        self.dtype = np.uint8
+        self.zoom = 1.0
+        self.centerY = 0
+        self.centerX = 0
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QHBoxLayout(self)
+
+        class ImageLabel(QLabel):
+            mouseCoordinates = Signal(float, float)
+            centerCoordinates = Signal(float, float)
+
+            def __init__(self, title="", parent=None):
+                super().__init__(parent)
+                self.setText(title)
+                self.setAlignment(Qt.AlignCenter)
+                self.setMouseTracking(True)
+
+            def mouseMoveEvent(self, event):
+                canvasX, canvasY = self.displayToCanvasCoordinates(event.x(), event.y())
+                if canvasX is not None and canvasY is not None:
+                    self.mouseCoordinates.emit(canvasX, canvasY)
+
+            def mouseDoubleClickEvent(self, event):
+                canvasX, canvasY = self.displayToCanvasCoordinates(event.x(), event.y())
+                if canvasX is not None and canvasY is not None:
+                    self.centerCoordinates.emit(canvasX, canvasY)
+
+            def displayToCanvasCoordinates(self, displayX, displayY):
+                parent = self.parent()
+                pixmap = self.pixmap()
+
+                # Ensure the pixmap is valid
+                if pixmap is None or pixmap.isNull():
+                    return None, None
+
+                # Calculate the expected display size of the image based on zoom
+                displayedImageWidth = parent.image_width * parent.zoom
+                displayedImageHeight = parent.image_height * parent.zoom
+
+                # Calculate the offset of the displayed image within the label
+                offsetX = (self.width() - displayedImageWidth) / 2
+                offsetY = (self.height() - displayedImageHeight) / 2
+
+                # Adjust the event coordinates based on the offset and zoom scale
+                adjustedX = (displayX - offsetX) / parent.zoom
+                adjustedY = (displayY - offsetY) / parent.zoom
+
+                # Convert the adjusted coordinates back to canvas coordinates
+                # This involves considering the current centering relative to the original dimensions
+                canvasX = adjustedX + (parent.centerX - (parent.image_width / 2))
+                canvasY = adjustedY + (parent.centerY - (parent.image_height / 2))
+
+                return canvasX, canvasY
+
+        #self.imageLabel = QLabel("Stitching Preview")
+        self.imageLabel = ImageLabel("Stitching Preview", self)
+        self.coordinatesLabel = QLabel("Coordinates\n(n/a, n/a)")
+        self.coordinatesLabel.setAlignment(Qt.AlignCenter)
+        self.zoomInButton = QPushButton("Zoom In", self)
+        self.zoomOutButton = QPushButton("Zoom Out", self)
+        self.zoomResetButton = QPushButton("Reset Zoom", self)
+        
+        # zoomLayout = QHBoxLayout()
+        # zoomLayout.addWidget(self.zoomInButton)
+        # zoomLayout.addWidget(self.zoomOutButton)
+        # zoomLayout.addWidget(self.zoomResetButton)
+
+        self.zPlaneDropdownLabel = QLabel("Z-Plane:")
+        self.zPlaneDropdownLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.zPlaneDropdown = QComboBox()
+        self.zPlaneDropdown.addItem("0")
+        self.zPlaneDropdown.setEnabled(False)
+        self.channelDropdownLabel = QLabel("Channel:")
+        self.channelDropdownLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.channelDropdown = QComboBox()
+        self.channelDropdown.setEnabled(False)
+        self.zPlaneDropdown.currentIndexChanged.connect(self.displayCurrentCanvas)
+        self.channelDropdown.currentIndexChanged.connect(self.displayCurrentCanvas)
+
+        self.coordXInput = QLineEdit(self)
+        self.coordYInput = QLineEdit(self)
+        self.centerButton = QPushButton("Center Image", self)
+
+        dropdownsLayout = QVBoxLayout()
+        
+        line1 = QHBoxLayout()
+        line1.addWidget(self.zPlaneDropdownLabel)
+        line1.addWidget(self.zPlaneDropdown)
+        line2 = QHBoxLayout()
+        line2.addWidget(self.channelDropdownLabel)
+        line2.addWidget(self.channelDropdown)
+        
+        dropdownsLayout.addLayout(line1)
+        dropdownsLayout.addLayout(line2)
+        dropdownsLayout.addWidget(self.coordinatesLabel)
+        #dropdownsLayout.addLayout(zoomLayout)
+        line4 = QHBoxLayout()
+        line4.addWidget(self.zoomInButton)
+        line4.addWidget(self.zoomOutButton)
+        dropdownsLayout.addLayout(line4)
+        dropdownsLayout.addWidget(self.zoomResetButton)
+
+
+        # Layout for coordinate inputs
+        line6 = QHBoxLayout()
+        line6.addWidget(QLabel("Center X:"))
+        line6.addWidget(self.coordXInput)
+        dropdownsLayout.addLayout(line6)
+        line7 = QHBoxLayout()
+        line7.addWidget(QLabel("Center Y:"))
+        line7.addWidget(self.coordYInput)
+        dropdownsLayout.addLayout(line7)
+        dropdownsLayout.addWidget(self.centerButton)
+
+        dropdownsContainer = QWidget()
+        dropdownsContainer.setLayout(dropdownsLayout)
+        dropdownsContainer.setFixedWidth(180)
+        dropdownsContainer.setStyleSheet("background-color: #F0F0F0")
+
+        self.layout.addWidget(self.imageLabel, 8)
+        self.layout.addWidget(dropdownsContainer, 1)
+
+        self.imageLabel.mouseCoordinates.connect(self.displayMouseCoordinates)
+        self.centerButton.clicked.connect(self.centerPreview)
+        self.imageLabel.centerCoordinates.connect(self.centerPreview)
+        self.zoomInButton.clicked.connect(lambda: self.adjustZoom(1.25))
+        self.zoomOutButton.clicked.connect(lambda: self.adjustZoom(0.8))
+        self.zoomResetButton.clicked.connect(lambda: self.setZoom(1.0))
+
+    def displayMouseCoordinates(self, x, y):
+        # This method updates the coordinates label with the mouse position
+        if x >= 0 and y >= 0:  # Valid coordinates
+            self.coordinatesLabel.setText(f"Coordinates\n({x:.0f}, {y:.0f}, {self.currentZPlane()})")
+        else:
+            self.coordinatesLabel.setText("Coordinates\n(n/a, n/a)")
+
+    def adjustZoom(self, factor):
+        self.zoom *= factor
+        self.imageLabel.setZoomFactor(self.zoom)
+
+    def setZoom(self, factor):
+        self.zoom = factor
+        self.imageLabel.setZoomFactor(self.zoom)
+
+    def updateChannels(self, channels):
+        self.channels = channels
+        self.channelDropdown.clear()
+        for channel in channels:
+            self.channelDropdown.addItem(channel)
+    
+    def setZLevels(self, Nx, Ny, Nz):
+        self.Nx = Nx
+        self.Ny = Ny
+        self.Nz = Nz
+        self.zPlaneDropdown.clear()
+        for z in range(Nz):
+            self.zPlaneDropdown.addItem(f"{z}")
+
+    def initPreview(self, image_height, image_width, image_dtype):
+        self.image_width = image_width
+        self.image_height = image_height
+        self.dtype = np.dtype(image_dtype)
+        self.channelDropdown.setEnabled(True)
+        self.zPlaneDropdown.setEnabled(True)
+        for z in range(self.Nz):
+            for channel in self.channels:
+                canvasKey = (z, channel)
+                self.canvases[canvasKey] = np.zeros((image_height * self.Ny, image_width * self.Nx), 
+                                                     dtype=np.dtype(image_dtype))
+        self.displayCurrentCanvas()
+        self.canvasInitialized=True
+
+    def updatePreview(self, image, i, j, k, channel):
+        print("image shape", image.shape)
+        canvasKey = (k, channel)
+        if canvasKey not in self.canvases:
+            self.canvases[canvasKey] = np.zeros((self.imageHeight * self.Ny, self.imageWidth * self.Nx, 3), dtype=self.dtype)
+        
+        y_start = i * self.image_height
+        x_start = j * self.image_width
+        self.canvases[canvasKey][y_start:y_start + image.shape[0], x_start:x_start + image.shape[1]] = image
+        self.displayCurrentCanvas()
+
+    def centerPreview(self, centerX, centerY):
+        self.centerX = centerX
+        self.centerY = centerY
+        self.displayCurrentCanvas()
+
+    def displayCurrentCanvas(self):
+        zPlane = self.currentZPlane()
+        print("current z", zPlane)
+        channel = self.currentChannel()
+        print("current channel", channel)
+        canvasKey = (zPlane, channel)
+
+        if canvasKey in self.canvases:
+            canvas = self.canvases[canvasKey]
+            print("canvas shape", canvas.shape)
+            if self.dtype == np.uint8:
+                qformat = QImage.Format_Grayscale8
+                bytes_per_line = canvas.shape[1] * 1
+            elif self.dtype == np.uint16:
+                qformat = QImage.Format_Grayscale16
+                bytes_per_line = canvas.shape[1] * 2
+            else:
+                raise ValueError("Unsupported image data type")
+            qImage = QImage(canvas.data, canvas.shape[1], canvas.shape[0], bytes_per_line, qformat)
+            pixmap = QPixmap.fromImage(qImage)
+            ## apply logic to center image based on centerX and centerY
+            scaledPixmap = pixmap.scaled(int(self.imageLabel.width() * self.zoom), int(self.imageLabel.height() * self.zoom), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            ## shift by scaled amount on window so that the correct canvasX,Y is centered
+            self.imageLabel.setPixmap(scaledPixmap)
+
+    def resizeEvent(self, event):
+        self.displayCurrentCanvas()  # Update the display to fit the new size
+        super().resizeEvent(event)
+
+    def currentZPlane(self):
+        return self.zPlaneDropdown.currentIndex()
+
+    def currentChannel(self):
+        return self.channelDropdown.currentText()
+
+
+class NapariStitchingWidget(QWidget):
+
+    signal_coordinates_clicked = Signal(float, float, float)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Initialize placeholders for the acquisition parameters
+        self.image_width = 0
+        self.image_height = 0
+        self.dtype = np.uint8
+        self.channels = []
+        self.Nx = 1
+        self.Ny = 1
+        self.Nz = 1
+        self.layers_initialized = False
+        # Initialize a napari Viewer without showing its standalone window.
+        self.initNapariViewer()
+
+    def initNapariViewer(self):
+        self.viewer = napari.Viewer(show=False)
+        #self.viewer.mouse_drag_callbacks.append(on_mouse_drag)
+        #self.viewer.mouse_drag_callbacks.append(self.on_click)
+        self.viewerWidget = self.viewer.window._qt_window
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.viewerWidget)
+        self.setLayout(self.layout)
+        
+    def initLayersShape(self, Nx, Ny, Nz):
+        self.Nx = Nx
+        self.Ny = Ny
+        self.Nz = Nz
+
+    def initChannels(self, channels):
+        self.channels = channels
+
+    def initLayers(self, image_height, image_width, image_dtype,rgb=False):
+        """Initializes the full canvas for each channel based on the acquisition parameters."""
+        self.viewer.layers.clear()
+        self.image_width = image_width
+        self.image_height = image_height
+        self.dtype = np.dtype(image_dtype)
+        if np.issubdtype(self.dtype, np.integer):  # Check if dtype is an integer type
+            contrast_limits = (np.iinfo(self.dtype).min, np.iinfo(self.dtype).max) 
+        elif np.issubdtype(self.dtype, np.floating):  # floating point type
+            contrast_limits = (0.0, 1.0)
+        else:
+            contrast_limits = None
+            #raise ValueError("Unsupported dtype")
+
+        colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
+                  'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno']
+        for i, channel in enumerate(self.channels):
+            if rgb == True:
+                canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
+            else:
+                canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
+            self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
+                                  colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
+        
+        self.layers_initialized = True
+
+    def updateLayers(self, image, i, j, k, channel_name):
+        """Updates the appropriate slice of the canvas with the new image data."""
+        if not self.layers_initialized:
+            print("Layers not initialized...yet")
+            return
+
+        if channel_name not in self.viewer.layers:
+            print(f"Layer {channel_name} not found.")
+            return
+
+        # Locate the layer and its current data
+        layer = self.viewer.layers[channel_name]
+        layer_data = layer.data
+        
+        # Update the specific slice based on the provided coordinates
+        y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
+        x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
+        layer_data[k, y_slice, x_slice] = image
+        
+        # Update the layer with the modified data
+        layer.data = layer_data
+
+    def resetView(self):
+        self.viewer.reset_view()
+
+    def on_click(self, viewer, event):
+        # Get the position in data coordinates
+        if event.position:
+            self.viewer.camera.center = event.position #FIX THIS
+            data_coords = viewer.layers[0].world_to_data(event.position)
+            # Emit x, y, and z (z will be 0 in 2D mode)
+            x, y, z = data_coords[:3] if len(data_coords) > 2 else (*data_coords, 0)
+            self.signal_coordinates_clicked.emit(x, y, z)
+
+
+    def on_mouse_drag(viewer, event):
+        # Define a small move threshold to consider the action a click rather than a drag
+        move_threshold = 5  # pixels
+
+        # Check if this is the start of a drag
+        if event.type == 'mouse_press':
+            # Store the initial position
+            event.press_event.position = event.position
+
+        elif event.type == 'mouse_release':
+            # Calculate the total movement
+            start_position = np.array(event.press_event.position)
+            end_position = np.array(event.position)
+            movement = np.linalg.norm(end_position - start_position)
+
+            # If the movement is small enough, treat this as a click
+            if movement < move_threshold:
+                # This is considered a click
+                print("Click detected at:", event.position)
+                # Center the viewer at the click position
+                self.viewer.camera.center = event.position
+
+
+class NapariMultiChannelWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Initialize placeholders for the acquisition parameters
+        self.image_width = 0
+        self.image_height = 0
+        self.dtype = np.uint8
+        self.channels = []
+        self.Nz = 1
+        self.dz_um = 1
+        self.pixel_size_um = 1
+        self.layers_initialized = False
+        # Initialize a napari Viewer without showing its standalone window.
+        self.initNapariViewer()
+
+    def initNapariViewer(self):
+        self.viewer = napari.Viewer(show=False)
+        #self.viewer.grid.enabled = True
+        self.viewerWidget = self.viewer.window._qt_window
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.viewerWidget)
+        self.setLayout(self.layout)
+        
+    def initLayersShape(self, Nx, Ny, Nz):
+        self.Nz = Nz
+
+    def set_dz_um(self,dz_um):
+        self.dz_um = dz_um
+
+    def set_pixel_size_um(self,pixel_size_um):
+        self.pixel_size_um = pixel_size_um
+
+    def initChannels(self, channels):
+        self.channels = channels
+
+    def initLayers(self, image_height, image_width, image_dtype, rgb=False):
+        """Initializes the full canvas for each channel based on the acquisition parameters."""
+        self.viewer.layers.clear()
+        self.image_width = image_width
+        self.image_height = image_height
+        self.dtype = np.dtype(image_dtype)
+        if np.issubdtype(self.dtype, np.integer):  # Check if dtype is an integer type
+            contrast_limits = (np.iinfo(self.dtype).min, np.iinfo(self.dtype).max) 
+        elif np.issubdtype(self.dtype, np.floating):  # floating point type
+            contrast_limits = (0.0, 1.0)
+        else:
+            contrast_limits = None
+            #raise ValueError("Unsupported dtype")
+
+        colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
+                  'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno'] #todo : add to config file
+        for i, channel in enumerate(self.channels):
+            if rgb == True:
+                canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
+            else:
+                canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
+            self.viewer.add_image(canvas, name=channel, scale=(self.dz_um,self.pixel_size_um, self.pixel_size_um), visible=True, rgb=rgb,
+                                  colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
+        
+        self.layers_initialized = True
+
+    def updateLayers(self, image, i, j, k, channel_name):
+        """Updates the appropriate slice of the canvas with the new image data."""
+        if not self.layers_initialized:
+            print("Layers not initialized...yet")
+            return
+
+        if channel_name not in self.viewer.layers:
+            print(f"Layer {channel_name} not found.")
+            return
+        # Locate the layer and its update its current data
+        layer = self.viewer.layers[channel_name]
+        layer.data[k,:,:] = image
+
+    def resetView(self):
+        self.viewer.reset_view()
 
 
 class TrackingControllerWidget(QFrame):
