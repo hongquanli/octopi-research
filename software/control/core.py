@@ -668,7 +668,11 @@ class NavigationController(QObject):
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
 
-    def scan_preview_move_from_click(self, click_x, click_y):
+    def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height):
+        # restore to raw coordicate
+        click_x = click_x + image_width / 2.0
+        click_y = click_y - image_height / 2.0
+
         try:
             highest_res = (0,0)
             for res in self.parent.camera.res_list:
@@ -709,14 +713,13 @@ class NavigationController(QObject):
         pixel_sign_x = 1
         pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
 
-        delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
-        delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
+        delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
+        delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
 
         self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR))
         self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR))
 
-
-    def move_from_click(self, click_x, click_y):
+    def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
             try:
                 highest_res = (0,0)
@@ -2879,7 +2882,7 @@ class TrackingWorker(QObject):
 
 class ImageDisplayWindow(QMainWindow):
 
-    image_click_coordinates = Signal(int, int)
+    image_click_coordinates = Signal(int, int, int, int)
 
     def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
         super().__init__()
@@ -2978,7 +2981,7 @@ class ImageDisplayWindow(QMainWindow):
         if self.is_within_image(image_coord):
             x_pixel_centered = int(image_coord.x() - self.graphics_widget.img.width()/2)
             y_pixel_centered = int(image_coord.y() - self.graphics_widget.img.height()/2)
-            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered) 
+            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height()) 
 
     def display_image(self,image):
         if ENABLE_TRACKING:
