@@ -634,6 +634,7 @@ class NavigationController(QObject):
     # x y z axis pid enable flag
     pid_enable_flag = [False, False, False]
 
+
     def __init__(self,microcontroller, parent=None):
         # parent should be set to OctopiGUI instance to enable updates
         # to camera settings, e.g. binning, that would affect click-to-move
@@ -660,10 +661,65 @@ class NavigationController(QObject):
         # self.timer_read_pos.timeout.connect(self.update_pos)
         # self.timer_read_pos.start()
 
+        # scan start position
+        self.scan_begin_position_x = 0
+        self.scan_begin_position_y = 0
+
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
 
-    def move_from_click(self, click_x, click_y):
+    def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height):
+        # restore to raw coordicate
+        click_x = click_x + image_width / 2.0
+        click_y = click_y - image_height / 2.0
+
+        try:
+            highest_res = (0,0)
+            for res in self.parent.camera.res_list:
+                if res[0] > highest_res[0] or res[1] > higest_res[1]:
+                    highest_res = res
+            resolution = self.parent.camera.resolution
+
+            try:
+                pixel_binning_x = highest_res[0]/resolution[0]
+                pixel_binning_y = highest_res[1]/resolution[1]
+                if pixel_binning_x < 1:
+                    pixel_binning_x = 1
+                if pixel_binning_y < 1:
+                    pixel_binning_y = 1
+            except:
+                pixel_binning_x=1
+                pixel_binning_y=1
+        except AttributeError:
+            pixel_binning_x = 1
+            pixel_binning_y = 1
+
+        try:
+            current_objective = self.parent.objectiveStore.current_objective
+            objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
+        except (AttributeError, KeyError):
+            objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+
+        magnification = objective_info["magnification"]
+        objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
+        tube_lens_mm = TUBE_LENS_MM
+        pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+
+        pixel_size_xy = pixel_size_um/(magnification/(objective_tube_lens_mm/tube_lens_mm))
+
+        pixel_size_x = pixel_size_xy*pixel_binning_x
+        pixel_size_y = pixel_size_xy*pixel_binning_y
+
+        pixel_sign_x = 1
+        pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
+
+        delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
+        delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
+
+        self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR))
+        self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR))
+
+    def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
             try:
                 highest_res = (0,0)
@@ -691,6 +747,7 @@ class NavigationController(QObject):
                 objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
             except (AttributeError, KeyError):
                 objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
+
             magnification = objective_info["magnification"]
             objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
             tube_lens_mm = TUBE_LENS_MM
@@ -880,6 +937,12 @@ class NavigationController(QObject):
     def get_pid_control_flag(self, axis):
         return self.pid_enable_flag[axis]
 
+    def keep_scan_begin_position(self, x, y):
+        self.scan_begin_position_x = x
+        self.scan_begin_position_y = y
+
+    def set_axis_PID_arguments(self, axis, pid_p, pid_i, pid_d):
+        self.microcontroller.set_pid_arguments(axis, pid_p, pid_i, pid_d)
 
 class SlidePositionControlWorker(QObject):
     
@@ -2254,6 +2317,7 @@ class MultiPointController(QObject):
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+
         if location_list is not None:
             print(location_list)
             self.location_list = location_list
@@ -2261,8 +2325,6 @@ class MultiPointController(QObject):
             self.location_list = None
 
         self.abort_acqusition_requested = False
-
-        
 
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
         # stop live
@@ -2298,6 +2360,10 @@ class MultiPointController(QObject):
         
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
+
+        if SHOW_TILED_PREVIEW:
+            self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
         # create a QThread object
         if self.gen_focus_map and not self.do_reflection_af:
             print("Generating focus map for multipoint grid")
@@ -2816,7 +2882,7 @@ class TrackingWorker(QObject):
 
 class ImageDisplayWindow(QMainWindow):
 
-    image_click_coordinates = Signal(int, int)
+    image_click_coordinates = Signal(int, int, int, int)
 
     def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
         super().__init__()
@@ -2915,7 +2981,7 @@ class ImageDisplayWindow(QMainWindow):
         if self.is_within_image(image_coord):
             x_pixel_centered = int(image_coord.x() - self.graphics_widget.img.width()/2)
             y_pixel_centered = int(image_coord.y() - self.graphics_widget.img.height()/2)
-            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered) 
+            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height()) 
 
     def display_image(self,image):
         if ENABLE_TRACKING:

@@ -474,6 +474,18 @@ class Microcontroller():
         cmd[2] = axis
         self.send_command(cmd)
 
+    def set_pid_arguments(self, axis, pid_p, pid_i, pid_d):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_PID_ARGUMENTS
+        cmd[2] = int(axis)
+
+        cmd[3] = (int(pid_p) >> 8) & 0xff
+        cmd[4] = int(pid_p) & 0xff
+
+        cmd[5] = int(pid_i)
+        cmd[6] = int(pid_d)
+        self.send_command(cmd)
+
     def set_lim(self,limit_code,usteps):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_LIM
@@ -490,6 +502,17 @@ class Microcontroller():
         cmd[1] = CMD_SET.SET_LIM_SWITCH_POLARITY
         cmd[2] = axis
         cmd[3] = polarity
+        self.send_command(cmd)
+
+    def set_home_safety_margin(self, axis, margin):
+        margin = abs(margin)
+        if margin > 0xFFFF:
+            margin = 0xFFFF
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_HOME_SAFETY_MERGIN
+        cmd[2] = axis
+        cmd[3] = (margin >> 8) & 0xff
+        cmd[4] = (margin) & 0xff
         self.send_command(cmd)
 
     def configure_motor_driver(self,axis,microstepping,current_rms,I_hold):
@@ -558,6 +581,13 @@ class Microcontroller():
         self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
         self.wait_till_operation_is_completed()
         self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
+        # home safety margin
+        self.set_home_safety_margin(AXIS.X, int(X_HOME_SAFETY_MARGIN_UM))
+        self.wait_till_operation_is_completed()
+        self.set_home_safety_margin(AXIS.Y, int(Y_HOME_SAFETY_MARGIN_UM))
+        self.wait_till_operation_is_completed()
+        self.set_home_safety_margin(AXIS.Z, int(Z_HOME_SAFETY_MARGIN_UM))
         self.wait_till_operation_is_completed()
 
     def ack_joystick_button_pressed(self):
@@ -897,6 +927,18 @@ class Microcontroller_Simulation():
         cmd[2] = axis
         self.send_command(cmd)
 
+    def set_pid_arguments(self, axis, pid_p, pid_i, pid_d):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_PID_ARGUMENTS
+        cmd[2] = int(axis)
+
+        cmd[3] = (int(pid_p) >> 8) & 0xff
+        cmd[4] = int(pid_p) & 0xff
+
+        cmd[5] = int(pid_i)
+        cmd[6] = int(pid_d)
+        self.send_command(cmd)
+
     def set_lim(self,limit_code,usteps):
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
@@ -946,6 +988,17 @@ class Microcontroller_Simulation():
         cmd[3] = polarity
         self.send_command(cmd)
 
+    def set_home_safety_margin(self, axis, margin):
+        margin = abs(margin)
+        if margin > 0xFFFF:
+            margin = 0xFFFF
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_HOME_SAFETY_MERGIN
+        cmd[2] = axis
+        cmd[3] = (margin >> 8) & 0xff
+        cmd[4] = (margin) & 0xff
+        self.send_command(cmd)
+
     def configure_actuators(self):
         # lead screw pitch
         self.set_leadscrew_pitch(AXIS.X,SCREW_PITCH_X_MM)
@@ -974,6 +1027,13 @@ class Microcontroller_Simulation():
         self.set_limit_switch_polarity(AXIS.Y,Y_HOME_SWITCH_POLARITY)
         self.wait_till_operation_is_completed()
         self.set_limit_switch_polarity(AXIS.Z,Z_HOME_SWITCH_POLARITY)
+        self.wait_till_operation_is_completed()
+        # home safety margin
+        self.set_home_safety_margin(AXIS.X, int(X_HOME_SAFETY_MARGIN_UM))
+        self.wait_till_operation_is_completed()
+        self.set_home_safety_margin(AXIS.Y, int(Y_HOME_SAFETY_MARGIN_UM))
+        self.wait_till_operation_is_completed()
+        self.set_home_safety_margin(AXIS.Z, int(Z_HOME_SAFETY_MARGIN_UM))
         self.wait_till_operation_is_completed()
 
     def analog_write_onboard_DAC(self,dac,value):
