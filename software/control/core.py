@@ -678,7 +678,9 @@ class NavigationController(QObject):
         # restore to raw coordicate
         click_x = click_x + image_width / 2.0
         click_y = click_y - image_height / 2.0
-
+        if not self.click_to_move:
+            print("allow click to move")
+            return 
         try:
             highest_res = (0,0)
             for res in self.parent.camera.res_list:
@@ -722,8 +724,12 @@ class NavigationController(QObject):
         delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
         delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
 
-        self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR))
-        self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR))
+        if USE_NAPARI:
+            self.move_x_to(self.scan_begin_position_x + (delta_x / 2))
+            self.move_y_to(self.scan_begin_position_y + (delta_y / 2))
+        else:
+            self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR / 2))
+            self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR / 2))
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -770,8 +776,8 @@ class NavigationController(QObject):
             delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
 
-            self.move_x(delta_x)
-            self.move_y(delta_y)
+            self.move_x(delta_x / 2)
+            self.move_y(delta_y / 2)
 
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
@@ -1291,9 +1297,9 @@ class AutofocusWorker(QObject):
             # tunr of the illumination if using software trigger
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
-            image = utils.crop_image(image,self.crop_width,self.crop_height)
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
             self.image_to_display.emit(image)
+            image = utils.crop_image(image,self.crop_width,self.crop_height)
             QApplication.processEvents()
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
@@ -2998,7 +3004,6 @@ class Stitcher(Thread, QObject):
         for filename in sorted_input_files:
             if four_input_format == True:
                 well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4) 
-                #print(i, j, k, channel_name)
             else:
                 well = '0'
                 i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 3)
@@ -3027,7 +3032,6 @@ class Stitcher(Thread, QObject):
         self.num_z = max_k + 1
         self.num_cols = max_j + 1
         self.num_rows = max_i + 1
-
 
     def get_flatfields(self, progress_callback=None):
         for c_i, channel in enumerate(self.channel_names):

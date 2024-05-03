@@ -71,9 +71,11 @@ class OctopiGUI(QMainWindow):
 
         # napari viewer
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariViewer_live = napariViewerWidget.ImageWidget()
-            self.napariViewer_live.setLiveViewLayers(['Live View'])
-            self.imageDisplayTabs.addTab(self.napariViewer_live, "Live View")
+            # self.napariViewer_live = napariViewerWidget.ImageWidget()
+            # self.napariViewer_live.setLiveViewLayers(['Live View'])
+            # self.imageDisplayTabs.addTab(self.napariViewer_live, "Live View")
+            self.napariLiveWidget = widgets.NapariLiveWidget()
+            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -268,6 +270,7 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
         
         self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
+        
         if USE_NAPARI_FOR_MULTICHANNEL:
             if SHOW_TILED_PREVIEW:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget()
@@ -355,15 +358,6 @@ class OctopiGUI(QMainWindow):
 
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
-        if USE_NAPARI_FOR_LIVE_VIEW:
-            self.streamHandler.image_to_display.connect(lambda x: self.napariViewer_live.setImage('Live View',x))
-            self.autofocusController.image_to_display.connect(lambda x: self.napariViewer_live.setImage('Live View',x))
-            self.multipointController.image_to_display.connect(lambda x: self.napariViewer_live.setImage('Live View',x))
-        else:
-            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
-            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
-            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)            
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
             
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
@@ -374,12 +368,7 @@ class OctopiGUI(QMainWindow):
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        # self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-        # self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-        # self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        # self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+        
         self.multipointController.signal_stitcher.connect(self.startStitcher)
         self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
         self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
@@ -387,8 +376,6 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
-        if not USE_NAPARI_FOR_LIVE_VIEW:
-            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
 
         # load vs scan position switching
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -400,8 +387,21 @@ class OctopiGUI(QMainWindow):
         # display the FOV in the viewer
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode) 
         
-        
+        if USE_NAPARI_FOR_LIVE_VIEW:
+            self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
+            self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
+            self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
+            self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+        else:
+            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
+            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+
         if USE_NAPARI_FOR_MULTICHANNEL:
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
@@ -412,6 +412,7 @@ class OctopiGUI(QMainWindow):
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
+                self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
         else:
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
             if SHOW_TILED_PREVIEW:
@@ -488,6 +489,7 @@ class OctopiGUI(QMainWindow):
 
             # self.imageDisplayWindow_focus.widget
             self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
+
             if USE_NAPARI_FOR_MULTICHANNEL:
                 if SHOW_TILED_PREVIEW:
                     self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
@@ -496,7 +498,6 @@ class OctopiGUI(QMainWindow):
                 if SHOW_TILED_PREVIEW:
                     self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
                 self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-
 
             # connections
             self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
@@ -510,9 +511,6 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
-
-        if not USE_NAPARI_FOR_LIVE_VIEW:
-            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
         self.navigationController.move_to_cached_position()
 

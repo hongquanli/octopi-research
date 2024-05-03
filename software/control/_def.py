@@ -539,6 +539,8 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 # Tiled preview
 SHOW_TILED_PREVIEW = True
 PRVIEW_DOWNSAMPLE_FACTOR = 5
+NAPARI_COLORS = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
+                  'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno']
 
 ##########################################################
 #### start of loading machine specific configurations ####
