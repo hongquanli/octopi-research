@@ -1488,6 +1488,7 @@ class MultiPointWidget(QFrame):
         self.multipointController = multipointController
         self.configurationManager = configurationManager
         self.base_path_is_set = False
+        self.well_selected = True
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1697,6 +1698,18 @@ class MultiPointWidget(QFrame):
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
             msg.setText("Please choose base saving directory first")
+            msg.exec_()
+            return
+        if self.well_selected == False:
+            self.btn_startAcquisition.setChecked(False)
+            msg = QMessageBox()
+            msg.setText("Please select a well to scan first")
+            msg.exec_()
+            return
+        if not self.list_configurations.selectedItems(): # no channel selected
+            self.btn_startAcquisition.setChecked(False)
+            msg = QMessageBox()
+            msg.setText("Please select at least one imaging channel first")
             msg.exec_()
             return
         if pressed:

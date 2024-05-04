@@ -420,6 +420,7 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
         # (double) click to move to a well
+        self.multiPointWidget.set_well_selected(False)
         self.wellSelectionWidget.signal_well_selected_pos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_well_selected.connect(self.multiPointWidget.set_well_selected)
 

@@ -728,8 +728,8 @@ class NavigationController(QObject):
             self.move_x_to(self.scan_begin_position_x + (delta_x / 2))
             self.move_y_to(self.scan_begin_position_y + (delta_y / 2))
         else:
-            self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR / 2))
-            self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR / 2))
+            self.move_x_to(self.scan_begin_position_x + (delta_x / 2 * PRVIEW_DOWNSAMPLE_FACTOR))
+            self.move_y_to(self.scan_begin_position_y + (delta_y / 2 * PRVIEW_DOWNSAMPLE_FACTOR))
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -1946,7 +1946,6 @@ class MultiPointWorker(QObject):
                                             iio.imwrite(saving_path,rgb_image)
 
                                     if not init_napari_layers:
-                                        print("initialize layers")
                                         init_napari_layers = True
                                         self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
                                     self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
