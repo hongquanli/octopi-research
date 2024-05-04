@@ -2555,7 +2555,6 @@ class NapariTiledDisplayWidget(QWidget):
         # Update the specific slice based on the provided coordinates
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
-        print([k, y_slice, x_slice])
         layer_data[k, y_slice, x_slice] = image
         
         # Update the layer with the modified data
