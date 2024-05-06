@@ -3058,6 +3058,8 @@ class NavigationViewer(QFrame):
             self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
         elif sample == '6 well plate':
             self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
+        elif sample == '1536 well plate':
+            self.background_image = cv2.imread('images/1536 well plate_1509x1010.png')
         
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
@@ -3410,6 +3412,15 @@ class ScanCoordinates(object):
         self.name = []
         self.well_selector = None
 
+    def _index_to_row(self,index):
+        index += 1
+        row = ""
+        while index > 0:
+            index -= 1
+            row = chr(index % 26 + ord('A')) + row
+            index //= 26
+        return row
+
     def add_well_selector(self,well_selector):
         self.well_selector = well_selector
 
@@ -3435,7 +3446,7 @@ class ScanCoordinates(object):
                 x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
                 y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
                 self.coordinates_mm.append((x_mm,y_mm))
-                self.name.append(chr(ord('A')+row)+str(column+1))
+                self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
 
 
