@@ -2500,7 +2500,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.initNapariViewer()
 
     def initNapariViewer(self):
-        self.viewer = napari.Viewer(show=False)
+        self.viewer = napari.Viewer(show=False) #, ndisplay=3)
         #self.viewer.mouse_drag_callbacks.append(on_mouse_drag)
         #self.viewer.mouse_drag_callbacks.append(self.on_click)
         self.viewerWidget = self.viewer.window._qt_window
@@ -2532,7 +2532,7 @@ class NapariTiledDisplayWidget(QWidget):
             # Add double-click callback to this layer
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
 
-        self.viewer.reset_view()
+        self.resetView()
         self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
@@ -2559,6 +2559,7 @@ class NapariTiledDisplayWidget(QWidget):
         
         # Update the layer with the modified data
         layer.data = layer_data
+        layer.refresh()
 
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
@@ -2622,7 +2623,7 @@ class NapariMultiChannelWidget(QWidget):
                 canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
             self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
                                   colormap=NAPARI_COLORS[i], contrast_limits=contrast_limits, blending='additive')
-        self.viewer.reset_view()
+        self.resetView()
         self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
@@ -2636,6 +2637,7 @@ class NapariMultiChannelWidget(QWidget):
         # Locate the layer and its update its current data
         layer = self.viewer.layers[channel_name]
         layer.data[k,:,:] = image
+        layer.refresh()
 
     def resetView(self):
         self.viewer.reset_view()
@@ -2677,7 +2679,6 @@ class NapariLiveWidget(QWidget):
 
     def initNapariViewer(self):
         self.viewer = napari.Viewer(show=False)
-        #self.viewer.grid.enabled = True
         self.viewerWidget = self.viewer.window._qt_window
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
@@ -2699,14 +2700,16 @@ class NapariLiveWidget(QWidget):
                                   colormap='grayclip', contrast_limits=contrast_limits, blending='additive')
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
 
-        self.viewer.reset_view()
+        self.resetView()
         self.layers_initialized = True
 
     def updateLiveLayer(self, image):
         """Updates the appropriate slice of the canvas with the new image data."""
         if not self.layers_initialized:
             self.initLiveLayer(image.shape[0], image.shape[1], image.dtype)
-        self.viewer.layers["Live View"].data = image
+        layer = self.viewer.layers["Live View"]
+        layer.data = image
+        layer.refresh()
 
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
