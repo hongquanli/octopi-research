@@ -1481,6 +1481,7 @@ class MultiPointWidget(QFrame):
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
     signal_acquisition_dz_um = Signal(float)
+    signal_stitcher_widget = Signal(bool)
 
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1580,6 +1581,9 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
+        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput.setChecked(False)
+
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
@@ -1619,6 +1623,7 @@ class MultiPointWidget(QFrame):
         grid_af.addWidget(self.checkbox_genFocusMap)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+        grid_af.addWidget(self.checkbox_stitchOutput)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -1647,6 +1652,7 @@ class MultiPointWidget(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
@@ -1677,6 +1683,9 @@ class MultiPointWidget(QFrame):
         self.multipointController.set_base_path(save_dir_base)
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
+
+    def set_well_selected(self, selected):
+        self.well_selected = selected
 
     def emit_selected_channels(self):
         selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
@@ -1734,8 +1743,12 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.setEnabled(enabled)
         self.checkbox_withReflectionAutofocus.setEnabled(enabled)
         self.checkbox_genFocusMap.setEnabled(enabled)
+        self.checkbox_stitchOutput.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
+
+    def display_stitcher_widget(self, checked):
+        self.signal_stitcher_widget.emit(checked)
 
     def disable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(False)
@@ -1748,6 +1761,7 @@ class MultiPointWidget2(QFrame):
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
     signal_acquisition_dz_um = Signal(float)
+    signal_stitcher_widget = Signal(bool)
 
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, scanCoordinates=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1870,6 +1884,8 @@ class MultiPointWidget2(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput.setChecked(False)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
@@ -1922,6 +1938,7 @@ class MultiPointWidget2(QFrame):
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+        grid_af.addWidget(self.checkbox_stitchOutput)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -1954,6 +1971,7 @@ class MultiPointWidget2(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
@@ -2005,6 +2023,9 @@ class MultiPointWidget2(QFrame):
     def emit_selected_channels(self):
         selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
         self.signal_acquisition_channels.emit(selected_channels)
+
+    def display_stitcher_widget(self, checked):
+        self.signal_stitcher_widget.emit(checked)
 
     def toggle_acquisition(self,pressed):
         if self.base_path_is_set == False:
@@ -2070,8 +2091,6 @@ class MultiPointWidget2(QFrame):
             else:
                 print("Duplicate values not added based on x and y.")
                 #to-do: update z coordinate
-
-
 
     def acquisition_is_finished(self):
         if not self.acquisition_in_place:
@@ -2687,7 +2706,7 @@ class StitchingPreviewWidget(QFrame):
         return self.channelDropdown.currentText()
 
 
-class NapariStitchingWidget(QWidget):
+class NapariTiledDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(float, float, float)
 
@@ -2738,14 +2757,21 @@ class NapariStitchingWidget(QWidget):
 
         colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
                   'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno']
-        for i, channel in enumerate(self.channels):
-            if rgb == True:
-                canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
-            else:
-                canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
-            self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
-                                  colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
         
+        # for i, channel in enumerate(self.channels):
+        #     if rgb == True:
+        #         canvas = np.zeros((self.Nz, image_height * , image_width, 3), dtype=self.dtype)
+        #     else:
+        #         canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
+        #     self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
+        #                           colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
+        # self.layers_initialized = True
+
+        for i, channel in enumerate(self.channels):
+            canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
+            self.viewer.add_image(canvas, name=channel, visible=True, rgb=False, 
+                                  colormap=colors[i], contrast_limits=contrast_limits, blending='additive')
+        self.viewer.reset_view()
         self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
@@ -2765,6 +2791,7 @@ class NapariStitchingWidget(QWidget):
         # Update the specific slice based on the provided coordinates
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
+        print([k, y_slice, x_slice])
         layer_data[k, y_slice, x_slice] = image
         
         # Update the layer with the modified data
@@ -2781,7 +2808,6 @@ class NapariStitchingWidget(QWidget):
             # Emit x, y, and z (z will be 0 in 2D mode)
             x, y, z = data_coords[:3] if len(data_coords) > 2 else (*data_coords, 0)
             self.signal_coordinates_clicked.emit(x, y, z)
-
 
     def on_mouse_drag(viewer, event):
         # Define a small move threshold to consider the action a click rather than a drag
@@ -3725,8 +3751,8 @@ class LaserAutofocusControlWidget(QFrame):
 
 class WellSelectionWidget(QTableWidget):
 
-    signal_wellSelected = Signal(int,int,float)
-    signal_wellSelectedPos = Signal(float,float)
+    signal_well_selected = Signal(bool)
+    signal_well_selected_pos = Signal(float,float)
 
     def __init__(self, format_, *args):
 
@@ -3762,8 +3788,12 @@ class WellSelectionWidget(QTableWidget):
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
         self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.cellDoubleClicked.connect(self.onDoubleClick)
-        self.cellClicked.connect(self.onSingleClick)
+        # self.cellDoubleClicked.connect(self.onDoubleClick)
+        # self.cellClicked.connect(self.onSingleClick)
+        self.cellDoubleClicked.connect(self.on_double_click)
+        self.cellClicked.connect(self.on_single_click)
+        self.cellClicked.connect(self.get_selected_cells)
+        self.itemSelectionChanged.connect(self.get_selected_cells)
 
         # size
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -3828,21 +3858,39 @@ class WellSelectionWidget(QTableWidget):
                     item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
                     self.setItem(self.rows-1,j,item)
 
-    def onDoubleClick(self,row,col):
+    def on_double_click(self,row,col):
+        print("double click well", row, col)
         if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
             x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
             y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
-            self.signal_wellSelectedPos.emit(x_mm,y_mm)
-        # print('(' + str(row) + ',' + str(col) + ') doubleclicked')
+            self.signal_well_selected.emit(True)
+            self.signal_well_selected_pos.emit(x_mm,y_mm)
 
-    def onSingleClick(self,row,col):
-        # self.get_selected_cells()
-        pass
-
+    def on_single_click(self,row,col):
+        print("single click well", row, col)
+        if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
+            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            self.signal_well_selected.emit(True)
+            self.signal_well_selected_pos.emit(x_mm,y_mm)
+        else:
+            self.signal_well_selected.emit(False)
+            
     def get_selected_cells(self):
+        print("getting selected wells...")
         list_of_selected_cells = []
         for index in self.selectedIndexes():
-             list_of_selected_cells.append((index.row(),index.column()))
+            row, col = index.row(), index.column()
+            # Check if the cell is within the allowed bounds
+            if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows - 1 - NUMBER_OF_SKIP) and \
+               (col >= 0 + NUMBER_OF_SKIP and col <= self.columns - 1 - NUMBER_OF_SKIP):
+                list_of_selected_cells.append((row, col))
+        
+        if not list_of_selected_cells:
+            self.signal_well_selected.emit(False)
+        else:
+            print("wells:",list_of_selected_cells)
+            self.signal_well_selected.emit(True)
         return(list_of_selected_cells)
 
 

@@ -2,16 +2,18 @@
 import os 
 import sys
 os.environ["QT_API"] = "pyqt5"
-import qtpy
 
 # qt libraries
+import qtpy
+import pyqtgraph as pg
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+# control 
 from control.processing_handler import ProcessingHandler
-
 import control.utils as utils
+import control.utils_config as utils_config
 from control._def import *
 
 import control.tracking as tracking
@@ -23,29 +25,33 @@ except:
 
 import control.serial_peripherals as serial_peripherals
 
+# general libs
 from queue import Queue
 from threading import Thread, Lock
-import time
+import math
+import random
 import numpy as np
-import pyqtgraph as pg
+import pandas as pd
 import scipy
 import scipy.signal
 import cv2
-from datetime import datetime
-
+import json
+import re
 from lxml import etree as ET
 from pathlib import Path
-import control.utils_config as utils_config
-
-import math
-import json
-import pandas as pd
-
-import imageio as iio
-
+from datetime import datetime
+import time
 import subprocess
 
-import control.serial_peripherals as serial_peripherals
+# stitching libs
+import imageio as iio
+import dask.array as da
+from dask_image.imread import imread as dask_imread
+from skimage import io, registration
+from aicsimageio.writers import OmeTiffWriter
+from aicsimageio.writers import OmeZarrWriter
+from aicsimageio import types
+from basicpy import BaSiC
 
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
@@ -1934,7 +1940,7 @@ class MultiPointWorker(QObject):
                                             iio.imwrite(saving_path,rgb_image)
 
                                     if not init_napari_layers:
-                                        print("initialze layers")
+                                        print("initialize layers")
                                         init_napari_layers = True
                                         self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
                                     self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
@@ -2189,6 +2195,7 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    signal_stitcher = Signal(str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object, bool)
 
@@ -2455,6 +2462,7 @@ class MultiPointController(QObject):
             except:
                 pass
         self.acquisitionFinished.emit()
+        self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
     def request_abort_aquisition(self):
@@ -2878,6 +2886,399 @@ class TrackingWorker(QObject):
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
+
+
+class Stitcher(Thread, QObject):
+
+    update_progress = Signal(int, int)
+    getting_flatfields = Signal()
+    starting_stitching = Signal()
+    starting_saving = Signal()
+    finished_saving = Signal(str, object)
+
+    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel=''):
+        Thread.__init__(self)
+        QObject.__init__(self)
+        self.input_folder = input_folder
+        self.image_folder = os.path.join(self.input_folder, '0') # first time point
+        self.output_name = output_name + output_format
+        self.output_format = output_format
+        self.apply_flatfield = apply_flatfield
+        self.use_registration = use_registration
+        if use_registration:
+            self.registration_channel = registration_channel
+
+        #self.processed_files = set()
+        self.selected_modes = self.extract_selected_modes(self.input_folder)
+        self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
+        self.time_points = self.get_time_points(self.input_folder)
+        self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        
+        self.wells = []
+        self.channel_names = []
+        self.num_z = self.num_c = 1
+        self.num_cols = self.num_rows = 1
+        self.input_height = self.input_width = 0
+
+        self.v_shift = self.h_shift = (0,0)
+        self.flatfields = {}
+        self.stitching_data = {}
+        self.stitched_images = None
+        self.dtype = np.uint16
+   
+    def get_time_points(self, input_folder):
+        try: # detects directories named as integers, representing time points.
+            time_points = [d for d in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, d)) and d.isdigit()]
+            time_points.sort(key=int)
+            return time_points
+        except Exception as e:
+            print(f"Error detecting time points: {e}")
+            return ['0']
+
+    def extract_selected_modes(self, input_folder):
+        configs_path = os.path.join(input_folder, 'configurations.xml')
+        tree = ET.parse(configs_path)
+        root = tree.getroot()
+        selected_modes = {}
+        for mode in root.findall('.//mode'):
+            if mode.get('Selected') == '1':
+                mode_id = mode.get('ID')
+                selected_modes[mode_id] = {
+                    'Name': mode.get('Name'),
+                    'ExposureTime': mode.get('ExposureTime'),
+                    'AnalogGain': mode.get('AnalogGain'),
+                    'IlluminationSource': mode.get('IlluminationSource'),
+                    'IlluminationIntensity': mode.get('IlluminationIntensity')
+                }
+        return selected_modes
+
+    def extract_acquisition_parameters(self, input_folder):
+        acquistion_params_path = os.path.join(input_folder, 'acquisition parameters.json')
+        with open(acquistion_params_path, 'r') as file:
+            acquisition_params = json.load(file)
+        return acquisition_params
+
+    def determine_directions(self, image_folder):
+        coordinates = pd.read_csv(os.path.join(image_folder, 'coordinates.csv'))
+        i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
+        j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
+        k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
+        return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
+
+    def parse_filenames(self, time_point, four_input_format=True):
+        # Read the first image to get its dimensions and dtype
+        self.image_folder = os.path.join(self.input_folder, str(time_point))
+        sorted_input_files = sorted([filename for filename in os.listdir(self.image_folder) 
+                             if (filename.endswith(".bmp") or filename.endswith(".tiff"))
+                             and 'focus_camera' not in filename])
+
+        first_filename = sorted_input_files[0]
+        # four_input_pattern = re.compile(r'^(\w+)_(\d+)_(\d+)_(\d+)_(\w+)$')
+        # four_input_format = True if four_input_pattern.match(first_filename) else False
+        # print(four_input_format)
+
+        try:
+            well, i, j, k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
+            k = int(k)
+            print("well_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            four_input_format = True
+        except ValueError as ve:
+            print("i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            four_input_format = False
+
+        first_image = dask_imread(os.path.join(self.image_folder, first_filename))
+        self.dtype = np.dtype(first_image.dtype)
+        self.input_height, self.input_width = first_image.shape[-2:]
+        del first_image
+
+        wells = set()
+        channel_names = set()
+        max_i = max_j = max_k = 0
+        # Read all image filenames to get data for stitching 
+        for filename in sorted_input_files:
+            if four_input_format == True:
+                well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4) 
+                #print(i, j, k, channel_name)
+            else:
+                well = '0'
+                i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 3)
+            i, j, k = int(i), int(j), int(k)
+            wells.add(well)
+            channel_names.add(channel_name)
+
+            well_data = self.stitching_data.setdefault(well, {})
+            channel_data = self.stitching_data[well].setdefault(channel_name, {})
+            z_data = channel_data.setdefault(k, [])
+            z_data.append({
+                'well': well,
+                'row': i,
+                'col': j,
+                'z_level': k,
+                'channel': channel_name,
+                'filename': filename
+            })
+            max_k = max(max_k, k)
+            max_j = max(max_j, j)
+            max_i = max(max_i, i)
+        
+        self.wells = sorted(list(wells))
+        self.channel_names = sorted(list(channel_names))
+        self.num_c = len(self.channel_names)
+        self.num_z = max_k + 1
+        self.num_cols = max_j + 1
+        self.num_rows = max_i + 1
+
+
+    def get_flatfields(self, progress_callback=None):
+        for c_i, channel in enumerate(self.channel_names):
+            channel_tiles = []
+            for well in self.wells:
+                for z_level, z_data in self.stitching_data[well][channel].items():
+                    channel_tiles.extend(z_data)
+            random.shuffle(channel_tiles)
+
+            images = []
+            for tile_info in channel_tiles[:min(32, len(channel_tiles))]:
+                filepath = os.path.join(self.image_folder, tile_info['filename'])
+                images.append(dask_imread(filepath)[0])
+
+            images = np.array(images)
+            basic = BaSiC(get_darkfield=False, smoothness_flatfield=1)
+            basic.fit(images)
+            self.flatfields[c_i] = basic.flatfield
+            progress_callback(c_i + 1, self.num_c)
+
+    def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap):
+        img1 = dask_imread(img1_path)[0]
+        img2 = dask_imread(img2_path)[0]
+        margin = self.input_height // 10 # set margin amount 
+        img1_roi = img1[margin:-margin, -max_overlap:]
+        img2_roi = img2[margin:-margin, :max_overlap]
+        shift, error, diffphase = registration.phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
+        return round(shift[0]), round(shift[1] - img1_roi.shape[1])
+
+    def calculate_vertical_shift(self, img1_path, img2_path, max_overlap):
+        img1 = dask_imread(img1_path)[0]
+        img2 = dask_imread(img2_path)[0]
+        margin = self.input_width // 10
+        img1_roi = img1[-max_overlap:, margin:-margin]
+        img2_roi = img2[:max_overlap, margin:-margin]
+        shift, _, diffphase = registration.phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
+        return round(shift[0] - img1_roi.shape[0]), round(shift[1])
+
+    # todo: fix calculation max_y_overlap and max_x_overlap from acquisition parameters
+    def calculate_shifts(self, well="", z_level=0):
+        well = self.wells[0] if well not in self.wells else well
+        if self.registration_channel not in self.channel_names:
+            self.registration_channel = self.channel_names[0] 
+
+        # calc estimated overlap from acquisition params
+        dx_mm = self.acquisition_params['dx(mm)']  # physical distance between adjacent scans in x direction
+        dy_mm = self.acquisition_params['dy(mm)']  # physical distance between adjacent scans in y direction
+        obj_mag = self.acquisition_params['objective']['magnification'] 
+        obj_tube_lens_mm = self.acquisition_params['objective']['tube_lens_f_mm']
+        sensor_pixel_size_um = self.acquisition_params['sensor_pixel_size_um']
+        
+        obj_focal_length_mm = obj_tube_lens_mm / obj_mag  # Objective focal length
+        tube_lens_mm = self.acquisition_params['tube_lens_mm']  # Actual tube lens focal length used in your system
+        actual_mag = tube_lens_mm / obj_focal_length_mm  # Actual magnification
+
+        pixel_size_um = sensor_pixel_size_um / actual_mag
+        # Convert mm to pixels
+        dx_pixels = dx_mm * 1000 / pixel_size_um
+        dy_pixels = dy_mm * 1000 / pixel_size_um
+
+        # Calculate max overlaps based on the movement between images and the size of the images
+        max_x_overlap = max(0,int(self.input_width - dx_pixels))
+        max_y_overlap = max(0,int(self.input_height - dy_pixels))
+        # print(max_y_overlap)
+        # print(max_x_overlap)
+
+        v_shift = h_shift = (0,0)
+        
+        col_left, col_right = ((self.num_cols - 1) // 2, (self.num_cols - 1) // 2 + 1) 
+        if self.is_reversed['cols']:
+            col_left, col_right = col_right, col_left
+
+        row_top, row_bottom = ((self.num_rows - 1) // 2, (self.num_rows - 1) // 2 + 1 )
+        if self.is_reversed['rows']:
+            row_top, row_bottom = row_bottom, row_top
+
+        img1_path = img2_path_vertical = img2_path_horizontal = None
+        for tile_info in self.stitching_data[well][self.registration_channel][z_level]:
+            if tile_info['col'] == col_left and tile_info['row'] == row_top:
+                img1_path = os.path.join(self.image_folder, tile_info['filename'])
+            elif tile_info['col'] == col_left and tile_info['row'] == row_bottom:
+                img2_path_vertical = os.path.join(self.image_folder, tile_info['filename'])
+            elif tile_info['col'] == col_right and tile_info['row'] == row_top:
+                img2_path_horizontal = os.path.join(self.image_folder, tile_info['filename'])
+
+        if img1_path == None:
+            raise Exception(f"no input file found for c:{self.registration_channel} k:{z_level} j:{col_left} i:{row_top}")
+        if max_y_overlap > 0 and img2_path_vertical != None and img1_path != img2_path_vertical:
+            v_shift = self.calculate_vertical_shift(img1_path, img2_path_vertical, max_y_overlap)
+            # check if registration valid 
+        if  max_x_overlap > 0 and img2_path_horizontal != None and img1_path != img2_path_horizontal:
+            h_shift = self.calculate_horizontal_shift(img1_path, img2_path_horizontal, max_x_overlap)
+            # check if registration valid # 
+        # print(img1_path, "vertically adjacent to", img2_path_vertical)
+        # print(img1_path, "horizintally adjacent to ", img2_path_horizontal)
+        # print("vertical shift:", self.v_shift, ", horizontal shift:", self.h_shift)
+        self.v_shift = v_shift
+        self.h_shift = h_shift
+
+    def init_output(self, time_point, well):
+        if len(self.time_points) > 1:
+            output_folder = os.path.join(self.input_folder, time_point + "_stitched")
+        else:
+             output_folder = os.path.join(self.input_folder, "stitched")
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
+        if len(self.wells) > 1:
+            self.output_path = os.path.join(output_folder, well + "_" + self.output_name)
+        else:
+            self.output_path = os.path.join(output_folder, self.output_name)
+        
+        x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
+        y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
+        tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max)
+        # element_size = np.dtype(self.dtype).itemsize  # Byte size of one array element
+        # memory_bytes = np.prod(tczyx_shape) * element_size # # Total memory in bytes
+        chunks = (1, 1, 1, self.input_height, self.input_width)
+        return da.zeros(tczyx_shape, dtype=self.dtype, chunks=chunks)
+
+    def stitch_images(self, time_point, well, progress_callback=None):
+        self.stitched_images = self.init_output(time_point, well)
+        # print(self.stitched_images.shape)
+        total_tiles = sum(len(z_data) for channel_data in self.stitching_data[well].values() for z_data in channel_data.values())
+        processed_tiles = 0
+        for channel_idx, channel in enumerate(self.channel_names):
+            for z_level, z_data in self.stitching_data[well][channel].items():
+                for tile_info in z_data:
+                    self.stitch_single_image(tile_info, z_level, channel_idx)
+                    processed_tiles += 1
+                    if progress_callback is not None:
+                        progress_callback(processed_tiles, total_tiles)
+
+    def stitch_single_image(self, tile_info, z_level, channel_idx):
+        tile = dask_imread(os.path.join(self.image_folder, tile_info['filename']))[0]
+        if self.apply_flatfield:
+            tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min, 
+                                                          max=np.iinfo(self.dtype).max).astype(self.dtype)
+
+        # Get tile grid location (row, col)
+        row = self.num_rows - 1 - tile_info['row'] if self.is_reversed['rows'] else tile_info['row']
+        col = self.num_cols - 1 - tile_info['col'] if self.is_reversed['cols'] else tile_info['col']
+
+        # Determine crop for tile edges 
+        top_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row > 0 else 0
+        bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row < self.num_rows - 1 else 0
+        left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col > 0 else 0
+        right_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col < self.num_cols - 1 else 0
+
+        tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
+
+        # Initialize starting coordinates based on tile position and shift
+        y = row * (self.input_height + self.v_shift[0]) + top_crop
+        # Apply the vertical component of the horizontal shift
+        if self.h_shift[0] < 0:
+            y -= (self.num_cols - 1 - col) * self.h_shift[0]  # Moves up if negative
+        else:
+            y += col * self.h_shift[0]  # Moves down if positive
+
+        # Initialize starting coordinates based on tile position and shift
+        x = col * (self.input_width + self.h_shift[1]) + left_crop
+        # Apply the horizontal component of the vertical shift
+        if self.v_shift[1] < 0:
+            x -= (self.num_rows - 1 - row) * self.v_shift[1]  # Moves left if negative
+        else:
+            x += row * self.v_shift[1]  # Moves right if positive
+        
+        # Place cropped tile on the stitched image canvas
+        self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[-2], x:x+tile.shape[-1]] = tile
+        # print(f" col:{col}, \trow:{row},\ty:{y}-{y+tile.shape[0]}, \tx:{x}-{x+tile.shape[-1]}")
+
+    def save_as_ome_tiff(self):
+        dz_um = self.acquisition_params.get("dz(um)", None)
+        sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
+        ome_metadata = OmeTiffWriter.build_ome(
+            image_name=[os.path.basename(self.output_path)],
+            data_shapes=[self.stitched_images.shape],
+            data_types=[self.stitched_images.dtype],
+            dimension_order=["TCZYX"],
+            channel_names=[self.channel_names],
+            physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)]
+        )
+        OmeTiffWriter.save(
+            data=self.stitched_images,
+            uri=self.output_path,
+            ome_xml=ome_metadata,
+            dimension_order=["TCZYX"]
+        )
+        self.stitched_images = None
+
+    def save_as_ome_zarr(self):
+        dz_um = self.acquisition_params.get("dz(um)", None)
+        sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
+        default_color_hex = 0xFFFFFF        
+        default_intensity_min = np.iinfo(self.stitched_images.dtype).min
+        default_intensity_max = np.iinfo(self.stitched_images.dtype).max
+
+        channel_colors = [default_color_hex] * self.num_c
+        channel_minmax = [(default_intensity_min, default_intensity_max)] * self.num_c
+
+        zarr_writer = OmeZarrWriter(self.output_path)
+        zarr_writer.build_ome(
+            size_z=self.num_z,
+            image_name=os.path.basename(self.output_path),
+            channel_names=self.channel_names,
+            channel_colors=channel_colors,
+            channel_minmax=channel_minmax
+        )
+        zarr_writer.write_image(
+            image_data=self.stitched_images,
+            image_name=os.path.basename(self.output_path),
+            physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um),
+            channel_names=self.channel_names,
+            channel_colors=channel_colors,
+            dimension_order="TCZYX",
+            chunk_dims=(1, 1, 1, self.input_height, self.input_width)
+        )
+        self.stitched_images = None
+
+    def run(self):
+        # Main stitching logic
+        try:
+            for time_point in self.time_points:
+                print("parsing acquisition metadata...")
+                self.parse_filenames(time_point) # 
+
+                if self.apply_flatfield:
+                    print(f"getting flatfields t:{time_point}...")
+                    self.getting_flatfields.emit()
+                    self.get_flatfields(progress_callback=self.update_progress.emit)
+
+                if self.use_registration:
+                    print(f"calculating shifts t:{time_point}...")
+                    self.calculate_shifts()
+
+                for well in self.wells:
+                    self.starting_stitching.emit()
+                    print(f"starting stitching t:{time_point} well:{well}...")
+                    self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
+
+                    self.starting_saving.emit()
+                    print(f"starting saving t:{time_point} well:{well}...")
+                    if ".ome.tiff" in self.output_path:
+                        self.save_as_ome_tiff()
+                    else:
+                        self.save_as_ome_zarr()
+                    print(f"...done saving t:{time_point}, well:{well} successfully")
+                    self.finished_saving.emit(self.output_path, self.dtype)
+
+        except Exception as e:
+            print(f"error While Stitching: {e}")
 
 
 class ImageDisplayWindow(QMainWindow):

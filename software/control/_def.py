@@ -518,11 +518,12 @@ XLIGHT_SLEEP_TIME_FOR_WHEEL = 0.25
 XLIGHT_VALIDATE_WHEEL_POS = False
 
 # Laser AF characterization mode
-LASER_AF_CHARACTERIZATION_MODE=False
+LASER_AF_CHARACTERIZATION_MODE = False
 
 # Napari integration
+USE_NAPARI = True
 USE_NAPARI_FOR_LIVE_VIEW = False
-USE_NAPARI_FOR_MULTIPOINT = False
+USE_NAPARI_FOR_MULTICHANNEL = False
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
