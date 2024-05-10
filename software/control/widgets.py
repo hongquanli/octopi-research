@@ -1487,8 +1487,8 @@ class MultiPointWidget(QFrame):
         super().__init__(*args, **kwargs)
         self.multipointController = multipointController
         self.configurationManager = configurationManager
+        self.well_selected = False
         self.base_path_is_set = False
-        self.well_selected = True
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1700,7 +1700,7 @@ class MultiPointWidget(QFrame):
             msg.setText("Please choose base saving directory first")
             msg.exec_()
             return
-        if self.well_selected == False:
+        if IS_WELLPLATE and self.well_selected == False:
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
             msg.setText("Please select a well to scan first")
@@ -3687,6 +3687,8 @@ class WellSelectionWidget(QTableWidget):
             y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
             self.signal_well_selected.emit(True)
             self.signal_well_selected_pos.emit(x_mm,y_mm)
+        else:
+            self.signal_well_selected.emit(False)
 
     def on_single_click(self,row,col):
         print("single click well", row, col)

@@ -68,22 +68,6 @@ class OctopiGUI(QMainWindow):
 
         # image display windows
         self.imageDisplayTabs = QTabWidget()
-
-        # napari viewer
-        if USE_NAPARI_FOR_LIVE_VIEW:
-            # self.napariViewer_live = napariViewerWidget.ImageWidget()
-            # self.napariViewer_live.setLiveViewLayers(['Live View'])
-            # self.imageDisplayTabs.addTab(self.napariViewer_live, "Live View")
-            self.napariLiveWidget = widgets.NapariLiveWidget()
-            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-        else:
-            if ENABLE_TRACKING:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-                self.imageDisplayWindow.show_ROI_selector()
-            else:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
-            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-        
         self.objectiveStore = core.ObjectiveStore()
 
         # load objects
@@ -271,14 +255,20 @@ class OctopiGUI(QMainWindow):
         
         self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         
-        if USE_NAPARI_FOR_MULTICHANNEL:
+        if USE_NAPARI:
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
+            self.napariLiveWidget = widgets.NapariLiveWidget()
             if SHOW_TILED_PREVIEW:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget()
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
         else:
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+            if ENABLE_TRACKING:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow.show_ROI_selector()
+            else:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
             if SHOW_TILED_PREVIEW:
-                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
-            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
+                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True) 
 
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
@@ -389,24 +379,17 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode) 
         
-        if USE_NAPARI_FOR_LIVE_VIEW:
+        if USE_NAPARI:
             self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
-        else:
-            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
-            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
-            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
-            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
-        if USE_NAPARI_FOR_MULTICHANNEL:
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+
             if SHOW_TILED_PREVIEW:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
@@ -414,13 +397,18 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
         else:
+            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
+            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
             if SHOW_TILED_PREVIEW:
                 self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
         # (double) click to move to a well
-        self.multiPointWidget.set_well_selected(False)
         self.wellSelectionWidget.signal_well_selected_pos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_well_selected.connect(self.multiPointWidget.set_well_selected)
 
@@ -488,17 +476,18 @@ class OctopiGUI(QMainWindow):
                 laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
                 laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
-            # self.imageDisplayWindow_focus.widget
-            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
-
-            if USE_NAPARI_FOR_MULTICHANNEL:
+            if USE_NAPARI:
+                self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
+                self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
                 if SHOW_TILED_PREVIEW:
                     self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
-                self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
             else:
+                self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+                self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
                 if SHOW_TILED_PREVIEW:
                     self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
-                self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+            # self.imageDisplayWindow_focus.widget
+            self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
 
             # connections
             self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
