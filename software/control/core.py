@@ -724,12 +724,16 @@ class NavigationController(QObject):
         delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
         delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
 
+        if not IS_WELLPLATE:
+            delta_x /= 2
+            delta_y /= 2
+
         if USE_NAPARI:
-            self.move_x_to(self.scan_begin_position_x + (delta_x / 2))
-            self.move_y_to(self.scan_begin_position_y + (delta_y / 2))
+            self.move_x_to(self.scan_begin_position_x + (delta_x))
+            self.move_y_to(self.scan_begin_position_y + (delta_y))
         else:
-            self.move_x_to(self.scan_begin_position_x + (delta_x / 2 * PRVIEW_DOWNSAMPLE_FACTOR))
-            self.move_y_to(self.scan_begin_position_y + (delta_y / 2 * PRVIEW_DOWNSAMPLE_FACTOR))
+            self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR))
+            self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR))
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -776,8 +780,12 @@ class NavigationController(QObject):
             delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
 
-            self.move_x(delta_x / 2)
-            self.move_y(delta_y / 2)
+            if not IS_WELLPLATE:
+                delta_x /= 2
+                delta_y /= 2
+
+            self.move_x(delta_x)
+            self.move_y(delta_y)
 
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
@@ -950,6 +958,7 @@ class NavigationController(QObject):
         return self.pid_enable_flag[axis]
 
     def keep_scan_begin_position(self, x, y):
+        print("kept", (x, y))
         self.scan_begin_position_x = x
         self.scan_begin_position_y = y
 
@@ -1694,7 +1703,7 @@ class MultiPointWorker(QObject):
         for coordinate_id in range(n_regions):
 
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            print(coordiante_mm)
+            print("coordinate:", coordiante_mm)            
 
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
@@ -2158,20 +2167,23 @@ class MultiPointWorker(QObject):
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
             # finished XY scan
-            if n_regions == 1:
-                # only move to the start position if there's only one region in the scan
-                if self.NY > 1:
-                    # move y back
-                    self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
-                    self.wait_till_operation_is_completed()
-                    time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                    self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
-
+            if n_regions >= 1:
                 # move x back at the end of the scan
                 if self.x_scan_direction == -1:
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+
+                # only move to the start position if there's only one region in the scan
+                if self.NY > 1 and not IS_WELLPLATE:
+                    # move y back
+                    self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
+                    self.wait_till_operation_is_completed()
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
+                    self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
+                
+                if SHOW_TILED_PREVIEW:
+                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:
