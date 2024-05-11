@@ -2485,9 +2485,10 @@ class NapariTiledDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(int, int, int, int)
 
-    def __init__(self, parent=None):
+    def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
+        self.configurationManager = configurationManager
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
@@ -2516,7 +2517,7 @@ class NapariTiledDisplayWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
-    def initLayers(self, image_height, image_width, image_dtype,rgb=False):
+    def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
         self.image_width = image_width
@@ -2526,9 +2527,20 @@ class NapariTiledDisplayWidget(QWidget):
             #raise ValueError("Unsupported dtype")
 
         for i, channel in enumerate(self.channels):
-            canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=False, 
-                                  colormap=NAPARI_COLORS[i], contrast_limits=contrast_limits, blending='additive')
+            
+            color = self.configurationManager.get_color_for_channel(channel)
+            if color == "rgb":
+                rgb = True
+                color = None
+            else: 
+                rgb = False
+            
+            if rgb:
+                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width, 3), dtype=self.dtype)
+            else:
+                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
+            layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
+                                  colormap=color, contrast_limits=contrast_limits, blending='additive')
             # Add double-click callback to this layer
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
 
@@ -2537,16 +2549,29 @@ class NapariTiledDisplayWidget(QWidget):
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
+        print(image.shape)
+        rgb = len(image.shape) >= 3
+
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
         if channel_name not in self.viewer.layers:
             self.channels.append(channel_name)
-            canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=False, 
-                                  colormap=NAPARI_COLORS[i], contrast_limits=contrast_limits, blending='additive')
+            color = self.configurationManager.get_color_for_channel(channel)
+            if color == "rgb":
+                rgb = True
+                color = None
+            else:
+                rgb = False
+            if rgb:
+                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width, 3), dtype=self.dtype)
+            else:
+                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
+                                  colormap=color, contrast_limits=contrast_limits, blending='additive')
             # Add double-click callback to this layer
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+
 
         # Locate the layer and its current data
         layer = self.viewer.layers[channel_name]
@@ -2555,8 +2580,10 @@ class NapariTiledDisplayWidget(QWidget):
         # Update the specific slice based on the provided coordinates
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
-        layer_data[k, y_slice, x_slice] = image
-        
+        if rgb:
+            layer_data[k, y_slice, x_slice,:] = image
+        else:
+            layer_data[k, y_slice, x_slice] = image
         # Update the layer with the modified data
         layer.data = layer_data
         layer.refresh()
@@ -2564,12 +2591,17 @@ class NapariTiledDisplayWidget(QWidget):
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
         coords = layer.world_to_data(event.position)
-        if coords is not None and (0 <= int(coords[-1]) < layer.data.shape[-1] and (0 <= int(coords[-2]) < layer.data.shape[-2])):
-            x_centered = int(coords[-1] - layer.data.shape[-1] / 2)
-            y_centered = int(coords[-2] - layer.data.shape[-2] / 2)
+        
+        if len(layer.data.shape) >= 4:
+            layer_shape = layer.data.shape[0:3]
+
+        if coords is not None and (0 <= int(coords[-1]) < layer_shape[-1] and (0 <= int(coords[-2]) < layer_shape[-2])):
+            x_centered = int(coords[-1] - layer_shape[-1] / 2)
+            y_centered = int(coords[-2] - layer_shape[-2] / 2)
             # Emit the centered coordinates and dimensions of the layer's data array
-            self.signal_coordinates_clicked.emit(x_centered, y_centered, layer.data.shape[-1], layer.data.shape[-2])
-            print(x_centered, y_centered, layer.data.shape[-1], layer.data.shape[-2])
+            self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2])
+            print(x_centered, y_centered, layer_shape[-1], layer_
+                shape[-2])
 
     def getContrastLimits(self):
         if np.issubdtype(self.dtype, np.integer):
@@ -2583,9 +2615,11 @@ class NapariTiledDisplayWidget(QWidget):
 
 
 class NapariMultiChannelWidget(QWidget):
-    def __init__(self, parent=None):
+
+    def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
+        self.configurationManager = configurationManager
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
@@ -2609,7 +2643,7 @@ class NapariMultiChannelWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
-    def initLayers(self, image_height, image_width, image_dtype, rgb=False):
+    def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
         self.image_width = image_width
@@ -2617,26 +2651,37 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.dtype(image_dtype)
         contrast_limits = self.getContrastLimits()
         for i, channel in enumerate(self.channels):
+            color = self.configurationManager.get_color_for_channel(channel)
+            if color == "rgb":
+                rgb = True
+                color = None
+            else: 
+                rgb = False
+
             if rgb == True:
                 canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
             else:
                 canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
+            
             self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
-                                  colormap=NAPARI_COLORS[i], contrast_limits=contrast_limits, blending='additive')
+                                  colormap=color, contrast_limits=contrast_limits, blending='additive')
         self.resetView()
         self.layers_initialized = True
+
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
         if channel_name not in self.viewer.layers:
+            print("init", channel_name)
             self.channels.append(channel_name)
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
         if not self.layers_initialized:
+            print("init", channel_name)
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
         # Locate the layer and its update its current data
         layer = self.viewer.layers[channel_name]
-        layer.data[k,:,:] = image
+        layer.data[k] = image
         layer.refresh()
 
     def resetView(self):
@@ -2654,14 +2699,17 @@ class NapariLiveWidget(QWidget):
 
     signal_coordinates_clicked = Signal(int, int, int, int)
 
-    def __init__(self, parent=None):
+    def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
+        self.configurationManager = configurationManager
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
-        self.channels = ["Live View"]
-        self.layers_initialized = False
+        self.channels = []
+        self.init_live = False
+        self.init_live_rgb = False
+
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
         self.addNapariGrayclipColormap()
@@ -2684,36 +2732,49 @@ class NapariLiveWidget(QWidget):
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
 
-    def initLiveLayer(self, image_height, image_width, image_dtype, rgb=False):
+    def initLiveLayer(self, channel, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        self.viewer.layers.clear()
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
+        self.channels.append(channel)
         contrast_limits = self.getContrastLimits()
-        for i, channel in enumerate(self.channels):
-            if rgb == True:
-                canvas = np.zeros((image_height, image_width, 3), dtype=self.dtype)
-            else:
-                canvas = np.zeros((image_height, image_width), dtype=self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
-                                  colormap='grayclip', contrast_limits=contrast_limits, blending='additive')
-            layer.mouse_double_click_callbacks.append(self.onDoubleClick)
-
+        if rgb == True:
+            canvas = np.zeros((image_height, image_width, 3), dtype=self.dtype)
+        else:
+            canvas = np.zeros((image_height, image_width), dtype=self.dtype)
+        layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
+                              colormap='grayclip', contrast_limits=contrast_limits, blending='additive')
+        layer.mouse_double_click_callbacks.append(self.onDoubleClick)
         self.resetView()
-        self.layers_initialized = True
 
     def updateLiveLayer(self, image):
         """Updates the appropriate slice of the canvas with the new image data."""
-        if not self.layers_initialized:
-            self.initLiveLayer(image.shape[0], image.shape[1], image.dtype)
-        layer = self.viewer.layers["Live View"]
+        rgb = len(image.shape) >= 3
+        if not rgb and not self.init_live:
+            self.initLiveLayer("Live View", image.shape[0], image.shape[1], image.dtype, rgb)
+            self.init_live = True
+            print("init live")
+        elif rgb and not self.init_live_rgb:
+            self.initLiveLayer("Live View RGB", image.shape[0], image.shape[1], image.dtype, rgb)
+            self.init_live_rgb = True
+            print("init live rgb")
+        
+        if not rgb: 
+            layer = self.viewer.layers["Live View"]
+        else:
+            layer = self.viewer.layers["Live View RGB"]
+
+        print(layer.data.shape, image.shape)
         layer.data = image
         layer.refresh()
 
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
         coords = layer.world_to_data(event.position)
+        if len(layer.data.shape) >= 3:
+            layer_shape = layer.data.shape[0:2]
+
         if coords is not None and (0 <= int(coords[-1]) < layer.data.shape[-1] and (0 <= int(coords[-2]) < layer.data.shape[-2])):
             x_centered = int(coords[-1] - layer.data.shape[-1] / 2)
             y_centered = int(coords[-2] - layer.data.shape[-2] / 2)

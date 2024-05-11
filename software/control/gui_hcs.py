@@ -117,7 +117,7 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations_color.xml')
 
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
@@ -256,10 +256,10 @@ class OctopiGUI(QMainWindow):
         self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         
         if USE_NAPARI:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
-            self.napariLiveWidget = widgets.NapariLiveWidget()
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager)
             if SHOW_TILED_PREVIEW:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget()
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             if ENABLE_TRACKING:
@@ -401,6 +401,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            # replicate for napari (autolevel)
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)

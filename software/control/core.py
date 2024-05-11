@@ -381,9 +381,10 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
+    def __init__(self,mode_id=None,name=None,color=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
         self.id = mode_id
         self.name = name
+        self.color = color
         self.exposure_time = exposure_time
         self.analog_gain = analog_gain
         self.illumination_source = illumination_source
@@ -958,7 +959,6 @@ class NavigationController(QObject):
         return self.pid_enable_flag[axis]
 
     def keep_scan_begin_position(self, x, y):
-        print("kept", (x, y))
         self.scan_begin_position_x = x
         self.scan_begin_position_y = y
 
@@ -1701,10 +1701,7 @@ class MultiPointWorker(QObject):
         n_regions = len(self.scan_coordinates_mm)
 
         for coordinate_id in range(n_regions):
-
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            print("coordinate:", coordiante_mm)            
-
+            coordiante_mm = self.scan_coordinates_mm[coordinate_id]         
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
                 coordiante_name = str(coordinate_id)
@@ -1940,10 +1937,11 @@ class MultiPointWorker(QObject):
 
                                         # send image to display
                                         image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                        if USE_NAPARI_FOR_LIVE_VIEW:
-                                            self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
-                                        else:
-                                            self.image_to_display.emit(image_to_display)
+                                        # self.image_to_display.emit(image_to_display)
+                                        # if USE_NAPARI:
+                                        #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
+                                        # else:
+                                        #     self.image_to_display.emit(image_to_display)
                                         # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                         # write the image
@@ -1955,6 +1953,7 @@ class MultiPointWorker(QObject):
                                             iio.imwrite(saving_path,rgb_image)
 
                                     if not init_napari_layers:
+                                        print("init napari viewer")
                                         init_napari_layers = True
                                         self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
                                     self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
@@ -2005,10 +2004,12 @@ class MultiPointWorker(QObject):
 
                                     # send image to display
                                     image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                    if USE_NAPARI_FOR_LIVE_VIEW:
-                                        self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
-                                    else:
-                                        self.image_to_display.emit(image_to_display)
+                                    
+                                    # self.image_to_display.emit(image_to_display)
+                                    # if USE_NAPARI:
+                                    #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
+                                    # else:
+                                    #     self.image_to_display.emit(image_to_display)
                                     # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                     # write the image
@@ -2020,7 +2021,7 @@ class MultiPointWorker(QObject):
                                         iio.imwrite(saving_path,rgb_image)
 
                                     if not init_napari_layers:
-                                        print("initialze layers")
+                                        print("init rgb layer")
                                         init_napari_layers = True
                                         print(rgb_image.dtype)
                                         self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
@@ -2987,7 +2988,7 @@ class Stitcher(Thread, QObject):
         self.image_folder = os.path.join(self.input_folder, str(time_point))
         sorted_input_files = sorted([filename for filename in os.listdir(self.image_folder) 
                              if (filename.endswith(".bmp") or filename.endswith(".tiff"))
-                             and 'focus_camera' not in filename])
+                             and 'focus_camera' not in filename and '_RGB' not in filename])
 
         first_filename = sorted_input_files[0]
         # four_input_pattern = re.compile(r'^(\w+)_(\d+)_(\d+)_(\d+)_(\w+)$')
@@ -3649,7 +3650,7 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename="channel_configurations.xml"):
+    def __init__(self,filename="channel_configurations_color.xml"):
         QObject.__init__(self)
         self.config_filename = filename
         self.configurations = []
@@ -3673,6 +3674,7 @@ class ConfigurationManager(QObject):
             self.num_configurations = self.num_configurations + 1
             self.configurations.append(
                 Configuration(
+                    color = mode.get('Color'),
                     mode_id = mode.get('ID'),
                     name = mode.get('Name'),
                     exposure_time = float(mode.get('ExposureTime')),
@@ -3697,8 +3699,7 @@ class ConfigurationManager(QObject):
         mode_to_update = conf_list[0]
         mode_to_update.set(attribute_name,str(new_value))
 
-    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance
-                                                                             # of this class
+    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance                                                                     # of this class
         for conf in self.configurations:
             self.update_configuration_without_writing(conf.id, "Selected", 0)
         for conf in selected_configurations:
@@ -3706,6 +3707,12 @@ class ConfigurationManager(QObject):
         self.write_configuration(filename)
         for conf in selected_configurations:
             self.update_configuration_without_writing(conf.id, "Selected", 0)
+
+    def get_color_for_channel(self, channel):
+        for config in self.configurations:
+            if config.name == channel:
+                return config.color
+        return 'gray'
 
 class PlateReaderNavigationController(QObject):
 
