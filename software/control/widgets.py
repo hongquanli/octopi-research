@@ -2620,12 +2620,14 @@ class NapariMultiChannelWidget(QWidget):
         self.channels = []
         self.Nz = 1
         self.layers_initialized = False
+        self.grid_enabled = False
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
 
     def initNapariViewer(self):
         self.viewer = napari.Viewer(show=False)
-        self.viewer.grid.enabled = True
+        if self.grid_enabled:
+            self.viewer.grid.enabled = True
         self.viewerWidget = self.viewer.window._qt_window
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
