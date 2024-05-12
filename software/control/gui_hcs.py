@@ -244,29 +244,26 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-
+        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         else:
             self.wellSelectionWidget = widgets.Well1536SelectionWidget()
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-        
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
-        
         self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         
         if USE_NAPARI:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager)
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
             if SHOW_TILED_PREVIEW:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
         else:
-            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             if ENABLE_TRACKING:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayWindow.show_ROI_selector()
             else:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             if SHOW_TILED_PREVIEW:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True) 
 

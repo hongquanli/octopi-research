@@ -29,16 +29,17 @@ class OctopiGUI(QMainWindow):
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # load image display windows
         self.imageDisplayTabs = QTabWidget()
+        self.configurationManager = core.ConfigurationManager()
+
         if USE_NAPARI:
-            self.napariLiveWidget = widgets.NapariLiveWidget()
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
 
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
             if SHOW_TILED_PREVIEW:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget()
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
         else:
             if ENABLE_TRACKING:
@@ -73,14 +74,12 @@ class OctopiGUI(QMainWindow):
 
         # reset the MCU
         self.microcontroller.reset()
-
         # reinitialize motor drivers and DAC (in particular for V2.1 driver board where PG is not functional)
         self.microcontroller.initialize_drivers()
-
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager()
+
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller, parent=self)

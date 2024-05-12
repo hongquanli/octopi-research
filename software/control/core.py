@@ -1945,12 +1945,11 @@ class MultiPointWorker(QObject):
                                         # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                         # write the image
+                                        print('writing RGB image')
                                         if rgb_image.dtype == np.uint16:
-                                            saving_path = os.path.join(current_path, file_ID + '_RGB.tiff')
-                                            iio.imwrite(saving_path,rgb_image)
+                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
                                         else:
-                                            saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
-                                            iio.imwrite(saving_path,rgb_image)
+                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
 
                                     if not init_napari_layers:
                                         print("init napari viewer")
@@ -2001,10 +2000,9 @@ class MultiPointWorker(QObject):
                                     rgb_image[:, :, 0] = images['BF LED matrix full_R']
                                     rgb_image[:, :, 1] = images['BF LED matrix full_G']
                                     rgb_image[:, :, 2] = images['BF LED matrix full_B']
-
                                     # send image to display
                                     image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                    
+                    
                                     # self.image_to_display.emit(image_to_display)
                                     # if USE_NAPARI:
                                     #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
@@ -2013,12 +2011,17 @@ class MultiPointWorker(QObject):
                                     # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                     # write the image
+                                    print('writing RGB image and R,G,B channels')
                                     if rgb_image.dtype == np.uint16:
-                                        saving_path = os.path.join(current_path, file_ID + '_RGB.tiff')
-                                        iio.imwrite(saving_path,rgb_image)
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.tiff'), rgb_image[:, :, 0])
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.tiff'), rgb_image[:, :, 1])
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.tiff'),rgb_image[:, :, 2])
                                     else:
-                                        saving_path = os.path.join(current_path, file_ID + '_RGB.' + Acquisition.IMAGE_FORMAT)
-                                        iio.imwrite(saving_path,rgb_image)
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 0])
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 1])
+                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 2])
 
                                     if not init_napari_layers:
                                         print("init rgb layer")
@@ -2926,23 +2929,23 @@ class Stitcher(Thread, QObject):
         if use_registration:
             self.registration_channel = registration_channel
 
-        #self.processed_files = set()
         self.selected_modes = self.extract_selected_modes(self.input_folder)
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
         self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        #self.has_RGB = False
         
         self.wells = []
         self.channel_names = []
         self.num_z = self.num_c = 1
         self.num_cols = self.num_rows = 1
         self.input_height = self.input_width = 0
-
         self.v_shift = self.h_shift = (0,0)
         self.flatfields = {}
         self.stitching_data = {}
         self.stitched_images = None
         self.dtype = np.uint16
+
    
     def get_time_points(self, input_folder):
         try: # detects directories named as integers, representing time points.
@@ -2986,15 +2989,15 @@ class Stitcher(Thread, QObject):
     def parse_filenames(self, time_point, four_input_format=True):
         # Read the first image to get its dimensions and dtype
         self.image_folder = os.path.join(self.input_folder, str(time_point))
-        sorted_input_files = sorted([filename for filename in os.listdir(self.image_folder) 
+        all_files = os.listdir(self.image_folder)
+        # self.has_RGB = any('_RGB' in filename for filename in all_files)
+        sorted_input_files = sorted([filename for filename in all_files
                              if (filename.endswith(".bmp") or filename.endswith(".tiff"))
                              and 'focus_camera' not in filename and '_RGB' not in filename])
+        if not sorted_input_files:
+            raise Exception("No valid files found in directory.")
 
         first_filename = sorted_input_files[0]
-        # four_input_pattern = re.compile(r'^(\w+)_(\d+)_(\d+)_(\d+)_(\w+)$')
-        # four_input_format = True if four_input_pattern.match(first_filename) else False
-        # print(four_input_format)
-
         try:
             well, i, j, k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
             k = int(k)
@@ -3019,6 +3022,7 @@ class Stitcher(Thread, QObject):
             else:
                 well = '0'
                 i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 3)
+            channel_name = channel_name.replace("_", " ").replace("full ", "full_")
             i, j, k = int(i), int(j), int(k)
             wells.add(well)
             channel_names.add(channel_name)
