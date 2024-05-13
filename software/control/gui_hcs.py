@@ -236,6 +236,13 @@ class OctopiGUI(QMainWindow):
         while self.microcontroller.is_busy():
             time.sleep(0.005)
 
+        # set piezo arguments
+        if ENABLE_OBJECTIVE_PIEZO is True:
+            if PIEZO_CONTROL_VOLTAGE_RANGE == 5:
+                OUTPUT_GAINS.CHANNEL7_GAIN = True
+            else:
+                OUTPUT_GAINS.CHANNEL7_GAIN = False
+
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0
         gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0 
@@ -279,7 +286,8 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
-        
+        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
+
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
@@ -290,14 +298,21 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
         self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
+        self.recordFunctionsTabWidget = QTabWidget()
+        self.recordFunctionsTabWidget.addTab(self.navigationWidget,"Stages")
+        if ENABLE_OBJECTIVE_PIEZO:
+            self.recordFunctionsTabWidget.addTab(self.piezoWidget,"Piezo")
+        self.recordFunctionsTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
         layout.addWidget(self.liveControlWidget)
-        layout.addWidget(self.navigationWidget)
+        layout.addWidget(self.recordFunctionsTabWidget)
+        layout.addWidget(self.recordTabWidget)
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
-        layout.addWidget(self.autofocusWidget)
+        #layout.addWidget()
         layout.addWidget(self.recordTabWidget)
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
@@ -441,7 +456,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.recordTabWidget.addTab(self.laserAutofocusControlWidget, "Laser Autofocus Control")
+            self.recordFunctionsTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()

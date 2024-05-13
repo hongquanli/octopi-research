@@ -543,6 +543,13 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 #### start of loading machine specific configurations ####
 ##########################################################
 CACHED_CONFIG_FILE_PATH = None
+
+# Piezo configuration items
+ENABLE_OBJECTIVE_PIEZO = False
+# the value of PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
+PIEZO_CONTROL_VOLTAGE_RANGE = 5
+OBJECTIVE_PIEZO_RANGE_UM = 300 
+
 try:
     with open("cache/config_file_path.txt", 'r') as file:
         for line in file:
@@ -651,3 +658,4 @@ elif WELLPLATE_FORMAT == 6:
     WELL_SPACING_MM = 39.2
     A1_X_MM = 24.55
     A1_Y_MM = 23.01
+
