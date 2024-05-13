@@ -1928,8 +1928,8 @@ class MultiPointWorker(QObject):
                                         size = current_round_images['BF LED matrix full_R'].shape
                                         #print(size)
                                         rgb_image = np.zeros((*size, 3),dtype=current_round_images['BF LED matrix full_R'].dtype)
-                                        print(current_round_images['BF LED matrix full_R'].dtype)
-                                        print(rgb_image.shape)
+                                        #print(current_round_images['BF LED matrix full_R'].dtype)
+                                        #print(rgb_image.shape)
                                         #print(rgb_image)
                                         rgb_image[:, :, 0] = current_round_images['BF LED matrix full_R']
                                         rgb_image[:, :, 1] = current_round_images['BF LED matrix full_G']

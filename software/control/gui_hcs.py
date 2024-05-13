@@ -519,8 +519,9 @@ class OctopiGUI(QMainWindow):
             use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
             registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
             output_name = self.multiPointWidget.lineEdit_experimentID.text()
+            if output_name == "":
+                output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
-          
 
             self.stitcherThread = core.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format, 
                                            apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
