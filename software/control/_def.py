@@ -523,8 +523,6 @@ LASER_AF_CHARACTERIZATION_MODE = False
 # Napari integration
 USE_NAPARI = True
 IS_WELLPLATE = False
-USE_NAPARI_FOR_LIVE_VIEW = False
-USE_NAPARI_FOR_MULTICHANNEL = False
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
@@ -540,8 +538,6 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 # Tiled preview
 SHOW_TILED_PREVIEW = True
 PRVIEW_DOWNSAMPLE_FACTOR = 5
-NAPARI_COLORS = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
-                  'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno']
 
 ##########################################################
 #### start of loading machine specific configurations ####
