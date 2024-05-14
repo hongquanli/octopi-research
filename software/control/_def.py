@@ -658,4 +658,9 @@ elif WELLPLATE_FORMAT == 6:
     WELL_SPACING_MM = 39.2
     A1_X_MM = 24.55
     A1_Y_MM = 23.01
-
+elif WELLPLATE_FORMAT == 1536:
+    NUMBER_OF_SKIP = 0
+    WELL_SIZE_MM = 1.5
+    WELL_SPACING_MM = 2.25
+    A1_X_MM = 11.0
+    A1_Y_MM = 7.86

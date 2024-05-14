@@ -283,7 +283,10 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+        if WELLPLATE_FORMAT != 1536:
+            self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+        else:
+            self.wellSelectionWidget = widgets.Well1536SelectionWidget()
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)

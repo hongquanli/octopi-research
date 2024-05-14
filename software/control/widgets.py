@@ -3922,3 +3922,117 @@ class WellSelectionWidget(QTableWidget):
         for index in self.selectedIndexes():
              list_of_selected_cells.append((index.row(),index.column()))
         return(list_of_selected_cells)
+
+
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout
+from PyQt5.QtGui import QPixmap, QPainter, QColor
+import re
+import sys
+
+class Well1536SelectionWidget(QWidget):
+
+    signal_wellSelectedPos = Signal(float,float)
+
+    def __init__(self):
+        super().__init__()
+        self.selected_cells = {}  # Dictionary to keep track of selected cells and their colors
+        self.current_cell = None  # To track the current (green) cell
+        self.rows = 32
+        self.columns = 48
+        self.spacing_mm = 2.25
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('1536 Well Plate')
+        self.setGeometry(100, 100, 550, 400)
+
+        self.a = 10
+
+        self.image = QPixmap(48*self.a, 32*self.a)
+        self.image.fill(QColor('white'))
+        self.label = QLabel()
+        self.label.setPixmap(self.image)
+
+        self.cell_input = QLineEdit(self)
+        go_button = QPushButton('Go to well', self)
+        go_button.clicked.connect(self.go_to_cell)
+
+        self.selection_input = QLineEdit(self)
+        select_button = QPushButton('Select wells', self)
+        select_button.clicked.connect(self.select_cells)
+
+        layout = QGridLayout()
+
+        layout.addWidget(self.label,0,0,3,1)
+
+        layout.addWidget(QLabel("Well Navigation"),1,1)
+        layout.addWidget(self.cell_input,1,2)
+        layout.addWidget(go_button,1,3)
+
+        layout.addWidget(QLabel("Well Selection"),2,1)
+        layout.addWidget(self.selection_input,2,2)
+        layout.addWidget(select_button,2,3)
+
+        self.setLayout(layout)
+
+    def redraw_wells(self):
+        self.image.fill(QColor('white'))  # Clear the pixmap first
+        painter = QPainter(self.image)
+        painter.setPen(QColor('white'))
+        # Draw selected cells in red
+        for (row, col), color in self.selected_cells.items():
+            painter.setBrush(QColor(color))
+            painter.drawRect(col * self.a, row * self.a, self.a, self.a)
+        # Draw current cell in green
+        if self.current_cell:
+            painter.setBrush(QColor('#ff7f0e'))
+            row, col = self.current_cell
+            painter.drawRect(col * self.a, row * self.a, self.a, self.a)
+        painter.end()
+        self.label.setPixmap(self.image)
+
+    def go_to_cell(self):
+        cell_desc = self.cell_input.text().strip()
+        match = re.match(r'([A-Za-z]+)(\d+)', cell_desc)
+        if match:
+            row_part, col_part = match.groups()
+            row_index = self.row_to_index(row_part)
+            col_index = int(col_part) - 1
+            self.current_cell = (row_index, col_index)  # Update the current cell
+            self.redraw_wells()  # Redraw with the new current cell
+            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col_index*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row_index*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            self.signal_wellSelectedPos.emit(x_mm,y_mm)
+
+    def select_cells(self):
+        # first clear selection
+        self.selected_cells = {}
+
+        pattern = r'([A-Za-z]+)(\d+):?([A-Za-z]*)(\d*)'
+        cell_descriptions = self.selection_input.text().split(',')
+        for desc in cell_descriptions:
+            match = re.match(pattern, desc.strip())
+            if match:
+                start_row, start_col, end_row, end_col = match.groups()
+                start_row_index = self.row_to_index(start_row)
+                start_col_index = int(start_col) - 1
+
+                if end_row and end_col:  # It's a range
+                    end_row_index = self.row_to_index(end_row)
+                    end_col_index = int(end_col) - 1
+                    for row in range(min(start_row_index, end_row_index), max(start_row_index, end_row_index) + 1):
+                        for col in range(min(start_col_index, end_col_index), max(start_col_index, end_col_index) + 1):
+                            self.selected_cells[(row, col)] = '#1f77b4'
+                else:  # It's a single cell
+                    self.selected_cells[(start_row_index, start_col_index)] = '#1f77b4'
+        self.redraw_wells()
+
+    def row_to_index(self, row):
+        index = 0
+        for char in row:
+            index = index * 26 + (ord(char.upper()) - ord('A') + 1)
+        return index - 1
+
+    def get_selected_cells(self):
+        list_of_selected_cells = list(self.selected_cells.keys())
+        return(list_of_selected_cells)
