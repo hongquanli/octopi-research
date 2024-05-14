@@ -305,6 +305,7 @@ class OctopiGUI(QMainWindow):
         self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
         if ENABLE_OBJECTIVE_PIEZO:
             self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
+        self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
         self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
 
         # layout widgets
@@ -361,6 +362,7 @@ class OctopiGUI(QMainWindow):
             self.tabbedImageDisplayWindow.setFixedSize(width,height)
             self.tabbedImageDisplayWindow.show()
 
+        '''
         try:
             self.cswWindow = widgets.WrapperWindow(self.cameraSettingWidget)
         except AttributeError:
@@ -370,6 +372,7 @@ class OctopiGUI(QMainWindow):
             self.cswfcWindow = widgets.WrapperWindow(self.cameraSettingWidget_focus_camera)
         except AttributeError:
             pass
+        '''
 
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
