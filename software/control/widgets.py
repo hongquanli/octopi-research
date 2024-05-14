@@ -558,7 +558,7 @@ class FocusMapWidget(QWidget):
 
 class CameraSettingsWidget(QFrame):
 
-    def __init__(self, camera, include_gain_exposure_time = True, include_camera_temperature_setting = False, main=None, *args, **kwargs):
+    def __init__(self, camera, include_gain_exposure_time = False, include_camera_temperature_setting = False, main=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.camera = camera
@@ -687,6 +687,7 @@ class CameraSettingsWidget(QFrame):
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)
         self.grid.addLayout(hbox1,1,0)
+        self.grid.setRowStretch(self.grid.rowCount(), 1)
         self.setLayout(self.grid)
 
     def set_exposure_time(self,exposure_time):
@@ -1505,6 +1506,7 @@ class AutoFocusWidget(QFrame):
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
+        self.grid.setRowStretch(self.grid.rowCount(), 1)
         self.setLayout(self.grid)
         
         # connections
