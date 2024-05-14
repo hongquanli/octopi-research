@@ -960,6 +960,84 @@ class LiveControlWidget(QFrame):
         self.dropdown_triggerManu.setCurrentText(trigger_mode)
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
+class PiezoWidget(QFrame):
+    def __init__(self, navigationController, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_components()
+        self.navigationController = navigationController
+
+    def add_components(self):
+        # Row 1: Slider and Double Spin Box for direct control
+        self.slider = QSlider(Qt.Horizontal, self)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(OBJECTIVE_PIEZO_RANGE_UM)  # Assuming maximum position is 300 um
+        self.spinBox = QDoubleSpinBox(self)
+
+        self.spinBox.setRange(0.0, OBJECTIVE_PIEZO_RANGE_UM)  # Range set from 0 to 300 um
+        self.spinBox.setDecimals(0)
+        self.spinBox.setSingleStep(1)  # Small step for fine control
+
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.slider)
+        hbox1.addWidget(self.spinBox)
+
+        # Row 2: Increment Double Spin Box, Move Up and Move Down Buttons
+        self.increment_spinBox = QDoubleSpinBox(self)
+        self.increment_spinBox.setRange(0.0, 100.0)  # Range for increment, adjust as needed
+        self.increment_spinBox.setDecimals(0)
+        self.increment_spinBox.setSingleStep(1)
+        self.increment_spinBox.setValue(1.0)  # Set default increment to 1 um
+        self.move_up_btn = QPushButton("Move Up", self)
+        self.move_down_btn = QPushButton("Move Down", self)
+
+        hbox2 = QHBoxLayout()
+        hbox2.addWidget(self.increment_spinBox)
+        hbox2.addWidget(self.move_up_btn)
+        hbox2.addWidget(self.move_down_btn)
+
+        # Row 3: Home Button
+        self.home_btn = QPushButton("Set Home", self)
+
+        hbox3 = QHBoxLayout()
+        hbox3.addWidget(self.home_btn)
+
+        # Vertical Layout to include all HBoxes
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox1)
+        vbox.addLayout(hbox2)
+        vbox.addLayout(hbox3)
+
+        self.setLayout(vbox)
+
+        # Connect signals and slots
+        self.slider.valueChanged.connect(self.update_spinBox_from_slider)
+        self.spinBox.valueChanged.connect(self.update_slider_from_spinBox)
+        self.move_up_btn.clicked.connect(lambda: self.adjust_position(True))
+        self.move_down_btn.clicked.connect(lambda: self.adjust_position(False))
+        self.home_btn.clicked.connect(self.set_home)
+
+    def update_spinBox_from_slider(self, value):
+        self.spinBox.setValue(float(value))
+        dispvalue = float(self.spinBox.value())
+        dacvalue = int(65535 * (dispvalue / OBJECTIVE_PIEZO_RANGE_UM))
+        self.navigationController.microcontroller.analog_write_onboard_DAC(7, dacvalue)
+
+    def update_slider_from_spinBox(self, value):
+        self.slider.setValue(int(value))
+
+    def adjust_position(self, up):
+        increment = self.increment_spinBox.value()
+        current_position = self.spinBox.value()
+        if up:
+            new_position = current_position + increment
+        else:
+            new_position = current_position - increment
+        self.spinBox.setValue(new_position)
+
+    def set_home(self):
+        self.spinBox.setValue(0.0)
+
+
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
