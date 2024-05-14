@@ -546,9 +546,10 @@ CACHED_CONFIG_FILE_PATH = None
 
 # Piezo configuration items
 ENABLE_OBJECTIVE_PIEZO = False
-# the value of PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
-PIEZO_CONTROL_VOLTAGE_RANGE = 5
+# the value of OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
+OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
 OBJECTIVE_PIEZO_RANGE_UM = 300 
+OBJECTIVE_PIEZO_HOME_UM = 100
 
 try:
     with open("cache/config_file_path.txt", 'r') as file:

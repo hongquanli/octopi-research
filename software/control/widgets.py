@@ -996,7 +996,7 @@ class PiezoWidget(QFrame):
         hbox2.addWidget(self.move_down_btn)
 
         # Row 3: Home Button
-        self.home_btn = QPushButton("Set Home", self)
+        self.home_btn = QPushButton("Home to " + str(OBJECTIVE_PIEZO_HOME_UM) + " um", self)
 
         hbox3 = QHBoxLayout()
         hbox3.addWidget(self.home_btn)
@@ -1018,9 +1018,9 @@ class PiezoWidget(QFrame):
 
     def update_spinBox_from_slider(self, value):
         self.spinBox.setValue(float(value))
-        dispvalue = float(self.spinBox.value())
-        dacvalue = int(65535 * (dispvalue / OBJECTIVE_PIEZO_RANGE_UM))
-        self.navigationController.microcontroller.analog_write_onboard_DAC(7, dacvalue)
+        displacement_um = float(self.spinBox.value())
+        dac = int(65535 * (displacement_um / OBJECTIVE_PIEZO_RANGE_UM))
+        self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
 
     def update_slider_from_spinBox(self, value):
         self.slider.setValue(int(value))
@@ -1035,7 +1035,7 @@ class PiezoWidget(QFrame):
         self.spinBox.setValue(new_position)
 
     def set_home(self):
-        self.spinBox.setValue(0.0)
+        self.spinBox.setValue(OBJECTIVE_PIEZO_HOME_UM)
 
 
 class RecordingWidget(QFrame):
