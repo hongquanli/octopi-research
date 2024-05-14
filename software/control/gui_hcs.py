@@ -301,21 +301,19 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
         self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
-        self.recordFunctionsTabWidget = QTabWidget()
-        self.recordFunctionsTabWidget.addTab(self.navigationWidget,"Stages")
+        self.microscopeControlTabWidget = QTabWidget()
+        self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
         if ENABLE_OBJECTIVE_PIEZO:
-            self.recordFunctionsTabWidget.addTab(self.piezoWidget,"Piezo")
-        self.recordFunctionsTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+            self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
+        self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
         layout.addWidget(self.liveControlWidget)
-        layout.addWidget(self.recordFunctionsTabWidget)
-        layout.addWidget(self.recordTabWidget)
+        layout.addWidget(self.microscopeControlTabWidget)
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
-        #layout.addWidget()
         layout.addWidget(self.recordTabWidget)
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
@@ -459,7 +457,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.recordFunctionsTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
+            self.microscopeControlTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
