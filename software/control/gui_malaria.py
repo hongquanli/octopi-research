@@ -175,7 +175,8 @@ class OctopiGUI(QMainWindow):
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         self.focusMapWidget = widgets.FocusMapWidget(self.autofocusController)
-        self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
+        if ENABLE_STITCHER:
+            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
@@ -249,9 +250,11 @@ class OctopiGUI(QMainWindow):
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multipointController.signal_stitcher.connect(self.startStitcher)
-        self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
-        self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+        if ENABLE_STITCHER:
+            self.multipointController.signal_stitcher.connect(self.startStitcher)
+            self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+            self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
         if USE_NAPARI:
             self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)

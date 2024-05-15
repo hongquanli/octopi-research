@@ -1071,6 +1071,7 @@ class NavigationWidget(QFrame):
         self.slidePositionController = slidePositionController
         self.widget_configuration = widget_configuration
         self.slide_position = None
+        self.flag_click_to_move = False
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1221,7 +1222,32 @@ class NavigationWidget(QFrame):
 
         self.btn_load_slide.clicked.connect(self.switch_position)
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
-        
+
+    def toggle_navigation_controls(self, started):
+        if started:
+            self.flag_click_to_move = self.navigationController.get_flag_click_to_move()
+            self.setEnabled_all(False)
+            self.checkbox_clickToMove.setChecked(False)
+        else:
+            self.setEnabled_all(True)
+            self.checkbox_clickToMove.setChecked(self.flag_click_to_move)
+
+    def setEnabled_all(self, enabled):
+        self.checkbox_clickToMove.setEnabled(enabled)
+        self.btn_home_X.setEnabled(enabled)
+        self.btn_zero_X.setEnabled(enabled)
+        self.btn_moveX_forward.setEnabled(enabled)
+        self.btn_moveX_backward.setEnabled(enabled)
+        self.btn_home_Y.setEnabled(enabled)
+        self.btn_zero_Y.setEnabled(enabled)
+        self.btn_moveY_forward.setEnabled(enabled)
+        self.btn_moveY_backward.setEnabled(enabled)
+        self.btn_home_Z.setEnabled(enabled)
+        self.btn_zero_Z.setEnabled(enabled)
+        self.btn_moveZ_forward.setEnabled(enabled)
+        self.btn_moveZ_backward.setEnabled(enabled)
+        self.btn_load_slide.setEnabled(enabled)
+
     def move_x_forward(self):
         self.navigationController.move_x(self.entry_dX.value())
     def move_x_backward(self):
@@ -1478,6 +1504,7 @@ class StatsDisplayWidget(QFrame):
 
 class MultiPointWidget(QFrame):
 
+    signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
     signal_acquisition_dz_um = Signal(float)
@@ -1625,7 +1652,8 @@ class MultiPointWidget(QFrame):
         grid_af.addWidget(self.checkbox_genFocusMap)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        grid_af.addWidget(self.checkbox_stitchOutput)
+        if ENABLE_STITCHER:
+            grid_af.addWidget(self.checkbox_stitchOutput)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -1718,6 +1746,10 @@ class MultiPointWidget(QFrame):
             self.setEnabled_all(False)
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+            # emit acquisition data
+            self.signal_acquisition_started.emit(True)
+            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
+            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1727,8 +1759,6 @@ class MultiPointWidget(QFrame):
             self.multipointController.set_NY(self.entry_NY.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
-            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
-            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
@@ -1738,6 +1768,7 @@ class MultiPointWidget(QFrame):
             self.setEnabled_all(True)
 
     def acquisition_is_finished(self):
+        self.signal_acquisition_started.emit(False)
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
@@ -1772,6 +1803,7 @@ class MultiPointWidget(QFrame):
 
 class MultiPointWidget2(QFrame):
 
+    signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int)
     signal_acquisition_dz_um = Signal(float)
@@ -1952,7 +1984,8 @@ class MultiPointWidget2(QFrame):
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        grid_af.addWidget(self.checkbox_stitchOutput)
+        if ENABLE_STITCHER:
+            grid_af.addWidget(self.checkbox_stitchOutput)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -2059,6 +2092,9 @@ class MultiPointWidget2(QFrame):
             self.setEnabled_all(False)
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+            self.signal_acquisition_started.emit(True)
+            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
+            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -2068,8 +2104,6 @@ class MultiPointWidget2(QFrame):
             self.multipointController.set_NY(self.entry_NY.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
-            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
-            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
@@ -2113,6 +2147,7 @@ class MultiPointWidget2(QFrame):
         else:
             self.clear()
             self.acquisition_in_place = False
+        self.signal_acquisition_started.emit(False)
         self.btn_startAcquisition.setChecked(False)
         self.setEnabled_all(True)
 
@@ -2483,7 +2518,7 @@ class StitcherWidget(QFrame):
 
 class NapariTiledDisplayWidget(QWidget):
 
-    signal_coordinates_clicked = Signal(int, int, int, int)
+    signal_coordinates_clicked = Signal(int, int, int, int, int, int)
 
     def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
@@ -2595,7 +2630,7 @@ class NapariTiledDisplayWidget(QWidget):
             x_centered = int(coords[-1] - layer_shape[-1] / 2)
             y_centered = int(coords[-2] - layer_shape[-2] / 2)
             # Emit the centered coordinates and dimensions of the layer's data array
-            self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2])
+            self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2], self.Nx, self.Ny)
 
     def getContrastLimits(self):
         if np.issubdtype(self.dtype, np.integer):

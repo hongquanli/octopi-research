@@ -42,12 +42,16 @@ from pathlib import Path
 from datetime import datetime
 import time
 import subprocess
+import shutil
 
 # stitching libs
 import imageio as iio
 import dask.array as da
 from dask_image.imread import imread as dask_imread
 from skimage import io, registration
+import ome_zarr
+import zarr
+
 from aicsimageio.writers import OmeTiffWriter
 from aicsimageio.writers import OmeZarrWriter
 from aicsimageio import types
@@ -675,7 +679,10 @@ class NavigationController(QObject):
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
 
-    def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height):
+    def get_flag_click_to_move(self):
+        return self.click_to_move
+
+    def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1):
         # restore to raw coordicate
         click_x = click_x + image_width / 2.0
         click_y = click_y - image_height / 2.0
@@ -725,16 +732,19 @@ class NavigationController(QObject):
         delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
         delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
 
-        if not IS_WELLPLATE:
-            delta_x /= 2
-            delta_y /= 2
+        center_beginning_x = pixel_sign_x * pixel_size_x * image_width / Nx / 2 / 1000.0
+        center_beginning_y = pixel_sign_y * pixel_size_y * image_height / Ny / 2 / 1000.0
 
         if USE_NAPARI:
-            self.move_x_to(self.scan_begin_position_x + (delta_x))
-            self.move_y_to(self.scan_begin_position_y + (delta_y))
+            if not IS_WELLPLATE:
+                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x) / 2)
+                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y) / 2)
+            else:
+                self.move_x_to(self.scan_begin_position_x - center_beginning_x + delta_x / 0.8)
+                self.move_y_to(self.scan_begin_position_y + center_beginning_y + delta_y / 0.8)
         else:
-            self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR))
-            self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR))
+            self.move_x_to(self.scan_begin_position_x - center_beginning_x / 2 + delta_x * PRVIEW_DOWNSAMPLE_FACTOR/2)
+            self.move_y_to(self.scan_begin_position_y + center_beginning_y / 2 + delta_y * PRVIEW_DOWNSAMPLE_FACTOR/2)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -1746,7 +1756,8 @@ class MultiPointWorker(QObject):
             if Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
-            init_napari_layers = False
+            if USE_NAPARI:
+                init_napari_layers = False
 
             # along y
             for i in range(self.NY):
@@ -1951,11 +1962,12 @@ class MultiPointWorker(QObject):
                                         else:
                                             iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
 
-                                    if not init_napari_layers:
-                                        print("init napari viewer")
-                                        init_napari_layers = True
-                                        self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
-                                    self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
+                                    if USE_NAPARI:
+                                        if not init_napari_layers:
+                                            print("init napari viewer")
+                                            init_napari_layers = True
+                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
+                                        self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
 
                                     QApplication.processEvents()
 
@@ -2023,12 +2035,13 @@ class MultiPointWorker(QObject):
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 1])
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 2])
 
-                                    if not init_napari_layers:
-                                        print("init rgb layer")
-                                        init_napari_layers = True
-                                        print(rgb_image.dtype)
-                                        self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
-                                    self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
+                                    if USE_NAPARI:
+                                        if not init_napari_layers:
+                                            print("init rgb layer")
+                                            init_napari_layers = True
+                                            print(rgb_image.dtype)
+                                            self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
+                                        self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
 
                                 # USB spectrometer
                                 else:
@@ -3148,14 +3161,10 @@ class Stitcher(Thread, QObject):
         self.h_shift = h_shift
 
     def init_output(self, time_point, well):
-        if len(self.time_points) > 1:
-            output_folder = os.path.join(self.input_folder, time_point + "_stitched")
-        else:
-             output_folder = os.path.join(self.input_folder, "stitched")
+        output_folder = os.path.join(self.input_folder, time_point + "_stitched")
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-
-        if len(self.wells) > 1:
+        if IS_WELLPLATE:
             self.output_path = os.path.join(output_folder, well + "_" + self.output_name)
         else:
             self.output_path = os.path.join(output_folder, self.output_name)
@@ -3166,6 +3175,7 @@ class Stitcher(Thread, QObject):
         # element_size = np.dtype(self.dtype).itemsize  # Byte size of one array element
         # memory_bytes = np.prod(tczyx_shape) * element_size # # Total memory in bytes
         chunks = (1, 1, 1, self.input_height, self.input_width)
+        print(tczyx_shape)
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
@@ -3227,7 +3237,7 @@ class Stitcher(Thread, QObject):
             data_shapes=[self.stitched_images.shape],
             data_types=[self.stitched_images.dtype],
             dimension_order=["TCZYX"],
-            channel_names=[self.channel_names],
+            channel_names=self.channel_names,
             physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)]
         )
         OmeTiffWriter.save(
@@ -3242,11 +3252,12 @@ class Stitcher(Thread, QObject):
         dz_um = self.acquisition_params.get("dz(um)", None)
         sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
         default_color_hex = 0xFFFFFF        
-        default_intensity_min = np.iinfo(self.stitched_images.dtype).min
-        default_intensity_max = np.iinfo(self.stitched_images.dtype).max
+        intensity_min = np.iinfo(self.dtype).min
+        intensity_max = np.iinfo(self.dtype).max
 
-        channel_colors = [default_color_hex] * self.num_c
-        channel_minmax = [(default_intensity_min, default_intensity_max)] * self.num_c
+        #channel_colors = [self.configurationManager.get_color_for_channel(c) for c in self.channel_names]
+        channel_colors = [default_color_hex] * len(self.channel_names)
+        channel_minmax = [(intensity_min, intensity_max)] * self.num_c
 
         zarr_writer = OmeZarrWriter(self.output_path)
         zarr_writer.build_ome(
@@ -3266,6 +3277,143 @@ class Stitcher(Thread, QObject):
             chunk_dims=(1, 1, 1, self.input_height, self.input_width)
         )
         self.stitched_images = None
+        #root = zarr.open(self.output_path, mode='r')
+        #print(root.tree())
+
+    def create_complete_ome_zarr(self):
+        """ Creates a complete OME-ZARR with proper channel metadata. """
+        final_path = os.path.join(self.input_folder, "complete_acquisition.ome.zarr")
+        if len(self.time_points) == 1:
+            zarr_path = os.path.join(self.input_folder, f"0_stitched", f"stitched.ome.zarr")
+            shutil.copytree(zarr_path, final_path)
+        else:
+            store = ome_zarr.io.parse_url(final_path, mode="w").store
+            root_group = zarr.group(store=store)
+            intensity_min = np.iinfo(self.dtype).min
+            intensity_max = np.iinfo(self.dtype).max
+
+            data = self.load_and_merge_timepoints()
+            print(data.shape)
+
+            # Assuming single field of view and setting up image group directly under root
+            ome_zarr.writer.write_image(
+                image=data,
+                group=root_group,
+                axes="tczyx",
+                channel_names=self.channel_names,
+                storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
+            )
+            # Setup channel information with metadata for colors
+            channel_info = [{
+                "label": name,
+                "color": "FFFFFF",
+                "window": {"start": intensity_min, "end": intensity_max},
+                "active": True
+            } for name in self.channel_names]
+
+            # Assign the channel metadata to the image group
+            root_group.attrs["omero"] = {"channels": channel_info}
+
+            print(f"All data saved in HCS OME-ZARR format at: {final_path}")
+            root = zarr.open(final_path, mode='r')
+            print(root.tree())
+        self.finished_saving.emit(final_path, self.dtype)
+
+    def create_hcs_ome_zarr(self):
+        """Creates a hierarchical Zarr file in the HCS OME-ZARR format for visualization in napari."""
+        hcs_path = os.path.join(self.input_folder, "complete_acquisition.ome.zarr")
+        if len(self.time_points) == 1 and len(self.wells) == 1:
+            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_stitched.ome.zarr")
+            shutil.copytree(stitched_zarr_path, hcs_path)
+        else:
+            store = ome_zarr.io.parse_url(hcs_path, mode="w").store
+            root_group = zarr.group(store=store)
+
+            # Retrieve row and column information for plate metadata
+            rows, columns = self.get_rows_and_columns()
+            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in self.wells]
+            print(well_paths)
+            ome_zarr.writer.write_plate_metadata(root_group, rows, [str(col) for col in columns], well_paths)
+
+            # Loop over each well and save its data
+            for well_id in self.wells:
+                row, col = well_id[0], well_id[1:]
+                row_group = root_group.require_group(row)
+                well_group = row_group.require_group(col)
+
+                self.process_well(well_id, well_group)
+
+            print(f"All data saved in HCS OME-ZARR format at: {hcs_path}")
+            channel_info = []
+
+            root_group.attrs["omero"] = {
+                "channels": channel_info
+            }
+            root = zarr.open(hcs_path, mode='r')
+            print(root.tree())
+        self.finished_saving.emit(hcs_path, self.dtype)
+
+    def process_well(self, well_id, well_group):
+        """Process and save data for a single well across all timepoints."""
+        # Load data from precomputed Zarrs for each timepoint
+        data = self.load_and_merge_timepoints(well_id)
+        print(data.shape)
+        intensity_min = np.iinfo(self.dtype).min
+        intensity_max = np.iinfo(self.dtype).max
+        #dataset = well_group.create_dataset("data", data=data, chunks=(1, 1, 1, self.input_height, self.input_width), dtype=data.dtype)
+        field_paths = ["0"]  # Assuming single field of view
+        ome_zarr.writer.write_well_metadata(well_group, field_paths)
+        for fi, field in enumerate(field_paths):
+            image_group = well_group.require_group(str(field))
+            ome_zarr.writer.write_image(image=data,
+                                        group=image_group,
+                                        axes="tczyx",
+                                        channel_names=self.channel_names,
+                                        storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width)))
+            channel_info = [{
+                "label": name,
+                "color": "FFFFFF",
+                "window": {"start": intensity_min, "end": intensity_max},
+                "active": True
+                # make method that returns a color name from hex code
+                # self.configurationManager.get_color_for_channel(name) then convert to hex, 
+            } for name in self.channel_names]
+
+            image_group.attrs["omero"] = {"channels": channel_info}
+
+    def load_and_merge_timepoints(self, well_id=''):
+        """Load and merge data for a well from Zarr files for each timepoint."""
+        timepoint_data = []
+        for t in self.time_points:
+            if IS_WELLPLATE:
+                print(well_id)
+                filepath = f"{well_id}_stitched.ome.zarr"
+            else:
+                filepath = f"stitched.ome.zarr"
+            zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
+            z = zarr.open(zarr_path, mode='r')
+            # Ensure that '0' contains the data and it matches expected dimensions
+            print(z.tree())
+            t_array = da.from_zarr(z['0'])
+            print(f"Shape of data from timepoint {t}: {t_array.shape}")
+            timepoint_data.append(t_array)
+
+        # Concatenate arrays along the existing time axis if multiple timepoints are present
+        if timepoint_data:
+            data = da.concatenate(timepoint_data, axis=0)
+            print(f"Shape of merged data: {data.shape}")
+            return data
+        else:
+            raise ValueError("No data loaded from timepoints.")
+
+    def get_rows_and_columns(self):
+        """Utility to extract rows and columns from well identifiers."""
+        rows = set()
+        columns = set()
+        for well_id in self.wells:
+            rows.add(well_id[0])  # Assuming well_id like 'A1'
+            columns.add(int(well_id[1:]))
+        return sorted(rows), sorted(columns)
 
     def run(self):
         # Main stitching logic
@@ -3295,7 +3443,15 @@ class Stitcher(Thread, QObject):
                     else:
                         self.save_as_ome_zarr()
                     print(f"...done saving t:{time_point}, well:{well} successfully")
-                    self.finished_saving.emit(self.output_path, self.dtype)
+                    #if not IS_WELLPLATE:
+                    #    self.finished_saving.emit(self.output_path, self.dtype)
+
+            if IS_WELLPLATE and self.output_format == ".ome.zarr":
+                print(f"...done saving complete hcs successfully")
+                self.create_hcs_ome_zarr()
+            elif self.output_format == ".ome.zarr":
+                print(f"...done saving complete successfully")
+                self.create_complete_ome_zarr()
 
         except Exception as e:
             print(f"error While Stitching: {e}")
