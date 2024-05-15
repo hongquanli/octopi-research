@@ -737,8 +737,8 @@ class NavigationController(QObject):
 
         if USE_NAPARI:
             if not IS_WELLPLATE:
-                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x) / 2)
-                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y) / 2)
+                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x * 1.1) / 2)
+                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y * 1.1) / 2)
             else:
                 self.move_x_to(self.scan_begin_position_x - center_beginning_x + delta_x / 0.8)
                 self.move_y_to(self.scan_begin_position_y + center_beginning_y + delta_y / 0.8)
@@ -3376,14 +3376,19 @@ class Stitcher(Thread, QObject):
                 "window": {"start": intensity_min, "end": intensity_max},
                 "active": True
                 # make method that returns a color name from hex code
-                # self.configurationManager.get_color_for_channel(name) then convert to hex, 
+                # self.configurationManager.get_color_for_channel(name) then convert to hex,
             } for name in self.channel_names]
 
             image_group.attrs["omero"] = {"channels": channel_info}
 
+    def pad_to_largest(self, array, target_shape):
+        pad_widths = [(0, max(0, ts - s)) for s, ts in zip(array.shape, target_shape)]
+        return da.pad(array, pad_widths, mode='constant', constant_values=0)
+
     def load_and_merge_timepoints(self, well_id=''):
         """Load and merge data for a well from Zarr files for each timepoint."""
-        timepoint_data = []
+        t_data = []
+        t_shapes = []
         for t in self.time_points:
             if IS_WELLPLATE:
                 print(well_id)
@@ -3396,11 +3401,14 @@ class Stitcher(Thread, QObject):
             print(z.tree())
             t_array = da.from_zarr(z['0'])
             print(f"Shape of data from timepoint {t}: {t_array.shape}")
-            timepoint_data.append(t_array)
+            t_data.append(t_array)
+            t_shapes.append(t_array.shape)
 
         # Concatenate arrays along the existing time axis if multiple timepoints are present
-        if timepoint_data:
-            data = da.concatenate(timepoint_data, axis=0)
+        if t_data:
+            max_shape = tuple(max(s) for s in zip(*t_shapes))
+            padded_data = [self.pad_to_largest(t, max_shape) for t in t_data]
+            data = da.concatenate(padded_data, axis=0)
             print(f"Shape of merged data: {data.shape}")
             return data
         else:
