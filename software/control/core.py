@@ -1706,7 +1706,10 @@ class MultiPointWorker(QObject):
 
 
         # create a dataframe to save coordinates
-        self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
+        if IS_WELLPLATE:
+            self.coordinates_pd = pd.DataFrame(columns = ['well', 'i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
+        else:
+            self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
 
         n_regions = len(self.scan_coordinates_mm)
 
@@ -1714,9 +1717,9 @@ class MultiPointWorker(QObject):
             coordiante_mm = self.scan_coordinates_mm[coordinate_id]         
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
-                coordiante_name = str(coordinate_id)
+                coordinate_name = str(coordinate_id)
             else:
-                coordiante_name = self.scan_coordinates_name[coordinate_id]
+                coordinate_name = self.scan_coordinates_name[coordinate_id]
             
             if self.use_scan_coordinates:
                 # move to the specified coordinate
@@ -1743,7 +1746,7 @@ class MultiPointWorker(QObject):
                 if len(coordiante_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
-                coordiante_name = coordiante_name + '_'
+                coordinate_name = coordinate_name + '_'
 
 
             self.x_scan_direction = 1
@@ -1770,7 +1773,7 @@ class MultiPointWorker(QObject):
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
-                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordinate_name,i,j)
 
                     else:
 
@@ -1816,7 +1819,7 @@ class MultiPointWorker(QObject):
                                     else:
                                         self.microscope.laserAutofocusController.move_to_target(0)
                                 except:
-                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    file_ID = coordinate_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
                                     saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
                                     iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
                                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -1846,7 +1849,7 @@ class MultiPointWorker(QObject):
                             real_i = self.NY-1-i if sgn_i == -1 else i
                             real_j = j if sgn_j == 1 else self.NX-1-j
 
-                            file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
+                            file_ID = coordinate_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
@@ -2084,12 +2087,22 @@ class MultiPointWorker(QObject):
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
                             # add the coordinate of the current location
-                            new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
+                            if IS_WELLPLATE:
+                                new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
+                                                    'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                     'x (mm)':[self.navigationController.x_pos_mm],
                                                     'y (mm)':[self.navigationController.y_pos_mm],
                                                     'z (um)':[self.navigationController.z_pos_mm*1000],
                                                     'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
                                                     )
+                            else:
+                                new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
+                                                'x (mm)':[self.navigationController.x_pos_mm],
+                                                'y (mm)':[self.navigationController.y_pos_mm],
+                                                'z (um)':[self.navigationController.z_pos_mm*1000],
+                                                'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
+                                                )
+                            # print(new_row)
                             self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
                             # register the current fov in the navigationViewer
@@ -2994,9 +3007,15 @@ class Stitcher(Thread, QObject):
 
     def determine_directions(self, image_folder):
         coordinates = pd.read_csv(os.path.join(image_folder, 'coordinates.csv'))
+        if IS_WELLPLATE:
+            first_well = coordinates['well'].unique()[0]
+            coordinates = coordinates[coordinates['well'] == first_well]
+        
         i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
         j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
         k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
+        if not IS_WELLPLATE:
+            return {'rows': False, 'cols': False, 'z-planes': False}
         return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
 
     def parse_filenames(self, time_point, four_input_format=True):
@@ -3014,10 +3033,10 @@ class Stitcher(Thread, QObject):
         try:
             well, i, j, k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
             k = int(k)
-            print("well_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            #print("well_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
             four_input_format = True
         except ValueError as ve:
-            print("i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            #print("i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
             four_input_format = False
 
         first_image = dask_imread(os.path.join(self.image_folder, first_filename))
@@ -3175,7 +3194,6 @@ class Stitcher(Thread, QObject):
         # element_size = np.dtype(self.dtype).itemsize  # Byte size of one array element
         # memory_bytes = np.prod(tczyx_shape) * element_size # # Total memory in bytes
         chunks = (1, 1, 1, self.input_height, self.input_width)
-        print(tczyx_shape)
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
@@ -3237,7 +3255,7 @@ class Stitcher(Thread, QObject):
             data_shapes=[self.stitched_images.shape],
             data_types=[self.stitched_images.dtype],
             dimension_order=["TCZYX"],
-            channel_names=self.channel_names,
+            channel_names=[self.channel_names],
             physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)]
         )
         OmeTiffWriter.save(
@@ -3293,7 +3311,6 @@ class Stitcher(Thread, QObject):
             intensity_max = np.iinfo(self.dtype).max
 
             data = self.load_and_merge_timepoints()
-            print(data.shape)
 
             # Assuming single field of view and setting up image group directly under root
             ome_zarr.writer.write_image(
@@ -3302,6 +3319,7 @@ class Stitcher(Thread, QObject):
                 axes="tczyx",
                 channel_names=self.channel_names,
                 storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
+                #storage_options=dict(chunks=(1, 1, 1, data.shape[-2], data.shape[-1]))
             )
             # Setup channel information with metadata for colors
             channel_info = [{
@@ -3331,7 +3349,7 @@ class Stitcher(Thread, QObject):
 
             # Retrieve row and column information for plate metadata
             rows, columns = self.get_rows_and_columns()
-            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in self.wells]
+            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.wells)]
             print(well_paths)
             ome_zarr.writer.write_plate_metadata(root_group, rows, [str(col) for col in columns], well_paths)
 
@@ -3357,7 +3375,6 @@ class Stitcher(Thread, QObject):
         """Process and save data for a single well across all timepoints."""
         # Load data from precomputed Zarrs for each timepoint
         data = self.load_and_merge_timepoints(well_id)
-        print(data.shape)
         intensity_min = np.iinfo(self.dtype).min
         intensity_max = np.iinfo(self.dtype).max
         #dataset = well_group.create_dataset("data", data=data, chunks=(1, 1, 1, self.input_height, self.input_width), dtype=data.dtype)
@@ -3369,7 +3386,9 @@ class Stitcher(Thread, QObject):
                                         group=image_group,
                                         axes="tczyx",
                                         channel_names=self.channel_names,
-                                        storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width)))
+                                        storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
+                                        #storage_options=dict(chunks=(1, 1, 1, data.shape[-2], data.shape[-1]))
+                                        )
             channel_info = [{
                 "label": name,
                 "color": "FFFFFF",
@@ -3382,6 +3401,8 @@ class Stitcher(Thread, QObject):
             image_group.attrs["omero"] = {"channels": channel_info}
 
     def pad_to_largest(self, array, target_shape):
+        if array.shape == target_shape:
+            return array
         pad_widths = [(0, max(0, ts - s)) for s, ts in zip(array.shape, target_shape)]
         return da.pad(array, pad_widths, mode='constant', constant_values=0)
 
@@ -3391,28 +3412,34 @@ class Stitcher(Thread, QObject):
         t_shapes = []
         for t in self.time_points:
             if IS_WELLPLATE:
-                print(well_id)
+                print("well:", well_id)
                 filepath = f"{well_id}_stitched.ome.zarr"
             else:
                 filepath = f"stitched.ome.zarr"
             zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
+            print("timepoint:", t, "\t", zarr_path)
             z = zarr.open(zarr_path, mode='r')
             # Ensure that '0' contains the data and it matches expected dimensions
-            print(z.tree())
-            t_array = da.from_zarr(z['0'])
-            print(f"Shape of data from timepoint {t}: {t_array.shape}")
+            x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
+            y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
+            t_array = da.from_zarr(z['0'], chunks=(1,1,1,self.input_height,self.input_width))
+
+            print(f"shape of data from timepoint {t}: {t_array.shape}")
             t_data.append(t_array)
             t_shapes.append(t_array.shape)
 
         # Concatenate arrays along the existing time axis if multiple timepoints are present
-        if t_data:
+        if len(t_data) > 1:
             max_shape = tuple(max(s) for s in zip(*t_shapes))
             padded_data = [self.pad_to_largest(t, max_shape) for t in t_data]
             data = da.concatenate(padded_data, axis=0)
-            print(f"Shape of merged data: {data.shape}")
+            print(f"shape of merged data: {data.shape}")
+            return data
+        elif len(t_data) == 1:
+            data = t_data[0]
             return data
         else:
-            raise ValueError("No data loaded from timepoints.")
+            raise ValueError("no data loaded from timepoints.")
 
     def get_rows_and_columns(self):
         """Utility to extract rows and columns from well identifiers."""
@@ -3427,39 +3454,45 @@ class Stitcher(Thread, QObject):
         # Main stitching logic
         try:
             for time_point in self.time_points:
-                print("parsing acquisition metadata...")
+                print(f"timepoint:{time_point} - parsing acquisition metadata ...")
                 self.parse_filenames(time_point) # 
 
                 if self.apply_flatfield:
-                    print(f"getting flatfields t:{time_point}...")
+                    print(f"getting flatfields...")
                     self.getting_flatfields.emit()
                     self.get_flatfields(progress_callback=self.update_progress.emit)
 
                 if self.use_registration:
-                    print(f"calculating shifts t:{time_point}...")
+                    print(f"calculating shifts...")
                     self.calculate_shifts()
 
                 for well in self.wells:
+                    if well != '0':
+                        print(f"well:{well}")
                     self.starting_stitching.emit()
-                    print(f"starting stitching t:{time_point} well:{well}...")
+                    print(f"starting stitching...")
                     self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
 
                     self.starting_saving.emit()
-                    print(f"starting saving t:{time_point} well:{well}...")
+                    print(f"starting saving...")
                     if ".ome.tiff" in self.output_path:
                         self.save_as_ome_tiff()
                     else:
                         self.save_as_ome_zarr()
-                    print(f"...done saving t:{time_point}, well:{well} successfully")
-                    #if not IS_WELLPLATE:
-                    #    self.finished_saving.emit(self.output_path, self.dtype)
+                    if well != '0':
+                        print(f"...done saving t:{time_point} well:{well} successfully")
+                print(f"...done saving t:{time_point} successfully")
 
-            if IS_WELLPLATE and self.output_format == ".ome.zarr":
-                print(f"...done saving complete hcs successfully")
-                self.create_hcs_ome_zarr()
-            elif self.output_format == ".ome.zarr":
-                print(f"...done saving complete successfully")
-                self.create_complete_ome_zarr()
+            if STITCH_COMPLETE_ACQUISITION and self.output_format == ".ome.zarr":
+                self.starting_saving.emit()
+                if IS_WELLPLATE:
+                    self.create_hcs_ome_zarr()
+                    print(f"...done saving complete hcs successfully")
+                else:
+                    self.create_complete_ome_zarr()
+                    print(f"...done saving complete successfully")
+            else:
+                self.finished_saving.emit(self.output_path, self.dtype)
 
         except Exception as e:
             print(f"error While Stitching: {e}")
