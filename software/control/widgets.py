@@ -1015,7 +1015,7 @@ class PiezoWidget(QFrame):
         self.spinBox.valueChanged.connect(self.update_slider_from_spinBox)
         self.move_up_btn.clicked.connect(lambda: self.adjust_position(True))
         self.move_down_btn.clicked.connect(lambda: self.adjust_position(False))
-        self.home_btn.clicked.connect(self.set_home)
+        self.home_btn.clicked.connect(self.home)
 
     def update_spinBox_from_slider(self, value):
         self.spinBox.setValue(float(value))
@@ -1035,9 +1035,16 @@ class PiezoWidget(QFrame):
             new_position = current_position - increment
         self.spinBox.setValue(new_position)
 
-    def set_home(self):
+    def home(self):
         self.spinBox.setValue(OBJECTIVE_PIEZO_HOME_UM)
 
+    def update_displacement_um_display(self, displacement):
+        self.spinBox.blockSignals(True)
+        self.slider.blockSignals(True)
+        self.spinBox.setValue(displacement)
+        self.slider.setValue(int(displacement))
+        self.spinBox.blockSignals(False)
+        self.slider.blockSignals(False)
 
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):

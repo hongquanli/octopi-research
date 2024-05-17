@@ -1535,6 +1535,7 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
+    signal_z_piezo_um = Signal(float)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object, bool)
 
@@ -1574,6 +1575,7 @@ class MultiPointWorker(QObject):
         self.experiment_ID = self.multiPointController.experiment_ID
         self.base_path = self.multiPointController.base_path
         self.selected_configurations = self.multiPointController.selected_configurations
+        self.use_piezo = self.multiPointController.use_piezo
         self.detection_stats = {}
         self.async_detection_stats = {}
 
@@ -1675,7 +1677,10 @@ class MultiPointWorker(QObject):
 
 
         # create a dataframe to save coordinates
-        self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
+        if self.use_piezo:
+            self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'z_piezo (um)', 'time'])
+        else:
+            self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
 
         n_regions = len(self.scan_coordinates_mm)
 
@@ -1729,6 +1734,16 @@ class MultiPointWorker(QObject):
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
             init_napari_layers = False
+
+            # reset piezo to home position
+            if self.use_piezo:
+                self.z_piezo_um = OBJECTIVE_PIEZO_HOME_UM
+                dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
+                self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+                if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
+                    time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
+                if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
+                    self.signal_z_piezo_um.emit(self.z_piezo_um)
 
             # along y
             for i in range(self.NY):
@@ -2047,12 +2062,21 @@ class MultiPointWorker(QObject):
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
                             # add the coordinate of the current location
-                            new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
-                                                    'x (mm)':[self.navigationController.x_pos_mm],
-                                                    'y (mm)':[self.navigationController.y_pos_mm],
-                                                    'z (um)':[self.navigationController.z_pos_mm*1000],
-                                                    'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
-                                                    )
+                            if self.use_piezo:
+                                new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
+                                                        'x (mm)':[self.navigationController.x_pos_mm],
+                                                        'y (mm)':[self.navigationController.y_pos_mm],
+                                                        'z (um)':[self.navigationController.z_pos_mm*1000],
+                                                        'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
+                                                        'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
+                                                        )
+                            else:
+                                new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
+                                                        'x (mm)':[self.navigationController.x_pos_mm],
+                                                        'y (mm)':[self.navigationController.y_pos_mm],
+                                                        'z (um)':[self.navigationController.z_pos_mm*1000],
+                                                        'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
+                                                        )
                             self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
                             # register the current fov in the navigationViewer
@@ -2083,38 +2107,54 @@ class MultiPointWorker(QObject):
                             if self.NZ > 1:
                                 # move z
                                 if k < self.NZ - 1:
-                                    self.navigationController.move_z_usteps(self.deltaZ_usteps)
-                                    self.wait_till_operation_is_completed()
-                                    time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-                                    self.dz_usteps = self.dz_usteps + self.deltaZ_usteps
+                                    if self.use_piezo:
+                                        self.z_piezo_um += self.deltaZ*1000
+                                        dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
+                                        self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+                                        if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
+                                            time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
+                                        if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
+                                            self.signal_z_piezo_um.emit(self.z_piezo_um)
+                                    else:
+                                        self.navigationController.move_z_usteps(self.deltaZ_usteps)
+                                        self.wait_till_operation_is_completed()
+                                        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+                                        self.dz_usteps = self.dz_usteps + self.deltaZ_usteps
 
                         if self.NZ > 1:
                             # move z back
-                            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                            if Z_STACKING_CONFIG == 'FROM CENTER':
-                                if self.navigationController.get_pid_control_flag(2) is False:
-                                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                                    self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
-                                    self.wait_till_operation_is_completed()
-                                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                                    self.wait_till_operation_is_completed()
-                                else:
-                                    self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
-                                    self.wait_till_operation_is_completed()
-                                    
-                                self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
+                            if self.use_piezo:
+                                displacement_um = OBJECTIVE_PIEZO_HOME_UM
+                                dac = int(65535 * (displacement_um / OBJECTIVE_PIEZO_RANGE_UM))
+                                self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+                                if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
+                                            time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
+                                if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
+                                    self.signal_z_piezo_um.emit(self.z_piezo_um)
                             else:
-                                if self.navigationController.get_pid_control_flag(2) is False:
-                                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                                    self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1) - _usteps_to_clear_backlash)
-                                    self.wait_till_operation_is_completed()
-                                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                                    self.wait_till_operation_is_completed()
+                                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                                if Z_STACKING_CONFIG == 'FROM CENTER':
+                                    if self.navigationController.get_pid_control_flag(2) is False:
+                                        _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                                        self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
+                                        self.wait_till_operation_is_completed()
+                                        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                                        self.wait_till_operation_is_completed()
+                                    else:
+                                        self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) )
+                                        self.wait_till_operation_is_completed()
+                                    self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2)
                                 else:
-                                    self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
-                                    self.wait_till_operation_is_completed()
-
-                                self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1)
+                                    if self.navigationController.get_pid_control_flag(2) is False:
+                                        _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                                        self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1) - _usteps_to_clear_backlash)
+                                        self.wait_till_operation_is_completed()
+                                        self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                                        self.wait_till_operation_is_completed()
+                                    else:
+                                        self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
+                                        self.wait_till_operation_is_completed()
+                                    self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
                         # update FOV counter
                         self.FOV_counter = self.FOV_counter + 1
@@ -2191,6 +2231,7 @@ class MultiPointController(QObject):
     detection_stats = Signal(object)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object, bool)
+    signal_z_piezo_um = Signal(float)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
@@ -2227,6 +2268,7 @@ class MultiPointController(QObject):
         self.counter = 0
         self.experiment_ID = None
         self.base_path = None
+        self.use_piezo = MULTIPOINT_USE_PIEZO_FOR_ZSTACKS #TODO: change to false and get value from widget
         self.selected_configurations = []
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
@@ -2418,6 +2460,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
         self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
         self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
+        self.multiPointWorker.signal_z_piezo_um.connect(self.slot_z_piezo_um)
         # self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.thread.quit)
         # start the thread
@@ -2486,6 +2529,9 @@ class MultiPointController(QObject):
 
     def slot_napari_layers_init(self, image_height, image_width, dtype, rgb):
         self.napari_layers_init.emit(image_height, image_width, dtype, rgb)
+
+    def slot_z_piezo_um(self, displacement_um):
+        self.signal_z_piezo_um.emit(displacement_um)
 
 
 class TrackingController(QObject):

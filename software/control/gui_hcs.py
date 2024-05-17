@@ -238,7 +238,7 @@ class OctopiGUI(QMainWindow):
 
         # set piezo arguments
         if ENABLE_OBJECTIVE_PIEZO is True:
-            if PIEZO_CONTROL_VOLTAGE_RANGE == 5:
+            if OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5:
                 OUTPUT_GAINS.CHANNEL7_GAIN = True
             else:
                 OUTPUT_GAINS.CHANNEL7_GAIN = False
@@ -407,6 +407,7 @@ class OctopiGUI(QMainWindow):
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+        self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)

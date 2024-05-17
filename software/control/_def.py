@@ -430,7 +430,7 @@ CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritt
 
 ENABLE_STROBE_OUTPUT = False
 
-Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
+Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
 WELLPLATE_FORMAT = 384
@@ -545,11 +545,15 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 CACHED_CONFIG_FILE_PATH = None
 
 # Piezo configuration items
-ENABLE_OBJECTIVE_PIEZO = False
+ENABLE_OBJECTIVE_PIEZO = True
 # the value of OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
 OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
-OBJECTIVE_PIEZO_RANGE_UM = 300 
+OBJECTIVE_PIEZO_RANGE_UM = 300
 OBJECTIVE_PIEZO_HOME_UM = 100
+
+MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = True
+MULTIPOINT_PIEZO_DELAY_MS = 20
+MULTIPOINT_PIEZO_UPDATE_DISPLAY = True
 
 try:
     with open("cache/config_file_path.txt", 'r') as file:
@@ -612,6 +616,11 @@ else:
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
+
+# objective piezo
+if ENABLE_OBJECTIVE_PIEZO == False:
+    MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = False
+
 # saving path
 if not (DEFAULT_SAVING_PATH.startswith(str(Path.home()))):
     DEFAULT_SAVING_PATH = str(Path.home())+"/"+DEFAULT_SAVING_PATH.strip("/")
