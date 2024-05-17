@@ -205,7 +205,7 @@ class OctopiGUI(QMainWindow):
 
         # set piezo arguments
         if ENABLE_OBJECTIVE_PIEZO is True:
-            if PIEZO_CONTROL_VOLTAGE_RANGE == 5:
+            if OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5:
                 OUTPUT_GAINS.CHANNEL7_GAIN = True
             else:
                 OUTPUT_GAINS.CHANNEL7_GAIN = False
@@ -392,7 +392,8 @@ class OctopiGUI(QMainWindow):
         # display the FOV in the viewer
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode) 
+        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+        self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display) 
         
         if USE_NAPARI:
             self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
