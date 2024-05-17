@@ -2545,7 +2545,7 @@ class StitcherWidget(QFrame):
         self.progressBar.setVisible(True)
 
     def startingStitching(self):
-        self.statusLabel.setText('Status: Stitching Acquisition Images...')
+        self.statusLabel.setText('Status: Stitching Adjacent Scans...')
         self.viewOutputButton.setVisible(False)
         self.progressBar.setValue(0)
         self.statusLabel.setVisible(True)
@@ -2556,8 +2556,11 @@ class StitcherWidget(QFrame):
         self.progressBar.setValue(value)
         self.progressBar.setVisible(True)
 
-    def startingSaving(self):
-        self.statusLabel.setText('Status: Saving Stitched Image...')
+    def startingSaving(self, stitch_complete=False):
+        if stitch_complete:
+            self.statusLabel.setText('Status: Saving Complete Acquisition Image...')
+        else:
+            self.statusLabel.setText('Status: Saving Stitched Image...')
         self.progressBar.setRange(0, 0)  # indeterminate mode.
         self.statusLabel.setVisible(True)
         self.progressBar.setVisible(True)
@@ -2581,12 +2584,8 @@ class StitcherWidget(QFrame):
         else:
             contrast_limits = None
             raise ValueError("Unsupported dtype")
-
         self.output_path = output_path
         self.contrast_limits = contrast_limits
-        print("Stitching completed.")
-        print(output_path)
-        print(dtype)
 
     def viewOutputNapari(self):
         try:
@@ -3749,6 +3748,21 @@ class LaserAutofocusControlWidget(QFrame):
     def move_to_target(self,target_um):
         self.laserAutofocusController.move_to_target(self.entry_target.value())
 
+# class WellFormatWidget(QWidget): TODO:
+
+#     signal_well_format = Signal(int)
+
+#     def __init__ (self, formats, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.formats = formats
+#         self.init_ui()
+
+#     def init_ui(self)
+#         # dropdown menu for well format from self.formats list 
+
+#     def update_well_selector(self)
+#         # if item selection changed reload well selection format in WellSelectionWidget
+#         # and change value of WELLPLATE_FORMAT in _def.py
 
 class WellSelectionWidget(QTableWidget):
 

@@ -3001,7 +3001,7 @@ class Stitcher(Thread, QObject):
     update_progress = Signal(int, int)
     getting_flatfields = Signal()
     starting_stitching = Signal()
-    starting_saving = Signal()
+    starting_saving = Signal(bool)
     finished_saving = Signal(str, object)
 
     def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel=''):
@@ -3532,7 +3532,7 @@ class Stitcher(Thread, QObject):
                     print(f"starting stitching...")
                     self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
 
-                    self.starting_saving.emit()
+                    self.starting_saving.emit(not STITCH_COMPLETE_ACQUISITION)
                     print(f"starting saving...")
                     if ".ome.tiff" in self.output_path:
                         self.save_as_ome_tiff()
@@ -3543,7 +3543,7 @@ class Stitcher(Thread, QObject):
                 print(f"...done saving t:{time_point} successfully")
 
             if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
-                self.starting_saving.emit()
+                self.starting_saving.emit(True)
                 if IS_WELLPLATE:
                     self.create_hcs_ome_zarr()
                     print(f"...done saving complete hcs successfully")
@@ -3743,7 +3743,7 @@ class NavigationViewer(QFrame):
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
 
-        self.location_update_threshold_mm = 0.4
+        self.location_update_threshold_mm = 0.2
         self.sample = sample
 
         if sample == 'glass slide':
