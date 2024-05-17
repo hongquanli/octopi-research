@@ -3400,7 +3400,7 @@ class Stitcher(Thread, QObject):
 
     def create_hcs_ome_zarr(self):
         """Creates a hierarchical Zarr file in the HCS OME-ZARR format for visualization in napari."""
-        hcs_path = os.path.join(self.input_folder, self.output_name + "_complete_acquisition.ome.zarr")
+        hcs_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
         if len(self.time_points) == 1 and len(self.wells) == 1:
             stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_{self.output_name}")
             #hcs_path = stitched_zarr_path # replace next line with this if no copy wanted
