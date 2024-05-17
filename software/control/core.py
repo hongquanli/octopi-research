@@ -2949,7 +2949,6 @@ class Stitcher(Thread, QObject):
         self.input_folder = input_folder
         self.image_folder = os.path.join(self.input_folder, '0') # first time point
         self.output_name = output_name + output_format
-        self.output_format = output_format
         self.apply_flatfield = apply_flatfield
         self.use_registration = use_registration
         if use_registration:
@@ -3300,9 +3299,9 @@ class Stitcher(Thread, QObject):
 
     def create_complete_ome_zarr(self):
         """ Creates a complete OME-ZARR with proper channel metadata. """
-        final_path = os.path.join(self.input_folder, "complete_acquisition.ome.zarr")
+        final_path = os.path.join(self.input_folder, self.output_name + "_complete_acquisition.ome.zarr")
         if len(self.time_points) == 1:
-            zarr_path = os.path.join(self.input_folder, f"0_stitched", f"stitched.ome.zarr")
+            zarr_path = os.path.join(self.input_folder, f"0_stitched", self.output_name)
             shutil.copytree(zarr_path, final_path)
         else:
             store = ome_zarr.io.parse_url(final_path, mode="w").store
@@ -3339,9 +3338,9 @@ class Stitcher(Thread, QObject):
 
     def create_hcs_ome_zarr(self):
         """Creates a hierarchical Zarr file in the HCS OME-ZARR format for visualization in napari."""
-        hcs_path = os.path.join(self.input_folder, "complete_acquisition.ome.zarr")
+        hcs_path = os.path.join(self.input_folder, self.output_name + "_complete_acquisition.ome.zarr")
         if len(self.time_points) == 1 and len(self.wells) == 1:
-            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_stitched.ome.zarr")
+            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_{self.output_name}")
             shutil.copytree(stitched_zarr_path, hcs_path)
         else:
             store = ome_zarr.io.parse_url(hcs_path, mode="w").store
@@ -3413,9 +3412,9 @@ class Stitcher(Thread, QObject):
         for t in self.time_points:
             if IS_WELLPLATE:
                 print("well:", well_id)
-                filepath = f"{well_id}_stitched.ome.zarr"
+                filepath = f"{well_id}_{self.output_name}"
             else:
-                filepath = f"stitched.ome.zarr"
+                filepath = f"{self.output_name}.ome.zarr"
             zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
             print("timepoint:", t, "\t", zarr_path)
             z = zarr.open(zarr_path, mode='r')
@@ -3483,7 +3482,7 @@ class Stitcher(Thread, QObject):
                         print(f"...done saving t:{time_point} well:{well} successfully")
                 print(f"...done saving t:{time_point} successfully")
 
-            if STITCH_COMPLETE_ACQUISITION and self.output_format == ".ome.zarr":
+            if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
                 self.starting_saving.emit()
                 if IS_WELLPLATE:
                     self.create_hcs_ome_zarr()
