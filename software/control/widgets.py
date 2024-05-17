@@ -1,24 +1,27 @@
-# set QT_API environment variable
 import os 
-os.environ["QT_API"] = "pyqt5"
-import qtpy
+import sys
 
-import locale
+# set QT_API environment variable
+os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
+import qtpy
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 import pyqtgraph as pg
-
+import locale
 import pandas as pd
 import napari
-import skimage
-
+import re
 from datetime import datetime
+#import skimage
 
 from control._def import *
+#from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout
+#from PyQt5.QtGui import QPixmap, QPainter, QColor
+
 
 class WrapperWindow(QMainWindow):
     def __init__(self, content_widget, *args, **kwargs):
@@ -32,6 +35,7 @@ class WrapperWindow(QMainWindow):
 
     def closeForReal(self, event):
         super().closeEvent(event)
+
 
 class CollapsibleGroupBox(QGroupBox):
     def __init__(self, title):
@@ -49,6 +53,7 @@ class CollapsibleGroupBox(QGroupBox):
 
     def toggle_content(self,state):
         self.content_widget.setVisible(state)
+
 
 class ConfigEditorForAcquisitions(QDialog):
     def __init__(self, configManager, only_z_offset=True):
@@ -181,7 +186,6 @@ class ConfigEditorForAcquisitions(QDialog):
             self.init_ui(only_z_offset)
 
 
-
 class ConfigEditor(QDialog):
     def __init__(self, config):
         super().__init__()
@@ -308,6 +312,7 @@ class ConfigEditorBackwardsCompatible(ConfigEditor):
             pass
         self.close()
 
+
 class SpinningDiskConfocalWidget(QWidget):
     def __init__(self, xlight, config_manager=None):
         super(SpinningDiskConfocalWidget,self).__init__()
@@ -428,6 +433,7 @@ class SpinningDiskConfocalWidget(QWidget):
         self.xlight.set_dichroic(selected_pos)
         self.enable_all_buttons()
   
+
 class ObjectivesWidget(QWidget):
     def __init__(self, objective_store):
         super(ObjectivesWidget, self).__init__()
@@ -463,6 +469,7 @@ class ObjectivesWidget(QWidget):
         #text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
         self.objectiveStore.current_objective = selected_key
         #self.text_browser.setPlainText(text)
+
 
 class FocusMapWidget(QWidget):
 
@@ -556,6 +563,7 @@ class FocusMapWidget(QWidget):
             pass
         self.update_focusmap_display()
         self.enable_all_buttons()
+
 
 class CameraSettingsWidget(QFrame):
 
@@ -962,6 +970,7 @@ class LiveControlWidget(QFrame):
         self.dropdown_triggerManu.setCurrentText(trigger_mode)
         self.liveController.set_trigger_mode(self.dropdown_triggerManu.currentText())
 
+
 class PiezoWidget(QFrame):
     def __init__(self, navigationController, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1046,6 +1055,7 @@ class PiezoWidget(QFrame):
         self.slider.setValue(int(displacement))
         self.spinBox.blockSignals(False)
         self.slider.blockSignals(False)
+
 
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
@@ -1150,6 +1160,7 @@ class RecordingWidget(QFrame):
         self.btn_record.setChecked(False)
         self.streamHandler.stop_recording()
         self.btn_setSavingDir.setEnabled(True)
+
 
 class NavigationWidget(QFrame):
     def __init__(self, navigationController, slidePositionController=None, main=None, widget_configuration = 'full', *args, **kwargs):
@@ -1437,6 +1448,7 @@ class NavigationWidget(QFrame):
             self.slidePositionController.move_to_slide_scanning_position()
         self.btn_load_slide.setEnabled(False)
 
+
 class DACControWidget(QFrame):
     def __init__(self, microcontroller ,*args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1500,6 +1512,7 @@ class DACControWidget(QFrame):
     def set_DAC1(self,value):
         self.microcontroller.analog_write_onboard_DAC(1,int(value*65535/100))
 
+
 class AutoFocusWidget(QFrame):
     def __init__(self, autofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1557,6 +1570,7 @@ class AutoFocusWidget(QFrame):
 
     def autofocus_is_finished(self):
         self.btn_autofocus.setChecked(False)
+
 
 class StatsDisplayWidget(QFrame):
     def __init__(self, *args, **kwargs):
@@ -1888,6 +1902,7 @@ class MultiPointWidget(QFrame):
 
     def enable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(True)
+
 
 class MultiPointWidget2(QFrame):
 
@@ -2734,6 +2749,8 @@ class NapariTiledDisplayWidget(QWidget):
 
     def resetView(self):
         self.viewer.reset_view()
+        for layer in self.viewer.layers:
++            layer.refresh()
 
 
 class NapariMultiChannelWidget(QWidget):
@@ -2807,6 +2824,8 @@ class NapariMultiChannelWidget(QWidget):
 
     def resetView(self):
         self.viewer.reset_view()
+        for layer in self.viewer.layers:
+            layer.refresh()
 
     def getContrastLimits(self):
         if np.issubdtype(self.dtype, np.integer):
@@ -2908,6 +2927,8 @@ class NapariLiveWidget(QWidget):
 
     def resetView(self):
         self.viewer.reset_view()
+        for layer in self.viewer.layers:
++            layer.refresh()
 
 
 class TrackingControllerWidget(QFrame):
@@ -3267,6 +3288,7 @@ class PlateReaderAcquisitionWidget(QFrame):
     def slot_homing_complete(self):
         self.btn_startAcquisition.setEnabled(True)
     
+
 class PlateReaderNavigationWidget(QFrame):
     def __init__(self, plateReaderNavigationController, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3404,6 +3426,7 @@ class TriggerControlWidget(QFrame):
         self.signal_trigger_fps.emit(fps)
         self.microcontroller2.set_camera_trigger_frequency(self.fps_trigger)
 
+
 class MultiCameraRecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, channels, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3516,6 +3539,7 @@ class MultiCameraRecordingWidget(QFrame):
             self.streamHandler[channel].stop_recording()
         self.btn_setSavingDir.setEnabled(True)
 
+
 class WaveformDisplay(QFrame):
 
     def __init__(self, N=1000, include_x=True, include_y=True, main=None, *args, **kwargs):
@@ -3549,6 +3573,7 @@ class WaveformDisplay(QFrame):
         self.plotWidget['X'].update_N(N)
         self.plotWidget['Y'].update_N(N)
 
+
 class PlotWidget(pg.GraphicsLayoutWidget):
     
     def __init__(self, title='', N = 1000, parent=None,add_legend=False):
@@ -3563,6 +3588,7 @@ class PlotWidget(pg.GraphicsLayoutWidget):
 
     def update_N(self,N):
         self.N = N
+
 
 class DisplacementMeasurementWidget(QFrame):
     def __init__(self, displacementMeasurementController, waveformDisplay, main=None, *args, **kwargs):
@@ -3673,6 +3699,7 @@ class DisplacementMeasurementWidget(QFrame):
         self.reading_x.setText("{:.2f}".format(readings[0]))
         self.reading_y.setText("{:.2f}".format(readings[1]))
 
+
 class LaserAutofocusControlWidget(QFrame):
     def __init__(self, laserAutofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3748,6 +3775,7 @@ class LaserAutofocusControlWidget(QFrame):
     def move_to_target(self,target_um):
         self.laserAutofocusController.move_to_target(self.entry_target.value())
 
+
 # class WellFormatWidget(QWidget): TODO:
 
 #     signal_well_format = Signal(int)
@@ -3763,6 +3791,7 @@ class LaserAutofocusControlWidget(QFrame):
 #     def update_well_selector(self)
 #         # if item selection changed reload well selection format in WellSelectionWidget
 #         # and change value of WELLPLATE_FORMAT in _def.py
+
 
 class WellSelectionWidget(QTableWidget):
 
@@ -3910,11 +3939,6 @@ class WellSelectionWidget(QTableWidget):
             self.signal_well_selected.emit(True)
         return(list_of_selected_cells)
 
-
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout
-from PyQt5.QtGui import QPixmap, QPainter, QColor
-import re
-import sys
 
 class Well1536SelectionWidget(QWidget):
 

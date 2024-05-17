@@ -1,9 +1,9 @@
 # set QT_API environment variable
 import os 
 import sys
-os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
+os.environ["QT_API"] = "pyqt5"
 import qtpy
 import pyqtgraph as pg
 from qtpy.QtCore import *
@@ -12,46 +12,41 @@ from qtpy.QtGui import *
 
 # control 
 from control.processing_handler import ProcessingHandler
+from control._def import *
 import control.utils as utils
 import control.utils_config as utils_config
-from control._def import *
-
 import control.tracking as tracking
+import control.serial_peripherals as serial_peripherals
 try:
     from control.multipoint_custom_script_entry import *
     print('custom multipoint script found')
 except:
     pass
 
-import control.serial_peripherals as serial_peripherals
-
 # general libs
 from queue import Queue
 from threading import Thread, Lock
-import math
-import random
-import numpy as np
-import pandas as pd
-import scipy
-import scipy.signal
-import cv2
-import json
-import re
-from lxml import etree as ET
 from pathlib import Path
 from datetime import datetime
 import time
 import subprocess
 import shutil
+from lxml import etree
+import json
+import math
+import random
+import numpy as np
+import pandas as pd
+import scipy.signal
+import cv2
 
 # stitching libs
 import imageio as iio
 import dask.array as da
 from dask_image.imread import imread as dask_imread
-from skimage import io, registration
+from skimage.registration import phase_cross_correlation
 import ome_zarr
 import zarr
-
 from aicsimageio.writers import OmeTiffWriter
 from aicsimageio.writers import OmeZarrWriter
 from aicsimageio import types
@@ -3044,7 +3039,7 @@ class Stitcher(Thread, QObject):
 
     def extract_selected_modes(self, input_folder):
         configs_path = os.path.join(input_folder, 'configurations.xml')
-        tree = ET.parse(configs_path)
+        tree = etree.parse(configs_path)
         root = tree.getroot()
         selected_modes = {}
         for mode in root.findall('.//mode'):
@@ -3166,7 +3161,7 @@ class Stitcher(Thread, QObject):
         margin = self.input_height // 10 # set margin amount 
         img1_roi = img1[margin:-margin, -max_overlap:]
         img2_roi = img2[margin:-margin, :max_overlap]
-        shift, error, diffphase = registration.phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
+        shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
         return round(shift[0]), round(shift[1] - img1_roi.shape[1])
 
     def calculate_vertical_shift(self, img1_path, img2_path, max_overlap):
@@ -3175,7 +3170,7 @@ class Stitcher(Thread, QObject):
         margin = self.input_width // 10
         img1_roi = img1[-max_overlap:, margin:-margin]
         img2_roi = img2[:max_overlap, margin:-margin]
-        shift, _, diffphase = registration.phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
+        shift, _, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
         return round(shift[0] - img1_roi.shape[0]), round(shift[1])
 
     # todo: fix calculation max_y_overlap and max_x_overlap from acquisition parameters
@@ -3380,7 +3375,6 @@ class Stitcher(Thread, QObject):
                 axes="tczyx",
                 channel_names=self.channel_names,
                 storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
-                #storage_options=dict(chunks=(1, 1, 1, data.shape[-2], data.shape[-1]))
             )
             # Setup channel information with metadata for colors
             channel_info = [{
@@ -3393,7 +3387,7 @@ class Stitcher(Thread, QObject):
             # Assign the channel metadata to the image group
             root_group.attrs["omero"] = {"channels": channel_info}
 
-            print(f"All data saved in HCS OME-ZARR format at: {final_path}")
+            print(f"all data saved in HCS OME-ZARR format at: {final_path}")
             root = zarr.open(final_path, mode='r')
             print(root.tree())
         self.finished_saving.emit(final_path, self.dtype)
@@ -3446,7 +3440,6 @@ class Stitcher(Thread, QObject):
                                         axes="tczyx",
                                         channel_names=self.channel_names,
                                         storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
-                                        #storage_options=dict(chunks=(1, 1, 1, data.shape[-2], data.shape[-1]))
                                         )
             channel_info = [{
                 "label": name,
@@ -3927,7 +3920,7 @@ class ConfigurationManager(QObject):
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
             print('genenrate default config files')
-        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree = etree.parse(self.config_filename)
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
@@ -3959,7 +3952,7 @@ class ConfigurationManager(QObject):
         mode_to_update = conf_list[0]
         mode_to_update.set(attribute_name,str(new_value))
 
-    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance                                                                     # of this class
+    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance
         for conf in self.configurations:
             self.update_configuration_without_writing(conf.id, "Selected", 0)
         for conf in selected_configurations:
