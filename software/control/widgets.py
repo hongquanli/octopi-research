@@ -14,6 +14,7 @@ import pyqtgraph as pg
 
 import pandas as pd
 import napari
+import skimage
 
 from datetime import datetime
 
@@ -2603,6 +2604,7 @@ class NapariTiledDisplayWidget(QWidget):
     def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
+        #self.downsample_factor = 5 # todo
         self.configurationManager = configurationManager
         self.image_width = 0
         self.image_height = 0
@@ -2635,8 +2637,8 @@ class NapariTiledDisplayWidget(QWidget):
     def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
-        self.image_width = image_width
-        self.image_height = image_height
+        self.image_width = image_width #// self.downsample_factor
+        self.image_height = image_height #// self.downsample_factor
         self.dtype = np.dtype(image_dtype)
         contrast_limits = self.getContrastLimits()
             #raise ValueError("Unsupported dtype")
@@ -2651,9 +2653,9 @@ class NapariTiledDisplayWidget(QWidget):
                 rgb = False
             
             if rgb:
-                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width, 3), dtype=self.dtype)
+                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
             else:
-                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
+                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
             layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
                                   colormap=color, contrast_limits=contrast_limits, blending='additive')
             # Add double-click callback to this layer
@@ -2668,6 +2670,10 @@ class NapariTiledDisplayWidget(QWidget):
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
+        #print(image.shape)
+        #image = skimage.transform.resize(image, (self.image_height, self.image_width), anti_aliasing=True)
+        #print(image.shape)
+
         if channel_name not in self.viewer.layers:
             self.channels.append(channel_name)
             color = self.configurationManager.get_color_for_channel(channel)
@@ -2677,19 +2683,18 @@ class NapariTiledDisplayWidget(QWidget):
             else:
                 rgb = False
             if rgb:
-                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width, 3), dtype=self.dtype)
+                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
             else:
-                canvas = np.zeros((self.Nz, self.Ny * image_height, self.Nx * image_width), dtype=self.dtype)
+                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
                                   colormap=color, contrast_limits=contrast_limits, blending='additive')
             # Add double-click callback to this layer
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
 
-
         # Locate the layer and its current data
         layer = self.viewer.layers[channel_name]
         layer_data = layer.data
-        
+
         # Update the specific slice based on the provided coordinates
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
@@ -2700,11 +2705,13 @@ class NapariTiledDisplayWidget(QWidget):
         # Update the layer with the modified data
         layer.data = layer_data
         layer.refresh()
-
+        
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
-        coords = layer.world_to_data(event.position)
+        coords = layer.world_to_data(event.position) 
+        #coords *= self.downsample_factor
         layer_shape = layer.data.shape[0:3] if len(layer.data.shape) >= 4 else layer.data.shape
+        #layer_shape *= self.downsample_factor
 
         if coords is not None and (0 <= int(coords[-1]) < layer_shape[-1] and (0 <= int(coords[-2]) < layer_shape[-2])):
             x_centered = int(coords[-1] - layer_shape[-1] / 2)

@@ -3299,9 +3299,10 @@ class Stitcher(Thread, QObject):
 
     def create_complete_ome_zarr(self):
         """ Creates a complete OME-ZARR with proper channel metadata. """
-        final_path = os.path.join(self.input_folder, self.output_name + "_complete_acquisition.ome.zarr")
+        final_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
         if len(self.time_points) == 1:
             zarr_path = os.path.join(self.input_folder, f"0_stitched", self.output_name)
+            #final_path = zarr_path
             shutil.copytree(zarr_path, final_path)
         else:
             store = ome_zarr.io.parse_url(final_path, mode="w").store
@@ -3341,6 +3342,7 @@ class Stitcher(Thread, QObject):
         hcs_path = os.path.join(self.input_folder, self.output_name + "_complete_acquisition.ome.zarr")
         if len(self.time_points) == 1 and len(self.wells) == 1:
             stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_{self.output_name}")
+            #hcs_path = stitched_zarr_path # replace next line with this if no copy wanted
             shutil.copytree(stitched_zarr_path, hcs_path)
         else:
             store = ome_zarr.io.parse_url(hcs_path, mode="w").store
@@ -3357,20 +3359,17 @@ class Stitcher(Thread, QObject):
                 row, col = well_id[0], well_id[1:]
                 row_group = root_group.require_group(row)
                 well_group = row_group.require_group(col)
-
-                self.process_well(well_id, well_group)
+                self.write_well_and_metadata(well_id, well_group)
 
             print(f"All data saved in HCS OME-ZARR format at: {hcs_path}")
             channel_info = []
 
-            root_group.attrs["omero"] = {
-                "channels": channel_info
-            }
+            root_group.attrs["omero"] = {"channels": channel_info}
             root = zarr.open(hcs_path, mode='r')
             print(root.tree())
         self.finished_saving.emit(hcs_path, self.dtype)
 
-    def process_well(self, well_id, well_group):
+    def write_well_and_metadata(self, well_id, well_group):
         """Process and save data for a single well across all timepoints."""
         # Load data from precomputed Zarrs for each timepoint
         data = self.load_and_merge_timepoints(well_id)
