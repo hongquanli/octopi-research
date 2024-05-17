@@ -193,7 +193,6 @@ class OctopiGUI(QMainWindow):
         self.navigationController.move_y(20)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
-
         # move z
         self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
         # wait for the operation to finish
@@ -203,6 +202,13 @@ class OctopiGUI(QMainWindow):
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
+
+        # set piezo arguments
+        if ENABLE_OBJECTIVE_PIEZO is True:
+            if PIEZO_CONTROL_VOLTAGE_RANGE == 5:
+                OUTPUT_GAINS.CHANNEL7_GAIN = True
+            else:
+                OUTPUT_GAINS.CHANNEL7_GAIN = False
 
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0
@@ -233,9 +239,9 @@ class OctopiGUI(QMainWindow):
             self.spinningDiskConfocalWidget = widgets.SpinningDiskConfocalWidget(self.xlight, self.configurationManager)
 
         if CAMERA_TYPE == "Toupcam":
-            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=True, include_camera_temperature_setting = True)
+            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True)
         else:
-            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=True, include_camera_temperature_setting=False)
+            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
@@ -245,13 +251,15 @@ class OctopiGUI(QMainWindow):
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
+        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
+
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         else:
             self.wellSelectionWidget = widgets.Well1536SelectionWidget()
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-        self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
-        
+
+        self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)        
         if USE_NAPARI:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager)
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
@@ -278,14 +286,20 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
 
+        self.microscopeControlTabWidget = QTabWidget()
+        self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
+        if ENABLE_OBJECTIVE_PIEZO:
+            self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
+        self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
+        self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
         layout.addWidget(self.liveControlWidget)
-        layout.addWidget(self.navigationWidget)
+        layout.addWidget(self.microscopeControlTabWidget)
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
-        layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
@@ -333,6 +347,7 @@ class OctopiGUI(QMainWindow):
             self.tabbedImageDisplayWindow.setFixedSize(width,height)
             self.tabbedImageDisplayWindow.show()
 
+        '''
         try:
             self.cswWindow = widgets.WrapperWindow(self.cameraSettingWidget)
         except AttributeError:
@@ -342,6 +357,7 @@ class OctopiGUI(QMainWindow):
             self.cswfcWindow = widgets.WrapperWindow(self.cameraSettingWidget_focus_camera)
         except AttributeError:
             pass
+        '''
 
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
@@ -435,16 +451,16 @@ class OctopiGUI(QMainWindow):
 
             # widgets
             if FOCUS_CAMERA_TYPE == "Toupcam":
-                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus,include_gain_exposure_time=True, include_camera_temperature_setting = True)
+                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = True)
             else:
-                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time=True, include_camera_temperature_setting=False)
+                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = False)
 
             self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
             self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.recordTabWidget.addTab(self.laserAutofocusControlWidget, "Laser Autofocus Control")
+            self.microscopeControlTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()

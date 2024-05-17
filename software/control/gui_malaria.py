@@ -136,6 +136,13 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
         self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
 
+        # set piezo arguments
+        if ENABLE_OBJECTIVE_PIEZO is True:
+            if PIEZO_CONTROL_VOLTAGE_RANGE == 5:
+                OUTPUT_GAINS.CHANNEL7_GAIN = True
+            else:
+                OUTPUT_GAINS.CHANNEL7_GAIN = False
+
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0
         gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0 
