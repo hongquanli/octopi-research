@@ -6,51 +6,57 @@
 from ctypes import *
 import sys
 
-if sys.platform == 'linux2' or sys.platform == 'linux':
+if sys.platform == "linux2" or sys.platform == "linux":
     try:
-        dll = CDLL('/usr/lib/libgxiapi.so')
+        dll = CDLL("/usr/lib/libgxiapi.so")
     except OSError:
-        print('Cannot find libgxiapi.so.')
+        print("Cannot find libgxiapi.so.")
 else:
     try:
-        dll = WinDLL('DxImageProc.dll')
+        if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (
+            sys.version_info.major > 3
+        ):
+            dll = WinDLL("DxImageProc.dll", winmode=0)
+        else:
+            dll = WinDLL("DxImageProc.dll")
     except OSError:
-        print('Cannot find DxImageProc.dll.')
+        print("Cannot find DxImageProc.dll.")
 
 
 # status  definition
 class DxStatus:
-    OK = 0                               # Operation is successful
-    PARAMETER_INVALID = -101             # Invalid input parameter
-    PARAMETER_OUT_OF_BOUND = -102        # The input parameter is out of bounds
-    NOT_ENOUGH_SYSTEM_MEMORY = -103      # System out of memory
-    NOT_FIND_DEVICE = -104               # not find device
-    STATUS_NOT_SUPPORTED = -105          # operation is not supported
-    CPU_NOT_SUPPORT_ACCELERATE = -106    # CPU does not support acceleration
-  
+    OK = 0  # Operation is successful
+    PARAMETER_INVALID = -101  # Invalid input parameter
+    PARAMETER_OUT_OF_BOUND = -102  # The input parameter is out of bounds
+    NOT_ENOUGH_SYSTEM_MEMORY = -103  # System out of memory
+    NOT_FIND_DEVICE = -104  # not find device
+    STATUS_NOT_SUPPORTED = -105  # operation is not supported
+    CPU_NOT_SUPPORT_ACCELERATE = -106  # CPU does not support acceleration
+
     def __init__(self):
         pass
 
 
-if sys.platform == 'linux2' or sys.platform == 'linux':
+if sys.platform == "linux2" or sys.platform == "linux":
     # Bayer layout
     class DxPixelColorFilter:
-        NONE = 0                                # Isn't bayer format
-        RG = 1                                  # The first row starts with RG
-        GB = 2                                  # The first line starts with GB
-        GR = 3                                  # The first line starts with GR
-        BG = 4                                  # The first line starts with BG
+        NONE = 0  # Isn't bayer format
+        RG = 1  # The first row starts with RG
+        GB = 2  # The first line starts with GB
+        GR = 3  # The first line starts with GR
+        BG = 4  # The first line starts with BG
 
         def __init__(self):
             pass
+
 else:
     # Bayer layout
     class DxPixelColorFilter:
-        NONE = 0                                # Isn't bayer format
-        BG = 1                                  # The first row starts with BG
-        GR = 2                                  # The first line starts with GR
-        GB = 3                                  # The first line starts with GB
-        RG = 4                                  # The first line starts with RG
+        NONE = 0  # Isn't bayer format
+        BG = 1  # The first row starts with BG
+        GR = 2  # The first line starts with GR
+        GB = 3  # The first line starts with GB
+        RG = 4  # The first line starts with RG
 
         def __init__(self):
             pass
@@ -58,10 +64,10 @@ else:
 
 # image actual bits
 class DxActualBits:
-    BITS_10 = 10             # 10bit
-    BITS_12 = 12             # 12bit
-    BITS_14 = 14             # 14bit
-    BITS_16 = 16             # 16bit
+    BITS_10 = 10  # 10bit
+    BITS_12 = 12  # 12bit
+    BITS_14 = 14  # 14bit
+    BITS_16 = 16  # 16bit
 
     def __init__(self):
         pass
@@ -140,6 +146,7 @@ if hasattr(dll, 'DxGetLut'):
 '''
 
 if hasattr(dll, "DxGetGammatLut"):
+
     def dx_get_gamma_lut(gamma_param):
         """
         :brief  calculating gamma lookup table (RGB24)
@@ -155,12 +162,15 @@ if hasattr(dll, "DxGetGammatLut"):
         status = dll.DxGetGammatLut(gamma_param_c, None, byref(lut_length_c))
 
         gamma_lut = (c_ubyte * lut_length_c.value)()
-        status = dll.DxGetGammatLut(gamma_param_c, byref(gamma_lut), byref(lut_length_c))
+        status = dll.DxGetGammatLut(
+            gamma_param_c, byref(gamma_lut), byref(lut_length_c)
+        )
 
         return status, gamma_lut, lut_length_c.value
 
 
 if hasattr(dll, "DxGetContrastLut"):
+
     def dx_get_contrast_lut(contrast_param):
         """
         :brief  ccalculating contrast lookup table (RGB24)
@@ -176,13 +186,18 @@ if hasattr(dll, "DxGetContrastLut"):
         status = dll.DxGetContrastLut(contrast_param_c, None, byref(lut_length_c))
 
         contrast_lut = (c_ubyte * lut_length_c.value)()
-        status = dll.DxGetContrastLut(contrast_param_c, byref(contrast_lut), byref(lut_length_c))
+        status = dll.DxGetContrastLut(
+            contrast_param_c, byref(contrast_lut), byref(lut_length_c)
+        )
 
         return status, contrast_lut, lut_length_c.value
 
 
-if hasattr(dll, 'DxRaw8toRGB24'):
-    def dx_raw8_to_rgb24(input_address, output_address, width, height, convert_type, bayer_type, flip):
+if hasattr(dll, "DxRaw8toRGB24"):
+
+    def dx_raw8_to_rgb24(
+        input_address, output_address, width, height, convert_type, bayer_type, flip
+    ):
         """
         :brief  Convert Raw8 to Rgb24
         :param input_address:      The input raw image buff address, buff size = width * height
@@ -218,12 +233,20 @@ if hasattr(dll, 'DxRaw8toRGB24'):
         output_address_p = c_void_p()
         output_address_p.value = output_address
 
-        status = dll.DxRaw8toRGB24(input_address_p, output_address_p,
-                                   width_c, height_c, convert_type_c, bayer_type_c, flip_c)
+        status = dll.DxRaw8toRGB24(
+            input_address_p,
+            output_address_p,
+            width_c,
+            height_c,
+            convert_type_c,
+            bayer_type_c,
+            flip_c,
+        )
         return status
 
 
-if hasattr(dll, 'DxRaw16toRaw8'):
+if hasattr(dll, "DxRaw16toRaw8"):
+
     def dx_raw16_to_raw8(input_address, out_address, width, height, valid_bits):
         """
         :biref  Raw16 converted to Raw8
@@ -250,14 +273,23 @@ if hasattr(dll, 'DxRaw16toRaw8'):
         out_address_p = c_void_p()
         out_address_p.value = out_address
 
-        status = dll.DxRaw16toRaw8(input_address_p, out_address_p,
-                                   width_c, height_c, valid_bits_c)
+        status = dll.DxRaw16toRaw8(
+            input_address_p, out_address_p, width_c, height_c, valid_bits_c
+        )
         return status
 
 
 if hasattr(dll, "DxImageImprovment"):
-    def dx_image_improvement(input_address, output_address, width, height,
-                             color_correction_param, contrast_lut, gamma_lut):
+
+    def dx_image_improvement(
+        input_address,
+        output_address,
+        width,
+        height,
+        color_correction_param,
+        contrast_lut,
+        gamma_lut,
+    ):
         """
         :brief      image quality improvement
         :param      input_address:              input buffer address, buff size = width * height *3
@@ -285,7 +317,13 @@ if hasattr(dll, "DxImageImprovment"):
         color_correction_param_p = c_int64()
         color_correction_param_p.value = color_correction_param
 
-        status = dll.DxImageImprovment(input_address_p, output_address_p, width_c, height_c,
-                                       color_correction_param_p, contrast_lut, gamma_lut)
+        status = dll.DxImageImprovment(
+            input_address_p,
+            output_address_p,
+            width_c,
+            height_c,
+            color_correction_param_p,
+            contrast_lut,
+            gamma_lut,
+        )
         return status
-

@@ -13,9 +13,9 @@ UNSIGNED_LONG_LONG_MAX = 0xFFFFFFFFFFFFFFFF
 
 # frame state code
 class GxFrameStatusList:
-    SUCCESS = 0                 # Normal frame
-    INCOMPLETE = -1             # Residual frame
-    INVALID_IMAGE_INFO = -2     # invalid image info
+    SUCCESS = 0  # Normal frame
+    INCOMPLETE = -1  # Residual frame
+    INVALID_IMAGE_INFO = -2  # invalid image info
 
     def __init__(self):
         pass
@@ -23,40 +23,42 @@ class GxFrameStatusList:
 
 # Device type code
 class GxDeviceClassList:
-    UNKNOWN = 0                 # Unknown device type
-    USB2 = 1                    # USB2.0 vision device
-    GEV = 2                     # Gige vision device
-    U3V = 3                     # USB3.0 vision device
-    SMART = 4                   # Smart device
+    UNKNOWN = 0  # Unknown device type
+    USB2 = 1  # USB2.0 vision device
+    GEV = 2  # Gige vision device
+    U3V = 3  # USB3.0 vision device
+    SMART = 4  # Smart device
 
     def __init__(self):
         pass
 
 
 class GxAccessMode:
-    READONLY = 2                # Open the device in read-only mode
-    CONTROL = 3                 # Open the device in controlled mode
-    EXCLUSIVE = 4               # Open the device in exclusive mode
+    READONLY = 2  # Open the device in read-only mode
+    CONTROL = 3  # Open the device in controlled mode
+    EXCLUSIVE = 4  # Open the device in exclusive mode
 
     def __init__(self):
         pass
 
 
 class GxAccessStatus:
-    UNKNOWN = 0                # The device's current status is unknown
-    READWRITE = 1              # The device currently supports reading and writing
-    READONLY = 2               # The device currently only supports reading
-    NOACCESS = 3               # The device currently does neither support reading nor support writing
+    UNKNOWN = 0  # The device's current status is unknown
+    READWRITE = 1  # The device currently supports reading and writing
+    READONLY = 2  # The device currently only supports reading
+    NOACCESS = (
+        3  # The device currently does neither support reading nor support writing
+    )
 
     def __init__(self):
         pass
 
 
 class GxIPConfigureModeList:
-    DHCP = 0x6                 # Enable the DHCP mode to allocate the IP address by the DHCP server
-    LLA = 0x4                  # Enable the LLA mode to allocate the IP addresses
-    STATIC_IP = 0x5            # Enable the static IP mode to configure the IP address
-    DEFAULT = 0x7              # Enable the default mode to configure the IP address
+    DHCP = 0x6  # Enable the DHCP mode to allocate the IP address by the DHCP server
+    LLA = 0x4  # Enable the LLA mode to allocate the IP addresses
+    STATIC_IP = 0x5  # Enable the static IP mode to configure the IP address
+    DEFAULT = 0x7  # Enable the default mode to configure the IP address
 
     def __init__(self):
         pass
@@ -106,32 +108,32 @@ GX_PIXEL_64BIT = 0x00400000
 
 class GxPixelFormatEntry:
     UNDEFINED = 0
-    MONO8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0001)  # 0x1080001
-    MONO8_SIGNED = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0002)  # 0x1080002
-    MONO10 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0003)  # 0x1100003
-    MONO12 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0005)  # 0x1100005
-    MONO14 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0025)  # 0x1100025
-    MONO16 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0007)  # 0x1100007
-    BAYER_GR8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0008)  # 0x1080008
-    BAYER_RG8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0009)  # 0x1080009
-    BAYER_GB8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x000A)  # 0x108000A
-    BAYER_BG8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x000B)  # 0x108000B
-    BAYER_GR10 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000C)  # 0x110000C
-    BAYER_RG10 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000D)  # 0x110000D
-    BAYER_GB10 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000E)  # 0x110000E
-    BAYER_BG10 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000F)  # 0x110000F
-    BAYER_GR12 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0010)  # 0x1100010
-    BAYER_RG12 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0011)  # 0x1100011
-    BAYER_GB12 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0012)  # 0x1100012
-    BAYER_BG12 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0013)  # 0x1100013
-    BAYER_GR16 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x002E)  # 0x110002E
-    BAYER_RG16 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x002F)  # 0x110002F
-    BAYER_GB16 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0030)  # 0x1100030
-    BAYER_BG16 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0031)  # 0x1100031
-    RGB8_PLANAR = (GX_PIXEL_COLOR | GX_PIXEL_24BIT | 0x0021)  # 0x2180021
-    RGB10_PLANAR = (GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0022)  # 0x2300022
-    RGB12_PLANAR = (GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0023)  # 0x2300023
-    RGB16_PLANAR = (GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0024)  # 0x2300024
+    MONO8 = GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0001  # 0x1080001
+    MONO8_SIGNED = GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0002  # 0x1080002
+    MONO10 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0003  # 0x1100003
+    MONO12 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0005  # 0x1100005
+    MONO14 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0025  # 0x1100025
+    MONO16 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0007  # 0x1100007
+    BAYER_GR8 = GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0008  # 0x1080008
+    BAYER_RG8 = GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x0009  # 0x1080009
+    BAYER_GB8 = GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x000A  # 0x108000A
+    BAYER_BG8 = GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x000B  # 0x108000B
+    BAYER_GR10 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000C  # 0x110000C
+    BAYER_RG10 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000D  # 0x110000D
+    BAYER_GB10 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000E  # 0x110000E
+    BAYER_BG10 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x000F  # 0x110000F
+    BAYER_GR12 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0010  # 0x1100010
+    BAYER_RG12 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0011  # 0x1100011
+    BAYER_GB12 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0012  # 0x1100012
+    BAYER_BG12 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0013  # 0x1100013
+    BAYER_GR16 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x002E  # 0x110002E
+    BAYER_RG16 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x002F  # 0x110002F
+    BAYER_GB16 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0030  # 0x1100030
+    BAYER_BG16 = GX_PIXEL_MONO | GX_PIXEL_16BIT | 0x0031  # 0x1100031
+    RGB8_PLANAR = GX_PIXEL_COLOR | GX_PIXEL_24BIT | 0x0021  # 0x2180021
+    RGB10_PLANAR = GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0022  # 0x2300022
+    RGB12_PLANAR = GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0023  # 0x2300023
+    RGB16_PLANAR = GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0024  # 0x2300024
 
     def __init__(self):
         pass
@@ -335,8 +337,8 @@ class GxTransferOperationModeEntry:
 
 
 class GxTestPatternGeneratorSelectorEntry:
-    SENSOR = 0          # Sensor test pattern
-    REGION0 = 1         # FPGA test pattern
+    SENSOR = 0  # Sensor test pattern
+    REGION0 = 1  # FPGA test pattern
 
     def __init__(self):
         pass
@@ -446,9 +448,11 @@ class GxRegionSelectorEntry:
 
 # image interpolation method
 class DxBayerConvertType:
-    NEIGHBOUR = 0                           # Neighborhood average interpolation algorithm
-    ADAPTIVE = 1                            # Edge adaptive interpolation algorithm
-    NEIGHBOUR3 = 2                          # The neighborhood average interpolation algorithm for a larger region
+    NEIGHBOUR = 0  # Neighborhood average interpolation algorithm
+    ADAPTIVE = 1  # Edge adaptive interpolation algorithm
+    NEIGHBOUR3 = (
+        2  # The neighborhood average interpolation algorithm for a larger region
+    )
 
     def __init__(self):
         pass
@@ -456,11 +460,11 @@ class DxBayerConvertType:
 
 # image valid bit
 class DxValidBit:
-    BIT0_7 = 0              # bit 0~7
-    BIT1_8 = 1              # bit 1~8
-    BIT2_9 = 2              # bit 2~9
-    BIT3_10 = 3             # bit 3~10
-    BIT4_11 = 4             # bit 4~11
+    BIT0_7 = 0  # bit 0~7
+    BIT1_8 = 1  # bit 1~8
+    BIT2_9 = 2  # bit 2~9
+    BIT3_10 = 3  # bit 3~10
+    BIT4_11 = 4  # bit 4~11
 
     def __init__(self):
         pass
@@ -468,8 +472,8 @@ class DxValidBit:
 
 # image mirror method
 class DxImageMirrorMode:
-    HORIZONTAL_MIRROR = 0                               # Horizontal mirror
-    VERTICAL_MIRROR = 1                                 # Vertical mirror
+    HORIZONTAL_MIRROR = 0  # Horizontal mirror
+    VERTICAL_MIRROR = 1  # Vertical mirror
 
     def __init__(self):
         pass

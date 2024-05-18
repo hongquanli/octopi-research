@@ -1,6 +1,6 @@
 # set QT_API environment variable
-import os 
-os.environ["QT_API"] = "pyqt5"
+import os
+
 import qtpy
 
 # qt libraries
@@ -9,7 +9,8 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 import pyqtgraph as pg
 from datetime import datetime
-from control._def import *
+from squid_control.control.config import CONFIG
+
 
 class SpectrometerControlWidget(QFrame):
 
@@ -31,8 +32,8 @@ class SpectrometerControlWidget(QFrame):
 
         # line 3: exposure time and analog gain associated with the current mode
         self.entry_exposureTime = QDoubleSpinBox()
-        self.entry_exposureTime.setMinimum(0.001) 
-        self.entry_exposureTime.setMaximum(5000) 
+        self.entry_exposureTime.setMinimum(0.001)
+        self.entry_exposureTime.setMaximum(5000)
         self.entry_exposureTime.setSingleStep(1)
         self.entry_exposureTime.setValue(50)
         self.entry_exposureTime.setKeyboardTracking(False)
@@ -40,12 +41,14 @@ class SpectrometerControlWidget(QFrame):
 
         # connections
         self.btn_live.clicked.connect(self.toggle_live)
-        self.entry_exposureTime.valueChanged.connect(self.spectrometer.set_integration_time_ms)
+        self.entry_exposureTime.valueChanged.connect(
+            self.spectrometer.set_integration_time_ms
+        )
 
         # layout
         grid_line2 = QHBoxLayout()
-        grid_line2.addWidget(QLabel('USB spectrometer'))
-        grid_line2.addWidget(QLabel('Integration Time (ms)'))
+        grid_line2.addWidget(QLabel("USB spectrometer"))
+        grid_line2.addWidget(QLabel("Integration Time (ms)"))
         grid_line2.addWidget(self.entry_exposureTime)
         grid_line2.addWidget(self.btn_live)
 
@@ -54,42 +57,43 @@ class SpectrometerControlWidget(QFrame):
         # self.grid.addStretch()
         self.setLayout(self.grid)
 
-    def toggle_live(self,pressed):
+    def toggle_live(self, pressed):
         if pressed:
             self.spectrometer.start_streaming()
         else:
             self.spectrometer.pause_streaming()
 
+
 class RecordingWidget(QFrame):
     def __init__(self, streamHandler, imageSaver, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.imageSaver = imageSaver # for saving path control
+        self.imageSaver = imageSaver  # for saving path control
         self.streamHandler = streamHandler
         self.base_path_is_set = False
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self):
-        self.btn_setSavingDir = QPushButton('Browse')
+        self.btn_setSavingDir = QPushButton("Browse")
         self.btn_setSavingDir.setDefault(False)
-        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
-        
+        self.btn_setSavingDir.setIcon(QIcon("icon/folder.png"))
+
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setReadOnly(True)
-        self.lineEdit_savingDir.setText('Choose a base saving directory')
+        self.lineEdit_savingDir.setText("Choose a base saving directory")
 
         self.lineEdit_experimentID = QLineEdit()
 
         self.entry_saveFPS = QDoubleSpinBox()
-        self.entry_saveFPS.setMinimum(0.02) 
-        self.entry_saveFPS.setMaximum(1000) 
+        self.entry_saveFPS.setMinimum(0.02)
+        self.entry_saveFPS.setMaximum(1000)
         self.entry_saveFPS.setSingleStep(1)
         self.entry_saveFPS.setValue(1)
         self.streamHandler.set_save_fps(1)
 
         self.entry_timeLimit = QSpinBox()
-        self.entry_timeLimit.setMinimum(-1) 
-        self.entry_timeLimit.setMaximum(60*60*24*30) 
+        self.entry_timeLimit.setMinimum(-1)
+        self.entry_timeLimit.setMaximum(60 * 60 * 24 * 30)
         self.entry_timeLimit.setSingleStep(1)
         self.entry_timeLimit.setValue(-1)
 
@@ -99,25 +103,25 @@ class RecordingWidget(QFrame):
         self.btn_record.setDefault(False)
 
         grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Saving Path'))
-        grid_line1.addWidget(self.lineEdit_savingDir, 0,1)
-        grid_line1.addWidget(self.btn_setSavingDir, 0,2)
+        grid_line1.addWidget(QLabel("Saving Path"))
+        grid_line1.addWidget(self.lineEdit_savingDir, 0, 1)
+        grid_line1.addWidget(self.btn_setSavingDir, 0, 2)
 
         grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('Experiment ID'), 0,0)
-        grid_line2.addWidget(self.lineEdit_experimentID,0,1)
+        grid_line2.addWidget(QLabel("Experiment ID"), 0, 0)
+        grid_line2.addWidget(self.lineEdit_experimentID, 0, 1)
 
         grid_line3 = QGridLayout()
-        grid_line3.addWidget(QLabel('Saving FPS'), 0,0)
-        grid_line3.addWidget(self.entry_saveFPS, 0,1)
-        grid_line3.addWidget(QLabel('Time Limit (s)'), 0,2)
-        grid_line3.addWidget(self.entry_timeLimit, 0,3)
-        grid_line3.addWidget(self.btn_record, 0,4)
+        grid_line3.addWidget(QLabel("Saving FPS"), 0, 0)
+        grid_line3.addWidget(self.entry_saveFPS, 0, 1)
+        grid_line3.addWidget(QLabel("Time Limit (s)"), 0, 2)
+        grid_line3.addWidget(self.entry_timeLimit, 0, 3)
+        grid_line3.addWidget(self.btn_record, 0, 4)
 
         self.grid = QGridLayout()
-        self.grid.addLayout(grid_line1,0,0)
-        self.grid.addLayout(grid_line2,1,0)
-        self.grid.addLayout(grid_line3,2,0)
+        self.grid.addLayout(grid_line1, 0, 0)
+        self.grid.addLayout(grid_line2, 1, 0)
+        self.grid.addLayout(grid_line3, 2, 0)
         self.grid.setRowStretch(self.grid.rowCount(), 1)
         self.setLayout(self.grid)
 
@@ -128,7 +132,9 @@ class RecordingWidget(QFrame):
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_record.clicked.connect(self.toggle_recording)
         self.entry_saveFPS.valueChanged.connect(self.streamHandler.set_save_fps)
-        self.entry_timeLimit.valueChanged.connect(self.imageSaver.set_recording_time_limit)
+        self.entry_timeLimit.valueChanged.connect(
+            self.imageSaver.set_recording_time_limit
+        )
         self.imageSaver.stop_recording.connect(self.stop_recording)
 
     def set_saving_dir(self):
@@ -138,7 +144,7 @@ class RecordingWidget(QFrame):
         self.lineEdit_savingDir.setText(save_dir_base)
         self.base_path_is_set = True
 
-    def toggle_recording(self,pressed):
+    def toggle_recording(self, pressed):
         if self.base_path_is_set == False:
             self.btn_record.setChecked(False)
             msg = QMessageBox()
@@ -172,23 +178,23 @@ class SpectrumDisplay(QFrame):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self):
-        self.plotWidget = PlotWidget('', add_legend=True)
+        self.plotWidget = PlotWidget("", add_legend=True)
 
-        layout = QGridLayout() #layout = QStackedLayout()
-        layout.addWidget(self.plotWidget,0,0)
+        layout = QGridLayout()  # layout = QStackedLayout()
+        layout.addWidget(self.plotWidget, 0, 0)
         self.setLayout(layout)
 
-    def plot(self,data):
-        self.plotWidget.plot(data[0,:],data[1,:],clear=True)
+    def plot(self, data):
+        self.plotWidget.plot(data[0, :], data[1, :], clear=True)
 
 
 class PlotWidget(pg.GraphicsLayoutWidget):
-    
-    def __init__(self,title='',parent=None,add_legend=False):
+
+    def __init__(self, title="", parent=None, add_legend=False):
         super().__init__(parent)
         self.plotWidget = self.addPlot(title=title)
         if add_legend:
             self.plotWidget.addLegend()
-    
-    def plot(self,x,y,clear=False):
-        self.plotWidget.plot(x,y,clear=clear)
+
+    def plot(self, x, y, clear=False):
+        self.plotWidget.plot(x, y, clear=clear)

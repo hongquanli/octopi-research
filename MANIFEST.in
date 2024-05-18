@@ -1,0 +1,5 @@
+include squid_control/icon/*
+include squid_control/images/*
+include squid_control/control/*
+include squid_control/configurations/*
+
