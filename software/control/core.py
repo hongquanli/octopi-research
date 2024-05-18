@@ -732,14 +732,14 @@ class NavigationController(QObject):
 
         if USE_NAPARI:
             if not IS_WELLPLATE:
-                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x) / 2)
-                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y) / 2)
+                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x * PRVIEW_DOWNSAMPLE_FACTOR) / 2)
+                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y * PRVIEW_DOWNSAMPLE_FACTOR) / 2)
             else:
                 self.move_x_to(self.scan_begin_position_x - center_beginning_x + delta_x / 0.8)
                 self.move_y_to(self.scan_begin_position_y + center_beginning_y + delta_y / 0.8)
         else:
-            self.move_x_to(self.scan_begin_position_x - center_beginning_x / 2 + delta_x * PRVIEW_DOWNSAMPLE_FACTOR/2)
-            self.move_y_to(self.scan_begin_position_y + center_beginning_y / 2 + delta_y * PRVIEW_DOWNSAMPLE_FACTOR/2)
+            self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x * PRVIEW_DOWNSAMPLE_FACTOR) / 2)
+            self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y * PRVIEW_DOWNSAMPLE_FACTOR) / 2)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -1977,11 +1977,12 @@ class MultiPointWorker(QObject):
                                         # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                         # write the image
-                                        print('writing RGB image')
-                                        if rgb_image.dtype == np.uint16:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
-                                        else:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
+                                        if len(rgb_image.shape) == 3:
+                                            print('writing RGB image')
+                                            if rgb_image.dtype == np.uint16:
+                                                iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
+                                            else:
+                                                iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
 
                                     if USE_NAPARI:
                                         if not init_napari_layers:
@@ -2047,12 +2048,14 @@ class MultiPointWorker(QObject):
                                     # write the image
                                     print('writing RGB image and R,G,B channels')
                                     if rgb_image.dtype == np.uint16:
-                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
+                                        if len(rgb_image.shape) == 3:
+                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.tiff'), rgb_image[:, :, 0])
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.tiff'), rgb_image[:, :, 1])
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.tiff'),rgb_image[:, :, 2])
                                     else:
-                                        iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
+                                        if len(rgb_image.shape) == 3:
+                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 0])
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 1])
                                         iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 2])

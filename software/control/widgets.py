@@ -15,6 +15,7 @@ import locale
 import pandas as pd
 import napari
 import re
+import cv2
 from datetime import datetime
 #import skimage
 
@@ -2627,6 +2628,7 @@ class NapariTiledDisplayWidget(QWidget):
         # Initialize placeholders for the acquisition parameters
         #self.downsample_factor = 5 # todo
         self.configurationManager = configurationManager
+        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
@@ -2658,8 +2660,8 @@ class NapariTiledDisplayWidget(QWidget):
     def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
-        self.image_width = image_width #// self.downsample_factor
-        self.image_height = image_height #// self.downsample_factor
+        self.image_width = image_width // self.downsample_factor
+        self.image_height = image_height // self.downsample_factor
         self.dtype = np.dtype(image_dtype)
         self.contrast_limits = self.getContrastLimits(self.dtype)
         self.resetView()
@@ -2671,7 +2673,7 @@ class NapariTiledDisplayWidget(QWidget):
         rgb = len(image.shape) == 3
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
-    
+
         if channel_name not in self.viewer.layers: #or len(self.viewer.layers[channel_name].data.shape) - 1 != len(image.shape):
             self.channels.append(channel_name)
             if rgb:
@@ -2684,6 +2686,9 @@ class NapariTiledDisplayWidget(QWidget):
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
                                   colormap=color, contrast_limits=self.contrast_limits, blending='additive')
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+
+        image = cv2.resize(image, (self.image_width, self.image_height), interpolation=cv2.INTER_AREA)
+        # image = image[::self.downsample_factor, ::self.downsample_factor] # faster but worse quality (takes every nth pixel)
         
         if not self.viewer_scale_initialized:
             self.resetView()
@@ -2704,6 +2709,13 @@ class NapariTiledDisplayWidget(QWidget):
         layer.data = layer_data
         layer.refresh()
         self.viewer.dims.set_point(0, k)
+
+    def downsampleImage(image, factor):
+        # return 
+        width = int(image.shape[1] / factor)
+        height = int(image.shape[0] / factor)
+        resized_image = cv2.resize(image, (width, height), interpolation=cv2.INTER_AREA)
+        return resized_image
         
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
@@ -2796,10 +2808,10 @@ class NapariMultiChannelWidget(QWidget):
         # Locate the layer and its update its current data
         layer = self.viewer.layers[channel_name]
         print("image", image.shape)
-        print("layer", layer.data[k].shape)
+        print("layer", layer.data.shape)
         layer.data[k] = image
-        layer.refresh()
         self.viewer.dims.set_point(0, k)
+        layer.refresh()
 
     def resetView(self):
         self.viewer.reset_view()
