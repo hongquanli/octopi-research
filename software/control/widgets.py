@@ -2635,7 +2635,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.Ny = 1
         self.Nz = 1
         self.layers_initialized = False
-        # Initialize a napari Viewer without showing its standalone window.
+        self.viewer_scale_initialized = False
         self.initNapariViewer()
 
     def initNapariViewer(self):
@@ -2661,56 +2661,33 @@ class NapariTiledDisplayWidget(QWidget):
         self.image_width = image_width #// self.downsample_factor
         self.image_height = image_height #// self.downsample_factor
         self.dtype = np.dtype(image_dtype)
-        contrast_limits = self.getContrastLimits()
-            #raise ValueError("Unsupported dtype")
-
-        for i, channel in enumerate(self.channels):
-            
-            color = self.configurationManager.get_color_for_channel(channel)
-            if color == "rgb":
-                rgb = True
-                color = None
-            else: 
-                rgb = False
-            
-            if rgb:
-                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
-            else:
-                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
-                                  colormap=color, contrast_limits=contrast_limits, blending='additive')
-            # Add double-click callback to this layer
-            layer.mouse_double_click_callbacks.append(self.onDoubleClick)
-
+        self.contrast_limits = self.getContrastLimits(self.dtype)
         self.resetView()
         self.layers_initialized = True
+        self.viewer_scale_initialized = False
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
-        rgb = len(image.shape) >= 3
+        rgb = len(image.shape) == 3
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
-
-        #print(image.shape)
-        #image = skimage.transform.resize(image, (self.image_height, self.image_width), anti_aliasing=True)
-        #print(image.shape)
-
-        if channel_name not in self.viewer.layers:
+    
+        if channel_name not in self.viewer.layers: #or len(self.viewer.layers[channel_name].data.shape) - 1 != len(image.shape):
             self.channels.append(channel_name)
-            color = self.configurationManager.get_color_for_channel(channel)
-            if color == "rgb":
-                rgb = True
-                color = None
-            else:
-                rgb = False
             if rgb:
+                color = None
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
             else:
+                color = self.configurationManager.get_color_for_channel(channel_name)
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
+                
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
-                                  colormap=color, contrast_limits=contrast_limits, blending='additive')
-            # Add double-click callback to this layer
+                                  colormap=color, contrast_limits=self.contrast_limits, blending='additive')
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+        
+        if not self.viewer_scale_initialized:
+            self.resetView()
+            self.viewer_scale_initialized = True
 
         # Locate the layer and its current data
         layer = self.viewer.layers[channel_name]
@@ -2740,17 +2717,17 @@ class NapariTiledDisplayWidget(QWidget):
             # Emit the centered coordinates and dimensions of the layer's data array
             self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2], self.Nx, self.Ny)
 
-    def getContrastLimits(self):
-        if np.issubdtype(self.dtype, np.integer):
-            return (np.iinfo(self.dtype).min, np.iinfo(self.dtype).max)
-        elif np.issubdtype(self.dtype, np.floating):
+    def getContrastLimits(self, dtype):
+        if np.issubdtype(dtype, np.integer):
+            return (np.iinfo(dtype).min, np.iinfo(dtype).max)
+        elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
         return None
 
     def resetView(self):
         self.viewer.reset_view()
         for layer in self.viewer.layers:
-+            layer.refresh()
+            layer.refresh()
 
 
 class NapariMultiChannelWidget(QWidget):
@@ -2765,6 +2742,7 @@ class NapariMultiChannelWidget(QWidget):
         self.channels = []
         self.Nz = 1
         self.layers_initialized = False
+        self.viewer_scale_initialized = False
         self.grid_enabled = False
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
@@ -2784,41 +2762,40 @@ class NapariMultiChannelWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
-    def initLayers(self, image_height, image_width, image_dtype):
+    def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        self.viewer.layers.clear()
+        #self.viewer.layers.clear()
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
-        contrast_limits = self.getContrastLimits()
-        for i, channel in enumerate(self.channels):
-            color = self.configurationManager.get_color_for_channel(channel)
-            if color == "rgb":
-                rgb = True
-                color = None
-            else: 
-                rgb = False
-
-            if rgb == True:
-                canvas = np.zeros((self.Nz, image_height, image_width, 3), dtype=self.dtype)
-            else:
-                canvas = np.zeros((self.Nz, image_height, image_width), dtype=self.dtype)
-            
-            self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
-                                  colormap=color, contrast_limits=contrast_limits, blending='additive')
-        self.resetView()
+        self.contrast_limits = self.getContrastLimits(self.dtype)
         self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
-        if channel_name not in self.viewer.layers:
-            self.channels.append(channel_name)
-            self.initLayers(image.shape[0], image.shape[1], image.dtype)
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
+        if channel_name not in self.viewer.layers:
+            self.channels.append(channel_name)
+            rgb = len(image.shape) == 3
+            if rgb:
+                color = None
+                canvas = np.zeros((self.Nz, self.image_height, self.image_width, 3), dtype=self.dtype)
+            else:
+                color = self.configurationManager.get_color_for_channel(channel_name)
+                canvas = np.zeros((self.Nz, self.image_height, self.image_width), dtype=self.dtype)
+            
+            self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
+                                  colormap=color, contrast_limits=self.contrast_limits, blending='additive')
+            if not self.viewer_scale_initialized:
+                self.resetView()
+                self.viewer_scale_initialized = True
+
         # Locate the layer and its update its current data
         layer = self.viewer.layers[channel_name]
+        print("image", image.shape)
+        print("layer", layer.data[k].shape)
         layer.data[k] = image
         layer.refresh()
 
@@ -2827,10 +2804,10 @@ class NapariMultiChannelWidget(QWidget):
         for layer in self.viewer.layers:
             layer.refresh()
 
-    def getContrastLimits(self):
-        if np.issubdtype(self.dtype, np.integer):
-            return (np.iinfo(self.dtype).min, np.iinfo(self.dtype).max)
-        elif np.issubdtype(self.dtype, np.floating):
+    def getContrastLimits(self, dtype):
+        if np.issubdtype(dtype, np.integer):
+            return (np.iinfo(dtype).min, np.iinfo(dtype).max)
+        elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
         return None
 
@@ -2928,7 +2905,7 @@ class NapariLiveWidget(QWidget):
     def resetView(self):
         self.viewer.reset_view()
         for layer in self.viewer.layers:
-+            layer.refresh()
+            layer.refresh()
 
 
 class TrackingControllerWidget(QFrame):

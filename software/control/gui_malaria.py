@@ -137,7 +137,7 @@ class OctopiGUI(QMainWindow):
 
         # set piezo arguments
         if ENABLE_OBJECTIVE_PIEZO is True:
-            if PIEZO_CONTROL_VOLTAGE_RANGE == 5:
+            if OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5:
                 OUTPUT_GAINS.CHANNEL7_GAIN = True
             else:
                 OUTPUT_GAINS.CHANNEL7_GAIN = False

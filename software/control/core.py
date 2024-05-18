@@ -732,8 +732,8 @@ class NavigationController(QObject):
 
         if USE_NAPARI:
             if not IS_WELLPLATE:
-                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x * 1.1) / 2)
-                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y * 1.1) / 2)
+                self.move_x_to(self.scan_begin_position_x + (-center_beginning_x + delta_x) / 2)
+                self.move_y_to(self.scan_begin_position_y + (center_beginning_y + delta_y) / 2)
             else:
                 self.move_x_to(self.scan_begin_position_x - center_beginning_x + delta_x / 0.8)
                 self.move_y_to(self.scan_begin_position_y + center_beginning_y + delta_y / 0.8)
@@ -787,8 +787,9 @@ class NavigationController(QObject):
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
 
             if not IS_WELLPLATE:
-                delta_x /= 2
-                delta_y /= 2
+                delta_x /= 2.2
+                delta_y /= 2.2
+
 
             self.move_x(delta_x)
             self.move_y(delta_y)
@@ -1312,8 +1313,8 @@ class AutofocusWorker(QObject):
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-            self.image_to_display.emit(image)
             image = utils.crop_image(image,self.crop_width,self.crop_height)
+            self.image_to_display.emit(image)
             QApplication.processEvents()
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
@@ -2029,6 +2030,7 @@ class MultiPointWorker(QObject):
                                     rgb_image[:, :, 0] = images['BF LED matrix full_R']
                                     rgb_image[:, :, 1] = images['BF LED matrix full_G']
                                     rgb_image[:, :, 2] = images['BF LED matrix full_B']
+                                    print(rgb_image.shape)
                                     # send image to display
                                     image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                     
@@ -3014,7 +3016,7 @@ class Stitcher(Thread, QObject):
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
         self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
-        #self.has_RGB = False
+        self.is_rgb = False
         
         self.wells = []
         self.channel_names = []
@@ -3025,6 +3027,7 @@ class Stitcher(Thread, QObject):
         self.flatfields = {}
         self.stitching_data = {}
         self.stitched_images = None
+        self.chunks = None
         self.dtype = np.uint16
 
    
@@ -3076,6 +3079,7 @@ class Stitcher(Thread, QObject):
     def parse_filenames(self, time_point, four_input_format=True):
         # Read the first image to get its dimensions and dtype
         self.image_folder = os.path.join(self.input_folder, str(time_point))
+
         all_files = os.listdir(self.image_folder)
         # self.has_RGB = any('_RGB' in filename for filename in all_files)
         sorted_input_files = sorted([filename for filename in all_files
@@ -3094,9 +3098,18 @@ class Stitcher(Thread, QObject):
             #print("i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
             four_input_format = False
 
-        first_image = dask_imread(os.path.join(self.image_folder, first_filename))
+        first_image = dask_imread(os.path.join(self.image_folder, first_filename))[0]
         self.dtype = np.dtype(first_image.dtype)
-        self.input_height, self.input_width = first_image.shape[-2:]
+        print("image shape", first_image.shape)
+        print("image dtype", self.dtype)
+        self.input_height, self.input_width = first_image.shape[:2]
+        if len(first_image.shape) >= 3:
+            self.is_rgb = True
+            self.chunks = (1, 1, 1, self.input_height, self.input_width, 1)
+        else:
+            self.chunks = (1, 1, 1, self.input_height, self.input_width)    
+        print(self.chunks)
+        print("image is rgb", self.is_rgb)
         del first_image
 
         wells = set()
@@ -3158,6 +3171,7 @@ class Stitcher(Thread, QObject):
     def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap):
         img1 = dask_imread(img1_path)[0]
         img2 = dask_imread(img2_path)[0]
+        print(img1.shape, img2.shape)
         margin = self.input_height // 10 # set margin amount 
         img1_roi = img1[margin:-margin, -max_overlap:]
         img2_roi = img2[margin:-margin, :max_overlap]
@@ -3245,11 +3259,15 @@ class Stitcher(Thread, QObject):
         
         x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
         y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
-        tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max)
+        if self.is_rgb:
+            tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max, 3)
+            self.chunks = (1, 1, 1, self.input_height, self.input_width, 1)
+        else:
+            tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max)
+            self.chunks = (1, 1, 1, self.input_height, self.input_width)
         # element_size = np.dtype(self.dtype).itemsize  # Byte size of one array element
         # memory_bytes = np.prod(tczyx_shape) * element_size # # Total memory in bytes
-        chunks = (1, 1, 1, self.input_height, self.input_width)
-        return da.zeros(tczyx_shape, dtype=self.dtype, chunks=chunks)
+        return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
         self.stitched_images = self.init_output(time_point, well)
@@ -3266,6 +3284,7 @@ class Stitcher(Thread, QObject):
 
     def stitch_single_image(self, tile_info, z_level, channel_idx):
         tile = dask_imread(os.path.join(self.image_folder, tile_info['filename']))[0]
+        print(tile.shape)
         if self.apply_flatfield:
             tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min, 
                                                           max=np.iinfo(self.dtype).max).astype(self.dtype)
@@ -3280,7 +3299,10 @@ class Stitcher(Thread, QObject):
         left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col > 0 else 0
         right_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col < self.num_cols - 1 else 0
 
-        tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
+        if self.is_rgb:
+            tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop, :]
+        else:
+            tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
 
         # Initialize starting coordinates based on tile position and shift
         y = row * (self.input_height + self.v_shift[0]) + top_crop
@@ -3299,25 +3321,35 @@ class Stitcher(Thread, QObject):
             x += row * self.v_shift[1]  # Moves right if positive
         
         # Place cropped tile on the stitched image canvas
-        self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[-2], x:x+tile.shape[-1]] = tile
+        if self.is_rgb:
+            self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1], :] = tile
+        else:
+            self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1]] = tile
         # print(f" col:{col}, \trow:{row},\ty:{y}-{y+tile.shape[0]}, \tx:{x}-{x+tile.shape[-1]}")
 
     def save_as_ome_tiff(self):
         dz_um = self.acquisition_params.get("dz(um)", None)
         sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
+        dims = "TCZYX"
+        if self.is_rgb:
+            dims += "S"
+
         ome_metadata = OmeTiffWriter.build_ome(
             image_name=[os.path.basename(self.output_path)],
             data_shapes=[self.stitched_images.shape],
             data_types=[self.stitched_images.dtype],
-            dimension_order=["TCZYX"],
+            dimension_order=[dims],
             channel_names=[self.channel_names],
-            physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)]
+            physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)],
+            is_rgb=self.is_rgb
+            #channel colors
         )
         OmeTiffWriter.save(
             data=self.stitched_images,
             uri=self.output_path,
             ome_xml=ome_metadata,
-            dimension_order=["TCZYX"]
+            dimension_order=[dims]
+            #channel colors / names
         )
         self.stitched_images = None
 
@@ -3331,6 +3363,9 @@ class Stitcher(Thread, QObject):
         #channel_colors = [self.configurationManager.get_color_for_channel(c) for c in self.channel_names]
         channel_colors = [default_color_hex] * len(self.channel_names)
         channel_minmax = [(intensity_min, intensity_max)] * self.num_c
+        dims = "TCZYX"
+        if self.is_rgb:
+            dims += "S"
 
         zarr_writer = OmeZarrWriter(self.output_path)
         zarr_writer.build_ome(
@@ -3346,8 +3381,9 @@ class Stitcher(Thread, QObject):
             physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um),
             channel_names=self.channel_names,
             channel_colors=channel_colors,
-            dimension_order="TCZYX",
-            chunk_dims=(1, 1, 1, self.input_height, self.input_width)
+            dimension_order=dims,
+            scale_num_levels=5,
+            chunk_dims=self.chunks
         )
         self.stitched_images = None
         #root = zarr.open(self.output_path, mode='r')
@@ -3374,7 +3410,7 @@ class Stitcher(Thread, QObject):
                 group=root_group,
                 axes="tczyx",
                 channel_names=self.channel_names,
-                storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
+                storage_options=dict(chunks=self.chunks)
             )
             # Setup channel information with metadata for colors
             channel_info = [{
@@ -3439,7 +3475,7 @@ class Stitcher(Thread, QObject):
                                         group=image_group,
                                         axes="tczyx",
                                         channel_names=self.channel_names,
-                                        storage_options=dict(chunks=(1, 1, 1, self.input_height, self.input_width))
+                                        storage_options=dict(chunks=self.chunks)
                                         )
             channel_info = [{
                 "label": name,
@@ -3467,14 +3503,14 @@ class Stitcher(Thread, QObject):
                 print("well:", well_id)
                 filepath = f"{well_id}_{self.output_name}"
             else:
-                filepath = f"{self.output_name}.ome.zarr"
+                filepath = f"{self.output_name}"
             zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
             print("timepoint:", t, "\t", zarr_path)
             z = zarr.open(zarr_path, mode='r')
             # Ensure that '0' contains the data and it matches expected dimensions
             x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
             y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
-            t_array = da.from_zarr(z['0'], chunks=(1,1,1,self.input_height,self.input_width))
+            t_array = da.from_zarr(z['0'], chunks=self.chunks)
 
             print(f"shape of data from timepoint {t}: {t_array.shape}")
             t_data.append(t_array)
