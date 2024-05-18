@@ -2703,6 +2703,7 @@ class NapariTiledDisplayWidget(QWidget):
         # Update the layer with the modified data
         layer.data = layer_data
         layer.refresh()
+        self.viewer.dims.set_point(0, k)
         
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
@@ -2798,6 +2799,7 @@ class NapariMultiChannelWidget(QWidget):
         print("layer", layer.data[k].shape)
         layer.data[k] = image
         layer.refresh()
+        self.viewer.dims.set_point(0, k)
 
     def resetView(self):
         self.viewer.reset_view()

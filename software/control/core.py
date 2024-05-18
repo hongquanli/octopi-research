@@ -3023,6 +3023,7 @@ class Stitcher(Thread, QObject):
         
         self.wells = []
         self.channel_names = []
+        self.rgb_channel_names = []
         self.num_z = self.num_c = 1
         self.num_cols = self.num_rows = 1
         self.input_height = self.input_width = 0
@@ -3106,12 +3107,9 @@ class Stitcher(Thread, QObject):
         print("image shape", first_image.shape)
         print("image dtype", self.dtype)
         self.input_height, self.input_width = first_image.shape[:2]
+        self.chunks = (1, 1, 1, self.input_height, self.input_width)
         if len(first_image.shape) >= 3:
             self.is_rgb = True
-            self.chunks = (1, 1, 1, self.input_height, self.input_width, 1)
-        else:
-            self.chunks = (1, 1, 1, self.input_height, self.input_width)    
-        print(self.chunks)
         print("image is rgb", self.is_rgb)
         del first_image
 
@@ -3147,6 +3145,11 @@ class Stitcher(Thread, QObject):
         
         self.wells = sorted(list(wells))
         self.channel_names = sorted(list(channel_names))
+        if self.is_rgb:
+            for channel in self.channel_names:
+                self.rgb_channel_names.append(channel + " R")
+                self.rgb_channel_names.append(channel + " G")
+                self.rgb_channel_names.append(channel + " B")
         self.num_c = len(self.channel_names)
         self.num_z = max_k + 1
         self.num_cols = max_j + 1
@@ -3262,14 +3265,8 @@ class Stitcher(Thread, QObject):
         
         x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
         y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
-        if self.is_rgb:
-            tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max, 3)
-            self.chunks = (1, 1, 1, self.input_height, self.input_width, 1)
-        else:
-            tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max)
-            self.chunks = (1, 1, 1, self.input_height, self.input_width)
-        # element_size = np.dtype(self.dtype).itemsize  # Byte size of one array element
-        # memory_bytes = np.prod(tczyx_shape) * element_size # # Total memory in bytes
+
+        tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max)
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
@@ -3288,6 +3285,10 @@ class Stitcher(Thread, QObject):
     def stitch_single_image(self, tile_info, z_level, channel_idx):
         tile = dask_imread(os.path.join(self.image_folder, tile_info['filename']))[0]
         print(tile.shape)
+        # if len(tile.shape) == 3:
+        #     tile_r =
+        #     tile_g =
+        #     tile_b = 
         if self.apply_flatfield:
             tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min, 
                                                           max=np.iinfo(self.dtype).max).astype(self.dtype)
@@ -3302,10 +3303,10 @@ class Stitcher(Thread, QObject):
         left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col > 0 else 0
         right_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col < self.num_cols - 1 else 0
 
-        if self.is_rgb:
-            tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop, :]
-        else:
-            tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
+        # if self.is_rgb:
+        #     tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop, :]
+        # else:
+        tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
 
         # Initialize starting coordinates based on tile position and shift
         y = row * (self.input_height + self.v_shift[0]) + top_crop
@@ -3324,18 +3325,18 @@ class Stitcher(Thread, QObject):
             x += row * self.v_shift[1]  # Moves right if positive
         
         # Place cropped tile on the stitched image canvas
-        if self.is_rgb:
-            self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1], :] = tile
-        else:
-            self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1]] = tile
+        # if self.is_rgb:
+        #     self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1], :] = tile
+        # else:
+        self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1]] = tile
         # print(f" col:{col}, \trow:{row},\ty:{y}-{y+tile.shape[0]}, \tx:{x}-{x+tile.shape[-1]}")
 
     def save_as_ome_tiff(self):
         dz_um = self.acquisition_params.get("dz(um)", None)
         sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
         dims = "TCZYX"
-        if self.is_rgb:
-            dims += "S"
+        # if self.is_rgb:
+        #     dims += "S"
 
         ome_metadata = OmeTiffWriter.build_ome(
             image_name=[os.path.basename(self.output_path)],
@@ -3344,7 +3345,7 @@ class Stitcher(Thread, QObject):
             dimension_order=[dims],
             channel_names=[self.channel_names],
             physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)],
-            is_rgb=self.is_rgb
+            #is_rgb=self.is_rgb
             #channel colors
         )
         OmeTiffWriter.save(
@@ -3367,8 +3368,8 @@ class Stitcher(Thread, QObject):
         channel_colors = [default_color_hex] * len(self.channel_names)
         channel_minmax = [(intensity_min, intensity_max)] * self.num_c
         dims = "TCZYX"
-        if self.is_rgb:
-            dims += "S"
+        # if self.is_rgb:
+        #     dims += "S"
 
         zarr_writer = OmeZarrWriter(self.output_path)
         zarr_writer.build_ome(
