@@ -3,12 +3,12 @@ import os
 import squid_control.control.camera as camera
 import squid_control.control.core_reef as core
 import squid_control.control.microcontroller as microcontroller
-from squid_control.control._def import *
+from squid_control.control.config import CONFIG
 import logging
 import squid_control.control.serial_peripherals as serial_peripherals
 import squid_control.control.utils_.image_processing as im_processing
 import matplotlib.path as mpath
-if SUPPORT_LASER_AUTOFOCUS:
+if CONFIG.SUPPORT_LASER_AUTOFOCUS:
     import squid_control.control.core_displacement_measurement as core_displacement_measurement
 
 import time
@@ -21,39 +21,39 @@ class SquidController:
         self.data_channel = None
         #load objects
         if is_simulation:
-            if ENABLE_SPINNING_DISK_CONFOCAL:
+            if CONFIG.ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight_Simulation()
-            if SUPPORT_LASER_AUTOFOCUS:
-                self.camera = camera.Camera_Simulation(rotate_image_angle = ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
+            if CONFIG.SUPPORT_LASER_AUTOFOCUS:
+                self.camera = camera.Camera_Simulation(rotate_image_angle = CONFIG.ROTATE_IMAGE_ANGLE, flip_image=CONFIG.FLIP_IMAGE)
                 self.camera_focus = camera.Camera_Simulation()
             else:
-                self.camera = camera.Camera_Simulation(rotate_image_angle = ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
+                self.camera = camera.Camera_Simulation(rotate_image_angle = CONFIG.ROTATE_IMAGE_ANGLE, flip_image=CONFIG.FLIP_IMAGE)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
-            if ENABLE_SPINNING_DISK_CONFOCAL:
+            if CONFIG.ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.xlight()
             try:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                if CONFIG.SUPPORT_LASER_AUTOFOCUS:
+                    sn_camera_main = camera.get_sn_by_model(CONFIG.MAIN_CAMERA_MODEL)
+                    sn_camera_focus = camera.get_sn_by_model(CONFIG.FOCUS_CAMERA_MODEL)
+                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=CONFIG.ROTATE_IMAGE_ANGLE,flip_image=CONFIG.FLIP_IMAGE)
                     self.camera.open()
                     self.camera_focus = camera.Camera(sn=sn_camera_focus)
                     self.camera_focus.open()
                 else:
-                    self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                    self.camera = camera.Camera(rotate_image_angle=CONFIG.ROTATE_IMAGE_ANGLE,flip_image=CONFIG.FLIP_IMAGE)
                     self.camera.open()
             except:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                if CONFIG.SUPPORT_LASER_AUTOFOCUS:
+                    self.camera = camera.Camera_Simulation(rotate_image_angle=CONFIG.ROTATE_IMAGE_ANGLE,flip_image=CONFIG.FLIP_IMAGE)
                     self.camera.open()
                     self.camera_focus = camera.Camera_Simulation()
                     self.camera_focus.open()
                 else:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                    self.camera = camera.Camera_Simulation(rotate_image_angle=CONFIG.ROTATE_IMAGE_ANGLE,flip_image=CONFIG.FLIP_IMAGE)
                     self.camera.open()
                 print('! camera not detected, using simulated camera !')
-            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
+            self.microcontroller = microcontroller.Microcontroller(version=CONFIG.CONTROLLER_VERSION)
 
         # reset the MCU
         self.microcontroller.reset()
@@ -66,7 +66,7 @@ class SquidController:
 
         self.configurationManager = core.ConfigurationManager(filename='./squid_control/channel_configurations.xml')
 
-        self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
+        self.streamHandler = core.StreamHandler(display_resolution_scaling=CONFIG.DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
@@ -74,7 +74,7 @@ class SquidController:
         self.scanCoordinates = core.ScanCoordinates()
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
         #self.plateReaderNavigationController = core.PlateReaderNavigationController(self.microcontroller)
-        if ENABLE_TRACKING:
+        if CONFIG.ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         
         # open the camera
@@ -92,7 +92,7 @@ class SquidController:
         self.liveController.set_microscope_mode(self.configurationManager.configurations[0])
 
         # laser autofocus
-        if SUPPORT_LASER_AUTOFOCUS:
+        if CONFIG.SUPPORT_LASER_AUTOFOCUS:
 
             # controllers
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./squid_control/focus_camera_configurations.xml')
@@ -123,7 +123,7 @@ class SquidController:
                 print('z homing timeout, the program will exit')
                 exit()
         print('objective retracted')
-        self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+        self.navigationController.set_z_limit_pos_mm(CONFIG.SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
         # home XY, set zero and set software limit
         print('home xy')
@@ -171,10 +171,10 @@ class SquidController:
                 exit()
 
         # set software limits        
-        self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
-        self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
-        self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
-        self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+        self.navigationController.set_x_limit_pos_mm(CONFIG.SOFTWARE_POS_LIMIT.X_POSITIVE)
+        self.navigationController.set_x_limit_neg_mm(CONFIG.SOFTWARE_POS_LIMIT.X_NEGATIVE)
+        self.navigationController.set_y_limit_pos_mm(CONFIG.SOFTWARE_POS_LIMIT.Y_POSITIVE)
+        self.navigationController.set_y_limit_neg_mm(CONFIG.SOFTWARE_POS_LIMIT.Y_NEGATIVE)
             
     def move_to_scaning_position(self):
         # move to scanning position
@@ -187,7 +187,7 @@ class SquidController:
             time.sleep(0.005)
 
         # move z
-        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+        self.navigationController.move_z_to(CONFIG.DEFAULT_Z_POS_MM)
         # wait for the operation to finish
         t0 = time.time() 
         while self.microcontroller.is_busy():
@@ -201,7 +201,7 @@ class SquidController:
         # start the acquisition loop
         self.move_to_scaning_position()
         location_list = self.multipointController.get_location_list()
-        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.multipointController.set_base_path(CONFIG.DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(illuminate_channels)
         self.multipointController.do_autofocus = do_autofocus
         self.autofocusController.set_deltaZ(1.524)
@@ -218,7 +218,7 @@ class SquidController:
     def scan_well_plate(self, action_ID='01'):
         # start the acquisition loop
         location_list = self.multipointController.get_location_list(rows=3,cols=3)
-        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.multipointController.set_base_path(CONFIG.DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(self.illuminate_channels_for_scan)
         self.multipointController.do_autofocus = True
         self.multipointController.start_new_experiment(action_ID)
@@ -226,13 +226,13 @@ class SquidController:
         
     def platereader_move_to_well(self,row,column, wellplate_type='24'):
         if wellplate_type == '6':
-            wellplate_format = WELLPLATE_FORMAT_6
+            wellplate_format = CONFIG.WELLPLATE_FORMAT_6
         elif wellplate_type == '24':
-            wellplate_format = WELLPLATE_FORMAT_24
+            wellplate_format = CONFIG.WELLPLATE_FORMAT_24
         elif wellplate_type == '96':
-            wellplate_format = WELLPLATE_FORMAT_96
+            wellplate_format = CONFIG.WELLPLATE_FORMAT_96
         elif wellplate_type == '384':
-            wellplate_format = WELLPLATE_FORMAT_384 
+            wellplate_format = CONFIG.WELLPLATE_FORMAT_384 
         
         if column != 0 and column != None:
             mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
