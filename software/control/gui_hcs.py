@@ -101,6 +101,9 @@ class OctopiGUI(QMainWindow):
         if is_simulation:
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight_Simulation()
+            if ENABLE_NL5:
+                import control.NL5 as NL5
+                self.nl5 = NL5.NL5_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
@@ -111,6 +114,9 @@ class OctopiGUI(QMainWindow):
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER,XLIGHT_SLEEP_TIME_FOR_WHEEL)
+            if ENABLE_NL5:
+                import control.NL5 as NL5
+                self.nl5 = NL5.NL5()
             if USE_LDI_SERIAL_CONTROL:
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
@@ -270,6 +276,9 @@ class OctopiGUI(QMainWindow):
         # load widgets
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.spinningDiskConfocalWidget = widgets.SpinningDiskConfocalWidget(self.xlight, self.configurationManager)
+        if ENABLE_NL5:
+            import control.NL5Widget as NL5Widget
+            self.nl5Wdiget = NL5Widget.NL5Widget(self.nl5)
 
         if CAMERA_TYPE == "Toupcam":
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True)
@@ -464,6 +473,8 @@ class OctopiGUI(QMainWindow):
 
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.microscopeControlTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
+            if ENABLE_NL5:
+                self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
