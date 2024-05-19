@@ -297,8 +297,7 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
-        if ENABLE_SPINNING_DISK_CONFOCAL:
-            self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
+
         self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
         self.microscopeControlTabWidget = QTabWidget()
@@ -462,6 +461,9 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
             self.microscopeControlTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
+
+            if ENABLE_SPINNING_DISK_CONFOCAL:
+                self.microscopeControlTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
