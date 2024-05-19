@@ -2124,11 +2124,11 @@ class MultiPointWorker(QObject):
                         if self.NZ > 1:
                             # move z back
                             if self.use_piezo:
-                                displacement_um = OBJECTIVE_PIEZO_HOME_UM
-                                dac = int(65535 * (displacement_um / OBJECTIVE_PIEZO_RANGE_UM))
+                                self.z_piezo_um = OBJECTIVE_PIEZO_HOME_UM
+                                dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
                                 self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
                                 if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
-                                            time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
+                                    time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
                                 if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
                                     self.signal_z_piezo_um.emit(self.z_piezo_um)
                             else:
