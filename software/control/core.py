@@ -449,7 +449,7 @@ class LiveController(QObject):
             self.microcontroller.turn_off_illumination()
         self.illumination_on = False
 
-    def set_illumination(self,illumination_source,intensity):
+    def set_illumination(self,illumination_source,intensity,update_channel_settings=True):
         if illumination_source < 10: # LED matrix
             if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
                 # set color
@@ -482,9 +482,15 @@ class LiveController(QObject):
                 # set LDI active channel
                 print('set active channel to ' + str(illumination_source))
                 self.ldi.set_active_channel(int(illumination_source))
-                # set intensity for active channel
-                print('set intensity')
-                self.ldi.set_intensity(int(illumination_source),intensity)
+                if update_channel_settings:
+                    # set intensity for active channel
+                    print('set intensity')
+                    self.ldi.set_intensity(int(illumination_source),intensity)
+            elif NL5_USE_DOUT and 'Fluorescence' in self.currentConfiguration.name:
+                wavelength = int(self.currentConfiguration.name[13:16])
+                self.microscope.nl5.set_active_channel(NL5_WAVENLENGTH_MAP[wavelength])
+                if NL5_USE_AOUT and update_channel_settings:
+                    self.microscope.nl5.set_laser_power(NL5_WAVENLENGTH_MAP[wavelength],int(intensity))
             else:
                 self.microcontroller.set_illumination(illumination_source,intensity)
 
@@ -1863,7 +1869,12 @@ class MultiPointWorker(QObject):
                                         self.wait_till_operation_is_completed()
                                         self.camera.send_trigger()
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                        self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                                        if 'Fluorescence' in config.name and ENABLE_NL5 and NL5_USE_DOUT:
+                                            self.microcontroller.set_pin_level(NL5_TRIGGER_PIN,1) # to replace
+                                            time.sleep(0.02) # to replace
+                                            self.microcontroller.set_pin_level(NL5_TRIGGER_PIN,0) # to replace
+                                        else:
+                                            self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                                     # read camera frame
                                     old_pixel_format = self.camera.pixel_format
                                     if config.pixel_format is not None:

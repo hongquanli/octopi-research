@@ -521,6 +521,13 @@ XLIGHT_VALIDATE_WHEEL_POS = False
 ENABLE_NL5 = True
 NL5_USE_AOUT = False
 NL5_USE_DOUT = True
+NL5_TRIGGER_PIN = 2
+NL5_WAVENLENGTH_MAP = {
+    405: 1,
+    470: 2, 488: 2,
+    545: 3, 555: 3, 561: 3,
+    637: 4, 638: 4, 640: 4
+}
 
 # Laser AF characterization mode
 LASER_AF_CHARACTERIZATION_MODE=False
