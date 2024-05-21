@@ -2951,7 +2951,7 @@ class TrackingWorker(QObject):
             # track
             objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
             if objectFound == False:
-                print('')
+                print('tracker: object not found')
                 break
             in_plane_position_error_pixel = image_center - centroid 
             in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
@@ -3022,11 +3022,11 @@ class Stitcher(Thread, QObject):
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
         self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
-        self.is_rgb = False
+        self.is_rgb = {}
         
         self.wells = []
         self.channel_names = []
-        self.rgb_channel_names = []
+        self.mono_channel_names = []
         self.num_z = self.num_c = 1
         self.num_cols = self.num_rows = 1
         self.input_height = self.input_width = 0
@@ -3083,7 +3083,7 @@ class Stitcher(Thread, QObject):
             return {'rows': False, 'cols': False, 'z-planes': False}
         return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
 
-    def parse_filenames(self, time_point, four_input_format=True):
+    def parse_filenames(self, time_point, input_format_well=True):
         # Read the first image to get its dimensions and dtype
         self.image_folder = os.path.join(self.input_folder, str(time_point))
 
@@ -3095,33 +3095,15 @@ class Stitcher(Thread, QObject):
         if not sorted_input_files:
             raise Exception("No valid files found in directory.")
 
-        first_filename = sorted_input_files[0]
-        try:
-            well, i, j, k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
-            k = int(k)
-            #print("well_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
-            four_input_format = True
-        except ValueError as ve:
-            #print("i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
-            four_input_format = False
-
-        first_image = dask_imread(os.path.join(self.image_folder, first_filename))[0]
-        self.dtype = np.dtype(first_image.dtype)
-        print("image shape", first_image.shape)
-        print("image dtype", self.dtype)
-        self.input_height, self.input_width = first_image.shape[:2]
-        self.chunks = (1, 1, 1, self.input_height, self.input_width)
-        if len(first_image.shape) >= 3:
-            self.is_rgb = True
-        print("image is rgb", self.is_rgb)
-        del first_image
-
         wells = set()
         channel_names = set()
+        mono_channel_names = []
         max_i = max_j = max_k = 0
-        # Read all image filenames to get data for stitching 
+        input_format_well = IS_WELLPLATE
+        input_extension = os.path.splitext(sorted_input_files[0])[1]
+        # Read all image filenames to get data for stitching
         for filename in sorted_input_files:
-            if four_input_format == True:
+            if input_format_well:
                 well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4) 
             else:
                 well = '0'
@@ -3145,18 +3127,36 @@ class Stitcher(Thread, QObject):
             max_k = max(max_k, k)
             max_j = max(max_j, j)
             max_i = max(max_i, i)
-        
+
         self.wells = sorted(list(wells))
         self.channel_names = sorted(list(channel_names))
-        if self.is_rgb:
-            for channel in self.channel_names:
-                self.rgb_channel_names.append(channel + " R")
-                self.rgb_channel_names.append(channel + " G")
-                self.rgb_channel_names.append(channel + " B")
         self.num_c = len(self.channel_names)
         self.num_z = max_k + 1
         self.num_cols = max_j + 1
         self.num_rows = max_i + 1
+
+        found_dims = False
+        first_coord = self.wells[0] + "_0_0_0_" if input_format_well else "0_0_0_"
+        for channel in self.channel_names:
+            filename = first_coord + channel.replace(" ","_") + input_extension
+            image = dask_imread(os.path.join(self.image_folder, filename))[0]
+            if not found_dims:
+                self.dtype = np.dtype(image.dtype)
+                self.input_height, self.input_width = image.shape[:2]
+                self.chunks = (1, 1, 1, self.input_height, self.input_width)
+                found_dims = True
+                print("chunks", self.chunks)
+            if len(image.shape) > 3:
+                raise Exception(f"Invalid image shape {filename}: {image.shape}")
+            elif len(image.shape) == 3:
+                self.is_rgb[channel] = True
+                mono_channel_names.append(channel + ' R')
+                mono_channel_names.append(channel + ' G')
+                mono_channel_names.append(channel + ' B')
+            else:
+                self.is_rgb[channel] = False
+                mono_channel_names.append(channel)
+        self.mono_channel_names = mono_channel_names
 
     def get_flatfields(self, progress_callback=None):
         for c_i, channel in enumerate(self.channel_names):
@@ -3169,8 +3169,13 @@ class Stitcher(Thread, QObject):
             images = []
             for tile_info in channel_tiles[:min(32, len(channel_tiles))]:
                 filepath = os.path.join(self.image_folder, tile_info['filename'])
-                images.append(dask_imread(filepath)[0])
+                image = dask_imread(filepath)[0]
+                if len(image.shape) == 3: 
+                    print("rgb flatfield")
+                    images.append(image[:,:,1]) #. . . . to fix
+                images.append(image)
 
+            # split for rgb images
             images = np.array(images)
             basic = BaSiC(get_darkfield=False, smoothness_flatfield=1)
             basic.fit(images)
@@ -3180,7 +3185,7 @@ class Stitcher(Thread, QObject):
     def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap):
         img1 = dask_imread(img1_path)[0]
         img2 = dask_imread(img2_path)[0]
-        print(img1.shape, img2.shape)
+        #print(img1.shape, img2.shape)
         margin = self.input_height // 10 # set margin amount 
         img1_roi = img1[margin:-margin, -max_overlap:]
         img2_roi = img2[margin:-margin, :max_overlap]
@@ -3200,7 +3205,7 @@ class Stitcher(Thread, QObject):
     def calculate_shifts(self, well="", z_level=0):
         well = self.wells[0] if well not in self.wells else well
         if self.registration_channel not in self.channel_names:
-            self.registration_channel = self.channel_names[0] 
+            self.registration_channel = self.channel_names[0]
 
         # calc estimated overlap from acquisition params
         dx_mm = self.acquisition_params['dx(mm)']  # physical distance between adjacent scans in x direction
@@ -3230,7 +3235,7 @@ class Stitcher(Thread, QObject):
         if self.is_reversed['cols']:
             col_left, col_right = col_right, col_left
 
-        row_top, row_bottom = ((self.num_rows - 1) // 2, (self.num_rows - 1) // 2 + 1 )
+        row_top, row_bottom = ((self.num_rows - 1) // 2, (self.num_rows - 1) // 2 + 1)
         if self.is_reversed['rows']:
             row_top, row_bottom = row_bottom, row_top
 
@@ -3265,41 +3270,39 @@ class Stitcher(Thread, QObject):
             self.output_path = os.path.join(output_folder, well + "_" + self.output_name)
         else:
             self.output_path = os.path.join(output_folder, self.output_name)
-        
         x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
         y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
 
-        tczyx_shape = (1, len(self.channel_names), self.num_z, y_max, x_max)
+        tczyx_shape = (1, len(self.mono_channel_names), self.num_z, y_max, x_max)
+        print(f"(t:{time_point}, well:{well}) output shape:{tczyx_shape}")
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
         self.stitched_images = self.init_output(time_point, well)
-        # print(self.stitched_images.shape)
         total_tiles = sum(len(z_data) for channel_data in self.stitching_data[well].values() for z_data in channel_data.values())
         processed_tiles = 0
-        for channel_idx, channel in enumerate(self.channel_names):
+        for channel_idx, channel in enumerate(self.mono_channel_names):
             for z_level, z_data in self.stitching_data[well][channel].items():
                 for tile_info in z_data:
-                    self.stitch_single_image(tile_info, z_level, channel_idx)
+                    tile = dask_imread(os.path.join(self.image_folder, tile_info['filename']))[0]
+                    # Get tile grid location (row, col)
+                    row = self.num_rows - 1 - tile_info['row'] if self.is_reversed['rows'] else tile_info['row']
+                    col = self.num_cols - 1 - tile_info['col'] if self.is_reversed['cols'] else tile_info['col']
+                    # if len(tile.shape) == 3:
+                    #     tile_r = tile[:,:,1]
+                    #     tile_g = tile[:,:,2]
+                    #     tile_b = tile[:,:,3]
+                    
+                    self.stitch_single_image(tile, z_level, channel_idx, row, col)
                     processed_tiles += 1
                     if progress_callback is not None:
                         progress_callback(processed_tiles, total_tiles)
 
-    def stitch_single_image(self, tile_info, z_level, channel_idx):
-        tile = dask_imread(os.path.join(self.image_folder, tile_info['filename']))[0]
-        print(tile.shape)
-        # if len(tile.shape) == 3:
-        #     tile_r =
-        #     tile_g =
-        #     tile_b = 
+    def stitch_single_image(self, tile, z_level, channel_idx, row, col):
+        #print(tile.shape)
         if self.apply_flatfield:
             tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min, 
-                                                          max=np.iinfo(self.dtype).max).astype(self.dtype)
-
-        # Get tile grid location (row, col)
-        row = self.num_rows - 1 - tile_info['row'] if self.is_reversed['rows'] else tile_info['row']
-        col = self.num_cols - 1 - tile_info['col'] if self.is_reversed['cols'] else tile_info['col']
-
+                                                              max=np.iinfo(self.dtype).max).astype(self.dtype)
         # Determine crop for tile edges 
         top_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row > 0 else 0
         bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row < self.num_rows - 1 else 0
@@ -3507,19 +3510,16 @@ class Stitcher(Thread, QObject):
         t_shapes = []
         for t in self.time_points:
             if IS_WELLPLATE:
-                print("well:", well_id)
                 filepath = f"{well_id}_{self.output_name}"
             else:
                 filepath = f"{self.output_name}"
             zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
-            print("timepoint:", t, "\t", zarr_path)
+            print("timepoint:", t, "well:", well_id, "\t", zarr_path)
             z = zarr.open(zarr_path, mode='r')
             # Ensure that '0' contains the data and it matches expected dimensions
             x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
             y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
             t_array = da.from_zarr(z['0'], chunks=self.chunks)
-
-            print(f"shape of data from timepoint {t}: {t_array.shape}")
             t_data.append(t_array)
             t_shapes.append(t_array.shape)
 
@@ -3528,7 +3528,7 @@ class Stitcher(Thread, QObject):
             max_shape = tuple(max(s) for s in zip(*t_shapes))
             padded_data = [self.pad_to_largest(t, max_shape) for t in t_data]
             data = da.concatenate(padded_data, axis=0)
-            print(f"shape of merged data: {data.shape}")
+            print(f"shape of data from merged timepoints, well:{well_id}: {data.shape}")
             return data
         elif len(t_data) == 1:
             data = t_data[0]
@@ -3549,7 +3549,7 @@ class Stitcher(Thread, QObject):
         # Main stitching logic
         try:
             for time_point in self.time_points:
-                print(f"timepoint:{time_point} - parsing acquisition metadata ...")
+                print(f"starting t:{time_point}...")
                 self.parse_filenames(time_point) # 
 
                 if self.apply_flatfield:
@@ -3562,21 +3562,19 @@ class Stitcher(Thread, QObject):
                     self.calculate_shifts()
 
                 for well in self.wells:
-                    if well != '0':
-                        print(f"well:{well}")
                     self.starting_stitching.emit()
-                    print(f"starting stitching...")
+                    print(f"stitching...")
                     self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
 
                     self.starting_saving.emit(not STITCH_COMPLETE_ACQUISITION)
-                    print(f"starting saving...")
+                    print(f"saving...")
                     if ".ome.tiff" in self.output_path:
                         self.save_as_ome_tiff()
                     else:
                         self.save_as_ome_zarr()
                     if well != '0':
-                        print(f"...done saving t:{time_point} well:{well} successfully")
-                print(f"...done saving t:{time_point} successfully")
+                        print(f"...done saving well:{well}")
+                print(f"...finished t:{time_point}")
 
             if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
                 self.starting_saving.emit(True)

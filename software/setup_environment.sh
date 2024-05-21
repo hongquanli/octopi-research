@@ -22,6 +22,7 @@ case "${OS}" in
     Darwin*)    os=MacOS;;
     *)          os="UNKNOWN:${OS}"
 esac
+mkdir cache
 
 # Function to compare version numbers
 version() {

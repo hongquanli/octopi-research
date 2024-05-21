@@ -2707,8 +2707,8 @@ class NapariTiledDisplayWidget(QWidget):
             layer_data[k, y_slice, x_slice] = image
         # Update the layer with the modified data
         layer.data = layer_data
-        layer.refresh()
         self.viewer.dims.set_point(0, k)
+        layer.refresh()
 
     def downsampleImage(image, factor):
         # return 
@@ -2777,7 +2777,7 @@ class NapariMultiChannelWidget(QWidget):
 
     def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        #self.viewer.layers.clear()
+        self.viewer.layers.clear()
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
@@ -2807,8 +2807,6 @@ class NapariMultiChannelWidget(QWidget):
 
         # Locate the layer and its update its current data
         layer = self.viewer.layers[channel_name]
-        print("image", image.shape)
-        print("layer", layer.data.shape)
         layer.data[k] = image
         self.viewer.dims.set_point(0, k)
         layer.refresh()
