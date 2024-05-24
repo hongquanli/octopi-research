@@ -455,7 +455,7 @@ class Camera(object):
 
     def _update_buffer_settings(self):
         # resize the buffer
-        width, height = self.camera.get_Size()
+        xoffset, yoffset, width, height = self.camera.get_Roi()
 
         self.Width = width
         self.Height = height
