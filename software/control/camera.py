@@ -220,6 +220,17 @@ class Camera(object):
             self.camera.BalanceRatioSelector.set(2)
             awb_b = self.camera.BalanceRatio.set(wb_b)
 
+    def set_balance_white_auto(self, value):
+        if value in [0, 1, 2]:
+            if self.camera.BalanceWhiteAuto.is_implemented():
+                if self.camera.BalanceWhiteAuto.is_writable():
+                    self.camera.BalanceWhiteAuto.set(value)
+
+    def get_balance_white_auto(self):
+        if self.camera.BalanceWhiteAuto.is_implemented():
+            if self.camera.BalanceWhiteAuto.is_readable():
+                return self.camera.BalanceWhiteAuto.get()
+
     def set_reverse_x(self,value):
         self.camera.ReverseX.set(value)
 
@@ -505,6 +516,12 @@ class Camera_Simulation(object):
 
     def set_wb_ratios(self, wb_r=None, wb_g=None, wb_b=None):
         pass
+
+    def set_balance_white_auto(self, value):
+        pass
+
+    def get_balance_white_auto(self):
+        return 0
 
     def start_streaming(self):
         self.frame_ID_software = 0
