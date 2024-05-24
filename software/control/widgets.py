@@ -1609,8 +1609,7 @@ class MultiPointWidget(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
-    signal_acquisition_shape = Signal(int, int, int)
-    signal_acquisition_dz_um = Signal(float)
+    signal_acquisition_shape = Signal(int, int, int, float, float, float)
     signal_stitcher_widget = Signal(bool)
 
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
@@ -1851,8 +1850,13 @@ class MultiPointWidget(QFrame):
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             # emit acquisition data
             self.signal_acquisition_started.emit(True)
-            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
-            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
+            self.signal_acquisition_shape.emit(self.entry_NX.value(),
+                                               self.entry_NY.value(),
+                                               self.entry_NZ.value(),
+                                               self.entry_deltaX.value(),
+                                               self.entry_deltaY.value(),
+                                               self.entry_deltaZ.value())
+
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -1909,8 +1913,7 @@ class MultiPointWidget2(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
-    signal_acquisition_shape = Signal(int, int, int)
-    signal_acquisition_dz_um = Signal(float)
+    signal_acquisition_shape = Signal(int, int, int, float, float, float)
     signal_stitcher_widget = Signal(bool)
 
     def __init__(self, navigationController, navigationViewer, multipointController, configurationManager = None, main=None, scanCoordinates=None, *args, **kwargs):
@@ -2197,8 +2200,12 @@ class MultiPointWidget2(QFrame):
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
             self.signal_acquisition_started.emit(True)
-            self.signal_acquisition_shape.emit(self.entry_NX.value(), self.entry_NY.value(), self.entry_NZ.value())
-            self.signal_acquisition_dz_um.emit(self.entry_deltaZ.value())
+            self.signal_acquisition_shape.emit(self.entry_NX.value(),
+                                               self.entry_NY.value(),
+                                               self.entry_NZ.value(),
+                                               self.entry_deltaX.value(),
+                                               self.entry_deltaY.value(),
+                                               self.entry_deltaZ.value())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -2613,7 +2620,7 @@ class StitcherWidget(QFrame):
 
             for i, layer in enumerate(napari_viewer.layers):
                 #layer.contrast_limits = self.contrast_limits
-                layer.colormap = self.configurationManager.get_color_for_channel(layer.name.replace("_", " ").replace("full ", "full_"))
+                #layer.colormap = self.configurationManager.get_color_for_channel(layer.name.replace("_", " ").replace("full ", "full_"))
             # napari.run()  # Start the Napari event loop
         except Exception as e:
             QMessageBox.critical(self, "Error Opening in Napari", str(e))
@@ -2621,12 +2628,11 @@ class StitcherWidget(QFrame):
 
 class NapariTiledDisplayWidget(QWidget):
 
-    signal_coordinates_clicked = Signal(int, int, int, int, int, int)
+    signal_coordinates_clicked = Signal(int, int, int, int, int, int, float, float)
 
     def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        #self.downsample_factor = 5 # todo
         self.configurationManager = configurationManager
         self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
         self.image_width = 0
@@ -2642,17 +2648,19 @@ class NapariTiledDisplayWidget(QWidget):
 
     def initNapariViewer(self):
         self.viewer = napari.Viewer(show=False) #, ndisplay=3)
-        #self.viewer.mouse_drag_callbacks.append(on_mouse_drag)
-        #self.viewer.mouse_drag_callbacks.append(self.on_click)
         self.viewerWidget = self.viewer.window._qt_window
+        self.viewer.dims.axis_labels = ['Z-axis', 'Y-axis', 'X-axis']
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
         
-    def initLayersShape(self, Nx, Ny, Nz):
+    def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
         self.Nx = Nx
         self.Ny = Ny
         self.Nz = Nz
+        self.dx_mm = dx
+        self.dy_mm = dy
+        self.dz_um = dz
 
     def initChannels(self, channels):
         self.channels = channels
@@ -2728,7 +2736,10 @@ class NapariTiledDisplayWidget(QWidget):
             x_centered = int(coords[-1] - layer_shape[-1] / 2)
             y_centered = int(coords[-2] - layer_shape[-2] / 2)
             # Emit the centered coordinates and dimensions of the layer's data array
-            self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2], self.Nx, self.Ny)
+            self.signal_coordinates_clicked.emit(x_centered, y_centered,
+                                                 layer_shape[-1], layer_shape[-2],
+                                                 self.Nx, self.Ny,
+                                                 self.dx_mm, self.dy_mm)
 
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
@@ -2764,12 +2775,13 @@ class NapariMultiChannelWidget(QWidget):
         self.viewer = napari.Viewer(show=False)
         if self.grid_enabled:
             self.viewer.grid.enabled = True
+        self.viewer.dims.axis_labels = ['Z-axis', 'Y-axis', 'X-axis']
         self.viewerWidget = self.viewer.window._qt_window
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
         
-    def initLayersShape(self, Nx, Ny, Nz):
+    def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
         self.Nz = Nz
 
     def initChannels(self, channels):
@@ -2834,7 +2846,7 @@ class NapariLiveWidget(QWidget):
         self.configurationManager = configurationManager
         self.image_width = 0
         self.image_height = 0
-        self.dtype = np.uint8
+        self.dtype = np.uint8 
         self.channels = []
         self.init_live = False
         self.init_live_rgb = False
@@ -2857,6 +2869,7 @@ class NapariLiveWidget(QWidget):
     def initNapariViewer(self):
         self.viewer = napari.Viewer(show=False)
         self.viewerWidget = self.viewer.window._qt_window
+        self.viewer.dims.axis_labels = ['Y-axis', 'X-axis']
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
