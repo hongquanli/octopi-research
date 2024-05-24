@@ -2620,7 +2620,7 @@ class StitcherWidget(QFrame):
 
             for i, layer in enumerate(napari_viewer.layers):
                 #layer.contrast_limits = self.contrast_limits
-                #layer.colormap = self.configurationManager.get_color_for_channel(layer.name.replace("_", " ").replace("full ", "full_"))
+                layer.colormap = self.configurationManager.get_color_for_channel(layer.name.replace("_", " ").replace("full ", "full_"))
             # napari.run()  # Start the Napari event loop
         except Exception as e:
             QMessageBox.critical(self, "Error Opening in Napari", str(e))
