@@ -515,8 +515,15 @@ class Camera(object):
         except toupcam.HRESULTException as ex:
             error_type = hresult_checker(ex)
             print("Unable to select trigger source: " + error_type)
+        # set GPIO1 to trigger wait
+        try:
+            self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTMODE, 0)
 
         # self.update_camera_exposure_time()
+
+    def set_trigger_width_mode(self):
+        self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_PWMSOURCE, 1) # set PWM source to GPIO0
+        self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 4) # trigger source to PWM
 
     def set_gain_mode(self,mode):
         if mode == 'LCG':
