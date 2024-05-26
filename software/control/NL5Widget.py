@@ -20,12 +20,14 @@ class NL5SettingsDialog(QDialog):
         # Offset X control
         layout.addWidget(QLabel("Offset X"), 1, 0)
         self.offset_x_input = QDoubleSpinBox()
+        self.offset_x_input.setMinimum(-30)
         self.offset_x_input.setValue(self.nl5.offset_x)
         layout.addWidget(self.offset_x_input, 1, 1)
         
         # Bypass offset control
         layout.addWidget(QLabel("Bypass Offset"), 2, 0)
         self.bypass_offset_input = QDoubleSpinBox()
+        self.bypass_offset_input.setMinimum(-30)
         self.bypass_offset_input.setValue(self.nl5.bypass_offset)
         layout.addWidget(self.bypass_offset_input, 2, 1)
         
