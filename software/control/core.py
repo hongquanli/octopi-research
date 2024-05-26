@@ -1289,7 +1289,7 @@ class AutofocusWorker(QObject):
             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                 if 'Fluorescence' in config.name and ENABLE_NL5 and NL5_USE_DOUT:
                     self.camera.image_is_ready = False # to remove
-                    self.nl5.start_acquisition()
+                    self.microscope.nl5.start_acquisition()
                     image = self.camera.read_frame(reset_image_ready_flag=False)
                 else:
                     self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
@@ -1880,7 +1880,7 @@ class MultiPointWorker(QObject):
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                         if 'Fluorescence' in config.name and ENABLE_NL5 and NL5_USE_DOUT:
                                             self.camera.image_is_ready = False # to remove
-                                            self.nl5.start_acquisition()
+                                            self.microscope.nl5.start_acquisition()
                                             image = self.camera.read_frame(reset_image_ready_flag=False)
                                         else:
                                             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
