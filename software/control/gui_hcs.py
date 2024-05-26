@@ -471,11 +471,6 @@ class OctopiGUI(QMainWindow):
 
             self.microscopeControlTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
 
-            if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.microscopeControlTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
-            if ENABLE_NL5:
-                self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
-
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
             dock_laserfocus_image_display.addWidget(self.imageDisplayWindow_focus.widget)
@@ -520,6 +515,12 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+
+        # widget for confocal
+        if ENABLE_SPINNING_DISK_CONFOCAL:
+                self.microscopeControlTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
+        if ENABLE_NL5:
+            self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
         if not USE_NAPARI_FOR_LIVE_VIEW:
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)

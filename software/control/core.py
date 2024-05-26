@@ -486,7 +486,7 @@ class LiveController(QObject):
                     # set intensity for active channel
                     print('set intensity')
                     self.ldi.set_intensity(int(illumination_source),intensity)
-            elif NL5_USE_DOUT and 'Fluorescence' in self.currentConfiguration.name:
+            elif ENABLE_NL5 and NL5_USE_DOUT and 'Fluorescence' in self.currentConfiguration.name:
                 wavelength = int(self.currentConfiguration.name[13:16])
                 self.microscope.nl5.set_active_channel(NL5_WAVENLENGTH_MAP[wavelength])
                 if NL5_USE_AOUT and update_channel_settings:
@@ -550,7 +550,10 @@ class LiveController(QObject):
                 # print('real trigger fps is ' + str(self.fps_real))
         elif self.trigger_mode == TriggerMode.HARDWARE:
             self.trigger_ID = self.trigger_ID + 1
-            self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+            if ENABLE_NL5 and NL5_USE_DOUT:
+                self.microscope.nl5.start_acquisition()
+            else:
+                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
 
     def _start_triggerred_acquisition(self):
         self.timer_trigger.start()
@@ -1870,9 +1873,7 @@ class MultiPointWorker(QObject):
                                         self.camera.send_trigger()
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                         if 'Fluorescence' in config.name and ENABLE_NL5 and NL5_USE_DOUT:
-                                            self.microcontroller.set_pin_level(NL5_TRIGGER_PIN,1) # to replace
-                                            time.sleep(0.02) # to replace
-                                            self.microcontroller.set_pin_level(NL5_TRIGGER_PIN,0) # to replace
+                                            self.nl5.start_acquisition()
                                         else:
                                             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                                     # read camera frame

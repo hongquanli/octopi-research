@@ -518,6 +518,10 @@ class Camera(object):
         # set GPIO1 to trigger wait
         try:
             self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTMODE, 0)
+            self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTINVERTER, 0)
+        except toupcam.HRESULTException as ex:
+            error_type = hresult_checker(ex)
+            print("Unable to set GPIO1 for trigger ready: " + error_type)
 
         # self.update_camera_exposure_time()
 

@@ -54,8 +54,8 @@ class RCM_API:
     def __init__(self):
 
         # Load the header
-        macros = extract_macros_from_header('./RCM_API.h')
-        functions = extract_functions_from_header('./RCM_API.h')
+        macros = extract_macros_from_header('.\\RCM_API.h')
+        functions = extract_functions_from_header('.\\RCM_API.h')
 
         # Load the DLL
         self.rcm_api = ctypes.CDLL('.\\RCM_API.dll')
