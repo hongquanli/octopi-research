@@ -562,13 +562,15 @@ class Camera(object):
         else:
             pass
 
-    def read_frame(self):
-        self.image_is_ready = False
-        # self.send_trigger()
+    def read_frame(self,reset_image_ready_flag=True):
+        # set reset_image_ready_flag to True when read_frame() is called immediately after triggering the acquisition
+        if reset_image_ready_flag:
+            self.image_is_ready = False
         timestamp_t0 = time.time()
         while (time.time() - timestamp_t0) <= (self.exposure_time/1000)*1.02 + 4:
             time.sleep(0.005)
             if self.image_is_ready:
+                self.image_is_ready = False
                 return self.current_frame
         print('read frame timed out')
         return None

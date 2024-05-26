@@ -1280,15 +1280,20 @@ class AutofocusWorker(QObject):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
             steps_moved = steps_moved + 1
-            # trigger acquisition (including turning on the illumination)
+            # trigger acquisition (including turning on the illumination) and read frame
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_on_illumination()
                 self.wait_till_operation_is_completed()
                 self.camera.send_trigger()
+                image = self.camera.read_frame()
             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-            # read camera frame
-            image = self.camera.read_frame()
+                if 'Fluorescence' in config.name and ENABLE_NL5 and NL5_USE_DOUT:
+                    self.camera.image_is_ready = False # to remove
+                    self.nl5.start_acquisition()
+                    image = self.camera.read_frame(reset_image_ready_flag=False)
+                else:
+                    self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                    image = self.camera.read_frame()
             if image is None:
                 continue
             # tunr of the illumination if using software trigger
@@ -1866,27 +1871,21 @@ class MultiPointWorker(QObject):
                                     # update the current configuration
                                     self.signal_current_configuration.emit(config)
                                     self.wait_till_operation_is_completed()
-                                    # trigger acquisition (including turning on the illumination)
+                                    # trigger acquisition (including turning on the illumination) and read frame
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_on_illumination()
                                         self.wait_till_operation_is_completed()
                                         self.camera.send_trigger()
+                                        image = self.camera.read_frame()
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                                         if 'Fluorescence' in config.name and ENABLE_NL5 and NL5_USE_DOUT:
+                                            self.camera.image_is_ready = False # to remove
                                             self.nl5.start_acquisition()
+                                            image = self.camera.read_frame(reset_image_ready_flag=False)
                                         else:
                                             self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-                                    # read camera frame
-                                    old_pixel_format = self.camera.pixel_format
-                                    if config.pixel_format is not None:
-                                        if config.pixel_format != "" and config.pixel_format.lower() != "default":
-                                            self.camera.set_pixel_format(config.pixel_format)
+                                            image = self.camera.read_frame()
                                     
-                                    image = self.camera.read_frame()
-
-                                    if config.pixel_format is not None:
-                                        if config.pixel_format != "" and config.pixel_format.lower() != "default":
-                                            self.camera.set_pixel_format(old_pixel_format)
                                     if image is None:
                                         print('self.camera.read_frame() returned None')
                                         continue
