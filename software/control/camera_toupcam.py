@@ -515,8 +515,19 @@ class Camera(object):
         except toupcam.HRESULTException as ex:
             error_type = hresult_checker(ex)
             print("Unable to select trigger source: " + error_type)
+        # set GPIO1 to trigger wait
+        try:
+            self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTMODE, 0)
+            self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTINVERTER, 0)
+        except toupcam.HRESULTException as ex:
+            error_type = hresult_checker(ex)
+            print("Unable to set GPIO1 for trigger ready: " + error_type)
 
         # self.update_camera_exposure_time()
+
+    def set_trigger_width_mode(self):
+        self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_PWMSOURCE, 1) # set PWM source to GPIO0
+        self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 4) # trigger source to PWM
 
     def set_gain_mode(self,mode):
         if mode == 'LCG':
@@ -551,13 +562,15 @@ class Camera(object):
         else:
             pass
 
-    def read_frame(self):
-        self.image_is_ready = False
-        # self.send_trigger()
+    def read_frame(self,reset_image_ready_flag=True):
+        # set reset_image_ready_flag to True when read_frame() is called immediately after triggering the acquisition
+        if reset_image_ready_flag:
+            self.image_is_ready = False
         timestamp_t0 = time.time()
         while (time.time() - timestamp_t0) <= (self.exposure_time/1000)*1.02 + 4:
             time.sleep(0.005)
             if self.image_is_ready:
+                self.image_is_ready = False
                 return self.current_frame
         print('read frame timed out')
         return None

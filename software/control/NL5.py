@@ -1,4 +1,4 @@
-import control.RCM_API
+import control.RCM_API as RCM_API
 import json
 
 class NL5:
