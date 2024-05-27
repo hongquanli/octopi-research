@@ -88,7 +88,7 @@ class NL5Widget(QWidget):
         # Start acquisition button
         self.start_acquisition_button = QPushButton("Start Acquisition")
         self.start_acquisition_button.clicked.connect(self.nl5.start_acquisition)
-        layout.addWidget(self.start_acquisition_button, 3, 0, 1, 4)
+        # layout.addWidget(self.start_acquisition_button, 3, 0, 1, 4)
 
         # NL5 Settings button
         self.settings_button = QPushButton("NL5 Settings")
