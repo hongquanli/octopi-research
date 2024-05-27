@@ -351,3 +351,79 @@ class SciMicroscopyLEDArray:
             time.sleep(self.turn_on_delay)
     def turn_off_illumination(self):
         self.clear()
+
+class CellX:
+    """Wrapper for communicating with LDI over serial"""
+    def __init__(self, SN=""):
+        self.serial_connection = SerialDevice(SN=SN,baudrate=115200,
+                bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
+                parity=serial.PARITY_NONE,
+                xonxoff=False,rtscts=False,dsrdtr=False)
+        self.serial_connection.open_ser()
+        self.power = {}
+
+    def turn_on(self, channel):
+        self.serial_connection.write_and_check('SOUR'+str(channel)+':AM:STAT ON\r','OK',read_delay=0.01,print_response=False)
+
+    def turn_off(self, channel):
+        self.serial_connection.write_and_check('SOUR'+str(channel)+':AM:STAT OFF\r','OK',read_delay=0.01,print_response=False)
+
+    def set_laser_power(self, channel, power):
+        try:
+            assert power >= 1 and power <= 100
+        except AssertionError as e:
+            print(f"AssertionError: {e}")
+            return
+        if channel not in self.power.keys() or power != self.power[channel]:
+            self.serial_connection.write_and_check('SOUR'+str(channel)+':POW:LEV:IMM:AMPL'+str(power/1000)+'\r','OK',read_delay=0.01,print_response=False)
+            self.power[channel] = power
+        else:
+            pass # power is the same
+
+    def set_modulation(self, channel, modulation):
+        try:
+            assert modulation in ['INT','EXT Digital','EXT Analog','EXT Mixed']
+        except AssertionError as e:
+            print(f"AssertionError: {e}")
+            return
+        self.serial_connection.write_and_check('SOUR'+str(channel)+'AM:' + modulation +'\r','OK',read_delay=0.01,print_response=False)
+
+    def close(self):
+        self.serial_connection.close()
+
+class CellX_Simulation:
+    """Wrapper for communicating with LDI over serial"""
+    def __init__(self, SN=""):
+        self.serial_connection = SerialDevice(SN=SN,baudrate=115200,
+                bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
+                parity=serial.PARITY_NONE,
+                xonxoff=False,rtscts=False,dsrdtr=False)
+        self.serial_connection.open_ser()
+
+    def turn_on(self, channel):
+        pass
+
+    def turn_off(self, channel):
+        pass
+
+    def set_laser_power(self, channel, power):
+        try:
+            assert power >= 1 and power <= 100
+        except AssertionError as e:
+            print(f"AssertionError: {e}")
+            return
+        if channel not in self.power.keys() or power != self.power[channel]:
+            self.power[channel] = power
+        else:
+            pass # power is the same
+
+    def set_modulation(self, channel, modulation):
+        try:
+            assert modulation in ['INT','EXT Digital','EXT Analog','EXT Mixed']
+        except AssertionError as e:
+            print(f"AssertionError: {e}")
+            return
+        self.serial_connection.write_and_check('SOUR'+str(channel)+'AM:' + modulation +'\r','OK',read_delay=0.01,print_response=False)
+
+    def close(self):
+        pass

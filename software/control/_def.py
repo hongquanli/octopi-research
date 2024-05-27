@@ -519,6 +519,9 @@ XLIGHT_VALIDATE_WHEEL_POS = False
 
 # Confocal.nl NL5 integration
 ENABLE_NL5 = False
+ENABLE_CELLX = False
+CELLX_SN = None
+CELLX_MODULATION = 'EXT Digital'
 NL5_USE_AOUT = False
 NL5_USE_DOUT = True
 NL5_TRIGGER_PIN = 2
