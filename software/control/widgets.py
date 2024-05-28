@@ -685,17 +685,35 @@ class CameraSettingsWidget(QFrame):
         hbox1.addWidget(self.entry_ROI_offset_x)
 
         if include_camera_auto_wb_setting:
-            # auto white balance 
-            self.btn_auto_wb = QPushButton('Auto White Balance')
-            self.btn_auto_wb.setCheckable(True)
-            self.btn_auto_wb.setChecked(False)
-            self.btn_auto_wb.clicked.connect(self.toggle_auto_wb)
-            print(self.camera.get_balance_white_auto())
-            hbox1.addWidget(self.btn_auto_wb)
+            is_color = False
+            try:
+                is_color = self.camera.get_is_color()
+            except AttributeError:
+                pass
+
+            if is_color is True:
+                grid_camera_setting_wb = QGridLayout()
+
+                # auto white balance 
+                self.btn_auto_wb = QPushButton('Auto White Balance')
+                self.btn_auto_wb.setCheckable(True)
+                self.btn_auto_wb.setChecked(False)
+                self.btn_auto_wb.clicked.connect(self.toggle_auto_wb)
+                print(self.camera.get_balance_white_auto())
+                grid_camera_setting_wb.addWidget(self.btn_auto_wb,0,0)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)
         self.grid.addLayout(hbox1,1,0)
+        if include_camera_auto_wb_setting:
+            is_color = False
+            try:
+                is_color = self.camera.get_is_color()
+            except AttributeError:
+                pass
+            if is_color is True:
+                self.grid.addLayout(grid_camera_setting_wb,2,0)
+
         self.grid.setRowStretch(self.grid.rowCount(), 1)
         self.setLayout(self.grid)
 

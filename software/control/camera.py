@@ -231,6 +231,9 @@ class Camera(object):
             if self.camera.BalanceWhiteAuto.is_readable():
                 return self.camera.BalanceWhiteAuto.get()
 
+    def get_is_color(self):
+        return self.is_color
+
     def set_reverse_x(self,value):
         self.camera.ReverseX.set(value)
 
@@ -522,6 +525,9 @@ class Camera_Simulation(object):
 
     def get_balance_white_auto(self):
         return 0
+
+    def get_is_color(self):
+        return False
 
     def start_streaming(self):
         self.frame_ID_software = 0
