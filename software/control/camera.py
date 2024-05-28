@@ -91,7 +91,7 @@ class Camera(object):
             print(self.get_awb_ratios())
             # self.set_wb_ratios(1.28125,1.0,2.9453125)
             # self.set_wb_ratios(2,1,2)
-            self.set_wb_ratios(1.375,1,1.4141)
+            self.set_wb_ratios(AWB_RATIOS_R, AWB_RATIOS_G, AWB_RATIOS_B)
 
         # temporary
         self.camera.AcquisitionFrameRate.set(1000)
