@@ -491,6 +491,8 @@ class LiveController(QObject):
                 self.microscope.nl5.set_active_channel(NL5_WAVENLENGTH_MAP[wavelength])
                 if NL5_USE_AOUT and update_channel_settings:
                     self.microscope.nl5.set_laser_power(NL5_WAVENLENGTH_MAP[wavelength],int(intensity))
+                if ENABLE_CELLX:
+                    self.microscope.cellx.set_laser_power(NL5_WAVENLENGTH_MAP[wavelength],int(intensity))
             else:
                 self.microcontroller.set_illumination(illumination_source,intensity)
 

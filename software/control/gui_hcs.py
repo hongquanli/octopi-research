@@ -104,6 +104,8 @@ class OctopiGUI(QMainWindow):
             if ENABLE_NL5:
                 import control.NL5 as NL5
                 self.nl5 = NL5.NL5_Simulation()
+            if ENABLE_CELLX:
+                self.cellx = serial_peripherals.CellX_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
@@ -115,11 +117,22 @@ class OctopiGUI(QMainWindow):
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER,XLIGHT_SLEEP_TIME_FOR_WHEEL)
             if ENABLE_NL5:
+                print('initializing NL5 ...')
                 import control.NL5 as NL5
                 self.nl5 = NL5.NL5()
+                print('NL5 initialized')
+            if ENABLE_CELLX:
+                print('initializing CellX ...')
+                self.cellx = serial_peripherals.CellX(CELLX_SN)
+                for channel in [1,2,3,4]:
+                    self.cellx.set_modulation(channel,CELLX_MODULATION)
+                    self.cellx.turn_on(channel)
+                print('CellX initialized')
             if USE_LDI_SERIAL_CONTROL:
+                print('initializing LDI ...')
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
+                print('LDI initialized')
             if True:
                 if SUPPORT_LASER_AUTOFOCUS:
                     sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
@@ -549,6 +562,11 @@ class OctopiGUI(QMainWindow):
 
         self.liveController.stop_live()
         self.camera.close()
+        if ENABLE_CELLX:
+            for channel in [1,2,3,4]:
+                self.cellx.turn_off(channel)
+            self.cellx.close()
+
         self.imageSaver.close()
         self.imageDisplay.close()
         if not SINGLE_WINDOW:
