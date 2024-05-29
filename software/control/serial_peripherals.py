@@ -339,6 +339,9 @@ class SciMicroscopyLEDArray:
     def turn_on_dpc(self,quadrant):
         self.serial_connection.write_and_check(f'dpc.{quadrant[0]}\r','-==-',read_delay=0.01,print_response=False)
 
+    def turn_on_df(self):
+        self.serial_connection.write_and_check(f'df\r','-==-',read_delay=0.01,print_response=False)
+
     def set_illumination(self,illumination):
         self.illumination = illumination
 

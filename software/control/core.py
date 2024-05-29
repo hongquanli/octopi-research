@@ -474,6 +474,8 @@ class LiveController(QObject):
                     self.led_array.set_illumination('dpc.b')
                 if 'BF LED matrix full' in self.currentConfiguration.name:
                     self.led_array.set_illumination('bf')
+                if 'DF LED matrix' in self.currentConfiguration.name:
+                    self.led_array.set_illumination('df')
             else:
                 self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
