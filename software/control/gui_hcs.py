@@ -131,16 +131,15 @@ class OctopiGUI(QMainWindow):
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
                 print('LDI initialized')
-                if SUPPORT_LASER_AUTOFOCUS:
-                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
-                    self.camera_focus.open()
-                    self.camera_focus.set_pixel_format('MONO8')
-                sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                self.camera.open()
-                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
-
+            if SUPPORT_LASER_AUTOFOCUS:
+                sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
+                self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
+                self.camera_focus.open()
+                self.camera_focus.set_pixel_format('MONO8')
+            sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
+            self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera.open()
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         # reset the MCU
