@@ -527,6 +527,21 @@ class OctopiGUI(QMainWindow):
 
         self.navigationController.move_to_cached_position()
 
+        # Create the menu bar
+        menubar = self.menuBar()
+        # Add the "Settings" menu
+        settings_menu = menubar.addMenu("Settings")
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            # Add the "LED Matrix" action
+            led_matrix_action = QAction("LED Matrix", self)
+            led_matrix_action.triggered.connect(self.open_led_array_settings_dialog)
+            settings_menu.addAction(led_matrix_action)
+
+    def open_led_array_settings_dialog(self):
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            dialog = widgets.LedMatrixSettingsDialog(self.liveController.led_array) # to move led_arry outside liveController
+            dialog.exec_()
+
     def closeEvent(self, event):
 
         self.navigationController.cache_current_position()

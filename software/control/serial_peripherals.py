@@ -304,6 +304,7 @@ class SciMicroscopyLEDArray:
         self.set_brightness(1)
 
         self.illumination = None
+        self.NA = 0.5
         self.turn_on_delay = turn_on_delay
 
     def write(self,command):
@@ -318,6 +319,7 @@ class SciMicroscopyLEDArray:
         self.serial_connection.write_and_check('sad.'+array_distance+'\r','Current array distance from sample is '+array_distance+'mm',read_delay=0.01,print_response=False)
 
     def set_NA(self,NA):
+        self.NA = NA
         NA = str(int(NA*100))
         self.serial_connection.write_and_check('na.'+NA+'\r','Current NA is 0.'+NA,read_delay=0.01,print_response=False)
 
