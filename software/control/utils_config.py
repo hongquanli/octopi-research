@@ -17,7 +17,7 @@ def generate_default_configuration(filename):
 
     mode_4 = ET.SubElement(top,'mode')
     mode_4.set('ID','4')
-    mode_4.set('Name','DF')
+    mode_4.set('Name','DF LED matrix')
     mode_4.set('ExposureTime','22')
     mode_4.set('AnalogGain','0')
     mode_4.set('IlluminationSource','3')
