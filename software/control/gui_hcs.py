@@ -107,11 +107,9 @@ class OctopiGUI(QMainWindow):
             if ENABLE_CELLX:
                 self.cellx = serial_peripherals.CellX_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
-                self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
                 self.camera_focus = camera_fc.Camera_Simulation()
-            else:
-                self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -133,27 +131,16 @@ class OctopiGUI(QMainWindow):
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
                 print('LDI initialized')
-            if True:
                 if SUPPORT_LASER_AUTOFOCUS:
-                    sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
                     sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
                     self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
                     self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-            else:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera.Camera_Simulation()
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                print('! camera not detected, using simulated camera !')
+                    self.camera_focus.set_pixel_format('MONO8')
+                sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
+                self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+                self.camera.open()
+                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         # reset the MCU
