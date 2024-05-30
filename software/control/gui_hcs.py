@@ -75,42 +75,45 @@ class OctopiGUI(QMainWindow):
         if is_simulation:
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight_Simulation()
+            if ENABLE_NL5:
+                import control.NL5 as NL5
+                self.nl5 = NL5.NL5_Simulation()
+            if ENABLE_CELLX:
+                self.cellx = serial_peripherals.CellX_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
-                self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
                 self.camera_focus = camera_fc.Camera_Simulation()
-            else:
-                self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
                 self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER,XLIGHT_SLEEP_TIME_FOR_WHEEL)
+            if ENABLE_NL5:
+                print('initializing NL5 ...')
+                import control.NL5 as NL5
+                self.nl5 = NL5.NL5()
+                print('NL5 initialized')
+            if ENABLE_CELLX:
+                print('initializing CellX ...')
+                self.cellx = serial_peripherals.CellX(CELLX_SN)
+                for channel in [1,2,3,4]:
+                    self.cellx.set_modulation(channel,CELLX_MODULATION)
+                    self.cellx.turn_on(channel)
+                print('CellX initialized')
             if USE_LDI_SERIAL_CONTROL:
+                print('initializing LDI ...')
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
-            if True:
-                self.xlight = serial_peripherals.XLight()
-            try:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-            except:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera.Camera_Simulation()
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                print('! camera not detected, using simulated camera !')
+                print('LDI initialized')
+            if SUPPORT_LASER_AUTOFOCUS:
+                sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
+                self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
+                self.camera_focus.open()
+                self.camera_focus.set_pixel_format('MONO8')
+            sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
+            self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera.open()
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         # reset the MCU
@@ -255,6 +258,9 @@ class OctopiGUI(QMainWindow):
         # load widgets
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.spinningDiskConfocalWidget = widgets.SpinningDiskConfocalWidget(self.xlight, self.configurationManager)
+        if ENABLE_NL5:
+            import control.NL5Widget as NL5Widget
+            self.nl5Wdiget = NL5Widget.NL5Widget(self.nl5)
 
         if CAMERA_TYPE == "Toupcam":
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True)
@@ -425,10 +431,9 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-            #self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
             self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
             self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
-
 
             if SHOW_TILED_PREVIEW:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
@@ -436,8 +441,10 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
-                #self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
                 self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
@@ -546,7 +553,28 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
+        # widget for confocal
+        if ENABLE_SPINNING_DISK_CONFOCAL:
+                self.microscopeControlTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
+        if ENABLE_NL5:
+            self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
+
         self.navigationController.move_to_cached_position()
+
+        # Create the menu bar
+        menubar = self.menuBar()
+        # Add the "Settings" menu
+        settings_menu = menubar.addMenu("Settings")
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            # Add the "LED Matrix" action
+            led_matrix_action = QAction("LED Matrix", self)
+            led_matrix_action.triggered.connect(self.openLedMatrixSettings)
+            settings_menu.addAction(led_matrix_action)
+
+    def openLedMatrixSettings(self):
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            dialog = widgets.LedMatrixSettingsDialog(self.liveController.led_array) # to move led_arry outside liveController
+            dialog.exec_()
 
     def toggleWellSelector(self, close):
             self.dock_wellSelection.setVisible(not close)
@@ -584,6 +612,7 @@ class OctopiGUI(QMainWindow):
             # Start the thread
             self.stitcherThread.start()
 
+
     def closeEvent(self, event):
 
         self.navigationController.cache_current_position()
@@ -606,6 +635,11 @@ class OctopiGUI(QMainWindow):
 
         self.liveController.stop_live()
         self.camera.close()
+        if ENABLE_CELLX:
+            for channel in [1,2,3,4]:
+                self.cellx.turn_off(channel)
+            self.cellx.close()
+
         self.imageSaver.close()
         self.imageDisplay.close()
         if not SINGLE_WINDOW:
