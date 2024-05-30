@@ -32,28 +32,6 @@ class OctopiGUI(QMainWindow):
         self.imageDisplayTabs = QTabWidget()
         self.configurationManager = core.ConfigurationManager()
 
-        if USE_NAPARI:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager)
-            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
-            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
-                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
-        else:
-            if ENABLE_TRACKING:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-                self.imageDisplayWindow.show_ROI_selector()
-            else:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
-            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
-                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
-
         # load objects
         if is_simulation:
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
@@ -194,6 +172,28 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
+        if USE_NAPARI:
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
+            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
+
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
+                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+        else:
+            if ENABLE_TRACKING:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow.show_ROI_selector()
+            else:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
+            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
+
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
@@ -266,20 +266,27 @@ class OctopiGUI(QMainWindow):
             self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
-            #added
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
 
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+            # self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+
             if SHOW_TILED_PREVIEW:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
-                #added
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+                # self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
+
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)

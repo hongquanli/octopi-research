@@ -2476,22 +2476,18 @@ class MultiPointWidget2(QFrame):
 
 
 class StitcherWidget(QFrame):
-
-    def __init__(self, configurationManager, *args, **kwargs): #multiPointWidget, multiPointWidget2,*args, **kwargs):
+    def __init__(self, configurationManager, *args, **kwargs):
         super(StitcherWidget, self).__init__(*args, **kwargs)
         self.configurationManager = configurationManager
-        #self.multiPointWidget = multiPointWidget
-        #self.multiPointWidget2 = self.MultiPointWidget2
         self.output_path = ""
-        self.contrast_limits = None
+        self.contrast_limit = None
+        self.contrast_limits = {}
 
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)  # Set frame style
-        #self.layout = QGridLayout(self)  # Initialize layout with self as the parent
         self.layout = QVBoxLayout(self)
         self.topLayout = QHBoxLayout()
         self.colLayout1 = QVBoxLayout()
         self.colLayout2 = QVBoxLayout()
-
 
         # Apply flatfield correction checkbox
         self.applyFlatfieldCheck = QCheckBox("Apply Flatfield Correction")
@@ -2510,18 +2506,14 @@ class StitcherWidget(QFrame):
         self.useRegistrationCheck.toggled.connect(self.onRegistrationCheck)
         self.colLayout2.addWidget(self.useRegistrationCheck)
 
-        # Select Registartion Channel
+        # Select Registration Channel
         self.registrationChannelLabel = QLabel("Select Registration Channel:", self)
         self.registrationChannelLabel.setVisible(False)
         self.colLayout2.addWidget(self.registrationChannelLabel)
         self.registrationChannelCombo = QComboBox(self)
-        #self.registrationChannelCombo.setEnabled(False)
         self.registrationChannelLabel.setVisible(False)
         self.registrationChannelCombo.setVisible(False)
-        #for microscope_configuration in self.configurationManager.configurations:
-        #    self.registrationChannelCombo.addItems([microscope_configuration.name])
         self.colLayout2.addWidget(self.registrationChannelCombo)
-        ### todo: make sure selected channel is one of the selected modes (check if in multipointcontroller channels selected)
         
         self.topLayout.addLayout(self.colLayout1)
         self.topLayout.addLayout(self.colLayout2)
@@ -2545,7 +2537,6 @@ class StitcherWidget(QFrame):
         self.statusLabel.setVisible(False)
 
     def onRegistrationCheck(self, checked):
-        #self.registrationChannelCombo.setEnabled(checked)
         self.registrationChannelLabel.setVisible(checked)
         self.registrationChannelCombo.setVisible(checked)
         if checked:
@@ -2601,27 +2592,34 @@ class StitcherWidget(QFrame):
         self.viewOutputButton.clicked.connect(self.viewOutputNapari)
 
         if np.issubdtype(dtype, np.integer):  # Check if dtype is an integer type
-            contrast_limits = (np.iinfo(dtype).min, np.iinfo(dtype).max) 
+            self.contrast_limit = (np.iinfo(dtype).min, np.iinfo(dtype).max) 
         elif np.issubdtype(dtype, np.floating):  # floating point type
-            contrast_limits = (0.0, 1.0)
+            self.contrast_limit = (0.0, 1.0)
         else:
-            contrast_limits = None
+            self.contrast_limit = None
             raise ValueError("Unsupported dtype")
         self.output_path = output_path
-        self.contrast_limits = contrast_limits
+
+    def saveContrastLimits(self, layer_name, min_val, max_val):
+        self.contrast_limits[layer_name] = (min_val, max_val)
+        print(f"Stitcher saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def viewOutputNapari(self):
         try:
             napari_viewer = napari.Viewer()
             if ".ome.zarr" in self.output_path:
-                napari_viewer.open(self.output_path, plugin='napari-ome-zarr', contrast_limits=self.contrast_limits)
+                napari_viewer.open(self.output_path, plugin='napari-ome-zarr', contrast_limits=self.contrast_limit)
             else:
-                napari_viewer.open(self.output_path, contrast_limits=self.contrast_limits)
+                napari_viewer.open(self.output_path, contrast_limits=self.contrast_limit)
 
-            for i, layer in enumerate(napari_viewer.layers):
-                #layer.contrast_limits = self.contrast_limits
+            print(self.contrast_limits)
+            for layer in napari_viewer.layers:
+                if layer.name in self.contrast_limits:
+                    layer.contrast_limits = self.contrast_limits[layer.name]
+                else:
+                    layer.contrast_limits = self.contrast_limit  # Default contrast limits
                 layer.colormap = self.configurationManager.get_color_for_channel(layer.name.replace("_", " ").replace("full ", "full_"))
-            # napari.run()  # Start the Napari event loop
+
         except Exception as e:
             QMessageBox.critical(self, "Error Opening in Napari", str(e))
 
@@ -2629,6 +2627,7 @@ class StitcherWidget(QFrame):
 class NapariTiledDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(int, int, int, int, int, int, float, float)
+    signal_layer_contrast_limits = Signal(str, float, float)
 
     def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
@@ -2644,6 +2643,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.Nz = 1
         self.layers_initialized = False
         self.viewer_scale_initialized = False
+        self.contrast_limits = {}
         self.initNapariViewer()
 
     def initNapariViewer(self):
@@ -2671,7 +2671,8 @@ class NapariTiledDisplayWidget(QWidget):
         self.image_width = image_width // self.downsample_factor
         self.image_height = image_height // self.downsample_factor
         self.dtype = np.dtype(image_dtype)
-        self.contrast_limits = self.getContrastLimits(self.dtype)
+        #for c in self.channels:
+        #    self.contrast_limits[c] = self.getContrastLimits(self.dtype)
         self.resetView()
         self.layers_initialized = True
         self.viewer_scale_initialized = False
@@ -2690,9 +2691,12 @@ class NapariTiledDisplayWidget(QWidget):
             else:
                 color = self.configurationManager.get_color_for_channel(channel_name)
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
-                
+
+            limits = self.getContrastLimits(self.dtype)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
-                                  colormap=color, contrast_limits=self.contrast_limits, blending='additive')
+                                  colormap=color, contrast_limits=limits, blending='additive')
+            layer.contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
+            layer.events.contrast_limits.connect(self.signalContrastLimits)
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
 
         image = cv2.resize(image, (self.image_width, self.image_height), interpolation=cv2.INTER_AREA)
@@ -2715,6 +2719,7 @@ class NapariTiledDisplayWidget(QWidget):
             layer_data[k, y_slice, x_slice] = image
         # Update the layer with the modified data
         layer.data = layer_data
+        layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.viewer.dims.set_point(0, k)
         layer.refresh()
 
@@ -2741,12 +2746,29 @@ class NapariTiledDisplayWidget(QWidget):
                                                  self.Nx, self.Ny,
                                                  self.dx_mm, self.dy_mm)
 
+    def signalContrastLimits(self, event):
+        layer = event.source
+        # Debug prints
+        print(f"Layer name: {layer.name}")
+        print(f"Contrast limits from layer: {layer.contrast_limits}")
+
+        # Ensure contrast limits are floats
+        min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
+
+        # Emit signal with correct contrast limits
+        self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
+        self.contrast_limits[layer.name] = min_val, max_val
+
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
             return (np.iinfo(dtype).min, np.iinfo(dtype).max)
         elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
         return None
+
+    def saveContrastLimits(self, layer_name, min_val, max_val):
+        self.contrast_limits[layer_name] = (min_val, max_val)
+        print(f"NapariTiledDisplay saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def resetView(self):
         self.viewer.reset_view()
@@ -2755,6 +2777,8 @@ class NapariTiledDisplayWidget(QWidget):
 
 
 class NapariMultiChannelWidget(QWidget):
+
+    signal_layer_contrast_limits = Signal(str, float, float)
 
     def __init__(self, configurationManager, parent=None):
         super().__init__(parent)
@@ -2765,6 +2789,7 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.uint8
         self.channels = []
         self.Nz = 1
+        self.contrast_limits = {}
         self.layers_initialized = False
         self.viewer_scale_initialized = False
         self.grid_enabled = False
@@ -2793,7 +2818,8 @@ class NapariMultiChannelWidget(QWidget):
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
-        self.contrast_limits = self.getContrastLimits(self.dtype)
+        #for c in self.channels:
+        #    self.contrast_limits[c] = self.getContrastLimits(self.dtype)
         self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
@@ -2811,15 +2837,19 @@ class NapariMultiChannelWidget(QWidget):
                 color = self.configurationManager.get_color_for_channel(channel_name)
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width), dtype=self.dtype)
             
-            self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
-                                  colormap=color, contrast_limits=self.contrast_limits, blending='additive')
+            limits = self.getContrastLimits(self.dtype)
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
+                                  colormap=color, contrast_limits=limits, blending='additive')
+            layer.contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
+            layer.events.contrast_limits.connect(self.signalContrastLimits)
+
             if not self.viewer_scale_initialized:
                 self.resetView()
                 self.viewer_scale_initialized = True
-
-        # Locate the layer and its update its current data
-        layer = self.viewer.layers[channel_name]
+        else:
+            layer = self.viewer.layers[channel_name]
         layer.data[k] = image
+        layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.viewer.dims.set_point(0, k)
         layer.refresh()
 
@@ -2835,21 +2865,43 @@ class NapariMultiChannelWidget(QWidget):
             return (0.0, 1.0)
         return None
 
+    def signalContrastLimits(self, event):
+        layer = event.source
+
+        # Debug prints
+        print(f"Layer name: {layer.name}")
+        print(f"Contrast limits from layer: {layer.contrast_limits}")
+
+        # Ensure contrast limits are floats
+        min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
+
+        # Emit signal with correct contrast limits
+        self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
+        self.contrast_limits[layer.name] = min_val, max_val
+
+    def saveContrastLimits(self, layer_name, min_val, max_val):
+        self.contrast_limits[layer_name] = (min_val, max_val)
+        print(f"NapariMultiChannel saved contrast limits for {layer_name}: ({min_val}, {max_val})")
+
 
 class NapariLiveWidget(QWidget):
 
     signal_coordinates_clicked = Signal(int, int, int, int)
+    signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, parent=None):
+    def __init__(self, configurationManager, liveControlWidget, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
         self.configurationManager = configurationManager
+        self.liveControlWidget = liveControlWidget
+        self.live_layer_name = ""
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8 
         self.channels = []
         self.init_live = False
         self.init_live_rgb = False
+        self.contrast_limits = {}
 
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
@@ -2880,6 +2932,7 @@ class NapariLiveWidget(QWidget):
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
         self.channels.append(channel)
+        self.live_layer_name = channel
         contrast_limits = self.getContrastLimits()
         if rgb == True:
             canvas = np.zeros((image_height, image_width, 3), dtype=self.dtype)
@@ -2888,6 +2941,7 @@ class NapariLiveWidget(QWidget):
         layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb,
                               colormap='grayclip', contrast_limits=contrast_limits, blending='additive')
         layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+        layer.events.contrast_limits.connect(self.signalContrastLimits)  # Connect to contrast limits event
         self.resetView()
 
     def updateLiveLayer(self, image):
@@ -2907,6 +2961,10 @@ class NapariLiveWidget(QWidget):
         else:
             layer = self.viewer.layers["Live View RGB"]
         layer.data = image
+        live_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
+        if self.live_layer_name != live_layer_name:
+            self.live_layer_name = live_layer_name
+            layer.contrast_limits = self.contrast_limits.get(self.live_layer_name, self.getContrastLimits())
         layer.refresh()
 
     def onDoubleClick(self, layer, event):
@@ -2919,6 +2977,25 @@ class NapariLiveWidget(QWidget):
             y_centered = int(coords[-2] - layer_shape[-2] / 2)
             # Emit the centered coordinates and dimensions of the layer's data array
             self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2])
+
+    def signalContrastLimits(self, event):
+        layer = event.source
+        layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
+
+        # Debug prints
+        print(f"Layer name: {layer_name}, Live name: {layer.name}")
+        print(f"Contrast limits from layer: {layer.contrast_limits}")
+
+        # Ensure contrast limits are floats
+        min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
+
+        # Emit signal with correct contrast limits
+        self.signal_layer_contrast_limits.emit(layer_name, min_val, max_val)
+        self.contrast_limits[layer_name] = min_val, max_val
+
+    def saveContrastLimits(self, layer_name, min_val, max_val):
+        self.contrast_limits[layer_name] = (min_val, max_val)
+        print(f"NapariLive saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def getContrastLimits(self):
         if np.issubdtype(self.dtype, np.integer):

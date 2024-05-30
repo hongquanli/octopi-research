@@ -3040,9 +3040,12 @@ class Stitcher(Thread, QObject):
         self.selected_modes = self.extract_selected_modes(self.input_folder)
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
-        self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        # self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        # self.is_reversed = {'rows': False, 'cols': True, 'z-planes': False}
+        self.is_reversed = {'rows': self.acquisition_params.get("row direction", False), 
+                            'cols': self.acquisition_params.get("col direction", False), 
+                            'z-planes': False}
         self.is_rgb = {}
-        
         self.wells = []
         self.channel_names = []
         self.mono_channel_names = []
@@ -3055,6 +3058,7 @@ class Stitcher(Thread, QObject):
         self.stitched_images = None
         self.chunks = None
         self.dtype = np.uint16
+        # self.overlap_percent = Acquisition.OVERLAP_PERCENT
 
     def get_time_points(self, input_folder):
         try: # detects directories named as integers, representing time points.
@@ -3203,9 +3207,9 @@ class Stitcher(Thread, QObject):
 
     def visualize_image(self, img1, img2, title):
         if title == 'horizontal':
-            combined_image = np.vstack((img1, img2))
-        else:
             combined_image = np.hstack((img1, img2))
+        else:
+            combined_image = np.vstack((img1, img2))
         cv2.imwrite(f"{title}.png", combined_image)
 
     def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.1):
@@ -3219,7 +3223,7 @@ class Stitcher(Thread, QObject):
             img1_roi, img2_roi = img1[margin:-margin, -max_overlap:], img2[margin:-margin, :max_overlap]
             img1_roi, img2_roi = img1_roi.astype(self.dtype), img2_roi.astype(self.dtype)
 
-            #self.visualize_image(img1_roi, img2_roi, "horizontal")
+            self.visualize_image(img1_roi, img2_roi, "horizontal")
             shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
             return round(shift[0]), round(shift[1] - img1_roi.shape[1])
         except Exception as e:
@@ -3237,7 +3241,7 @@ class Stitcher(Thread, QObject):
             img1_roi, img2_roi = img1[-max_overlap:, margin:-margin], img2[:max_overlap, margin:-margin]
             img1_roi, img2_roi = img1_roi.astype(self.dtype), img2_roi.astype(self.dtype)
 
-            #self.visualize_image(img1_roi, img2_roi, "vertical")
+            self.visualize_image(img1_roi, img2_roi, "vertical")
             shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
             return round(shift[0] - img1_roi.shape[0]), round(shift[1])
         except Exception as e:
@@ -3259,14 +3263,17 @@ class Stitcher(Thread, QObject):
         obj_focal_length_mm = obj_tube_lens_mm / obj_mag
         actual_mag = tube_lens_mm / obj_focal_length_mm
         pixel_size_um = sensor_pixel_size_um / actual_mag
+        print("pixel_size_um:", pixel_size_um)
 
-        dx_pixels = dx_mm * 1000 / pixel_size_um / 2
-        dy_pixels = dy_mm * 1000 / pixel_size_um / 2
+        dx_pixels = dx_mm * 1000 / pixel_size_um 
+        dy_pixels = dy_mm * 1000 / pixel_size_um
+        print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
 
-        max_x_overlap = max(0, int(self.input_width - dx_pixels)) // 2
-        max_y_overlap = max(0, int(self.input_height - dy_pixels)) // 2
+        
+        max_x_overlap = abs(int(self.input_width - dx_pixels) // 2)
+        max_y_overlap = abs(int(self.input_height - dy_pixels) // 2)
         print("objective calculated - vertical overlap:", max_y_overlap, ", horizontal overlap:", max_x_overlap)
-        print("dimension calculated - vertical overlap:", self.input_height * (1-dy_mm / 1.2), ", horizontal overlap:", self.input_width * (1-dx_mm / 1.2))
+
 
         col_left, col_right = (self.num_cols - 1) // 2, (self.num_cols - 1) // 2 + 1
         if self.is_reversed['cols']:
@@ -3286,10 +3293,8 @@ class Stitcher(Thread, QObject):
                 img2_path_horizontal = os.path.join(self.image_folder, tile_info['filename'])
 
         if img1_path is None:
-            raise Exception(
-                f"No input file found for c:{self.registration_channel} k:{z_level} "
-                f"j:{col_left} i:{row_top}"
-            )
+            raise Exception(f"No input file found for c:{self.registration_channel} k:{z_level} "
+                            f"j:{col_left} i:{row_top}")
 
         self.v_shift = (
             self.calculate_vertical_shift(img1_path, img2_path_vertical, max_y_overlap)

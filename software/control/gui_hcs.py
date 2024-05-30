@@ -279,7 +279,7 @@ class OctopiGUI(QMainWindow):
 
         self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)        
         if USE_NAPARI:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
             if SHOW_TILED_PREVIEW:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
@@ -334,11 +334,11 @@ class OctopiGUI(QMainWindow):
             dock_display.showTitleBar()
             dock_display.addWidget(self.imageDisplayTabs)
             dock_display.setStretch(x=100,y=100)
-            dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
-            dock_wellSelection.showTitleBar()
-            dock_wellSelection.addWidget(self.wellSelectionWidget)
+            self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
+            self.dock_wellSelection.showTitleBar()
+            self.dock_wellSelection.addWidget(self.wellSelectionWidget)
             #dock_wellSelection.addWidget(self.wellFormatWidget)
-            dock_wellSelection.setFixedHeight(dock_wellSelection.minimumSizeHint().height())
+            self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
             # dock_controlPanel.showTitleBar()
             dock_controlPanel.addWidget(self.centralWidget)
@@ -346,7 +346,7 @@ class OctopiGUI(QMainWindow):
             dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
             main_dockArea = dock.DockArea()
             main_dockArea.addDock(dock_display)
-            main_dockArea.addDock(dock_wellSelection,'bottom')
+            main_dockArea.addDock(self.dock_wellSelection,'bottom')
             main_dockArea.addDock(dock_controlPanel,'right')
             self.setCentralWidget(main_dockArea)
             desktopWidget = QDesktopWidget()
@@ -395,6 +395,7 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
             self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+        self.multiPointWidget.signal_acquisition_started.connect(self.toggleWellSelector)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -418,11 +419,16 @@ class OctopiGUI(QMainWindow):
             self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
 
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+            #self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+
 
             if SHOW_TILED_PREVIEW:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
@@ -430,6 +436,9 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+                #self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
@@ -538,6 +547,9 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
         self.navigationController.move_to_cached_position()
+
+    def toggleWellSelector(self, close):
+            self.dock_wellSelection.setVisible(not close)
 
     def toggleStitcherWidget(self, checked):
         central_layout = self.centralWidget.layout()
