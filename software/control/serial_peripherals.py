@@ -380,7 +380,7 @@ class CellX:
             print(f"AssertionError: {e}")
             return
         if channel not in self.power.keys() or power != self.power[channel]:
-            self.serial_connection.write_and_check('SOUR'+str(channel)+':POW:LEV:IMM:AMPL'+str(power/1000)+'\r','OK',read_delay=0.01,print_response=False)
+            self.serial_connection.write_and_check('SOUR'+str(channel)+':POW:LEV:IMM:AMPL '+str(power/1000)+'\r','OK',read_delay=0.01,print_response=False)
             self.power[channel] = power
         else:
             pass # power is the same
@@ -391,7 +391,7 @@ class CellX:
         except AssertionError as e:
             print(f"AssertionError: {e}")
             return
-        self.serial_connection.write_and_check('SOUR'+str(channel)+'AM:' + modulation +'\r','OK',read_delay=0.01,print_response=False)
+        self.serial_connection.write_and_check('SOUR'+str(channel)+':AM:' + modulation +'\r','OK',read_delay=0.01,print_response=False)
 
     def close(self):
         self.serial_connection.close()
