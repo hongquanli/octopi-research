@@ -527,16 +527,6 @@ class OctopiGUI(QMainWindow):
                 laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
                 laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
-            if USE_NAPARI:
-                self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-                self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-                if SHOW_TILED_PREVIEW:
-                    self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
-            else:
-                self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-                self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-                if SHOW_TILED_PREVIEW:
-                    self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
             # self.imageDisplayWindow_focus.widget
             self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
 
@@ -552,6 +542,17 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
+
+        if USE_NAPARI:
+            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+        else:
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # widget for confocal
         if ENABLE_SPINNING_DISK_CONFOCAL:
