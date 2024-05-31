@@ -3225,7 +3225,7 @@ class Stitcher(Thread, QObject):
             combined_image = np.hstack((img1, img2))
         else:
             combined_image = np.vstack((img1, img2))
-        cv2.imwrite(f"{title}.png", combined_image)
+        cv2.imwrite(f"{self.input_folder}/{title}.png", combined_image)
 
     def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.1):
         try:
