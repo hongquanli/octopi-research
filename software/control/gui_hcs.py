@@ -562,6 +562,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.turnoff_axis_pid_control()
 
         self.liveController.stop_live()
+        self.camera.stop_streaming()
         self.camera.close()
         if ENABLE_CELLX:
             for channel in [1,2,3,4]:
