@@ -1317,6 +1317,8 @@ class AutofocusWorker(QObject):
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
 
+        QApplication.processEvents()
+
         # move to the starting location
         # self.navigationController.move_z_usteps(-steps_moved*self.deltaZ_usteps) # combine with the back and forth maneuver below
         # self.wait_till_operation_is_completed()
@@ -1335,6 +1337,8 @@ class AutofocusWorker(QObject):
             idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
             self.navigationController.move_z_usteps((idx_in_focus+1)*self.deltaZ_usteps-steps_moved*self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
+
+        QApplication.processEvents()
 
         # move to the calculated in-focus position
         # self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
