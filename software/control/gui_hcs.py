@@ -107,11 +107,9 @@ class OctopiGUI(QMainWindow):
             if ENABLE_CELLX:
                 self.cellx = serial_peripherals.CellX_Simulation()
             if SUPPORT_LASER_AUTOFOCUS:
-                self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
                 self.camera_focus = camera_fc.Camera_Simulation()
-            else:
-                self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -133,27 +131,15 @@ class OctopiGUI(QMainWindow):
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
                 print('LDI initialized')
-            if True:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-            else:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera.Camera_Simulation()
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                print('! camera not detected, using simulated camera !')
+            if SUPPORT_LASER_AUTOFOCUS:
+                sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
+                self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
+                self.camera_focus.open()
+                self.camera_focus.set_pixel_format('MONO8')
+            sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
+            self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
+            self.camera.open()
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         # reset the MCU
@@ -540,6 +526,21 @@ class OctopiGUI(QMainWindow):
 
         self.navigationController.move_to_cached_position()
 
+        # Create the menu bar
+        menubar = self.menuBar()
+        # Add the "Settings" menu
+        settings_menu = menubar.addMenu("Settings")
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            # Add the "LED Matrix" action
+            led_matrix_action = QAction("LED Matrix", self)
+            led_matrix_action.triggered.connect(self.open_led_array_settings_dialog)
+            settings_menu.addAction(led_matrix_action)
+
+    def open_led_array_settings_dialog(self):
+        if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
+            dialog = widgets.LedMatrixSettingsDialog(self.liveController.led_array) # to move led_arry outside liveController
+            dialog.exec_()
+
     def closeEvent(self, event):
 
         self.navigationController.cache_current_position()
@@ -561,6 +562,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.turnoff_axis_pid_control()
 
         self.liveController.stop_live()
+        self.camera.stop_streaming()
         self.camera.close()
         if ENABLE_CELLX:
             for channel in [1,2,3,4]:

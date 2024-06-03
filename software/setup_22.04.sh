@@ -6,6 +6,7 @@ sudo apt update
 # install packages
 sudo apt install python3-pip -y
 sudo apt install python3-pyqtgraph python3-pyqt5 -y
+sudo apt install python3-pyqt5.qtsvg
 
 # clone the repo
 sudo apt-get install git -y
@@ -15,7 +16,7 @@ cd octopi-research/software
 mkdir cache
 
 # install libraries 
-pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile scipy
+pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile scipy napari
 pip3 install opencv-python-headless opencv-contrib-python-headless
 
 # install camera drivers

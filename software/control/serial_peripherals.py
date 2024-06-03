@@ -304,6 +304,7 @@ class SciMicroscopyLEDArray:
         self.set_brightness(1)
 
         self.illumination = None
+        self.NA = 0.5
         self.turn_on_delay = turn_on_delay
 
     def write(self,command):
@@ -318,6 +319,7 @@ class SciMicroscopyLEDArray:
         self.serial_connection.write_and_check('sad.'+array_distance+'\r','Current array distance from sample is '+array_distance+'mm',read_delay=0.01,print_response=False)
 
     def set_NA(self,NA):
+        self.NA = NA
         NA = str(int(NA*100))
         self.serial_connection.write_and_check('na.'+NA+'\r','Current NA is 0.'+NA,read_delay=0.01,print_response=False)
 
@@ -338,6 +340,9 @@ class SciMicroscopyLEDArray:
 
     def turn_on_dpc(self,quadrant):
         self.serial_connection.write_and_check(f'dpc.{quadrant[0]}\r','-==-',read_delay=0.01,print_response=False)
+
+    def turn_on_df(self):
+        self.serial_connection.write_and_check(f'df\r','-==-',read_delay=0.01,print_response=False)
 
     def set_illumination(self,illumination):
         self.illumination = illumination
@@ -375,7 +380,7 @@ class CellX:
             print(f"AssertionError: {e}")
             return
         if channel not in self.power.keys() or power != self.power[channel]:
-            self.serial_connection.write_and_check('SOUR'+str(channel)+':POW:LEV:IMM:AMPL'+str(power/1000)+'\r','OK',read_delay=0.01,print_response=False)
+            self.serial_connection.write_and_check('SOUR'+str(channel)+':POW:LEV:IMM:AMPL '+str(power/1000)+'\r','OK',read_delay=0.01,print_response=False)
             self.power[channel] = power
         else:
             pass # power is the same
@@ -386,7 +391,7 @@ class CellX:
         except AssertionError as e:
             print(f"AssertionError: {e}")
             return
-        self.serial_connection.write_and_check('SOUR'+str(channel)+'AM:' + modulation +'\r','OK',read_delay=0.01,print_response=False)
+        self.serial_connection.write_and_check('SOUR'+str(channel)+':AM:' + modulation +'\r','OK',read_delay=0.01,print_response=False)
 
     def close(self):
         self.serial_connection.close()

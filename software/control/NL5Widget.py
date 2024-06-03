@@ -66,7 +66,7 @@ class NL5Widget(QWidget):
         # Line speed control
         layout.addWidget(QLabel("Line Speed"), 1, 0)
         self.line_speed_input = QSpinBox()
-        self.line_speed_input.setMaximum(10000)
+        self.line_speed_input.setMaximum(20000)
         self.line_speed_input.setValue(self.nl5.line_speed)
         self.line_speed_input.valueChanged.connect(self.update_line_speed)
         layout.addWidget(self.line_speed_input, 1, 1)

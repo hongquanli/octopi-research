@@ -1667,7 +1667,7 @@ class MultiPointWidget(QFrame):
         
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
-        self.entry_NZ.setMaximum(100) 
+        self.entry_NZ.setMaximum(2000) 
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
         self.entry_NZ.setKeyboardTracking(False)
@@ -1961,7 +1961,7 @@ class MultiPointWidget2(QFrame):
         
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1)
-        self.entry_NZ.setMaximum(100)
+        self.entry_NZ.setMaximum(2000)
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
         self.entry_NZ.setKeyboardTracking(False)
@@ -4079,3 +4079,35 @@ class Well1536SelectionWidget(QWidget):
     def get_selected_cells(self):
         list_of_selected_cells = list(self.selected_cells.keys())
         return(list_of_selected_cells)
+
+class LedMatrixSettingsDialog(QDialog):
+    def __init__(self,led_array):
+        self.led_array = led_array
+        super().__init__()
+        self.setWindowTitle("LED Matrix Settings")
+
+        self.layout = QVBoxLayout()
+
+        # Add QDoubleSpinBox for LED intensity (0-1)
+        self.NA_spinbox = QDoubleSpinBox()
+        self.NA_spinbox.setRange(0, 1)
+        self.NA_spinbox.setSingleStep(0.01)
+        self.NA_spinbox.setValue(self.led_array.NA)
+
+        NA_layout = QHBoxLayout()
+        NA_layout.addWidget(QLabel("NA"))
+        NA_layout.addWidget(self.NA_spinbox)
+
+        self.layout.addLayout(NA_layout)
+        self.setLayout(self.layout)
+
+        # add ok/cancel buttons
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self.layout.addWidget(self.button_box)
+
+        self.button_box.accepted.connect(self.update_NA)
+
+    def update_NA(self):
+        self.led_array.set_NA(self.NA_spinbox.value())
