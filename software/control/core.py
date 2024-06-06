@@ -1963,7 +1963,8 @@ class MultiPointWorker(QObject):
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                        #image = np.stack((image,) * 3, axis=-1) #simulation RGB
+                                        # if 'Fluorescence 405' not in config.name:
+                                        #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
                                     else:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
@@ -1973,7 +1974,8 @@ class MultiPointWorker(QObject):
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                        #image = np.stack((image,) * 3, axis=-1) #simulation RGB
+                                        # if 'Fluorescence 405' not in config.name:
+                                        #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
 
                                     current_round_images[config.name] = np.copy(image)
@@ -3220,26 +3222,31 @@ class Stitcher(Thread, QObject):
             if progress_callback:
                 progress_callback(channel_index + 1, self.num_c)
 
+        # Iterate only over the channels you need to process
         for channel in self.channel_names:
+            all_tiles = []
+            # Collect tiles from all wells and z-levels for the current channel
             for well in self.wells:
                 for z_level in self.stitching_data[well][channel]:
-                    # Retrieve all tile information from nested dictionaries
-                    all_tiles = [tile_info for row_col, tile_info in self.stitching_data[well][channel][z_level].items()]
-                    random.shuffle(all_tiles)  # Shuffle to randomize selection
-                    selected_tiles = all_tiles[:min(32, len(all_tiles))]  # Limit number of tiles to process
+                    for row_col, tile_info in self.stitching_data[well][channel][z_level].items():
+                        all_tiles.append(tile_info)
 
-                    if self.is_rgb[channel]:
-                        # If RGB, process each color channel separately
-                        images_r = [dask_imread(tile['filepath'])[0][:, :, 0] for tile in selected_tiles]
-                        images_g = [dask_imread(tile['filepath'])[0][:, :, 1] for tile in selected_tiles]
-                        images_b = [dask_imread(tile['filepath'])[0][:, :, 2] for tile in selected_tiles]
-                        process_images(images_r, channel + ' R')
-                        process_images(images_g, channel + ' G')
-                        process_images(images_b, channel + ' B')
-                    else:
-                        # Process monochrome images
-                        images = [dask_imread(tile['filepath'])[0] for tile in selected_tiles]
-                        process_images(images, channel)
+            # Shuffle and select a subset of tiles for flatfield calculation
+            random.shuffle(all_tiles)
+            selected_tiles = all_tiles[:min(32, len(all_tiles))]
+
+            if self.is_rgb[channel]:
+                # Process each color channel if the channel is RGB
+                images_r = [dask_imread(tile['filepath'])[0][:, :, 0] for tile in selected_tiles]
+                images_g = [dask_imread(tile['filepath'])[0][:, :, 1] for tile in selected_tiles]
+                images_b = [dask_imread(tile['filepath'])[0][:, :, 2] for tile in selected_tiles]
+                process_images(images_r, channel + ' R')
+                process_images(images_g, channel + ' G')
+                process_images(images_b, channel + ' B')
+            else:
+                # Process monochrome images
+                images = [dask_imread(tile['filepath'])[0] for tile in selected_tiles]
+                process_images(images, channel)
 
     def normalize_image(self, img):
         img_min, img_max = img.min(), img.max()
