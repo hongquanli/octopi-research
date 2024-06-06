@@ -3051,7 +3051,7 @@ class Stitcher(Thread, QObject):
         Thread.__init__(self)
         QObject.__init__(self)
         self.input_folder = input_folder
-        self.image_folder = os.path.join(self.input_folder, '0') # first time point
+        self.image_folder = None
         self.output_name = output_name + output_format
         self.apply_flatfield = apply_flatfield
         self.use_registration = use_registration
@@ -3061,6 +3061,7 @@ class Stitcher(Thread, QObject):
         self.selected_modes = self.extract_selected_modes(self.input_folder)
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
+        print("timepoints:", self.time_points)
         self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
         print(self.is_reversed)
         self.is_rgb = {}
@@ -3148,6 +3149,7 @@ class Stitcher(Thread, QObject):
     def parse_filenames(self, time_point):
         # Initialize directories and read files
         self.image_folder = os.path.join(self.input_folder, str(time_point))
+        # print("processing image folder:", self.image_folder)
         all_files = os.listdir(self.image_folder)
         sorted_input_files = sorted(
             [filename for filename in all_files if filename.endswith((".bmp", ".tiff")) and 'focus_camera' not in filename]
