@@ -1361,6 +1361,8 @@ class AutofocusWorker(QObject):
             if focus_measure < focus_measure_max*AF.STOP_THRESHOLD:
                 break
 
+        QApplication.processEvents()
+
         # move to the starting location
         # self.navigationController.move_z_usteps(-steps_moved*self.deltaZ_usteps) # combine with the back and forth maneuver below
         # self.wait_till_operation_is_completed()
@@ -1379,6 +1381,8 @@ class AutofocusWorker(QObject):
             idx_in_focus = focus_measure_vs_z.index(max(focus_measure_vs_z))
             self.navigationController.move_z_usteps((idx_in_focus+1)*self.deltaZ_usteps-steps_moved*self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
+
+        QApplication.processEvents()
 
         # move to the calculated in-focus position
         # self.navigationController.move_z_usteps(idx_in_focus*self.deltaZ_usteps)
@@ -3772,6 +3776,9 @@ class ImageDisplayWindow(QMainWindow):
         self.DrawCrossHairs = False
         self.image_offset = np.array([0, 0])
 
+        ## flag of setting scaling level 
+        self.flag_image_scaling_level_init = False
+
         ## Layout
         layout = QGridLayout()
         if self.show_LUT:
@@ -3817,6 +3824,16 @@ class ImageDisplayWindow(QMainWindow):
             self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height()) 
 
     def display_image(self,image):
+        def set_autoLevels_value():
+            if self.autoLevels is True:
+                self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            else:
+                if self.flag_image_scaling_level_init is False:
+                    self.graphics_widget.img.setImage(image, autoLevels = True)
+                    self.flag_image_scaling_level_init = True
+                else:
+                    self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+
         if ENABLE_TRACKING:
             image = np.copy(image)
             self.image_height = image.shape[0],
@@ -3824,9 +3841,9 @@ class ImageDisplayWindow(QMainWindow):
             if(self.draw_rectangle):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
                 self.draw_rectangle = False
-            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            set_autoLevels_value()
         else:
-            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            set_autoLevels_value()
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()

@@ -6,6 +6,7 @@ sudo apt update
 # install packages
 sudo apt install python3-pip -y
 sudo apt install python3-pyqtgraph python3-pyqt5 -y
+sudo apt install python3-pyqt5.qtsvg
 
 # clone the repo
 sudo apt-get install git -y
@@ -16,7 +17,8 @@ mkdir cache
 
 # install libraries 
 pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile scipy
-pip3 install opencv-python-headless opencv-contrib-python-headless
+pip3 install opencv-python-headless opencv-contrib-python-headless 
+pip3 install napari[all] scikit-image dask_image ome_zarr aicsimageio basicpy 
 
 # install camera drivers
 cd ~/Desktop/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.1911.9122

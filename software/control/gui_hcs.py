@@ -263,9 +263,10 @@ class OctopiGUI(QMainWindow):
             self.nl5Wdiget = NL5Widget.NL5Widget(self.nl5)
 
         if CAMERA_TYPE == "Toupcam":
-            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True)
+            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True, include_camera_auto_wb_setting = False)
         else:
-            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False)
+            self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
+
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
@@ -466,6 +467,17 @@ class OctopiGUI(QMainWindow):
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
 
+        if USE_NAPARI:
+            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+        else:
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
+
         # laser autofocus
         if SUPPORT_LASER_AUTOFOCUS:
 
@@ -486,10 +498,10 @@ class OctopiGUI(QMainWindow):
 
             # widgets
             if FOCUS_CAMERA_TYPE == "Toupcam":
-                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = True)
+                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = True, include_camera_auto_wb_setting = False)
             else:
-                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = False)
-
+                self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
+            
             self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
             self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
@@ -542,17 +554,6 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
-
-        if USE_NAPARI:
-            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
-        else:
-            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # widget for confocal
         if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -635,6 +636,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.turnoff_axis_pid_control()
 
         self.liveController.stop_live()
+        self.camera.stop_streaming()
         self.camera.close()
         if ENABLE_CELLX:
             for channel in [1,2,3,4]:

@@ -568,15 +568,15 @@ class FocusMapWidget(QWidget):
 
 class CameraSettingsWidget(QFrame):
 
-    def __init__(self, camera, include_gain_exposure_time = False, include_camera_temperature_setting = False, main=None, *args, **kwargs):
+    def __init__(self, camera, include_gain_exposure_time = False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = False, main=None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.camera = camera
-        self.add_components(include_gain_exposure_time,include_camera_temperature_setting)        
+        self.add_components(include_gain_exposure_time,include_camera_temperature_setting,include_camera_auto_wb_setting)        
         # set frame style
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
-    def add_components(self,include_gain_exposure_time,include_camera_temperature_setting):
+    def add_components(self,include_gain_exposure_time,include_camera_temperature_setting,include_camera_auto_wb_setting):
 
         # add buttons and input fields
         self.entry_exposureTime = QDoubleSpinBox()
@@ -694,11 +694,46 @@ class CameraSettingsWidget(QFrame):
         hbox1.addWidget(QLabel('offset x'))
         hbox1.addWidget(self.entry_ROI_offset_x)
 
+        if include_camera_auto_wb_setting:
+            is_color = False
+            try:
+                is_color = self.camera.get_is_color()
+            except AttributeError:
+                pass
+
+            if is_color is True:
+                grid_camera_setting_wb = QGridLayout()
+
+                # auto white balance 
+                self.btn_auto_wb = QPushButton('Auto White Balance')
+                self.btn_auto_wb.setCheckable(True)
+                self.btn_auto_wb.setChecked(False)
+                self.btn_auto_wb.clicked.connect(self.toggle_auto_wb)
+                print(self.camera.get_balance_white_auto())
+                grid_camera_setting_wb.addWidget(self.btn_auto_wb,0,0)
+
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)
         self.grid.addLayout(hbox1,1,0)
+
+        if include_camera_auto_wb_setting:
+            is_color = False
+            try:
+                is_color = self.camera.get_is_color()
+            except AttributeError:
+                pass
+            if is_color is True:
+                self.grid.addLayout(grid_camera_setting_wb,2,0)
+
         self.grid.setRowStretch(self.grid.rowCount(), 1)
         self.setLayout(self.grid)
+
+    def toggle_auto_wb(self,pressed):
+        # 0: OFF  1:CONTINUOUS  2:ONCE
+        if pressed:
+            self.camera.set_balance_white_auto(1)
+        else:
+            self.camera.set_balance_white_auto(0)
 
     def set_exposure_time(self,exposure_time):
         self.entry_exposureTime.setValue(exposure_time)
@@ -2602,7 +2637,7 @@ class StitcherWidget(QFrame):
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        print(f"Stitcher saved contrast limits for {layer_name}: ({min_val}, {max_val})")
+        #print(f"Stitcher saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def viewOutputNapari(self):
         try:
@@ -2771,7 +2806,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.contrast_limits[layer_name] = (min_val, max_val)
         # self.viewer.layers[layer_name] = (min_val, max_val)
         # self.viewer.layers[layer_name].refresh()
-        print(f"NapariTiledDisplay saved contrast limits for {layer_name}: ({min_val}, {max_val})")
+        #print(f"NapariTiledDisplay saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def resetView(self):
         self.viewer.reset_view()
@@ -2886,7 +2921,7 @@ class NapariMultiChannelWidget(QWidget):
         self.contrast_limits[layer_name] = (min_val, max_val)
         # self.viewer.layers[layer_name] = (min_val, max_val)
         # self.viewer.layers[layer_name].refresh()
-        print(f"NapariMultiChannel saved contrast limits for {layer_name}: ({min_val}, {max_val})")
+        #print(f"NapariMultiChannel saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
 
 class NapariLiveWidget(QWidget):
@@ -3002,7 +3037,7 @@ class NapariLiveWidget(QWidget):
         self.contrast_limits[layer_name] = (min_val, max_val)
         # self.viewer.layers[layer_name] = (min_val, max_val)
         # self.viewer.layers[layer_name].refresh()
-        print(f"NapariLive saved contrast limits for {layer_name}: ({min_val}, {max_val})")
+        #print(f"NapariLive saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def getContrastLimits(self):
         if np.issubdtype(self.dtype, np.integer):

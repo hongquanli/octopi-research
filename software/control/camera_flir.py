@@ -564,6 +564,9 @@ class Camera(object):
         self.OffsetX = PySpin.CIntegerPtr(self.nodemap.GetNode('OffsetX')).GetValue()
         self.OffsetY = PySpin.CIntegerPtr(self.nodemap.GetNode('OffsetY')).GetValue()
 
+        # disable gamma
+        PySpin.CBooleanPtr(self.nodemap.GetNode('GammaEnable')).SetValue(False)
+
     def set_callback(self,function):
         self.new_image_callback_external = function
 
