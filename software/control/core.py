@@ -3039,7 +3039,7 @@ class Stitcher(Thread, QObject):
     getting_flatfields = Signal()
     starting_stitching = Signal()
     starting_saving = Signal(bool)
-    finished_saving = Signal(str, object)
+    finished_saving = Signal(str, object) 
 
     def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel=''):
         Thread.__init__(self)
@@ -3055,19 +3055,18 @@ class Stitcher(Thread, QObject):
         self.selected_modes = self.extract_selected_modes(self.input_folder)
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
-        # self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
-        # self.is_reversed = {'rows': False, 'cols': True, 'z-planes': False}
-        self.is_reversed = {'rows': self.acquisition_params.get("row direction", False), 
-                            'cols': self.acquisition_params.get("col direction", False), 
-                            'z-planes': False}
+        self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        print(self.is_reversed)
         self.is_rgb = {}
         self.wells = []
         self.channel_names = []
         self.mono_channel_names = []
+        self.channel_colors = []
         self.num_z = self.num_c = 1
         self.num_cols = self.num_rows = 1
         self.input_height = self.input_width = 0
         self.v_shift = self.h_shift = (0,0)
+        self.max_x_overlap = self.max_y_overlap = 0
         self.flatfields = {}
         self.stitching_data = {}
         self.stitched_images = None
@@ -3085,21 +3084,24 @@ class Stitcher(Thread, QObject):
             return ['0']
 
     def extract_selected_modes(self, input_folder):
-        configs_path = os.path.join(input_folder, 'configurations.xml')
-        tree = etree.parse(configs_path)
-        root = tree.getroot()
-        selected_modes = {}
-        for mode in root.findall('.//mode'):
-            if mode.get('Selected') == '1':
-                mode_id = mode.get('ID')
-                selected_modes[mode_id] = {
-                    'Name': mode.get('Name'),
-                    'ExposureTime': mode.get('ExposureTime'),
-                    'AnalogGain': mode.get('AnalogGain'),
-                    'IlluminationSource': mode.get('IlluminationSource'),
-                    'IlluminationIntensity': mode.get('IlluminationIntensity')
-                }
-        return selected_modes
+        try:
+            configs_path = os.path.join(input_folder, 'configurations.xml')
+            tree = etree.parse(configs_path)
+            root = tree.getroot()
+            selected_modes = {}
+            for mode in root.findall('.//mode'):
+                if mode.get('Selected') == '1':
+                    mode_id = mode.get('ID')
+                    selected_modes[mode_id] = {
+                        'Name': mode.get('Name'),
+                        'ExposureTime': mode.get('ExposureTime'),
+                        'AnalogGain': mode.get('AnalogGain'),
+                        'IlluminationSource': mode.get('IlluminationSource'),
+                        'IlluminationIntensity': mode.get('IlluminationIntensity')
+                    }
+            return selected_modes
+        except Exception as e:
+            print(f"Error reading selected modes: {e}")
 
     def extract_acquisition_parameters(self, input_folder):
         acquistion_params_path = os.path.join(input_folder, 'acquisition parameters.json')
@@ -3107,23 +3109,37 @@ class Stitcher(Thread, QObject):
             acquisition_params = json.load(file)
         return acquisition_params
 
-    def determine_directions(self, image_folder):
-        coordinates = pd.read_csv(os.path.join(image_folder, 'coordinates.csv'))
-        if IS_WELLPLATE:
-            try:
-                first_well = coordinates['well'].unique()[0]
-                coordinates = coordinates[coordinates['well'] == first_well]
-            except Exception as e:
-                print("no coordinates.csv well data:", e)
-        
-        i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
-        j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
-        k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
-        if not IS_WELLPLATE:
-            return {'rows': False, 'cols': False, 'z-planes': False}
-        return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
+    def extract_wavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts:
+                return color
+        return None
 
-    def parse_filenames(self, time_point, input_format_well=True):
+
+    def determine_directions(self, image_folder):
+        return {'rows': self.acquisition_params.get("row direction", False), 
+                'cols': self.acquisition_params.get("col direction", False), 
+                'z-planes': False}
+        # coordinates = pd.read_csv(os.path.join(image_folder, 'coordinates.csv'))
+        # if IS_WELLPLATE:
+        #     try:
+        #         first_well = coordinates['well'].unique()[0]
+        #         coordinates = coordinates[coordinates['well'] == first_well]
+        #     except Exception as e:
+        #         print("no coordinates.csv well data:", e)
+        
+        # i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
+        # j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
+        # k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
+        # return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
+
+    def parse_filenames(self, time_point):
         # Initialize directories and read files
         self.image_folder = os.path.join(self.input_folder, str(time_point))
         all_files = os.listdir(self.image_folder)
@@ -3136,10 +3152,9 @@ class Stitcher(Thread, QObject):
         input_extension = os.path.splitext(sorted_input_files[0])[1]
         max_i, max_j, max_k = 0, 0, 0
         wells, channel_names = set(), set()
-        input_format_well = IS_WELLPLATE
 
         for filename in sorted_input_files:
-            if input_format_well:
+            if IS_WELLPLATE:
                 well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4) 
             else:
                 well = '0'
@@ -3152,15 +3167,23 @@ class Stitcher(Thread, QObject):
             channel_names.add(channel_name)
             max_i, max_j, max_k = max(max_i, i), max(max_j, j), max(max_k, k)
 
-            self.stitching_data.setdefault(well, {}).setdefault(channel_name, {}).setdefault(k, []).append({
-                'well': well, 'row': i, 'col': j, 'z_level': k, 'channel': channel_name, 'filename': filename
-            })
+            tile_info = {
+                'filepath': os.path.join(self.image_folder, filename),
+                'well': well, 
+                'channel': channel_name, 
+                'z_level': k, 
+                'row': i, 
+                'col': j
+            }
+            self.stitching_data.setdefault(well, {}).setdefault(channel_name, {}).setdefault(k, {}).setdefault((i, j), tile_info)
+
+
 
         self.wells = sorted(wells)
         self.channel_names = sorted(channel_names)
         self.num_z, self.num_cols, self.num_rows = max_k + 1, max_j + 1, max_i + 1
 
-        first_coord = f"{self.wells[0]}_0_0_0_" if input_format_well else "0_0_0_"
+        first_coord = f"{self.wells[0]}_0_0_0_" if IS_WELLPLATE else "0_0_0_"
         found_dims = False
         mono_channel_names = []
 
@@ -3184,6 +3207,7 @@ class Stitcher(Thread, QObject):
 
         self.mono_channel_names = mono_channel_names
         self.num_c = len(mono_channel_names)
+        self.channel_colors = [CHANNEL_COLORS_HEX.get(self.extract_wavelength(name), 0xFFFFFF) for name in self.mono_channel_names]
         print(self.mono_channel_names)
 
     def get_flatfields(self, progress_callback=None):
@@ -3197,22 +3221,25 @@ class Stitcher(Thread, QObject):
                 progress_callback(channel_index + 1, self.num_c)
 
         for channel in self.channel_names:
-            channel_tiles = [tile_info for well in self.wells
-                                       for z_data in self.stitching_data[well][channel].values()
-                                       for tile_info in z_data]
-            random.shuffle(channel_tiles)
-            channel_tiles = channel_tiles[:min(32, len(channel_tiles))]
+            for well in self.wells:
+                for z_level in self.stitching_data[well][channel]:
+                    # Retrieve all tile information from nested dictionaries
+                    all_tiles = [tile_info for row_col, tile_info in self.stitching_data[well][channel][z_level].items()]
+                    random.shuffle(all_tiles)  # Shuffle to randomize selection
+                    selected_tiles = all_tiles[:min(32, len(all_tiles))]  # Limit number of tiles to process
 
-            if self.is_rgb[channel]:
-                images_r = [dask_imread(os.path.join(self.image_folder, tile['filename']))[0][:, :, 0] for tile in channel_tiles]
-                images_g = [dask_imread(os.path.join(self.image_folder, tile['filename']))[0][:, :, 1] for tile in channel_tiles]
-                images_b = [dask_imread(os.path.join(self.image_folder, tile['filename']))[0][:, :, 2] for tile in channel_tiles]
-                process_images(images_r, channel + ' R')
-                process_images(images_g, channel + ' G')
-                process_images(images_b, channel + ' B')
-            else:
-                images = [dask_imread(os.path.join(self.image_folder, tile['filename']))[0] for tile in channel_tiles]
-                process_images(images, channel)
+                    if self.is_rgb[channel]:
+                        # If RGB, process each color channel separately
+                        images_r = [dask_imread(tile['filepath'])[0][:, :, 0] for tile in selected_tiles]
+                        images_g = [dask_imread(tile['filepath'])[0][:, :, 1] for tile in selected_tiles]
+                        images_b = [dask_imread(tile['filepath'])[0][:, :, 2] for tile in selected_tiles]
+                        process_images(images_r, channel + ' R')
+                        process_images(images_g, channel + ' G')
+                        process_images(images_b, channel + ' B')
+                    else:
+                        # Process monochrome images
+                        images = [dask_imread(tile['filepath'])[0] for tile in selected_tiles]
+                        process_images(images, channel)
 
     def normalize_image(self, img):
         img_min, img_max = img.min(), img.max()
@@ -3227,7 +3254,7 @@ class Stitcher(Thread, QObject):
             combined_image = np.vstack((img1, img2))
         cv2.imwrite(f"{self.input_folder}/{title}.png", combined_image)
 
-    def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.1):
+    def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.2):
         try:
             img1 = dask_imread(img1_path)[0].compute()
             img2 = dask_imread(img2_path)[0].compute()
@@ -3245,7 +3272,7 @@ class Stitcher(Thread, QObject):
             print(f"Error calculating horizontal shift: {e}")
             return (0, 0)
 
-    def calculate_vertical_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.1):
+    def calculate_vertical_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.2):
         try:
             img1 = dask_imread(img1_path)[0].compute()
             img2 = dask_imread(img2_path)[0].compute()
@@ -3283,12 +3310,10 @@ class Stitcher(Thread, QObject):
         dx_pixels = dx_mm * 1000 / pixel_size_um 
         dy_pixels = dy_mm * 1000 / pixel_size_um
         print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
-
         
-        max_x_overlap = abs(int(self.input_width - dx_pixels) // 2)
-        max_y_overlap = abs(int(self.input_height - dy_pixels) // 2)
-        print("objective calculated - vertical overlap:", max_y_overlap, ", horizontal overlap:", max_x_overlap)
-
+        self.max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
+        self.max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
+        print("objective calculated - vertical overlap:", self.max_y_overlap, ", horizontal overlap:", self.max_x_overlap)
 
         col_left, col_right = (self.num_cols - 1) // 2, (self.num_cols - 1) // 2 + 1
         if self.is_reversed['cols']:
@@ -3298,28 +3323,60 @@ class Stitcher(Thread, QObject):
         if self.is_reversed['rows']:
             row_top, row_bottom = row_bottom, row_top
 
-        img1_path = img2_path_vertical = img2_path_horizontal = None
-        for tile_info in self.stitching_data[well][self.registration_channel][z_level]:
-            if tile_info['col'] == col_left and tile_info['row'] == row_top:
-                img1_path = os.path.join(self.image_folder, tile_info['filename'])
-            elif tile_info['col'] == col_left and tile_info['row'] == row_bottom:
-                img2_path_vertical = os.path.join(self.image_folder, tile_info['filename'])
-            elif tile_info['col'] == col_right and tile_info['row'] == row_top:
-                img2_path_horizontal = os.path.join(self.image_folder, tile_info['filename'])
+        for (row, col), tile_info in self.stitching_data[well][self.registration_channel][z_level].items():
+            if col == col_left and row == row_top:
+                img1_path = tile_info['filepath']
+            elif col == col_left and row == row_bottom:
+                img2_path_vertical = tile_info['filepath']
+            elif col == col_right and row == row_top:
+                img2_path_horizontal = tile_info['filepath']
 
         if img1_path is None:
-            raise Exception(f"No input file found for c:{self.registration_channel} k:{z_level} "
-                            f"j:{col_left} i:{row_top}")
+            raise Exception(
+                f"No input file found for c:{self.registration_channel} k:{z_level} "
+                f"j:{col_left} i:{row_top}"
+            )
 
         self.v_shift = (
-            self.calculate_vertical_shift(img1_path, img2_path_vertical, max_y_overlap)
-            if max_y_overlap > 0 and img2_path_vertical and img1_path != img2_path_vertical else (0, 0)
+            self.calculate_vertical_shift(img1_path, img2_path_vertical, self.max_y_overlap)
+            if self.max_y_overlap > 0 and img2_path_vertical and img1_path != img2_path_vertical else (0, 0)
         )
         self.h_shift = (
-            self.calculate_horizontal_shift(img1_path, img2_path_horizontal, max_x_overlap)
-            if max_x_overlap > 0 and img2_path_horizontal and img1_path != img2_path_horizontal else (0, 0)
+            self.calculate_horizontal_shift(img1_path, img2_path_horizontal, self.max_x_overlap)
+            if self.max_x_overlap > 0 and img2_path_horizontal and img1_path != img2_path_horizontal else (0, 0)
         )
         print("vertical shift:", self.v_shift, ", horizontal shift:", self.h_shift)
+
+    def calculate_dynamic_shifts(self, well, channel, z_level, row, col):
+        h_shift, v_shift = self.h_shift, self.v_shift
+
+        # Check for left neighbor
+        if (row, col - 1) in self.stitching_data[well][channel][z_level]:
+            left_tile_path = self.stitching_data[well][channel][z_level][row, col - 1]['filepath']
+            current_tile_path = self.stitching_data[well][channel][z_level][row, col]['filepath']
+            # Calculate horizontal shift
+            new_h_shift = self.calculate_horizontal_shift(left_tile_path, current_tile_path, abs(self.h_shift[1]))
+
+            # Check if the new horizontal shift is within 10% of the precomputed shift
+            if self.h_shift == (0,0) or (0.95 * abs(self.h_shift[1]) <= abs(new_h_shift[1]) <= 1.05 * abs(self.h_shift[1]) and 
+                0.95 * abs(self.h_shift[0]) <= abs(new_h_shift[0]) <= 1.05 * abs(self.h_shift[0])):
+                print("new h shift", new_h_shift, h_shift)
+                h_shift = new_h_shift
+
+        # Check for top neighbor
+        if (row - 1, col) in self.stitching_data[well][channel][z_level]:
+            top_tile_path = self.stitching_data[well][channel][z_level][row - 1, col]['filepath']
+            current_tile_path = self.stitching_data[well][channel][z_level][row, col]['filepath']
+            # Calculate vertical shift
+            new_v_shift = self.calculate_vertical_shift(top_tile_path, current_tile_path, abs(self.v_shift[0]))
+
+            # Check if the new vertical shift is within 10% of the precomputed shift
+            if self.v_shift == (0,0) or (0.95 * abs(self.v_shift[0]) <= abs(new_v_shift[0]) <= 1.05 * abs(self.v_shift[0]) and 
+                0.95 * abs(self.v_shift[1]) <= abs(new_v_shift[1]) <= 1.05 * abs(self.v_shift[1])):
+                print("new v shift", new_v_shift, v_shift)
+                v_shift = new_v_shift
+
+        return h_shift, v_shift
 
     def init_output(self, time_point, well):
         output_folder = os.path.join(self.input_folder, f"{time_point}_stitched")
@@ -3328,35 +3385,52 @@ class Stitcher(Thread, QObject):
 
         x_max = (self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + # horizontal width with overlap
                 abs((self.num_rows - 1) * self.v_shift[1])) # horizontal shift from vertical registration
-        y_max = (self.input_height +
-                ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + # vertical height with overlap
+        y_max = (self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + # vertical height with overlap
                 abs((self.num_cols - 1) * self.h_shift[0])) # vertical shift from horizontal registration
+        if self.use_registration and FULL_REGISTRATION:
+            y_max *= 1.05
+            x_max *= 1.05
         tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
         print(f"(t:{time_point}, well:{well}) output shape: {tczyx_shape}")
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
         self.stitched_images = self.init_output(time_point, well)
-        total_tiles = sum(len(z_data) for channel_data in self.stitching_data[well].values() for z_data in channel_data.values())
+        total_tiles = sum(1 for channel_data in self.stitching_data[well].values() 
+                                  for z_data in channel_data.values() 
+                                  for row_col in z_data.keys())
         processed_tiles = 0
-        for channel in self.channel_names:
-            for z_level, z_data in self.stitching_data[well][channel].items():
-                for tile_info in z_data:
-                    # Get tile grid location (row, col)
-                    row = self.num_rows - 1 - tile_info['row'] if self.is_reversed['rows'] else tile_info['row']
-                    col = self.num_cols - 1 - tile_info['col'] if self.is_reversed['cols'] else tile_info['col']
-                    tile = dask_imread(os.path.join(self.image_folder, tile_info['filename']))[0]
-                    if self.is_rgb[channel]:
-                        for color_idx, color in enumerate(['R', 'G', 'B']):
-                            tile_color = tile[:, :, color_idx]
-                            color_channel = f"{channel} {color}"
-                            self.stitch_single_image(tile_color, z_level, self.mono_channel_names.index(color_channel), row, col)
-                            processed_tiles += 1
-                    else:
-                        self.stitch_single_image(tile, z_level, self.mono_channel_names.index(channel), row, col)
-                        processed_tiles += 1
-                    if progress_callback is not None:
-                        progress_callback(processed_tiles, total_tiles)
+
+        for z_level in range(self.num_z):
+
+            for row in range(self.num_rows):
+                row = self.num_rows - 1 - row if self.is_reversed['rows'] else row
+
+                for col in range(self.num_cols):
+                    col = self.num_cols - 1 - col if self.is_reversed['cols'] else col
+
+                    if self.use_registration and FULL_REGISTRATION and z_level == 0:
+                        if (row, col) in self.stitching_data[well][self.registration_channel][z_level]:
+                            tile_info = self.stitching_data[well][self.registration_channel][z_level][(row, col)]
+                            self.h_shift, self.v_shift = self.calculate_dynamic_shifts(well, self.registration_channel, z_level, row, col)
+
+                    # Now apply the same shifts to all channels
+                    for channel in self.channel_names:
+                        if (row, col) in self.stitching_data[well][channel][z_level]:
+                            tile_info = self.stitching_data[well][channel][z_level][(row, col)]
+                            tile = dask_imread(tile_info['filepath'])[0]
+                            #tile = tile[:, ::-1]
+                            if self.is_rgb[channel]:
+                                for color_idx, color in enumerate(['R', 'G', 'B']):
+                                    tile_color = tile[:, :, color_idx]
+                                    color_channel = f"{channel} {color}"
+                                    self.stitch_single_image(tile_color, z_level, self.mono_channel_names.index(color_channel), row, col)
+                                    processed_tiles += 1
+                            else:
+                                self.stitch_single_image(tile, z_level, self.mono_channel_names.index(channel), row, col)
+                                processed_tiles += 1
+                        if progress_callback is not None:
+                            progress_callback(processed_tiles, total_tiles)
 
     def stitch_single_image(self, tile, z_level, channel_idx, row, col):
         #print(tile.shape)
@@ -3417,21 +3491,19 @@ class Stitcher(Thread, QObject):
     def save_as_ome_zarr(self):
         dz_um = self.acquisition_params.get("dz(um)", None)
         sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
-        default_color_hex = 0xFFFFFF        
+        dims = "TCZYX"
         intensity_min = np.iinfo(self.dtype).min
         intensity_max = np.iinfo(self.dtype).max
-
-        #channel_colors = [self.configurationManager.get_color_for_channel(c) for c in self.mono_channel_names]
-        channel_colors = [default_color_hex] * self.num_c
         channel_minmax = [(intensity_min, intensity_max)] * self.num_c
-        dims = "TCZYX"
+        for i in range(self.num_c):
+            print(f"Channel {i}:", self.mono_channel_names[i], " \tColor:", self.channel_colors[i], " \tPixel Range:", channel_minmax[i])
 
         zarr_writer = OmeZarrWriter(self.output_path)
         zarr_writer.build_ome(
             size_z=self.num_z,
             image_name=os.path.basename(self.output_path),
             channel_names=self.mono_channel_names,
-            channel_colors=channel_colors,
+            channel_colors=self.channel_colors,
             channel_minmax=channel_minmax
         )
         zarr_writer.write_image(
@@ -3439,7 +3511,7 @@ class Stitcher(Thread, QObject):
             image_name=os.path.basename(self.output_path),
             physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um),
             channel_names=self.mono_channel_names,
-            channel_colors=channel_colors,
+            channel_colors=self.channel_colors,
             dimension_order=dims,
             scale_num_levels=5,
             chunk_dims=self.chunks
@@ -3469,11 +3541,11 @@ class Stitcher(Thread, QObject):
             )
 
             channel_info = [{
-                "label": name,
-                "color": "FFFFFF",
+                "label": self.mono_channel_names[i],
+                "color": f"{self.channel_colors[i]:06X}",
                 "window": {"start": intensity_min, "end": intensity_max},
                 "active": True
-            } for name in self.mono_channel_names]
+            } for i in range(self.num_c)]
 
             # Assign the channel metadata to the image group
             root_group.attrs["omero"] = {"channels": channel_info}
@@ -3533,13 +3605,11 @@ class Stitcher(Thread, QObject):
                                         storage_options=dict(chunks=self.chunks)
                                         )
             channel_info = [{
-                "label": name,
-                "color": "FFFFFF",
+                "label": self.mono_channel_names[c],
+                "color": f"{self.channel_colors[c]:06X}",
                 "window": {"start": intensity_min, "end": intensity_max},
                 "active": True
-                # make method that returns a color name from hex code
-                # self.configurationManager.get_color_for_channel(name) then convert to hex,
-            } for name in self.mono_channel_names]
+            } for c in range(self.num_c)]
 
             image_group.attrs["omero"] = {"channels": channel_info}
 

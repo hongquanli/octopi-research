@@ -539,6 +539,7 @@ LASER_AF_CHARACTERIZATION_MODE = False
 USE_NAPARI = True
 IS_WELLPLATE = False
 
+
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
 
@@ -553,8 +554,22 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 # Tiled preview
 SHOW_TILED_PREVIEW = True
 PRVIEW_DOWNSAMPLE_FACTOR = 5
+
+# Stitcher
 ENABLE_STITCHER = True
+FULL_REGISTRATION = False
 STITCH_COMPLETE_ACQUISITION = True
+CHANNEL_COLORS_HEX = {
+    '405': 0x3300FF,  # Blue
+    '488': 0x1FFF00,  # Green
+    '561': 0xFFCF00,  # Yellow
+    '638': 0xFF0000,  # Red
+    '730': 0x770000,  # Dark Red
+    'R': 0xFF0000,  # Red
+    'G': 0x3300FF,  # Blue
+    'B': 0x1FFF00   # Green
+}
+
 
 ##########################################################
 #### start of loading machine specific configurations ####

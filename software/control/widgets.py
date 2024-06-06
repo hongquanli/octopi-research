@@ -2614,11 +2614,12 @@ class StitcherWidget(QFrame):
 
             print(self.contrast_limits)
             for layer in napari_viewer.layers:
-                if layer.name in self.contrast_limits:
-                    layer.contrast_limits = self.contrast_limits[layer.name]
+                layer_name = layer.name.replace("_", " ").replace("full ", "full_")
+                layer.colormap = self.configurationManager.get_color_for_channel(layer_name)
+                if layer_name in self.contrast_limits:
+                    layer.contrast_limits = self.contrast_limits[layer_name]
                 else:
                     layer.contrast_limits = self.contrast_limit  # Default contrast limits
-                layer.colormap = self.configurationManager.get_color_for_channel(layer.name.replace("_", " ").replace("full ", "full_"))
 
         except Exception as e:
             QMessageBox.critical(self, "Error Opening in Napari", str(e))
@@ -2768,8 +2769,8 @@ class NapariTiledDisplayWidget(QWidget):
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        self.viewer.layers[layer_name] = (min_val, max_val)
-        self.viewer.layers[layer_name].refresh()
+        # self.viewer.layers[layer_name] = (min_val, max_val)
+        # self.viewer.layers[layer_name].refresh()
         print(f"NapariTiledDisplay saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def resetView(self):
@@ -2883,8 +2884,8 @@ class NapariMultiChannelWidget(QWidget):
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        self.viewer.layers[layer_name] = (min_val, max_val)
-        self.viewer.layers[layer_name].refresh()
+        # self.viewer.layers[layer_name] = (min_val, max_val)
+        # self.viewer.layers[layer_name].refresh()
         print(f"NapariMultiChannel saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
 
@@ -2999,8 +3000,8 @@ class NapariLiveWidget(QWidget):
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        self.viewer.layers[layer_name] = (min_val, max_val)
-        self.viewer.layers[layer_name].refresh()
+        # self.viewer.layers[layer_name] = (min_val, max_val)
+        # self.viewer.layers[layer_name].refresh()
         print(f"NapariLive saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def getContrastLimits(self):
