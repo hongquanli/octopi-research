@@ -715,10 +715,7 @@ class CameraSettingsWidget(QFrame):
         self.grid = QGridLayout()
         self.grid.addLayout(grid_ctrl,0,0)
         self.grid.addLayout(hbox1,1,0)
-<<<<<<< HEAD
 
-=======
->>>>>>> upstream/master
         if include_camera_auto_wb_setting:
             is_color = False
             try:
