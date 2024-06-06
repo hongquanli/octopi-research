@@ -570,6 +570,10 @@ MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = True
 MULTIPOINT_PIEZO_DELAY_MS = 20
 MULTIPOINT_PIEZO_UPDATE_DISPLAY = True
 
+AWB_RATIOS_R = 1.375
+AWB_RATIOS_G = 1
+AWB_RATIOS_B = 1.4141
+
 try:
     with open("cache/config_file_path.txt", 'r') as file:
         for line in file:
