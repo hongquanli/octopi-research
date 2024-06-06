@@ -3004,9 +3004,6 @@ class ImageDisplayWindow(QMainWindow):
         self.DrawCrossHairs = False
         self.image_offset = np.array([0, 0])
 
-        ## flag of setting scaling level 
-        self.flag_image_scaling_level_init = False
-
         ## Layout
         layout = QGridLayout()
         if self.show_LUT:
@@ -3052,16 +3049,6 @@ class ImageDisplayWindow(QMainWindow):
             self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height()) 
 
     def display_image(self,image):
-        def set_autoLevels_value():
-            if self.autoLevels is True:
-                self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-            else:
-                if self.flag_image_scaling_level_init is False:
-                    self.graphics_widget.img.setImage(image, autoLevels = True)
-                    self.flag_image_scaling_level_init = True
-                else:
-                    self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-
         if ENABLE_TRACKING:
             image = np.copy(image)
             self.image_height = image.shape[0],
@@ -3069,10 +3056,9 @@ class ImageDisplayWindow(QMainWindow):
             if(self.draw_rectangle):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
                 self.draw_rectangle = False
-
-            set_autoLevels_value()
+            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
         else:
-            set_autoLevels_value()
+            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
