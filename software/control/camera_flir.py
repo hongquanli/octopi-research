@@ -829,7 +829,6 @@ class Camera(object):
             self.is_streaming = True
 
     def stop_streaming(self):
-        self.camera.Init()
         if self.is_streaming:
             try:
                 self.camera.EndAcquisition()
