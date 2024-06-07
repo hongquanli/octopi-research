@@ -282,7 +282,8 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
             self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
-
+        self.multipointController.detection_stats.connect(self.statsDisplayWidget.display_stats)
+        
         if USE_NAPARI:
             self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
@@ -317,6 +318,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+
             if SHOW_TILED_PREVIEW:
                 self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
@@ -455,13 +457,15 @@ class OctopiGUI(QMainWindow):
         _ = self.model(dummy_input)
 
         #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
-        segmentation_model_path=SEGMENTATION_MODEL_PATH
+        #segmentation_model_path=SEGMENTATION_MODEL_PATH
+        segmentation_model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
         assert os.path.exists(segmentation_model_path)
         use_trt_segmentation=USE_TRT_SEGMENTATION
         self.segmentation_model = m2u(pretrained_model=segmentation_model_path, use_trt=use_trt_segmentation)
         # run some dummy data thru model - warm-up
         dummy_data = (255 * np.random.rand(3000,3000)).astype(np.uint8)
         self.segmentation_model.predict_on_images(dummy_data)
+        print('done')
 
         
         self.navigationController.move_to_cached_position()
