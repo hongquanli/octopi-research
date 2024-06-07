@@ -14,7 +14,7 @@ from qtpy.QtGui import *
 from control._def import *
 from control.processing_handler import ProcessingHandler
 from control.processing_pipeline import *
-from control.stitcher import Stitcher, default_image_reader
+#from control.stitcher import Stitcher, default_image_reader
 from control.multipoint_built_in_functionalities import malaria_rtp
 
 import control.utils as utils
@@ -2136,16 +2136,16 @@ class MultiPointWorker(QObject):
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                             # tiled preview
-                            if SHOW_TILED_PREVIEW and 'BF LED matrix full' in current_round_images:
+                            if not USE_NAPARI and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
                                 # initialize the variable
                                 if self.tiled_preview is None:
-                                    size = current_round_images['BF LED matrix full'].shape
+                                    size = current_round_images['BF LED matrix left half'].shape
                                     if len(size) == 2:
                                         self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR)),dtype=current_round_images['BF LED matrix full'].dtype)
                                     else:
                                         self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR),size[2]),dtype=current_round_images['BF LED matrix full'].dtype)
                                 # downsample the image
-                                I = current_round_images['BF LED matrix full']
+                                I = current_round_images['BF LED matrix left half']
                                 width = int(I.shape[1]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
@@ -2157,14 +2157,17 @@ class MultiPointWorker(QObject):
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
+                            # real time processing 
                             acquired_image_configs = list(current_round_images.keys())
-                            if ('BF LED matrix left half' in acquired_image_configs) and ('BF LED matrix right half' in acquired_image_configs) and ('Fluorescence 405 nm Ex' in acquired_image_configs) and self.multiPointController.do_fluorescence_rtp:
+                            if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
+                                print("try real time processing")
                                 try:
                                     if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
                                         raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
                                     I_left = current_round_images['BF LED matrix left half']
                                     I_right = current_round_images['BF LED matrix right half']
+                                    print("malaria real time processing")
                                     malaria_rtp(I_fluorescence, I_left, I_right, self,classification_test_mode=CLASSIFICATION_TEST_MODE,sort_during_multipoint=SORT_DURING_MULTIPOINT,disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
                                 except AttributeError as e:
                                     print(repr(e))

@@ -80,7 +80,6 @@ class OctopiGUI(QMainWindow):
         self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
         self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
-        self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         self.imageSaver = core.ImageSaver()
