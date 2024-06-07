@@ -11,12 +11,17 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 # control 
-from control.processing_handler import ProcessingHandler
 from control._def import *
+from control.processing_handler import ProcessingHandler
+from control.processing_pipeline import *
+from control.stitcher import Stitcher, default_image_reader
+from control.multipoint_built_in_functionalities import malaria_rtp
+
 import control.utils as utils
 import control.utils_config as utils_config
 import control.tracking as tracking
 import control.serial_peripherals as serial_peripherals
+
 try:
     from control.multipoint_custom_script_entry import *
     print('custom multipoint script found')
@@ -1650,6 +1655,14 @@ class MultiPointWorker(QObject):
 
         self.microscope = self.multiPointController.parent
 
+        try:
+            self.model = self.microscope.segmentation_model
+        except:
+            pass
+        self.crop = SEGMENTATION_CROP
+
+        # hard-coded model initialization
+        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
         self.t_dpc = []
         self.t_inf = []
         self.t_over=[]
@@ -1790,8 +1803,7 @@ class MultiPointWorker(QObject):
                 if len(coordiante_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
-                coordinate_name = coordinate_name + '_'
-
+                coordiante_name = coordiante_name + '_'
 
             self.x_scan_direction = 1
             self.dx_usteps = 0 # accumulated x displacement
@@ -1967,8 +1979,6 @@ class MultiPointWorker(QObject):
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                        # if 'Fluorescence 405' not in config.name:
-                                        #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
                                     else:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
@@ -2147,6 +2157,18 @@ class MultiPointWorker(QObject):
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
+                            acquired_image_configs = list(current_round_images.keys())
+                            if ('BF LED matrix left half' in acquired_image_configs) and ('BF LED matrix right half' in acquired_image_configs) and ('Fluorescence 405 nm Ex' in acquired_image_configs) and self.multiPointController.do_fluorescence_rtp:
+                                try:
+                                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
+                                        raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
+                                    I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
+                                    I_left = current_round_images['BF LED matrix left half']
+                                    I_right = current_round_images['BF LED matrix right half']
+                                    malaria_rtp(I_fluorescence, I_left, I_right, self,classification_test_mode=CLASSIFICATION_TEST_MODE,sort_during_multipoint=SORT_DURING_MULTIPOINT,disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
+                                except AttributeError as e:
+                                    print(repr(e))
+                                                            
                             # add the coordinate of the current location
                             if IS_WELLPLATE:
                                 if self.use_piezo:
@@ -2373,6 +2395,8 @@ class MultiPointController(QObject):
         self.gen_focus_map = False
         self.focus_map_storage = []
         self.already_using_fmap = False
+        self.do_segmentation = False
+        self.do_fluorescence_rtp = DO_FLUORESCENCE_RTP
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -2423,6 +2447,12 @@ class MultiPointController(QObject):
         self.gen_focus_map = flag
         if not flag:
             self.autofocusController.set_focus_map_use(False)
+    def set_stitch_tiles_flag(self, flag):
+        self.do_stitch_tiles = flag
+    def set_segmentation_flag(self, flag):
+        self.do_segmentation = flag
+    def set_fluorescence_rtp_flag(self, flag):
+        self.do_fluorescence_rtp = flag
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height

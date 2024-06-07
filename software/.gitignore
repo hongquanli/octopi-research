@@ -1,4 +1,5 @@
 *.ini
 *.txt
 *_configurations.xml
+../*.ini
 cache/
