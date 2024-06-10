@@ -352,9 +352,6 @@ class Camera(object):
 
         self.pixel_format = pixel_format
 
-        if self._toupcam_pullmode_started:
-            self.camera.Stop()
-
         if self.data_format == 'RAW':
             if pixel_format == 'MONO8':
                 self.pixel_size_byte = 1
