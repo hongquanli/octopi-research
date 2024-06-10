@@ -3593,9 +3593,14 @@ class Stitcher(Thread, QObject):
                 self.write_well_and_metadata(well_id, well_group)
 
             print(f"All data saved in HCS OME-ZARR format at: {hcs_path}")
-            channel_info = []
+            # channel_info = [{
+            #     "label": self.mono_channel_names[c],
+            #     "color": f"{self.channel_colors[c]:06X}",
+            #     "window": {"start": intensity_min, "end": intensity_max},
+            #     "active": True
+            # } for c in range(self.num_c)]
 
-            root_group.attrs["omero"] = {"channels": channel_info}
+            # root_group.attrs["omero"] = {"channels": channel_info}
             root = zarr.open(hcs_path, mode='r')
             print(root.tree())
         self.finished_saving.emit(hcs_path, self.dtype)

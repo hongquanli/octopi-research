@@ -83,7 +83,11 @@ class OctopiGUI(QMainWindow):
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera_focus = camera_fc.Camera_Simulation()
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+            try:
+                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+            except Exception as e:
+                print('not setting camera pixel format due to ' + str(e))
+
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
