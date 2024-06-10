@@ -273,7 +273,17 @@ class Camera(object):
 
     def set_exposure_time(self,exposure_time):
         # exposure time in ms
-        self.camera.put_ExpoTime(int(exposure_time*1000))
+        min,max,step = self.camera.get_ExpTimeRange() 
+        exposure_time_value = int(exposure_time*1000)
+
+        if exposure_time_value < min:
+            exposure_time_value = min
+        if exposure_time_value > max:
+            exposure_time_value = max
+
+        self.camera.put_ExpoTime(exposure_time_value)
+        exposure_time = float(self.camera.get_ExpoTime()) / 1000.0
+
         # use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
         # if use_strobe == False or self.is_global_shutter:
         #     self.exposure_time = exposure_time
