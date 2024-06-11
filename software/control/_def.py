@@ -554,8 +554,9 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 SHOW_TILED_PREVIEW = True
 PRVIEW_DOWNSAMPLE_FACTOR = 5
 
-# Filter Controller Enable False
+# Emission filter wheel
 USE_ZABER_EMISSION_FILTER_WHEEL = False
+FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
 
 ##########################################################
 #### start of loading machine specific configurations ####

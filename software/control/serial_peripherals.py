@@ -481,7 +481,7 @@ class FilterController:
         self.offset_position = 0
 
         self.deviceinfo = FilterDeviceInfo()
-        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if 'FT232R USB UART - FT232R USB UART' == p.description]
+        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if FILTER_CONTROLLER_SERIAL_NUMBER == p.serial_number]
         self.serial = serial.Serial(optical_mounts_ports[0], baudrate=_baudrate, bytesize=_bytesize, parity=_parity, stopbits=_stopbits)
         time.sleep(0.2)
 
