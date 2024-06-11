@@ -21,8 +21,6 @@ try:
 except:
     pass
 
-import control.serial_peripherals as serial_peripherals
-
 from queue import Queue
 from threading import Thread, Lock
 import time
@@ -504,6 +502,12 @@ class LiveController(QObject):
                     self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
+
+                if FILTER_CONTROLLER_ENABLE:
+                    try:
+                        self.microscope.filter_controller.set_emission_filter(str(illumination_source - 10))
+                    except Exception as e:
+                        print('not setting emission filter position due to ' + str(e))
 
 
     def start_live(self):
