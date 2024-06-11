@@ -556,6 +556,7 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 
 # Filter Controller Enable False
 FILTER_CONTROLLER_ENABLE = False
+FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
 
 ##########################################################
 #### start of loading machine specific configurations ####
