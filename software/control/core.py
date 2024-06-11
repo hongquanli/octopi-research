@@ -503,9 +503,9 @@ class LiveController(QObject):
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
 
-                if FILTER_CONTROLLER_ENABLE:
+                if USE_ZABER_EMISSION_FILTER_WHEEL:
                     try:
-                        self.microscope.filter_controller.set_emission_filter(str(illumination_source - 10))
+                        self.microscope.emission_filter_wheel.set_emission_filter(str(illumination_source - 10))
                     except Exception as e:
                         print('not setting emission filter position due to ' + str(e))
 

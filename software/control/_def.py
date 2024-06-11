@@ -555,7 +555,7 @@ SHOW_TILED_PREVIEW = True
 PRVIEW_DOWNSAMPLE_FACTOR = 5
 
 # Filter Controller Enable False
-FILTER_CONTROLLER_ENABLE = False
+USE_ZABER_EMISSION_FILTER_WHEEL = False
 
 ##########################################################
 #### start of loading machine specific configurations ####
