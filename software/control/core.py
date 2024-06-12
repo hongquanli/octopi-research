@@ -4070,7 +4070,7 @@ class ConfigurationManager(QObject):
                     z_offset = float(mode.get('ZOffset')),
                     pixel_format = mode.get('PixelFormat'),
                     _pixel_format_options = mode.get('_PixelFormat_options'),
-                    emission_filter_position = int(mode.get('EmissionFilterPosition', 0))
+                    emission_filter_position = int(mode.get('EmissionFilterPosition', 1))
                 )
             )
 
