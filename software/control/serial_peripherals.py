@@ -481,7 +481,7 @@ class FilterController:
         self.offset_position = 0
 
         self.deviceinfo = FilterDeviceInfo()
-        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if FILTER_CONTROLLER_SERIAL_NUMBER == p.serial_number]
+        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if FILTER_CONTROLLER_DEVICE_VID == p.vid and FILTER_CONTROLLER_DEVICE_PID == p.pid]
         self.serial = serial.Serial(optical_mounts_ports[0], baudrate=_baudrate, bytesize=_bytesize, parity=_parity, stopbits=_stopbits)
         time.sleep(0.2)
 

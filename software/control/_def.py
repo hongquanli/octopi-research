@@ -556,7 +556,8 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 
 # Emission filter wheel
 USE_ZABER_EMISSION_FILTER_WHEEL = False
-FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
+FILTER_CONTROLLER_DEVICE_PID = 24577
+FILTER_CONTROLLER_DEVICE_VID = 1027
 
 ##########################################################
 #### start of loading machine specific configurations ####
