@@ -719,58 +719,6 @@ class NavigationController(QObject):
         offset_y_centered = int(tile_height / 2 - offset_y)
         self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
 
-        # try:
-        #     highest_res = (0,0)
-        #     for res in self.parent.camera.res_list:
-        #         if res[0] > highest_res[0] or res[1] > higest_res[1]:
-        #             highest_res = res
-        #     resolution = self.parent.camera.resolution
-
-        #     try:
-        #         pixel_binning_x = highest_res[0]/resolution[0]
-        #         pixel_binning_y = highest_res[1]/resolution[1]
-        #         if pixel_binning_x < 1:
-        #             pixel_binning_x = 1
-        #         if pixel_binning_y < 1:
-        #             pixel_binning_y = 1
-        #     except:
-        #         pixel_binning_x=1
-        #         pixel_binning_y=1
-        # except AttributeError:
-        #     pixel_binning_x = 1
-        #     pixel_binning_y = 1
-
-        # try:
-        #     current_objective = self.parent.objectiveStore.current_objective
-        #     objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
-        # except (AttributeError, KeyError):
-        #     objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
-
-        # magnification = objective_info["magnification"]
-        # objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
-        # tube_lens_mm = TUBE_LENS_MM
-        # pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-
-        # pixel_size_xy = pixel_size_um/(magnification/(objective_tube_lens_mm/tube_lens_mm))
-
-        # pixel_size_x = pixel_size_xy*pixel_binning_x
-        # pixel_size_y = pixel_size_xy*pixel_binning_y
-
-        # delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR * dx_mm
-        # delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR * dy_mm
-        # print("click: dy_mm, dx_mm", delta_y, delta_x)
-        # center_beginning_x = pixel_sign_x * pixel_size_x * image_width / Nx / 2 / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR
-        # center_beginning_y = pixel_sign_y * pixel_size_y * image_height / Ny / 2 / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR
-        # print("offset: y_mm, x_mm", center_beginning_y, center_beginning_x)
-        # print("center: y_mm, x_mm", self.scan_begin_position_y + center_beginning_y, self.scan_begin_position_x - center_beginning_x)
-
-        # if USE_NAPARI and IS_WELLPLATE:
-        #     self.move_x_to(self.scan_begin_position_x - center_beginning_x + delta_x)
-        #     self.move_y_to(self.scan_begin_position_y + center_beginning_y + delta_y)
-        # else:
-        #     self.move_x_to(self.scan_begin_position_x - center_beginning_x / 2 + delta_x / 2)
-        #     self.move_y_to(self.scan_begin_position_y + center_beginning_y / 2 + delta_y / 2)
-
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
             try:
