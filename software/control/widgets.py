@@ -14,6 +14,7 @@ import pyqtgraph as pg
 import locale
 import pandas as pd
 import napari
+from napari.utils.colormaps import Colormap, AVAILABLE_COLORMAPS
 import re
 import cv2
 from datetime import datetime
@@ -2069,12 +2070,16 @@ class MultiPointWidget2(QFrame):
         self.checkbox_withAutofocus = QCheckBox('Contrast AF')
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
         self.checkbox_stitchOutput = QCheckBox('Stitch Output')
         self.checkbox_stitchOutput.setChecked(False)
+
         self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -2312,6 +2317,7 @@ class MultiPointWidget2(QFrame):
         self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         self.checkbox_withReflectionAutofocus.setEnabled(enabled)
+        self.checkbox_stitchOutput.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
@@ -2517,7 +2523,9 @@ class StitcherWidget(QFrame):
         self.output_path = ""
         self.contrast_limit = None
         self.contrast_limits = {}
+        self.initUI()
 
+    def initUI(self):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)  # Set frame style
         self.layout = QVBoxLayout(self)
         self.topLayout = QHBoxLayout()
@@ -2639,6 +2647,26 @@ class StitcherWidget(QFrame):
         self.contrast_limits[layer_name] = (min_val, max_val)
         #print(f"Stitcher saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
+    def extractWavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or "full_" + color in parts:
+                return color
+        return None
+
+    def generateColormap(self, channel_info):
+        """Convert a HEX value to a normalized RGB tuple."""
+        c0 = (0, 0, 0)
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
+             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
+
     def viewOutputNapari(self):
         try:
             napari_viewer = napari.Viewer()
@@ -2647,10 +2675,16 @@ class StitcherWidget(QFrame):
             else:
                 napari_viewer.open(self.output_path, contrast_limits=self.contrast_limit)
 
-            print(self.contrast_limits)
             for layer in napari_viewer.layers:
                 layer_name = layer.name.replace("_", " ").replace("full ", "full_")
-                layer.colormap = self.configurationManager.get_color_for_channel(layer_name)
+                channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(layer_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+
+                # Check if Napari has a colormap with this name and use it; otherwise, create a new one
+                if channel_info['name'] in AVAILABLE_COLORMAPS:
+                    layer.colormap = AVAILABLE_COLORMAPS[channel_info['name']]
+                else:
+                    layer.colormap = self.generateColormap(channel_info)
+
                 if layer_name in self.contrast_limits:
                     layer.contrast_limits = self.contrast_limits[layer_name]
                 else:
@@ -2658,6 +2692,28 @@ class StitcherWidget(QFrame):
 
         except Exception as e:
             QMessageBox.critical(self, "Error Opening in Napari", str(e))
+            print(f"An error occurred while opening output in Napari: {e}")
+
+    def resetUI(self):
+        self.output_path = ""
+        self.contrast_limit = None
+        self.contrast_limits = {}
+
+        # Reset UI components to their default states
+        self.applyFlatfieldCheck.setChecked(False)
+        self.outputFormatCombo.setCurrentIndex(0)  # Assuming the first index is the default
+        self.useRegistrationCheck.setChecked(False)
+        self.registrationChannelCombo.clear()  # Clear existing items
+        self.registrationChannelLabel.setVisible(False)
+        self.registrationChannelCombo.setVisible(False)
+
+        # Reset the visibility and state of buttons and labels
+        self.viewOutputButton.setEnabled(False)
+        self.viewOutputButton.setVisible(False)
+        self.progressBar.setValue(0)
+        self.progressBar.setVisible(False)
+        self.statusLabel.setText("Status: Image Acquisition")
+        self.statusLabel.setVisible(False)
 
 
 class NapariTiledDisplayWidget(QWidget):
@@ -2701,6 +2757,26 @@ class NapariTiledDisplayWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
+    def extractWavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or f"full_{color}" in parts:
+                return color
+        return None
+
+    def generateColormap(self, channel_info):
+        """Convert a HEX value to a normalized RGB tuple."""
+        c0 = (0, 0, 0)
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
+             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
+
     def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
@@ -2715,47 +2791,44 @@ class NapariTiledDisplayWidget(QWidget):
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
-        rgb = len(image.shape) == 3
+        rgb = len(image.shape) == 3  # Check if image is RGB based on shape
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
-        if channel_name not in self.viewer.layers: #or len(self.viewer.layers[channel_name].data.shape) - 1 != len(image.shape):
+        if channel_name not in self.viewer.layers:
             self.channels.append(channel_name)
             if rgb:
-                color = None
+                color = None  # No colormap for RGB images
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
             else:
-                color = self.configurationManager.get_color_for_channel(channel_name)
+                channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+                if channel_info['name'] in AVAILABLE_COLORMAPS:
+                    color = AVAILABLE_COLORMAPS[channel_info['name']]
+                else:
+                    color = self.generateColormap(channel_info)
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
 
             limits = self.getContrastLimits(self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
-                                  colormap=color, contrast_limits=limits, blending='additive')
-            layer.contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, colormap=color, contrast_limits=limits, blending='additive')
+            layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
 
         image = cv2.resize(image, (self.image_width, self.image_height), interpolation=cv2.INTER_AREA)
-        # image = image[::self.downsample_factor, ::self.downsample_factor] # faster but worse quality (takes every nth pixel)
         
         if not self.viewer_scale_initialized:
             self.resetView()
             self.viewer_scale_initialized = True
 
-        # Locate the layer and its current data
         layer = self.viewer.layers[channel_name]
         layer_data = layer.data
-
-        # Update the specific slice based on the provided coordinates
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
         if rgb:
-            layer_data[k, y_slice, x_slice,:] = image
+            layer_data[k, y_slice, x_slice, :] = image
         else:
             layer_data[k, y_slice, x_slice] = image
-        # Update the layer with the modified data
         layer.data = layer_data
-        layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.viewer.dims.set_point(0, k)
         layer.refresh()
 
@@ -2784,14 +2857,7 @@ class NapariTiledDisplayWidget(QWidget):
 
     def signalContrastLimits(self, event):
         layer = event.source
-        # Debug prints
-        print(f"Layer name: {layer.name}")
-        print(f"Contrast limits from layer: {layer.contrast_limits}")
-
-        # Ensure contrast limits are floats
-        min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
-
-        # Emit signal with correct contrast limits
+        min_val, max_val = map(float, layer.contrast_limits) 
         self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
         self.contrast_limits[layer.name] = min_val, max_val
 
@@ -2804,9 +2870,6 @@ class NapariTiledDisplayWidget(QWidget):
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        # self.viewer.layers[layer_name] = (min_val, max_val)
-        # self.viewer.layers[layer_name].refresh()
-        #print(f"NapariTiledDisplay saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def resetView(self):
         self.viewer.reset_view()
@@ -2850,6 +2913,27 @@ class NapariMultiChannelWidget(QWidget):
     def initChannels(self, channels):
         self.channels = channels
 
+    def extractWavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or f"full_{color}" in parts:
+                return color
+        return None
+
+    def generateColormap(self, channel_info):
+        """Convert a HEX value to a normalized RGB tuple."""
+        positions = [0, 1]
+        c0 = (0, 0, 0)
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
+             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
+
     def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
@@ -2860,32 +2944,37 @@ class NapariMultiChannelWidget(QWidget):
         #    self.contrast_limits[c] = self.getContrastLimits(self.dtype)
         self.layers_initialized = True
 
+
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
+        rgb = len(image.shape) == 3
         if channel_name not in self.viewer.layers:
             self.channels.append(channel_name)
-            rgb = len(image.shape) == 3
             if rgb:
-                color = None
+                color = None  # RGB images do not need a colormap
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width, 3), dtype=self.dtype)
             else:
-                color = self.configurationManager.get_color_for_channel(channel_name)
+                channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+                if channel_info['name'] in AVAILABLE_COLORMAPS:
+                    color = AVAILABLE_COLORMAPS[channel_info['name']]
+                else:
+                    color = self.generateColormap(channel_info)
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width), dtype=self.dtype)
             
             limits = self.getContrastLimits(self.dtype)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
-                                  colormap=color, contrast_limits=limits, blending='additive')
-            layer.contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
+                                          colormap=color, contrast_limits=limits, blending='additive')
+            layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
             if not self.viewer_scale_initialized:
                 self.resetView()
                 self.viewer_scale_initialized = True
-        else:
-            layer = self.viewer.layers[channel_name]
+            
+        layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.viewer.dims.set_point(0, k)
@@ -2905,23 +2994,12 @@ class NapariMultiChannelWidget(QWidget):
 
     def signalContrastLimits(self, event):
         layer = event.source
-
-        # Debug prints
-        print(f"Layer name: {layer.name}")
-        print(f"Contrast limits from layer: {layer.contrast_limits}")
-
-        # Ensure contrast limits are floats
         min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
-
-        # Emit signal with correct contrast limits
         self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
         self.contrast_limits[layer.name] = min_val, max_val
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        # self.viewer.layers[layer_name] = (min_val, max_val)
-        # self.viewer.layers[layer_name].refresh()
-        #print(f"NapariMultiChannel saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
 
 class NapariLiveWidget(QWidget):
@@ -2968,6 +3046,7 @@ class NapariLiveWidget(QWidget):
 
     def initLiveLayer(self, channel, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
+        self.viewer.layers.clear()
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
@@ -2990,16 +3069,15 @@ class NapariLiveWidget(QWidget):
         if not rgb and not self.init_live:
             self.initLiveLayer("Live View", image.shape[0], image.shape[1], image.dtype, rgb)
             self.init_live = True
+            self.init_live_rgb = False
             print("init live")
         elif rgb and not self.init_live_rgb:
-            self.initLiveLayer("Live View RGB", image.shape[0], image.shape[1], image.dtype, rgb)
+            self.initLiveLayer("Live View", image.shape[0], image.shape[1], image.dtype, rgb)
             self.init_live_rgb = True
+            self.init_live = False
             print("init live rgb")
         
-        if not rgb: 
-            layer = self.viewer.layers["Live View"]
-        else:
-            layer = self.viewer.layers["Live View RGB"]
+        layer = self.viewer.layers["Live View"]
         layer.data = image
         live_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
         if self.live_layer_name != live_layer_name:
@@ -3021,23 +3099,12 @@ class NapariLiveWidget(QWidget):
     def signalContrastLimits(self, event):
         layer = event.source
         layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
-
-        # Debug prints
-        print(f"Layer name: {layer_name}, Live name: {layer.name}")
-        print(f"Contrast limits from layer: {layer.contrast_limits}")
-
-        # Ensure contrast limits are floats
         min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
-
-        # Emit signal with correct contrast limits
         self.signal_layer_contrast_limits.emit(layer_name, min_val, max_val)
         self.contrast_limits[layer_name] = min_val, max_val
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
         self.contrast_limits[layer_name] = (min_val, max_val)
-        # self.viewer.layers[layer_name] = (min_val, max_val)
-        # self.viewer.layers[layer_name].refresh()
-        #print(f"NapariLive saved contrast limits for {layer_name}: ({min_val}, {max_val})")
 
     def getContrastLimits(self):
         if np.issubdtype(self.dtype, np.integer):
@@ -3957,7 +4024,7 @@ class WellSelectionWidget(QTableWidget):
         # self.cellClicked.connect(self.onSingleClick)
         self.cellDoubleClicked.connect(self.on_double_click)
         self.cellClicked.connect(self.on_single_click)
-        self.cellClicked.connect(self.get_selected_cells)
+        #self.cellClicked.connect(self.get_selected_cells)
         self.itemSelectionChanged.connect(self.get_selected_cells)
 
         # size
@@ -4039,7 +4106,7 @@ class WellSelectionWidget(QTableWidget):
             x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
             y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
             self.signal_well_selected.emit(True)
-            self.signal_well_selected_pos.emit(x_mm,y_mm)
+            #self.signal_well_selected_pos.emit(x_mm,y_mm)
         else:
             self.signal_well_selected.emit(False)
             

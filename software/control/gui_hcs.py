@@ -14,8 +14,6 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
-import control.ImSwitch.napariViewerWidget as napariViewerWidget
-
 
 if CAMERA_TYPE == "Toupcam":
     try:
@@ -131,8 +129,8 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations_color.xml')
-        print('load channel_configurations_color.xml')
+        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        print('load channel_configurations.xml')
 
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
@@ -288,7 +286,8 @@ class OctopiGUI(QMainWindow):
             self.wellSelectionWidget = widgets.Well1536SelectionWidget()
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
 
-        self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)        
+        if ENABLE_STITCHER:
+            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         if USE_NAPARI:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
@@ -329,6 +328,9 @@ class OctopiGUI(QMainWindow):
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
         layout.addWidget(self.recordTabWidget)
+        if ENABLE_STITCHER:
+            layout.addWidget(self.stitcherWidget)
+            self.stitcherWidget.hide()
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
 
@@ -345,16 +347,19 @@ class OctopiGUI(QMainWindow):
             dock_display.showTitleBar()
             dock_display.addWidget(self.imageDisplayTabs)
             dock_display.setStretch(x=100,y=100)
+
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
             #dock_wellSelection.addWidget(self.wellFormatWidget)
             self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
+
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
             # dock_controlPanel.showTitleBar()
             dock_controlPanel.addWidget(self.centralWidget)
             dock_controlPanel.setStretch(x=1,y=None)
             dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
+
             main_dockArea = dock.DockArea()
             main_dockArea.addDock(dock_display)
             main_dockArea.addDock(self.dock_wellSelection,'bottom')
@@ -405,8 +410,17 @@ class OctopiGUI(QMainWindow):
             self.multipointController.signal_stitcher.connect(self.startStitcher)
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
             self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+            if ENABLE_FLEXIBLE_MULTIPOINT:
+                self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+                self.multiPointWidget2.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
-        self.multiPointWidget.signal_acquisition_started.connect(self.toggleWellSelector)
+        self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+        if ENABLE_FLEXIBLE_MULTIPOINT:
+            self.recordTabWidget.currentChanged.connect(self.onTabChanged)
+            self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+            self.multiPointWidget2.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -430,27 +444,36 @@ class OctopiGUI(QMainWindow):
             self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
-            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+            if ENABLE_STITCHER:
+                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
 
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            if ENABLE_FLEXIBLE_MULTIPOINT:
+                self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
             self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
             self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+            if ENABLE_STITCHER:
+                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
 
             if SHOW_TILED_PREVIEW:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                if ENABLE_FLEXIBLE_MULTIPOINT:
+                    self.multiPointWidget2.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                    self.multiPointWidget2.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
-                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
                 self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                 self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
+                if ENABLE_STITCHER:
+                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
@@ -582,26 +605,38 @@ class OctopiGUI(QMainWindow):
             dialog = widgets.LedMatrixSettingsDialog(self.liveController.led_array) # to move led_arry outside liveController
             dialog.exec_()
 
+    def onTabChanged(self, index):
+        acquisitionWidget = self.recordTabWidget.widget(index)
+        if ENABLE_STITCHER:
+            self.toggleStitcherWidget(acquisitionWidget.checkbox_stitchOutput.isChecked())
+            self.toggleWellSelector(index)
+            acquisitionWidget.emit_selected_channels()
+
     def toggleWellSelector(self, close):
-            self.dock_wellSelection.setVisible(not close)
+        self.dock_wellSelection.setVisible(not close)
+
+    def toggleAcquisitionStart(self, acquisition_started):
+        current_index = self.recordTabWidget.currentIndex()
+        for index in range(self.recordTabWidget.count()):
+            self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
+        if current_index == 0:
+            self.dock_wellSelection.setVisible(not acquisition_started)
 
     def toggleStitcherWidget(self, checked):
         central_layout = self.centralWidget.layout()
         if checked:
-            central_layout.insertWidget(central_layout.count() - 2, self.stitcherWidget)
             self.stitcherWidget.show()
         else:
-            central_layout.removeWidget(self.stitcherWidget)
             self.stitcherWidget.hide()
-            self.stitcherWidget.setParent(None)
 
     def startStitcher(self, acquisition_path):
-        if self.multiPointWidget.checkbox_stitchOutput.isChecked():
+        acquisitionWidget = self.recordTabWidget.currentWidget()
+        if acquisitionWidget.checkbox_stitchOutput.isChecked():
             # Fetch settings from StitcherWidget controls
             apply_flatfield = self.stitcherWidget.applyFlatfieldCheck.isChecked()
             use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
             registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
-            output_name = self.multiPointWidget.lineEdit_experimentID.text()
+            output_name = acquisitionWidget.lineEdit_experimentID.text()
             if output_name == "":
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"

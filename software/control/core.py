@@ -3215,7 +3215,7 @@ class Stitcher(Thread, QObject):
 
         self.mono_channel_names = mono_channel_names
         self.num_c = len(mono_channel_names)
-        self.channel_colors = [CHANNEL_COLORS_HEX.get(self.extract_wavelength(name), 0xFFFFFF) for name in self.mono_channel_names]
+        self.channel_colors = [CHANNEL_COLORS_MAP.get(self.extract_wavelength(name), {'hex': 0xFFFFFF})['hex'] for name in self.mono_channel_names]
         print(self.mono_channel_names)
 
     def get_flatfields(self, progress_callback=None):
@@ -4092,7 +4092,7 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename="channel_configurations_color.xml"):
+    def __init__(self,filename="channel_configurations.xml"):
         QObject.__init__(self)
         self.config_filename = filename
         self.configurations = []
@@ -4114,11 +4114,12 @@ class ConfigurationManager(QObject):
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations = self.num_configurations + 1
+            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
-                    color = mode.get('Color'),
                     mode_id = mode.get('ID'),
                     name = mode.get('Name'),
+                    color = self.get_channel_color(mode.get('Name')), # get color from confi.ini file # todo 
                     exposure_time = float(mode.get('ExposureTime')),
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
@@ -4150,17 +4151,21 @@ class ConfigurationManager(QObject):
         for conf in selected_configurations:
             self.update_configuration_without_writing(conf.id, "Selected", 0)
 
-    def get_color_for_channel(self, channel):
-        for config in self.configurations:
-            if config.name == channel:
-                return config.color
-        if ' R' in channel:
-            return 'red'
-        if ' G' in channel:
-            return 'green'
-        if ' B' in channel:
-            return 'blue'
-        return 'gray'
+    def get_channel_color(self, channel):
+        channel_info = CHANNEL_COLORS_MAP.get(self.extract_wavelength(channel), {'hex': 0xFFFFFF, 'name': 'gray'})
+        return channel_info['hex']
+
+    def extract_wavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming 'Fluorescence 488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or "full_" + color in parts:
+                return color
+        return None
 
 class PlateReaderNavigationController(QObject):
 
@@ -4440,12 +4445,13 @@ class LaserAutofocusController(QObject):
         self.microcontroller.turn_off_AF_laser()
         self.wait_till_operation_is_completed()
 
-        # calculate the conversion factor
-        self.pixel_to_um = 6.0/(x1-x0)
-        print('pixel to um conversion factor is ' + str(self.pixel_to_um) + ' um/pixel')
-        # for simulation
         if x1-x0 == 0:
+            # for simulation
             self.pixel_to_um = 0.4
+        else:
+            # calculate the conversion factor
+            self.pixel_to_um = 6.0/(x1-x0)
+        print('pixel to um conversion factor is ' + str(self.pixel_to_um) + ' um/pixel')
 
         # set reference
         self.x_reference = x1

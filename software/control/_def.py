@@ -436,7 +436,6 @@ Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
 USE_NAPARI = True
 
 IS_WELLPLATE = False
-WELLPLATE_SELECTOR = False
 
 # plate format
 WELLPLATE_FORMAT = 384
@@ -562,15 +561,15 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 ENABLE_STITCHER = True
 FULL_REGISTRATION = False
 STITCH_COMPLETE_ACQUISITION = True
-CHANNEL_COLORS_HEX = {
-    '405': 0x3300FF,  # Blue
-    '488': 0x1FFF00,  # Green
-    '561': 0xFFCF00,  # Yellow
-    '638': 0xFF0000,  # Red
-    '730': 0x770000,  # Dark Red
-    'R': 0xFF0000,  # Red
-    'G': 0x3300FF,  # Blue
-    'B': 0x1FFF00   # Green
+CHANNEL_COLORS_MAP = {
+    '405':      {'hex': 0x3300FF, 'name': 'blue'},
+    '488':      {'hex': 0x1FFF00, 'name': 'green'},
+    '561':      {'hex': 0xFFCF00, 'name': 'yellow'},
+    '638':      {'hex': 0xFF0000, 'name': 'red'},
+    '730':      {'hex': 0x770000, 'name': 'dark red'},
+    'R':        {'hex': 0xFF0000, 'name': 'red'},
+    'G':        {'hex': 0x1FFF00, 'name': 'green'},
+    'B':        {'hex': 0x3300FF, 'name': 'blue'}
 }
 
 
