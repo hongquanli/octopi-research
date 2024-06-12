@@ -2842,9 +2842,7 @@ class NapariTiledDisplayWidget(QWidget):
     def onDoubleClick(self, layer, event):
         """Handle double-click events and emit centered coordinates if within the data range."""
         coords = layer.world_to_data(event.position) 
-        #coords *= self.downsample_factor
         layer_shape = layer.data.shape[0:3] if len(layer.data.shape) >= 4 else layer.data.shape
-        #layer_shape *= self.downsample_factor
 
         if coords is not None and (0 <= int(coords[-1]) < layer_shape[-1] and (0 <= int(coords[-2]) < layer_shape[-2])):
             x_centered = int(coords[-1] - layer_shape[-1] / 2)
@@ -2940,8 +2938,6 @@ class NapariMultiChannelWidget(QWidget):
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
-        #for c in self.channels:
-        #    self.contrast_limits[c] = self.getContrastLimits(self.dtype)
         self.layers_initialized = True
 
 
@@ -2973,7 +2969,7 @@ class NapariMultiChannelWidget(QWidget):
             if not self.viewer_scale_initialized:
                 self.resetView()
                 self.viewer_scale_initialized = True
-            
+
         layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))

@@ -701,21 +701,23 @@ class NavigationController(QObject):
         pixel_sign_x = 1
         pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
 
-        print("click: x, y", click_x, click_y)
+        print("click - (x, y):", (click_x, click_y))
         cx = click_x * Nx // image_width
         cy = click_y * Ny // image_height
-        print("col row:", cx, cy)
+        print("fov - (col, row):", (cx, cy))
 
+        # move to selected fov
         self.move_x_to(self.scan_begin_position_x+dx_mm*cx*pixel_sign_x)
         self.move_y_to(self.scan_begin_position_y-dy_mm*cy*pixel_sign_y)
 
+        # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
         tile_height = (image_height / Ny) * PRVIEW_DOWNSAMPLE_FACTOR
-        rx = (click_x * PRVIEW_DOWNSAMPLE_FACTOR) % tile_width
-        ry = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
-        rx_centered = int(rx - tile_width / 2)
-        ry_centered = int(tile_height / 2 - ry) 
-        self.move_from_click(rx_centered, ry_centered, tile_width, tile_height)
+        offset_x = (click_x * PRVIEW_DOWNSAMPLE_FACTOR) % tile_width
+        offset_y = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
+        offset_x_centered = int(offset_x - tile_width / 2)
+        offset_y_centered = int(tile_height / 2 - offset_y)
+        self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
 
         # try:
         #     highest_res = (0,0)
