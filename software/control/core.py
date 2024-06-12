@@ -396,6 +396,7 @@ class Configuration:
         self._pixel_format_options = _pixel_format_options
         if _pixel_format_options is None:
             self._pixel_format_options = self.pixel_format
+        self.emission_filter_position = emission_filter_position
 
 class LiveController(QObject):
 
@@ -510,6 +511,12 @@ class LiveController(QObject):
                     self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
+
+                if USE_ZABER_EMISSION_FILTER_WHEEL:
+                    try:
+                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
+                    except Exception as e:
+                        print('not setting emission filter position due to ' + str(e))
 
 
     def start_live(self):
@@ -696,7 +703,7 @@ class NavigationController(QObject):
         click_y = image_height / 2.0 - click_y
         if not self.click_to_move:
             print("allow click to move")
-            return 
+            return
 
         pixel_sign_x = 1
         pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
@@ -763,10 +770,6 @@ class NavigationController(QObject):
 
             delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
-
-            if not IS_WELLPLATE:
-                delta_x /= 2.2
-                delta_y /= 2.2
 
             self.move_x(delta_x)
             self.move_y(delta_y)
@@ -1295,11 +1298,10 @@ class AutofocusWorker(QObject):
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
             
+            image = utils.crop_image(image,self.crop_width,self.crop_height)
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
             self.image_to_display.emit(image)
-            image = utils.crop_image(image,self.crop_width,self.crop_height)
-            #image_to_display = utils.crop_image(image,round(self.crop_width* self.liveController.display_resolution_scaling), round(self.crop_height* self.liveController.display_resolution_scaling))
-
+            
             QApplication.processEvents()
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
@@ -1707,7 +1709,10 @@ class MultiPointWorker(QObject):
         n_regions = len(self.scan_coordinates_mm)
 
         for coordinate_id in range(n_regions):
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]         
+
+            coordinate_mm = self.scan_coordinates_mm[coordinate_id]
+            print(coordinate_mm)
+
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
                 coordinate_name = str(coordinate_id)
@@ -1716,16 +1721,16 @@ class MultiPointWorker(QObject):
             
             if self.use_scan_coordinates:
                 # move to the specified coordinate
-                self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+                self.navigationController.move_x_to(coordinate_mm[0]-self.deltaX*(self.NX-1)/2)
+                self.navigationController.move_y_to(coordinate_mm[1]-self.deltaY*(self.NY-1)/2)
 
                 # check if z is included in the coordinate
-                if len(coordiante_mm) == 3:
-                    if coordiante_mm[2] >= self.navigationController.z_pos_mm:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                if len(coordinate_mm) == 3:
+                    if coordinate_mm[2] >= self.navigationController.z_pos_mm:
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                     else:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                         # remove backlash
                         if self.navigationController.get_pid_control_flag(2) is False:
@@ -1737,7 +1742,7 @@ class MultiPointWorker(QObject):
                 else:
                     self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                if len(coordiante_mm) == 3:
+                if len(coordinate_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
                 coordinate_name = coordinate_name + '_'
@@ -1794,7 +1799,7 @@ class MultiPointWorker(QObject):
                                     self.autofocusController.autofocus()
                                     self.autofocusController.wait_till_autofocus_has_completed()
                                 # upate z location of scan_coordinates_mm after AF
-                                if len(coordiante_mm) == 3:
+                                if len(coordinate_mm) == 3:
                                     self.scan_coordinates_mm[coordinate_id,2] = self.navigationController.z_pos_mm
                                     # update the coordinate in the widget
                                     try:
@@ -1917,8 +1922,6 @@ class MultiPointWorker(QObject):
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                        # if 'Fluorescence 405' not in config.name:
-                                        #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
                                     else:
                                         saving_path = os.path.join(current_path, file_ID + '_' + str(config.name).replace(' ','_') + '.' + Acquisition.IMAGE_FORMAT)
@@ -1928,8 +1931,6 @@ class MultiPointWorker(QObject):
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
-                                        # if 'Fluorescence 405' not in config.name:
-                                        #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
 
                                     current_round_images[config.name] = np.copy(image)
@@ -1945,23 +1946,14 @@ class MultiPointWorker(QObject):
                                     if all(key in current_round_images for key in keys_to_check):
                                         print('constructing RGB image')
                                         size = current_round_images['BF LED matrix full_R'].shape
-                                        #print(size)
+
                                         rgb_image = np.zeros((*size, 3),dtype=current_round_images['BF LED matrix full_R'].dtype)
-                                        #print(current_round_images['BF LED matrix full_R'].dtype)
-                                        #print(rgb_image.shape)
-                                        #print(rgb_image)
                                         rgb_image[:, :, 0] = current_round_images['BF LED matrix full_R']
                                         rgb_image[:, :, 1] = current_round_images['BF LED matrix full_G']
                                         rgb_image[:, :, 2] = current_round_images['BF LED matrix full_B']
 
                                         # send image to display
                                         image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                        # self.image_to_display.emit(image_to_display)
-                                        # if USE_NAPARI:
-                                        #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
-                                        # else:
-                                        #     self.image_to_display.emit(image_to_display)
-                                        # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                         # write the image
                                         if len(rgb_image.shape) == 3:
@@ -1977,6 +1969,9 @@ class MultiPointWorker(QObject):
                                             init_napari_layers = True
                                             self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
                                         self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
+                                    else:
+                                        self.image_to_display.emit(image_to_display)
+                                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
 
                                     QApplication.processEvents()
 
@@ -2014,23 +2009,14 @@ class MultiPointWorker(QObject):
                                     # R G B -> RGB
                                     print('constructing RGB image')
                                     size = images['BF LED matrix full_R'].shape
-                                    # print(size)
                                     rgb_image = np.zeros((*size, 3),dtype=images['BF LED matrix full_R'].dtype)
-                                    # print(images['BF LED matrix full_R'].dtype)
-                                    # print(rgb_image.shape)
                                     rgb_image[:, :, 0] = images['BF LED matrix full_R']
                                     rgb_image[:, :, 1] = images['BF LED matrix full_G']
                                     rgb_image[:, :, 2] = images['BF LED matrix full_B']
                                     print(rgb_image.shape)
+
                                     # send image to display
                                     image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                    
-                                    # self.image_to_display.emit(image_to_display)
-                                    # if USE_NAPARI:
-                                    #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
-                                    # else:
-                                    #     self.image_to_display.emit(image_to_display)
-                                    # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                     # write the image
                                     print('writing RGB image and R,G,B channels')
@@ -2056,6 +2042,9 @@ class MultiPointWorker(QObject):
                                             print(rgb_image.dtype)
                                             self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
                                         self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
+                                    else:
+                                        self.image_to_display.emit(image_to_display)
+                                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
 
                                 # USB spectrometer
                                 else:
