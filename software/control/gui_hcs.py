@@ -65,10 +65,6 @@ class OctopiGUI(QMainWindow):
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # image display windows
-        self.imageDisplayTabs = QTabWidget()
-        self.objectiveStore = core.ObjectiveStore()
-
         # load objects
         if is_simulation:
             if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -81,10 +77,7 @@ class OctopiGUI(QMainWindow):
             if SUPPORT_LASER_AUTOFOCUS:
                 self.camera_focus = camera_fc.Camera_Simulation()
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-            try:
-                self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
-            except Exception as e:
-                print('not setting camera pixel format due to ' + str(e))
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT) # comment out for confocal 
 
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
@@ -116,7 +109,14 @@ class OctopiGUI(QMainWindow):
             self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
             self.camera.open()
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+
+            if USE_ZABER_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel = serial_peripherals.FilterController(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
+
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.do_homing()
 
         # reset the MCU
         self.microcontroller.reset()
@@ -129,9 +129,9 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
         print('load channel_configurations.xml')
-
+        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        self.objectiveStore = core.ObjectiveStore() # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
         self.navigationController = core.NavigationController(self.microcontroller, parent=self)
@@ -219,7 +219,7 @@ class OctopiGUI(QMainWindow):
         # # move z
         # self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
         # # wait for the operation to finish
-        # t0 = time.time() 
+        # t0 = time.time()
         # while self.microcontroller.is_busy():
         #     time.sleep(0.005)
         #     if time.time() - t0 > 5:
@@ -291,6 +291,7 @@ class OctopiGUI(QMainWindow):
         if USE_NAPARI:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
+            # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)  # for 60x, IMX571, 2x2 binning, to change to using objective and camera config
             if SHOW_TILED_PREVIEW:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
         else:
@@ -303,6 +304,20 @@ class OctopiGUI(QMainWindow):
             if SHOW_TILED_PREVIEW:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True) 
 
+        # image display windows
+        self.imageDisplayTabs = QTabWidget()
+        if USE_NAPARI:
+            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+        else:
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+            if SHOW_TILED_PREVIEW:
+                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
+
+        # acquisition tabs
         self.recordTabWidget = QTabWidget()
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
         if ENABLE_FLEXIBLE_MULTIPOINT:
@@ -351,12 +366,12 @@ class OctopiGUI(QMainWindow):
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
-            #dock_wellSelection.addWidget(self.wellFormatWidget)
+            #dock_wellSelection.addWidget(self.wellFormatWidget) # todo: add widget to select wellplate format
             self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
 
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
             # dock_controlPanel.showTitleBar()
-            dock_controlPanel.addWidget(self.centralWidget)
+            dock_controlPanel.addWidget(self.centralWidget) 
             dock_controlPanel.setStretch(x=1,y=None)
             dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
 
@@ -437,12 +452,12 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display) 
+        self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
         
         if USE_NAPARI:
-            self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
-            self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
-            self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
+            self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
+            self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
+            self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
             if ENABLE_STITCHER:
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
@@ -479,8 +494,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            # replicate for napari (autolevel)
-            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel) # todo: replicate for napari (autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
             if SHOW_TILED_PREVIEW:
@@ -493,17 +507,6 @@ class OctopiGUI(QMainWindow):
 
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
-
-        if USE_NAPARI:
-            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
-        else:
-            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # laser autofocus
         if SUPPORT_LASER_AUTOFOCUS:
@@ -566,7 +569,6 @@ class OctopiGUI(QMainWindow):
                 laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
                 laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
-            # self.imageDisplayWindow_focus.widget
             self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
 
             # connections
@@ -641,23 +643,23 @@ class OctopiGUI(QMainWindow):
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
-            self.stitcherThread = core.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format, 
+            self.stitcherThread = core.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
                                            apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
-            
+
             # Connect signals to slots
             self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
             self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
             self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
             self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
-            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)        
+            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
             # Start the thread
             self.stitcherThread.start()
 
 
     def closeEvent(self, event):
-
         self.navigationController.cache_current_position()
-
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.set_emission_filter('1')
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
         while self.microcontroller.is_busy():

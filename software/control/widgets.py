@@ -3016,6 +3016,10 @@ class NapariLiveWidget(QWidget):
         self.init_live = False
         self.init_live_rgb = False
         self.contrast_limits = {}
+        self.init_scale = False
+        self.previous_scale = None
+        self.previous_center = None
+        self.last_was_autofocus = False
 
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
@@ -3059,7 +3063,7 @@ class NapariLiveWidget(QWidget):
         layer.events.contrast_limits.connect(self.signalContrastLimits)  # Connect to contrast limits event
         self.resetView()
 
-    def updateLiveLayer(self, image):
+    def updateLiveLayer(self, image, from_autofocus=False):
         """Updates the appropriate slice of the canvas with the new image data."""
         rgb = len(image.shape) >= 3
         if not rgb and not self.init_live:
@@ -3075,9 +3079,28 @@ class NapariLiveWidget(QWidget):
         
         layer = self.viewer.layers["Live View"]
         layer.data = image
-        live_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
-        if self.live_layer_name != live_layer_name:
-            self.live_layer_name = live_layer_name
+
+        if from_autofocus:
+            if not self.last_was_autofocus:
+                self.previous_scale = self.viewer.camera.zoom
+                self.previous_center = self.viewer.camera.center
+            self.resetView()
+            self.last_was_autofocus = True
+        else:
+            if not self.init_scale:
+                self.resetView()
+                self.previous_scale = self.viewer.camera.zoom
+                self.previous_center = self.viewer.camera.center
+                self.init_scale = True
+
+            if self.last_was_autofocus and self.previous_scale is not None:
+                self.viewer.camera.zoom = self.previous_scale
+                self.viewer.camera.center = self.previous_center
+            self.last_was_autofocus = False
+
+        curr_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
+        if self.live_layer_name != curr_layer_name:
+            self.live_layer_name = curr_layer_name
             layer.contrast_limits = self.contrast_limits.get(self.live_layer_name, self.getContrastLimits())
         layer.refresh()
 
@@ -3111,8 +3134,6 @@ class NapariLiveWidget(QWidget):
 
     def resetView(self):
         self.viewer.reset_view()
-        for layer in self.viewer.layers:
-            layer.refresh()
 
 
 class TrackingControllerWidget(QFrame):

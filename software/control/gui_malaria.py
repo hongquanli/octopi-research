@@ -29,9 +29,6 @@ class OctopiGUI(QMainWindow):
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.imageDisplayTabs = QTabWidget()
-        self.configurationManager = core.ConfigurationManager()
-
         # load objects
         if is_simulation:
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
@@ -57,6 +54,7 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
+        self.configurationManager = core.ConfigurationManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller, parent=self)
@@ -172,6 +170,7 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
+        self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
@@ -188,7 +187,7 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
             if SHOW_TILED_PREVIEW:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -263,9 +262,9 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
         if USE_NAPARI:
-            self.streamHandler.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
-            self.autofocusController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
-            self.multipointController.image_to_display.connect(self.napariLiveWidget.updateLiveLayer)
+            self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
+            self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
+            self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
             self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
 
@@ -293,7 +292,7 @@ class OctopiGUI(QMainWindow):
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
+            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
             if SHOW_TILED_PREVIEW:
@@ -353,14 +352,14 @@ class OctopiGUI(QMainWindow):
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
-            self.stitcherThread = core.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format, 
+            self.stitcherThread = core.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
                                            apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
-            
+
             # Connect signals to slots
             self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
             self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
             self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
             self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
-            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)        
+            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
             # Start the thread
             self.stitcherThread.start()

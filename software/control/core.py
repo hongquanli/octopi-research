@@ -10,7 +10,7 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
-# control 
+# control
 from control.processing_handler import ProcessingHandler
 from control._def import *
 import control.utils as utils
@@ -380,7 +380,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,color=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
+    def __init__(self,mode_id=None,name=None,color=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None, emission_filter_position=None):
         self.id = mode_id
         self.name = name
         self.color = color
@@ -1297,11 +1297,11 @@ class AutofocusWorker(QObject):
             # tunr of the illumination if using software trigger
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
-            
+
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
             self.image_to_display.emit(image)
-            
+
             QApplication.processEvents()
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
@@ -2121,7 +2121,6 @@ class MultiPointWorker(QObject):
                                                             'z (um)':[self.navigationController.z_pos_mm*1000],
                                                             'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
                                                             )
-                            print(new_row)
 
                             self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
@@ -2247,10 +2246,10 @@ class MultiPointWorker(QObject):
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                     self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
-                
+
                 if SHOW_TILED_PREVIEW:
                     self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-                    print(coordinate_name+ "scan_end_position:", self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:
                     _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
@@ -2548,7 +2547,6 @@ class MultiPointController(QObject):
             except:
                 pass
         self.acquisitionFinished.emit()
-        #self.signal_stitcher.emit("/Users/soham/Documents/cephla/scan-data/5x5_4_channels_2024-05-19_00-45-46.094077")
         self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
@@ -2984,7 +2982,7 @@ class Stitcher(Thread, QObject):
     getting_flatfields = Signal()
     starting_stitching = Signal()
     starting_saving = Signal(bool)
-    finished_saving = Signal(str, object) 
+    finished_saving = Signal(str, object)
 
     def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel=''):
         Thread.__init__(self)
@@ -3001,7 +2999,7 @@ class Stitcher(Thread, QObject):
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
         self.time_points = self.get_time_points(self.input_folder)
         print("timepoints:", self.time_points)
-        self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        self.is_reversed = self.determine_directions(self.input_folder) # init: top to bottom, left to right
         print(self.is_reversed)
         self.is_rgb = {}
         self.wells = []
@@ -3011,6 +3009,7 @@ class Stitcher(Thread, QObject):
         self.num_z = self.num_c = 1
         self.num_cols = self.num_rows = 1
         self.input_height = self.input_width = 0
+        self.num_pyramid_levels = 1
         self.v_shift = self.h_shift = (0,0)
         self.max_x_overlap = self.max_y_overlap = 0
         self.flatfields = {}
@@ -3067,23 +3066,22 @@ class Stitcher(Thread, QObject):
                 return color
         return None
 
+    def determine_directions(self, input_folder):
+        # return {'rows': self.acquisition_params.get("row direction", False),
+        #         'cols': self.acquisition_params.get("col direction", False),
+        #         'z-planes': False}
+        coordinates = pd.read_csv(os.path.join(input_folder, self.time_points[0], 'coordinates.csv'))
+        if IS_WELLPLATE:
+            try:
+                first_well = coordinates['well'].unique()[0]
+                coordinates = coordinates[coordinates['well'] == first_well]
+            except Exception as e:
+                print("no coordinates.csv well data:", e)
 
-    def determine_directions(self, image_folder):
-        return {'rows': self.acquisition_params.get("row direction", False), 
-                'cols': self.acquisition_params.get("col direction", False), 
-                'z-planes': False}
-        # coordinates = pd.read_csv(os.path.join(image_folder, 'coordinates.csv'))
-        # if IS_WELLPLATE:
-        #     try:
-        #         first_well = coordinates['well'].unique()[0]
-        #         coordinates = coordinates[coordinates['well'] == first_well]
-        #     except Exception as e:
-        #         print("no coordinates.csv well data:", e)
-        
-        # i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
-        # j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
-        # k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
-        # return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
+        i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
+        j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
+        k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
+        return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
 
     def parse_filenames(self, time_point):
         # Initialize directories and read files
@@ -3102,7 +3100,7 @@ class Stitcher(Thread, QObject):
 
         for filename in sorted_input_files:
             if IS_WELLPLATE:
-                well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4) 
+                well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4)
             else:
                 well = '0'
                 i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 3)
@@ -3116,15 +3114,13 @@ class Stitcher(Thread, QObject):
 
             tile_info = {
                 'filepath': os.path.join(self.image_folder, filename),
-                'well': well, 
-                'channel': channel_name, 
-                'z_level': k, 
-                'row': i, 
+                'well': well,
+                'channel': channel_name,
+                'z_level': k,
+                'row': i,
                 'col': j
             }
             self.stitching_data.setdefault(well, {}).setdefault(channel_name, {}).setdefault(k, {}).setdefault((i, j), tile_info)
-
-
 
         self.wells = sorted(wells)
         self.channel_names = sorted(channel_names)
@@ -3156,6 +3152,7 @@ class Stitcher(Thread, QObject):
         self.num_c = len(mono_channel_names)
         self.channel_colors = [CHANNEL_COLORS_MAP.get(self.extract_wavelength(name), {'hex': 0xFFFFFF})['hex'] for name in self.mono_channel_names]
         print(self.mono_channel_names)
+        print(self.wells)
 
     def get_flatfields(self, progress_callback=None):
         def process_images(images, channel_name):
@@ -3259,10 +3256,10 @@ class Stitcher(Thread, QObject):
         pixel_size_um = sensor_pixel_size_um / actual_mag
         print("pixel_size_um:", pixel_size_um)
 
-        dx_pixels = dx_mm * 1000 / pixel_size_um 
+        dx_pixels = dx_mm * 1000 / pixel_size_um
         dy_pixels = dy_mm * 1000 / pixel_size_um
         print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
-        
+
         self.max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
         self.max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
         print("objective calculated - vertical overlap:", self.max_y_overlap, ", horizontal overlap:", self.max_x_overlap)
@@ -3275,6 +3272,7 @@ class Stitcher(Thread, QObject):
         if self.is_reversed['rows']:
             row_top, row_bottom = row_bottom, row_top
 
+        img1_path = img2_path_vertical = img2_path_horizontal = None
         for (row, col), tile_info in self.stitching_data[well][self.registration_channel][z_level].items():
             if col == col_left and row == row_top:
                 img1_path = tile_info['filepath']
@@ -3310,7 +3308,7 @@ class Stitcher(Thread, QObject):
             new_h_shift = self.calculate_horizontal_shift(left_tile_path, current_tile_path, abs(self.h_shift[1]))
 
             # Check if the new horizontal shift is within 10% of the precomputed shift
-            if self.h_shift == (0,0) or (0.95 * abs(self.h_shift[1]) <= abs(new_h_shift[1]) <= 1.05 * abs(self.h_shift[1]) and 
+            if self.h_shift == (0,0) or (0.95 * abs(self.h_shift[1]) <= abs(new_h_shift[1]) <= 1.05 * abs(self.h_shift[1]) and
                 0.95 * abs(self.h_shift[0]) <= abs(new_h_shift[0]) <= 1.05 * abs(self.h_shift[0])):
                 print("new h shift", new_h_shift, h_shift)
                 h_shift = new_h_shift
@@ -3323,7 +3321,7 @@ class Stitcher(Thread, QObject):
             new_v_shift = self.calculate_vertical_shift(top_tile_path, current_tile_path, abs(self.v_shift[0]))
 
             # Check if the new vertical shift is within 10% of the precomputed shift
-            if self.v_shift == (0,0) or (0.95 * abs(self.v_shift[0]) <= abs(new_v_shift[0]) <= 1.05 * abs(self.v_shift[0]) and 
+            if self.v_shift == (0,0) or (0.95 * abs(self.v_shift[0]) <= abs(new_v_shift[0]) <= 1.05 * abs(self.v_shift[0]) and
                 0.95 * abs(self.v_shift[1]) <= abs(new_v_shift[1]) <= 1.05 * abs(self.v_shift[1])):
                 print("new v shift", new_v_shift, v_shift)
                 v_shift = new_v_shift
@@ -3342,15 +3340,20 @@ class Stitcher(Thread, QObject):
         if self.use_registration and FULL_REGISTRATION:
             y_max *= 1.05
             x_max *= 1.05
+        size = max(y_max, x_max)
+        num_levels = 1
+        while size > 2000:
+            size //= 2
+            num_levels += 1
+        self.num_pyramid_levels = num_levels
+        print("num_pyramid_levels:", self.num_pyramid_levels)
         tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
         print(f"(t:{time_point}, well:{well}) output shape: {tczyx_shape}")
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
 
     def stitch_images(self, time_point, well, progress_callback=None):
         self.stitched_images = self.init_output(time_point, well)
-        total_tiles = sum(1 for channel_data in self.stitching_data[well].values() 
-                                  for z_data in channel_data.values() 
-                                  for row_col in z_data.keys())
+        total_tiles = sum(len(z_data) for channel_data in self.stitching_data[well].values() for z_data in channel_data.values())
         processed_tiles = 0
 
         for z_level in range(self.num_z):
@@ -3387,9 +3390,9 @@ class Stitcher(Thread, QObject):
     def stitch_single_image(self, tile, z_level, channel_idx, row, col):
         #print(tile.shape)
         if self.apply_flatfield:
-            tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min, 
+            tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min,
                                                               max=np.iinfo(self.dtype).max).astype(self.dtype)
-        # Determine crop for tile edges 
+        # Determine crop for tile edges
         top_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row > 0 else 0
         bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row < self.num_rows - 1 else 0
         left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col > 0 else 0
@@ -3409,7 +3412,7 @@ class Stitcher(Thread, QObject):
             x -= (self.num_rows - 1 - row) * self.v_shift[1]  # Moves left if negative
         else:
             x += row * self.v_shift[1]  # Moves right if positive
-        
+
         # Place cropped tile on the stitched image canvas
         self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1]] = tile
         # print(f" col:{col}, \trow:{row},\ty:{y}-{y+tile.shape[0]}, \tx:{x}-{x+tile.shape[-1]}")
@@ -3465,7 +3468,7 @@ class Stitcher(Thread, QObject):
             channel_names=self.mono_channel_names,
             channel_colors=self.channel_colors,
             dimension_order=dims,
-            scale_num_levels=5,
+            scale_num_levels=self.num_pyramid_levels,
             chunk_dims=self.chunks
         )
         self.stitched_images = None
@@ -3622,7 +3625,7 @@ class Stitcher(Thread, QObject):
         try:
             for time_point in self.time_points:
                 print(f"starting t:{time_point}...")
-                self.parse_filenames(time_point) # 
+                self.parse_filenames(time_point)
 
                 if self.apply_flatfield:
                     print(f"getting flatfields...")
@@ -3722,7 +3725,7 @@ class ImageDisplayWindow(QMainWindow):
         self.DrawCrossHairs = False
         self.image_offset = np.array([0, 0])
 
-        # ## flag of setting scaling level 
+        ## flag of setting scaling level 
         # self.flag_image_scaling_level_init = False
 
         ## Layout
@@ -4052,13 +4055,13 @@ class ConfigurationManager(QObject):
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
-            self.num_configurations = self.num_configurations + 1
+            self.num_configurations += 1
             print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),
                     name = mode.get('Name'),
-                    color = self.get_channel_color(mode.get('Name')), # get color from confi.ini file # todo 
+                    color = self.get_channel_color(mode.get('Name')),
                     exposure_time = float(mode.get('ExposureTime')),
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
@@ -4066,7 +4069,8 @@ class ConfigurationManager(QObject):
                     camera_sn = mode.get('CameraSN'),
                     z_offset = float(mode.get('ZOffset')),
                     pixel_format = mode.get('PixelFormat'),
-                    _pixel_format_options = mode.get('_PixelFormat_options')
+                    _pixel_format_options = mode.get('_PixelFormat_options'),
+                    emission_filter_position = int(mode.get('EmissionFilterPosition', 0))
                 )
             )
 
