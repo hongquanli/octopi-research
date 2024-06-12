@@ -434,7 +434,7 @@ void tmc4361A_writeSPR(TMC4361ATypeDef *tmc4361A) {
   OPERATION:   We write several bytes to the two ICs to configure their behaviors.
 
   ARGUMENTS:
-      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+  TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
       uint32_t clk_Hz_TMC4361:   Clock frequency we are driving the ICs at
 
   RETURNS: None
@@ -462,7 +462,7 @@ void tmc4361A_tmc2660_init(TMC4361ATypeDef *tmc4361A, uint32_t clk_Hz_TMC4361) {
   tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000900C3);
   tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000A0000);
   tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000C000A);
-  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000E00A0); // SDOFF = 1 -> SPI mode
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000E00A1); // SDOFF = 1 -> SPI mode
   // current scaling
   tmc4361A_cScaleInit(tmc4361A);
   // microstepping setting
