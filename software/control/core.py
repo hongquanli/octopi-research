@@ -373,7 +373,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
+    def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None, emission_filter_position=None):
         self.id = mode_id
         self.name = name
         self.exposure_time = exposure_time
@@ -386,6 +386,7 @@ class Configuration:
         if self.pixel_format is None:
             self.pixel_format = "default"
         self._pixel_format_options = _pixel_format_options
+        self.emission_filter_position = emission_filter_position
         if _pixel_format_options is None:
             self._pixel_format_options = self.pixel_format
 
@@ -503,9 +504,9 @@ class LiveController(QObject):
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
 
-                if FILTER_CONTROLLER_ENABLE:
+                if USE_ZABER_EMISSION_FILTER_WHEEL:
                     try:
-                        self.microscope.filter_controller.set_emission_filter(str(illumination_source - 10))
+                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
                     except Exception as e:
                         print('not setting emission filter position due to ' + str(e))
 
@@ -3335,7 +3336,8 @@ class ConfigurationManager(QObject):
                     camera_sn = mode.get('CameraSN'),
                     z_offset = float(mode.get('ZOffset')),
                     pixel_format = mode.get('PixelFormat'),
-                    _pixel_format_options = mode.get('_PixelFormat_options')
+                    _pixel_format_options = mode.get('_PixelFormat_options'),
+                    emission_filter_position = int(mode.get('EmissionFilterPosition'))
                 )
             )
 

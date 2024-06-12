@@ -112,8 +112,8 @@ class OctopiGUI(QMainWindow):
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
 
-            if FILTER_CONTROLLER_ENABLE:
-                self.filter_controller = serial_peripherals.FilterController_Simulation(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            if USE_ZABER_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel = serial_peripherals.FilterController_Simulation(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
 
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
@@ -146,13 +146,13 @@ class OctopiGUI(QMainWindow):
             self.camera.open()
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
 
-            if FILTER_CONTROLLER_ENABLE:
-                self.filter_controller = serial_peripherals.FilterController(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            if USE_ZABER_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel = serial_peripherals.FilterController(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
 
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
-        if FILTER_CONTROLLER_ENABLE:
-            self.filter_controller.do_homing()
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.do_homing()
 
         # reset the MCU
         self.microcontroller.reset()
@@ -239,8 +239,8 @@ class OctopiGUI(QMainWindow):
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
-        if FILTER_CONTROLLER_ENABLE:
-            self.filter_controller.wait_homing_finish()
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.wait_homing_finish()
 
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
@@ -559,8 +559,8 @@ class OctopiGUI(QMainWindow):
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 
-        if FILTER_CONTROLLER_ENABLE:
-            self.filter_controller.set_emission_filter('1')
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.set_emission_filter('1')
 
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
