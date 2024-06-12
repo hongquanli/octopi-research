@@ -481,8 +481,12 @@ class FilterController:
         self.offset_position = 0
 
         self.deviceinfo = FilterDeviceInfo()
+<<<<<<< HEAD
         optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
 
+=======
+        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if FILTER_CONTROLLER_DEVICE_VID == p.vid and FILTER_CONTROLLER_DEVICE_PID == p.pid]
+>>>>>>> 60aa1db (bug fix for zaber device)
         self.serial = serial.Serial(optical_mounts_ports[0], baudrate=_baudrate, bytesize=_bytesize, parity=_parity, stopbits=_stopbits)
         time.sleep(0.2)
 
