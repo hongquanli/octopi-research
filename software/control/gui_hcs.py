@@ -301,8 +301,7 @@ class OctopiGUI(QMainWindow):
 
         if USE_NAPARI_FOR_MULTIPOINT:
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
-            # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)  
-            # ^ for 60x, IMX571, 2x2 binning, to change to using objective and camera config
+            # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)  # ^ for 60x, IMX571, 2x2 binning, todo: from objective and camera config
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
@@ -313,7 +312,7 @@ class OctopiGUI(QMainWindow):
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
             else:
-                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True) 
+                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # acquisition tabs

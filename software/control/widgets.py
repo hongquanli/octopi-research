@@ -2917,7 +2917,7 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.dtype(image_dtype)
         self.layers_initialized = True
 
-        def updateLayers(self, image, i, j, k, channel_name):
+    def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
