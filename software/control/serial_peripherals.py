@@ -475,13 +475,14 @@ class FilterController:
     """
     controller of filter device
     """
-    def __init__(self, _baudrate, _bytesize, _parity, _stopbits):
+    def __init__(self, SN, _baudrate, _bytesize, _parity, _stopbits):
         self.each_hole_microsteps = 4800
         self.current_position = 0
         self.offset_position = 0
 
         self.deviceinfo = FilterDeviceInfo()
-        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if FILTER_CONTROLLER_SERIAL_NUMBER == p.serial_number]
+        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
+
         self.serial = serial.Serial(optical_mounts_ports[0], baudrate=_baudrate, bytesize=_bytesize, parity=_parity, stopbits=_stopbits)
         time.sleep(0.2)
 
@@ -590,7 +591,7 @@ class FilterController:
         timeout = 50
         while timeout != 0:
             timeout -= 1
-            time.sleep(0.05)
+            time.sleep(0.005)
             self.send_command('/get pos')
             result = self.get_position()
             if result[0] == True and result[1] == pos:
