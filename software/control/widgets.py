@@ -2835,7 +2835,7 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.dtype(image_dtype)
         self.layers_initialized = True
 
-        def updateLayers(self, image, i, j, k, channel_name):
+    def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
@@ -2965,12 +2965,12 @@ class NapariTiledDisplayWidget(QWidget):
         self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
-         """Updates the appropriate slice of the canvas with the new image data."""
+        """Updates the appropriate slice of the canvas with the new image data."""
         rgb = len(image.shape) == 3  # Check if image is RGB based on shape
-         if not self.layers_initialized:
-            self.initLayers(image.shape[0], image.shape[1], image.dtype)
+        if not self.layers_initialized:
+           self.initLayers(image.shape[0], image.shape[1], image.dtype)
  
-         if channel_name not in self.viewer.layers:
+        if channel_name not in self.viewer.layers:
             self.channels.append(channel_name)
             if rgb:
                 color = None  # No colormap for RGB images
@@ -2995,15 +2995,16 @@ class NapariTiledDisplayWidget(QWidget):
             self.resetView()
             self.viewer_scale_initialized = True
  
-         layer = self.viewer.layers[channel_name]
-         layer_data = layer.data
-         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
-         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
+        layer = self.viewer.layers[channel_name]
+        layer_data = layer.data
+        y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
+        x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
         if rgb:
             layer_data[k, y_slice, x_slice, :] = image
         else:
             layer_data[k, y_slice, x_slice] = image
-         layer.data = layer_data
+        
+        layer.data = layer_data
         self.viewer.dims.set_point(0, k)
         layer.refresh()
 
@@ -3991,9 +3992,9 @@ class WellSelectionWidget(QTableWidget):
 
     def onDoubleClick(self,row,col):
         print("double click well", row, col)
-         if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
-             x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-             y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+        if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
+            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelected.emit(True)
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
         else:
@@ -4010,8 +4011,8 @@ class WellSelectionWidget(QTableWidget):
             
     def get_selected_cells(self):
         print("getting selected wells...")
-         list_of_selected_cells = []
-         for index in self.selectedIndexes():
+        list_of_selected_cells = []
+        for index in self.selectedIndexes():
             row, col = index.row(), index.column()
             # Check if the cell is within the allowed bounds
             if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows - 1 - NUMBER_OF_SKIP) and \
@@ -4023,7 +4024,7 @@ class WellSelectionWidget(QTableWidget):
         else:
             print("wells:",list_of_selected_cells)
             self.signal_wellSelected.emit(True)
-         return(list_of_selected_cells)
+        return(list_of_selected_cells)
 
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout
