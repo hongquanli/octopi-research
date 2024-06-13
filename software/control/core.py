@@ -691,6 +691,10 @@ class NavigationController(QObject):
         return self.click_to_move
 
     def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9):
+        """
+        napariTiledDisplay uses the Nx, Ny, dx_mm, dy_mm fields to move to the correct fov first
+        imageArrayDisplayWindow assumes only a single fov (default values do not impact calculation but this is less correct)
+        """
         # check if click to move enabled
         if not self.click_to_move:
             print("allow click to move")
@@ -1684,7 +1688,7 @@ class MultiPointWorker(QObject):
         slide_path = os.path.join(self.base_path, self.experiment_ID)
 
         # create a dataframe to save coordinates
-        if IS_WELLPLATE:
+        if IS_HCS:
             if self.use_piezo:
                 self.coordinates_pd = pd.DataFrame(columns = ['well', 'i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'z_piezo (um)', 'time'])
             else:
@@ -1747,7 +1751,7 @@ class MultiPointWorker(QObject):
             if Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
-            if USE_NAPARI:
+            if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
                 init_napari_layers = False
 
             # reset piezo to home position
@@ -1922,6 +1926,13 @@ class MultiPointWorker(QObject):
                                                     image = image[:,:,1]
                                         iio.imwrite(saving_path,image)
 
+                                    if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                                        if not init_napari_layers:
+                                            print("init napari layers")
+                                            init_napari_layers = True
+                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
+                                        self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
+
                                     current_round_images[config.name] = np.copy(image)
 
                                     # dpc generation
@@ -1953,90 +1964,94 @@ class MultiPointWorker(QObject):
                                             else:
                                                 iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
 
-                                    if USE_NAPARI:
-                                        if not init_napari_layers:
-                                            print("init napari viewer")
-                                            init_napari_layers = True
-                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
-                                        self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
-                                    else:
-                                        self.image_to_display.emit(image_to_display)
-                                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
-
                                     QApplication.processEvents()
 
                                 # RGB
                                 elif 'RGB' in config.name:
                                     # go through the channels
-                                    channels = ['BF LED matrix full_R','BF LED matrix full_G','BF LED matrix full_B']
+                                    channels = ['BF LED matrix full_R', 'BF LED matrix full_G', 'BF LED matrix full_B']
                                     images = {}
-                                    # for config_ in [config_ for config_ in self.configurationManager.configurations if config_.name in channels]:
+
                                     for config_ in self.configurationManager.configurations:
                                         if config_.name in channels:
                                             # update the current configuration
-                                            self.signal_current_configuration.emit(config)
+                                            self.signal_current_configuration.emit(config_)
                                             self.wait_till_operation_is_completed()
+
                                             # trigger acquisition (including turning on the illumination)
                                             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                                 self.liveController.turn_on_illumination()
                                                 self.wait_till_operation_is_completed()
                                                 self.camera.send_trigger()
                                             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                                                self.microcontroller.send_hardware_trigger(control_illumination=True, illumination_on_time_us=self.camera.exposure_time * 1000)
+
                                             # read camera frame
                                             image = self.camera.read_frame()
                                             if image is None:
                                                 print('self.camera.read_frame() returned None')
                                                 continue
-                                            # tunr of the illumination if using software trigger
+
+                                            # turn off the illumination if using software trigger
                                             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                                 self.liveController.turn_off_illumination()
-                                            # process the image -  @@@ to move to camera
-                                            image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+
+                                            # process the image  -  @@@ to move to camera
+                                            image = utils.crop_image(image, self.crop_width, self.crop_height)
+                                            image = utils.rotate_and_flip_image(image, rotate_image_angle=self.camera.rotate_image_angle, flip_image=self.camera.flip_image)
+
                                             # add the image to dictionary
                                             images[config_.name] = np.copy(image)
-                                    # R G B -> RGB
-                                    print('constructing RGB image')
-                                    print(images['BF LED matrix full_R'].dtype)
-                                    size = images['BF LED matrix full_R'].shape
-                                    rgb_image = np.zeros((*size, 3),dtype=images['BF LED matrix full_R'].dtype)
-                                    print(rgb_image.shape)
-                                    rgb_image[:, :, 0] = images['BF LED matrix full_R']
-                                    rgb_image[:, :, 1] = images['BF LED matrix full_G']
-                                    rgb_image[:, :, 2] = images['BF LED matrix full_B']
 
-                                    # send image to display
-                                    image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
+                                    # Check if the image is RGB or monochrome
+                                    i_size = images['BF LED matrix full_R'].shape
+                                    i_dtype = images['BF LED matrix full_R'].dtype
 
-                                    # write the image
-                                    print('writing RGB image and R,G,B channels')
-                                    if rgb_image.dtype == np.uint16:
-                                        if len(rgb_image.shape) == 3:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
-                                        else:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.tiff'), rgb_image[:, :, 0])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.tiff'), rgb_image[:, :, 1])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.tiff'), rgb_image[:, :, 2])
+                                    if len(i_size) == 3:
+                                        # If already RGB, write and emit individual channels
+                                        print('writing R, G, B channels')
+
+                                        for channel in channels:
+                                            image_to_display = utils.crop_image(images[channel], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
+                                            self.image_to_display.emit(image_to_display)
+                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
+
+                                            if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                                                if not init_napari_layers:
+                                                    print(f"init napari {channel} layer")
+                                                    init_napari_layers = True
+                                                    self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype, True)
+                                                self.napari_layers_update.emit(images[channel], real_i, real_j, k, config.name)
+
+                                            file_name = file_ID + '_' + channel.replace(' ', '_') + ('.tiff' if i_dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
+                                            iio.imwrite(os.path.join(current_path, file_name), images[channel])
 
                                     else:
-                                        if len(rgb_image.shape) == 3:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
-                                        else:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 0])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 1])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 2])
+                                        # If monochrome, reconstruct RGB image
+                                        print('constructing RGB image')
 
-                                    if USE_NAPARI:
-                                        if not init_napari_layers:
-                                            print("init rgb layer")
-                                            init_napari_layers = True
-                                            print(rgb_image.dtype)
-                                            self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
-                                        self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
-                                    else:
+                                        rgb_image = np.zeros((*i_size, 3), dtype=i_dtype)
+                                        rgb_image[:, :, 0] = images['BF LED matrix full_R']
+                                        rgb_image[:, :, 1] = images['BF LED matrix full_G']
+                                        rgb_image[:, :, 2] = images['BF LED matrix full_B']
+
+                                        # send image to display
+                                        image_to_display = utils.crop_image(rgb_image, round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
                                         self.image_to_display.emit(image_to_display)
-                                        self.image_to_display_multi.emit(image_to_display,config.illumination_source)
+                                        self.image_to_display_multi.emit(image_to_display, config.illumination_source)
+
+                                        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                                            if not init_napari_layers:
+                                                print("init napari rgb layer")
+                                                init_napari_layers = True
+                                                print(rgb_image.dtype)
+                                                self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype, True)
+                                            self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
+
+                                        # write the RGB image
+                                        print('writing RGB image')
+                                        file_name = file_ID + '_BF_LED_matrix_full_RGB' + ('.tiff' if rgb_image.dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
+                                        iio.imwrite(os.path.join(current_path, file_name), rgb_image)
 
                                 # USB spectrometer
                                 else:
@@ -2079,7 +2094,7 @@ class MultiPointWorker(QObject):
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
                             # add the coordinate of the current location
-                            if IS_WELLPLATE:
+                            if IS_HCS:
                                 if self.use_piezo:
                                     new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
@@ -2222,7 +2237,7 @@ class MultiPointWorker(QObject):
             # finished XY scan
             if n_regions >= 1:
                 # only move to the start position if there's only one region in the scan
-                if self.NY > 1 and not IS_WELLPLATE:
+                if self.NY > 1 and not IS_HCS:
                     # move y back
                     self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
                     self.wait_till_operation_is_completed()
