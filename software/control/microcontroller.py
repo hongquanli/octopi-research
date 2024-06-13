@@ -5,9 +5,12 @@ import serial.tools.list_ports
 import time
 import numpy as np
 import threading
+import inspect
 from crc import CrcCalculator, Crc8
+from typing import Union, Any, Tuple, List, Optional
 
 from control._def import *
+from control.camera import retry_on_failure
 
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
@@ -49,32 +52,74 @@ class Microcontroller():
         self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
         self.retry = 0
 
+        self.version=version
+        self.sn=sn
+
         print('connecting to controller based on ' + version)
+        self.has_been_initialized_at_least_once=False
 
-        if version =='Arduino Due':
-            controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
-        else:
-            if sn is not None:
-                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
-            else:
-                if sys.platform == 'win32':
-                    controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Microsoft']
-                else:
-                    controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
-
-        if not controller_ports:
-            raise IOError("no controller found")
-        if len(controller_ports) > 1:
-            print('multiple controller found - using the first')
-        
-        self.serial = serial.Serial(controller_ports[0],2000000)
-        time.sleep(0.2)
-        print('controller connected')
+        self.attempt_connection()
 
         self.new_packet_callback_external = None
         self.terminate_reading_received_packet_thread = False
         self.thread_read_received_packet = threading.Thread(target=self.read_received_packet, daemon=True)
         self.thread_read_received_packet.start()
+
+    def attempt_connection(self)->bool:
+        """
+            attempt connection to microcontroller. returns connection success indicator (may still throw)
+
+            returns:
+                True on success
+                False on failure
+        """
+
+        first_connection=not self.has_been_initialized_at_least_once
+
+        call_stack=inspect.stack()
+        formatted_stack=" <- ".join(f"{frame.function} in ({frame.filename}:{frame.lineno})" for frame in call_stack)
+        print(f"connecting to microcontroller (callstack: {formatted_stack})")
+
+        if self.last_command is not None:
+            print(f"attempt reconnection with last sent command: {self.last_command}")
+
+        if self.version == 'Arduino Due':
+            controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
+        else:
+            if self.sn is not None:
+                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if self.sn == p.serial_number]
+            else:
+                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Teensyduino']
+        
+        if not controller_ports:
+            if first_connection:
+                print("error - no controller found")
+                raise IOError("no controller found")
+            else:
+                print("warning - failed to reconnect to the microcontroller")
+                self.serial=None
+                return False
+        
+        if len(controller_ports) > 1:
+            print('multiple controllers found - using the first one')
+        
+        try:
+            self.serial:serial.Serial = serial.Serial(controller_ports[0],2000000)
+        except serial.serialutil.SerialException as es: # looks like an OSError with errno 13
+            print("warning - failed to reconnect to the microcontroller")
+            self.serial=None
+            return False
+
+        time.sleep(0.2)
+        if first_connection:
+            print(f'startup - connecting to controller based on {self.version}')
+            print('startup - controller connected')
+        else:
+            print('controller reconnected')
+
+        self.has_been_initialized_at_least_once=True
+        
+        return True
         
     def close(self):
         self.terminate_reading_received_packet_thread = True
@@ -623,11 +668,18 @@ class Microcontroller():
     def turn_off_AF_laser(self):
         self.set_pin_level(MCU_PINS.AF_LASER,0)
 
+    @retry_on_failure(
+        function_uses_self=True,
+        try_recover=lambda:Microcontroller.attempt_connection
+    )
+    def write_command_to_serial(self,command):
+        self.serial.write(command)
+
     def send_command(self,command):
         self._cmd_id = (self._cmd_id + 1)%256
         command[0] = self._cmd_id
         command[-1] = self.crc_calculator.calculate_checksum(command[:-1])
-        self.serial.write(command)
+        self.write_command_to_serial(command)
         self.mcu_cmd_execution_in_progress = True
         self.last_command = command
         self.timeout_counter = 0
@@ -643,13 +695,47 @@ class Microcontroller():
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
             # wait to receive data
-            if self.serial.in_waiting==0:
+            try:
+                if self.serial is None:
+                    serial_in_waiting_status=0
+                else:
+                    serial_in_waiting_status=self.serial.in_waiting
+            except OSError as e:
+                ERRNO_IOERROR:int = 5
+                """ errno for I/O error (raised by operating system) """
+                if e.errno == ERRNO_IOERROR:
+
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setText("microcontroller might be disconnected")
+                    msg.setWindowTitle("I/O Error")
+                    msg.setStandardButtons(QMessageBox.Ok)
+                    msg.exec_()
+
+                    print("failed to get serial waiting status because of I/O error: microcontroller might be disconnected")
+                    time.sleep(0.1)
+                    try:
+                        self.attempt_connection()
+                    except OSError as e:
+                        if e.args[0]=="no controller found":
+                            pass
+                        else:
+                            raise e
+                        
+                    continue
+
+                raise e
+
+            # wait to receive data
+            if serial_in_waiting_status==0:
+                time.sleep(0.0001)
                 continue
-            if self.serial.in_waiting % self.rx_buffer_length != 0:
+            if serial_in_waiting_status % self.rx_buffer_length != 0:
+                time.sleep(0.0001)
                 continue
             
             # get rid of old data
-            num_bytes_in_rx_buffer = self.serial.in_waiting
+            num_bytes_in_rx_buffer = serial_in_waiting_status
             if num_bytes_in_rx_buffer > self.rx_buffer_length:
                 # print('getting rid of old data')
                 for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
@@ -724,13 +810,101 @@ class Microcontroller():
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
-    def wait_till_operation_is_completed(self, TIMEOUT_LIMIT_S=5):
-        timestamp_start = time.time()
-        while self.is_busy():
-            time.sleep(0.02)
-            if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
-                print('Error - microcontroller timeout, the program will exit')
-                sys.exit(1)
+    def wait_till_operation_is_completed(
+        self,
+        timeout_limit_s:Optional[Union[float,int]]=3.0,
+        time_step:Optional[float]=None,
+        timeout_msg:str='Error - microcontroller timeout, the program will exit'
+    ):
+        time_step=time_step or 0.005 
+        timeout_limit_s=timeout_limit_s or 3.0 # there should never actually be no limit on command execution
+
+        # count how long this function has been running in total, and how often commands/reconnections have happened
+        wait_start=time.time()
+        total_num_cmd_resends=0
+        total_num_reconnects=0
+
+        call_stack=inspect.stack()
+        formatted_stack=" <- ".join(f"{frame.function} in ({frame.filename}:{frame.lineno})" for frame in call_stack)
+
+        # this is a pseudo-variable to control when the function is supposed to actually time out while retrying failed commands
+        absolute_timeout_s=300 # 5 minutes, arbitrary choice
+
+        # try resending a command after timeout this many times before reconnecting
+        num_cmd_resends=5
+
+        # 'retry' indicates retry waiting for completion
+        retry=False
+
+        # this loop replaces recursion of this function (recursion would be easier to maintain, but the python vm recursion limit is hit in under a minute)
+        while True:
+            # count number of command resends
+            num_retry=0
+            try_command_resend_on_timeout=True
+            while try_command_resend_on_timeout:
+                # wait for microcontroller to indicate command termination
+                try:
+                    timestamp_start = time.time()
+                    # while microcontroller has not indicated command termination
+                    while self.is_busy():
+                        # process GUI events
+                        QApplication.processEvents()
+                        # wait for a short while (should be in single digit millisecond range)
+                        time.sleep(time_step)
+                        if not timeout_limit_s is None:
+                            # check if max wait time has been reached and raise exception if so
+                            wait_time_test=time.time() - timestamp_start
+                            if wait_time_test > timeout_limit_s:
+                                print(f"warning - microcontroller timed out after {wait_time_test:.3f}s (timeout limit {timeout_limit_s:.3f}s). raising.")
+                                raise RuntimeError(timeout_msg)
+                            
+                # only catch the timeout exception specifically
+                except RuntimeError as e:
+                    if e.args[0]==timeout_msg:
+                        # if this function has failed enough times to exceed the absolute maximum wait time, terminate the program.
+                        # if the program is not able to recover in a somewhat resonable timeframe, a human should intervene, because there is likely some larger issue at play
+                        fail_time=time.time()
+                        total_command_resend_time=fail_time-wait_start
+                        if total_command_resend_time>absolute_timeout_s:
+                            msg=f"error - absolute `microcontroller timeout - waited for {total_command_resend_time:.3f}s in total, resent command {total_num_cmd_resends} times, reconnected to microcontroller {total_num_reconnects} times (timeout limit {timeout_limit_s:.3f}s, time step {time_step:.3f}s, callstack: {formatted_stack})"
+                            print(msg)
+                            raise RuntimeError(msg)
+
+                        # if this attempt is within the number of command resend limit (num_cmd_resends), just log command resend
+                        do_resend_command=True
+                        if num_retry<num_cmd_resends:
+                            print(f"warning - microcontroller timeout - resending command (callstack: {formatted_stack})")
+                            num_retry+=1
+                        else:
+                            try_command_resend_on_timeout=False
+                            print(f"warning - microcontroller timeout - attempting reconnection to recover (then resending command) (callstack: {formatted_stack})")
+                            total_num_reconnects+=1
+                            self.attempt_connection()
+
+                        # resend command and increment relevant counter, also indicate that this function should 'recurse' (i.e. wait for command completion again)
+                        total_num_cmd_resends+=1
+                        # only send command if serial connection is currently established
+                        if self.serial is not None:
+                            self.resend_last_command()
+                        else:
+                            print(f"warning - no command resend possible because there is no connection to the microcontroller")
+                        retry=True
+
+                        # continue inner loop (to retry command)
+                        continue
+                    else:
+                        print(f"error - unhandled exception in microcontroller wait function (callstack: {formatted_stack})\n-- traceback:\n{traceback.format_exc()}")
+                        raise e
+
+                # if no timeout exception occured (i.e. command finished on time):
+                # do not attempt to reconnect/resend command
+                # and exit inner loop
+                retry=False
+                break
+                
+            # if no 'recursion' (waiting for command completion again) is indicated, break (and implicit return)
+            if not retry:
+                break
 
     def _int_to_payload(self,signed_int,number_of_bytes):
         if signed_int >= 0:

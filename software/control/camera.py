@@ -2,6 +2,10 @@ import argparse
 import cv2
 import time
 import numpy as np
+
+from typing import Optional, Any
+from functools import wraps
+
 try:
     import control.gxipy as gx
 except:
@@ -20,6 +24,54 @@ def get_sn_by_model(model_name):
             if device_info_list[i]['model_name'] == model_name:
                 return device_info_list[i]['sn']
     return None # return None if no device with the specified model_name is connected
+
+def retry_on_failure(
+    timeout_s:float=0.1,
+    allow_retry_check:Optional[callable]=None,
+    try_recover:Optional[callable]=None,
+    function_uses_self:bool=False
+):
+    """
+
+    calls function with arguments. if this throws any exception:
+        if do_allow_retry is provided, this function is called with the exception, and calling the original function is only retried of do_allow_retry(e) return True
+        before the function should be retried after exception, try_recover is called, if present
+
+    if function_uses_self is True:
+        try_recover is called as try_recover()(args[0],/*further args*/)
+        this is because retry_on_failure as decorator on instance methods cannot capture the surrounding class
+        same for allow_retry_check with is then called as allow_retry_check()(args[0],/*further args*/)
+
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args,**kwargs):
+            # use loop to avoid potentially very deep recursion
+            while True:
+                try:
+                    # if function succeeds, this return will 'break' the loop
+                    return func(*args,**kwargs)
+                except Exception as e:
+                    do_allow_retry=True
+                    if allow_retry_check is not None:
+                        if function_uses_self:
+                            do_allow_retry=allow_retry_check()(args[0],e)
+                        else:
+                            do_allow_retry=allow_retry_check(e)
+
+                    if not do_allow_retry:
+                        raise e
+
+                if try_recover is not None:
+                    if function_uses_self:
+                        try_recover()(args[0])
+                    else:
+                        try_recover()
+                
+                time.sleep(timeout_s)
+
+        return wrapper
+    return decorator
 
 class Camera(object):
 

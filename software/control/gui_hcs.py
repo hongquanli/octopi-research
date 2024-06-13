@@ -239,6 +239,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
+
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.wait_homing_finish()
 
@@ -248,6 +249,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
+
         # move to scanning position
         self.navigationController.move_x(20)
         while self.microcontroller.is_busy():
@@ -255,6 +257,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.move_y(20)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
+
 
         # set piezo arguments
         if ENABLE_OBJECTIVE_PIEZO is True:
