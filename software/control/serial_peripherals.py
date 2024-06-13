@@ -590,7 +590,7 @@ class FilterController:
         timeout = 50
         while timeout != 0:
             timeout -= 1
-            time.sleep(0.05)
+            time.sleep(0.005)
             self.send_command('/get pos')
             result = self.get_position()
             if result[0] == True and result[1] == pos:
