@@ -9,10 +9,12 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+from control._def import *
+
 from control.processing_handler import ProcessingHandler
 
 import control.utils as utils
-from control._def import *
+import control.utils_config as utils_config
 
 import control.tracking as tracking
 try:
@@ -34,8 +36,6 @@ from datetime import datetime
 
 from lxml import etree as ET
 from pathlib import Path
-import control.utils_config as utils_config
-
 import math
 import json
 import pandas as pd
@@ -44,17 +44,6 @@ import imageio as iio
 
 import subprocess
 
-# napari + stitching
-import dask.array as da
-from dask_image.imread import imread as dask_imread
-from skimage.registration import phase_cross_correlation
-import ome_zarr
-import zarr
-from aicsimageio.writers import OmeTiffWriter
-from aicsimageio.writers import OmeZarrWriter
-from aicsimageio import types
-from basicpy import BaSiC
-import shutil
 
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
@@ -701,57 +690,6 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
-    def scan_preview_move_from_click_old(self, click_x, click_y, image_width, image_height):
-        # restore to raw coordicate
-        click_x = click_x + image_width / 2.0
-        click_y = click_y - image_height / 2.0
-
-        try:
-            highest_res = (0,0)
-            for res in self.parent.camera.res_list:
-                if res[0] > highest_res[0] or res[1] > higest_res[1]:
-                    highest_res = res
-            resolution = self.parent.camera.resolution
-
-            try:
-                pixel_binning_x = highest_res[0]/resolution[0]
-                pixel_binning_y = highest_res[1]/resolution[1]
-                if pixel_binning_x < 1:
-                    pixel_binning_x = 1
-                if pixel_binning_y < 1:
-                    pixel_binning_y = 1
-            except:
-                pixel_binning_x=1
-                pixel_binning_y=1
-        except AttributeError:
-            pixel_binning_x = 1
-            pixel_binning_y = 1
-
-        try:
-            current_objective = self.parent.objectiveStore.current_objective
-            objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
-        except (AttributeError, KeyError):
-            objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
-
-        magnification = objective_info["magnification"]
-        objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
-        tube_lens_mm = TUBE_LENS_MM
-        pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-
-        pixel_size_xy = pixel_size_um/(magnification/(objective_tube_lens_mm/tube_lens_mm))
-
-        pixel_size_x = pixel_size_xy*pixel_binning_x
-        pixel_size_y = pixel_size_xy*pixel_binning_y
-
-        pixel_sign_x = 1
-        pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
-
-        delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
-        delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
-
-        self.move_x_to(self.scan_begin_position_x + (delta_x * PRVIEW_DOWNSAMPLE_FACTOR))
-        self.move_y_to(self.scan_begin_position_y + (delta_y * PRVIEW_DOWNSAMPLE_FACTOR))
-
     def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9):
         # check if click to move enabled
         if not self.click_to_move:
@@ -778,7 +716,7 @@ class NavigationController(QObject):
         offset_y = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
         offset_x_centered = int(offset_x - tile_width / 2)
         offset_y_centered = int(tile_height / 2 - offset_y)
-        self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
+        self.move_from_click(offset_x_centered, offset_y_centered, tile_width, tile_height)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -1745,7 +1683,6 @@ class MultiPointWorker(QObject):
 
         slide_path = os.path.join(self.base_path, self.experiment_ID)
 
-
         # create a dataframe to save coordinates
         if IS_WELLPLATE:
             if self.use_piezo:
@@ -2328,6 +2265,7 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    signal_stitcher = Signal(str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object, bool)
     signal_z_piezo_um = Signal(float)
@@ -2597,6 +2535,7 @@ class MultiPointController(QObject):
             except:
                 pass
         self.acquisitionFinished.emit()
+        self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
     def request_abort_aquisition(self):
@@ -2977,7 +2916,7 @@ class TrackingWorker(QObject):
             # track
             objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
             if objectFound == False:
-                print('')
+                print('tracker: object not found')
                 break
             in_plane_position_error_pixel = image_center - centroid 
             in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
@@ -3400,7 +3339,7 @@ class ConfigurationManager(QObject):
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations += 1
-            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
+            # print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),
@@ -3734,7 +3673,7 @@ class LaserAutofocusController(QObject):
 
         if x1-x0 == 0:
             # for simulation
-             self.pixel_to_um = 0.4
+            self.pixel_to_um = 0.4
         else:
             # calculate the conversion factor
             self.pixel_to_um = 6.0/(x1-x0)
