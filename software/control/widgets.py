@@ -18,10 +18,6 @@ from napari.utils.colormaps import Colormap, AVAILABLE_COLORMAPS
 import re
 import cv2
 
-from napari.utils.colormaps import Colormap, AVAILABLE_COLORMAPS
-import re
-import cv2
-
 from datetime import datetime
 
 from control._def import *

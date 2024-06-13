@@ -176,21 +176,9 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
         self.imageDisplayTabs = QTabWidget()
-<<<<<<< HEAD
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-=======
-        if USE_NAPARI:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
-            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
-            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
-                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
->>>>>>> ad60500 (napari widgets, gui edits, rgb fixes)
         else:
             if ENABLE_TRACKING:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -198,7 +186,6 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-<<<<<<< HEAD
 
         if USE_NAPARI_FOR_MULTIPOINT:
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
@@ -212,11 +199,6 @@ class OctopiGUI(QMainWindow):
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
             else:
-=======
-            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
-            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
->>>>>>> ad60500 (napari widgets, gui edits, rgb fixes)
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
@@ -286,7 +268,6 @@ class OctopiGUI(QMainWindow):
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-<<<<<<< HEAD
 
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
@@ -322,38 +303,11 @@ class OctopiGUI(QMainWindow):
 
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
-=======
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-
-        if ENABLE_STITCHER:
-            self.multipointController.signal_stitcher.connect(self.startStitcher)
-            self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
-            self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
-
-        if USE_NAPARI:
-            self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
-            self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
-            self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
-            self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
-            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
-
-            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
-            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
-            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
-            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
-
-            if SHOW_TILED_PREVIEW:
->>>>>>> ad60500 (napari widgets, gui edits, rgb fixes)
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
-<<<<<<< HEAD
                 if ENABLE_STITCHER:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
                 if USE_NAPARI_FOR_LIVE_VIEW:
@@ -363,23 +317,6 @@ class OctopiGUI(QMainWindow):
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
                     self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
             else:
-=======
-                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
-                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
-                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
-                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
-                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
-
-        else:
-            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
-            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image)
-            self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
-            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
-            
-            if SHOW_TILED_PREVIEW:
->>>>>>> ad60500 (napari widgets, gui edits, rgb fixes)
                 self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
@@ -393,12 +330,6 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
 
-<<<<<<< HEAD
-=======
-        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
-        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
-
->>>>>>> ad60500 (napari widgets, gui edits, rgb fixes)
         self.navigationController.move_to_cached_position()
 
     def toggleStitcherWidget(self, checked):

@@ -47,6 +47,8 @@ import control.core as core
 import control.microcontroller as microcontroller
 import control.widgets as widgets
 import control.serial_peripherals as serial_peripherals
+import control.stitcher as stitcher 
+import serial
 
 if ENABLE_STITCHER:
     import control.stitcher as stitcher
@@ -287,7 +289,6 @@ class OctopiGUI(QMainWindow):
 
         # image display tabs
         self.imageDisplayTabs = QTabWidget()
-
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
