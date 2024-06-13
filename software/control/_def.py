@@ -536,8 +536,8 @@ NL5_WAVENLENGTH_MAP = {
 LASER_AF_CHARACTERIZATION_MODE=False
 
 # Napari integration
-USE_NAPARI_FOR_LIVE_VIEW = False
-USE_NAPARI_FOR_MULTIPOINT = False
+USE_NAPARI = True
+IS_WELLPLATE = False
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
@@ -553,6 +553,21 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 # Tiled preview
 SHOW_TILED_PREVIEW = True
 PRVIEW_DOWNSAMPLE_FACTOR = 5
+
+# Stitcher
+ENABLE_STITCHER = True
+FULL_REGISTRATION = False
+STITCH_COMPLETE_ACQUISITION = True
+CHANNEL_COLORS_MAP = {
+    '405':      {'hex': 0x3300FF, 'name': 'blue'},
+    '488':      {'hex': 0x1FFF00, 'name': 'green'},
+    '561':      {'hex': 0xFFCF00, 'name': 'yellow'},
+    '638':      {'hex': 0xFF0000, 'name': 'red'},
+    '730':      {'hex': 0x770000, 'name': 'dark red'},
+    'R':        {'hex': 0xFF0000, 'name': 'red'},
+    'G':        {'hex': 0x1FFF00, 'name': 'green'},
+    'B':        {'hex': 0x3300FF, 'name': 'blue'}
+}
 
 # Emission filter wheel
 USE_ZABER_EMISSION_FILTER_WHEEL = False
