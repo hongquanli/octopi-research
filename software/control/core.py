@@ -1704,26 +1704,26 @@ class MultiPointWorker(QObject):
 
         for coordinate_id in range(n_regions):
 
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            print(coordiante_mm)
+            coordinate_mm = self.scan_coordinates_mm[coordinate_id]
+            print(coordinate_mm)
 
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
-                coordiante_name = str(coordinate_id)
+                coordinate_name = str(coordinate_id)
             else:
-                coordiante_name = self.scan_coordinates_name[coordinate_id]
+                coordinate_name = self.scan_coordinates_name[coordinate_id]
             
             if self.use_scan_coordinates:
                 # move to the specified coordinate
-                self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+                self.navigationController.move_x_to(coordinate_mm[0]-self.deltaX*(self.NX-1)/2)
+                self.navigationController.move_y_to(coordinate_mm[1]-self.deltaY*(self.NY-1)/2)
                 # check if z is included in the coordinate
-                if len(coordiante_mm) == 3:
-                    if coordiante_mm[2] >= self.navigationController.z_pos_mm:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                if len(coordinate_mm) == 3:
+                    if coordinate_mm[2] >= self.navigationController.z_pos_mm:
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                     else:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                         # remove backlash
                         if self.navigationController.get_pid_control_flag(2) is False:
@@ -1735,10 +1735,10 @@ class MultiPointWorker(QObject):
                 else:
                     self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                if len(coordiante_mm) == 3:
+                if len(coordinate_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
-                coordiante_name = coordiante_name + '_'
+                coordinate_name = coordinate_name + '_'
 
 
             self.x_scan_direction = 1
@@ -1775,7 +1775,7 @@ class MultiPointWorker(QObject):
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
-                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordinate_name,i,j)
 
                     else:
 
@@ -1792,7 +1792,7 @@ class MultiPointWorker(QObject):
                                     self.autofocusController.autofocus()
                                     self.autofocusController.wait_till_autofocus_has_completed()
                                 # upate z location of scan_coordinates_mm after AF
-                                if len(coordiante_mm) == 3:
+                                if len(coordinate_mm) == 3:
                                     self.scan_coordinates_mm[coordinate_id,2] = self.navigationController.z_pos_mm
                                     # update the coordinate in the widget
                                     try:
@@ -1821,7 +1821,7 @@ class MultiPointWorker(QObject):
                                     else:
                                         self.microscope.laserAutofocusController.move_to_target(0)
                                 except:
-                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    file_ID = coordinate_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
                                     saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
                                     iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
                                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -1851,7 +1851,7 @@ class MultiPointWorker(QObject):
                             real_i = self.NY-1-i if sgn_i == -1 else i
                             real_j = j if sgn_j == 1 else self.NX-1-j
 
-                            file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
+                            file_ID = coordinate_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
@@ -2096,7 +2096,7 @@ class MultiPointWorker(QObject):
                             # add the coordinate of the current location
                             if IS_HCS:
                                 if self.use_piezo:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
@@ -2104,7 +2104,7 @@ class MultiPointWorker(QObject):
                                                             'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
                                                             'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                                 else:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
