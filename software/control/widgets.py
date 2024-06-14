@@ -1851,7 +1851,7 @@ class MultiPointWidget(QFrame):
             msg.setText("Please choose base saving directory first")
             msg.exec_()
             return
-        if IS_WELLPLATE and self.well_selected == False:
+        if IS_HCS and self.well_selected == False:
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
             msg.setText("Please select a well to scan first")
@@ -2761,7 +2761,13 @@ class NapariLiveWidget(QWidget):
                                       contrast_limits=contrast_limits, blending='additive')
         layer.mouse_double_click_callbacks.append(self.onDoubleClick)
         layer.events.contrast_limits.connect(self.signalContrastLimits)  # Connect to contrast limits event
-        self.resetView()
+        if not self.init_scale:
+            self.resetView()
+            self.previous_scale = self.viewer.camera.zoom
+            self.previous_center = self.viewer.camera.center
+        else:
+            self.viewer.camera.zoom = self.previous_scale
+            self.viewer.camera.center = self.previous_center
 
     def updateLiveLayer(self, image, from_autofocus=False):
         """Updates the appropriate slice of the canvas with the new image data."""
@@ -2780,22 +2786,23 @@ class NapariLiveWidget(QWidget):
         layer = self.viewer.layers["Live View"]
         layer.data = image
 
-        if from_autofocus:
+        if from_autofocus: # resize to cropped view
             if not self.last_was_autofocus:
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
             self.resetView()
             self.last_was_autofocus = True
-        else:
-            if not self.init_scale:
+        else: # return to to original view
+            if not self.init_scale: # save viewer scale
                 self.resetView()
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
                 self.init_scale = True
-
-            if self.last_was_autofocus and self.previous_scale is not None:
+            elif self.last_was_autofocus: 
                 self.viewer.camera.zoom = self.previous_scale
                 self.viewer.camera.center = self.previous_center
+            self.previous_scale = self.viewer.camera.zoom
+            self.previous_center = self.viewer.camera.center
             self.last_was_autofocus = False
 
         curr_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
