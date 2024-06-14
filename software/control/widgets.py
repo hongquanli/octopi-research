@@ -2786,21 +2786,26 @@ class NapariLiveWidget(QWidget):
         layer = self.viewer.layers["Live View"]
         layer.data = image
 
-        if from_autofocus: # resize to cropped view
+        if from_autofocus:
+            # save viewer scale
             if not self.last_was_autofocus:
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
+            # resize to cropped view
             self.resetView()
             self.last_was_autofocus = True
-        else: # return to to original view
-            if not self.init_scale: # save viewer scale
+        else:
+            if not self.init_scale:
+                # init viewer scale
                 self.resetView()
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
                 self.init_scale = True
-            elif self.last_was_autofocus: 
+            elif self.last_was_autofocus:
+                # return to to original view
                 self.viewer.camera.zoom = self.previous_scale
                 self.viewer.camera.center = self.previous_center
+            # save viewer scale
             self.previous_scale = self.viewer.camera.zoom
             self.previous_center = self.viewer.camera.center
             self.last_was_autofocus = False

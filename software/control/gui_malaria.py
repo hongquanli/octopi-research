@@ -259,19 +259,21 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
+        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+
         if ENABLE_TRACKING:
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
-
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
             self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
-            
+
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
@@ -327,9 +329,6 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
-
-        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
-        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
         self.navigationController.move_to_cached_position()
 
