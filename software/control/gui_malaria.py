@@ -10,11 +10,14 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 # app specific libraries
+from control._def import *
+import control.core as core
 import control.widgets as widgets
 import control.camera as camera
-import control.core as core
 import control.microcontroller as microcontroller
-from control._def import *
+
+if ENABLE_STITCHER:
+    import control.stitcher as stitcher
 
 import pyqtgraph.dockarea as dock
 import time
@@ -28,25 +31,6 @@ class OctopiGUI(QMainWindow):
 
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # load window
-        if ENABLE_TRACKING:
-            self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-            self.imageDisplayWindow.show_ROI_selector()
-        else:
-            self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
-        if SHOW_TILED_PREVIEW:
-            self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
-        self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow() 
-        # self.imageDisplayWindow.show()
-        # self.imageArrayDisplayWindow.show()
-
-        # image display windows
-        self.imageDisplayTabs = QTabWidget()
-        self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-        self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-        if SHOW_TILED_PREVIEW:
-            self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # load objects
         if is_simulation:
@@ -178,6 +162,8 @@ class OctopiGUI(QMainWindow):
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         self.focusMapWidget = widgets.FocusMapWidget(self.autofocusController)
+        if ENABLE_STITCHER:
+            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
@@ -188,6 +174,33 @@ class OctopiGUI(QMainWindow):
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
+
+        self.imageDisplayTabs = QTabWidget()
+        if USE_NAPARI_FOR_LIVE_VIEW:
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
+            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
+        else:
+            if ENABLE_TRACKING:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow.show_ROI_selector()
+            else:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+        else:
+            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
+
+        if SHOW_TILED_PREVIEW:
+            if USE_NAPARI_FOR_TILED_DISPLAY:
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
+                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+            else:
+                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
@@ -241,25 +254,71 @@ class OctopiGUI(QMainWindow):
 
         # make connections
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
-        self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
-        self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
+        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+
         if ENABLE_TRACKING:
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-        self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
-        self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+
+        if ENABLE_STITCHER:
+            self.multipointController.signal_stitcher.connect(self.startStitcher)
+            self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+            self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+
+        if USE_NAPARI_FOR_LIVE_VIEW:
+            self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
+            self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
+            self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
+            self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+            if ENABLE_STITCHER:
+                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+        else:
+            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+            if ENABLE_STITCHER:
+                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+            if USE_NAPARI_FOR_LIVE_VIEW:
+                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+        else:
+            self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
         if SHOW_TILED_PREVIEW:
-            self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
-            self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
+            if USE_NAPARI_FOR_TILED_DISPLAY:
+                self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
+                self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
+                self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+                if ENABLE_STITCHER:
+                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+                if USE_NAPARI_FOR_LIVE_VIEW:
+                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+                    self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
+                if USE_NAPARI_FOR_MULTIPOINT:
+                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+                    self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
+            else:
+                self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
+                self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -271,13 +330,40 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
 
-        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
-        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
-        
-        self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
-
-
         self.navigationController.move_to_cached_position()
+
+    def toggleStitcherWidget(self, checked):
+        central_layout = self.centralWidget.layout()
+        if checked:
+            central_layout.insertWidget(central_layout.count() - 2, self.stitcherWidget)
+            self.stitcherWidget.show()
+        else:
+            central_layout.removeWidget(self.stitcherWidget)
+            self.stitcherWidget.hide()
+            self.stitcherWidget.setParent(None)
+
+    def startStitcher(self, acquisition_path):
+        if self.multiPointWidget.checkbox_stitchOutput.isChecked():
+            # Fetch settings from StitcherWidget controls
+            apply_flatfield = self.stitcherWidget.applyFlatfieldCheck.isChecked()
+            use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
+            registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
+            output_name = self.multiPointWidget.lineEdit_experimentID.text()
+            if output_name == "":
+                output_name = "stitched"
+            output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
+
+            self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
+                                           apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
+
+            # Connect signals to slots
+            self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
+            self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
+            self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
+            self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
+            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
+            # Start the thread
+            self.stitcherThread.start()
 
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
