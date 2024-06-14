@@ -47,8 +47,9 @@ import control.core as core
 import control.microcontroller as microcontroller
 import control.widgets as widgets
 import control.serial_peripherals as serial_peripherals
-import control.stitcher as stitcher 
-import serial
+
+if ENABLE_STITCHER:
+    import control.stitcher as stitcher
 
 if ENABLE_STITCHER:
     import control.stitcher as stitcher

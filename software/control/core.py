@@ -2014,10 +2014,6 @@ class MultiPointWorker(QObject):
                                         print('writing R, G, B channels')
 
                                         for channel in channels:
-                                            image_to_display = utils.crop_image(images[channel], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
-                                            self.image_to_display.emit(image_to_display)
-                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
-
                                             if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
                                                 if not init_napari_layers:
                                                     print(f"init napari {channel} layer")
