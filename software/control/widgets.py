@@ -2761,7 +2761,13 @@ class NapariLiveWidget(QWidget):
                                       contrast_limits=contrast_limits, blending='additive')
         layer.mouse_double_click_callbacks.append(self.onDoubleClick)
         layer.events.contrast_limits.connect(self.signalContrastLimits)  # Connect to contrast limits event
-        self.resetView()
+        if not self.init_scale:
+            self.resetView()
+            self.previous_scale = self.viewer.camera.zoom
+            self.previous_center = self.viewer.camera.center
+        else:
+            self.viewer.camera.zoom = self.previous_scale
+            self.viewer.camera.center = self.previous_center
 
     def updateLiveLayer(self, image, from_autofocus=False):
         """Updates the appropriate slice of the canvas with the new image data."""
@@ -2781,21 +2787,27 @@ class NapariLiveWidget(QWidget):
         layer.data = image
 
         if from_autofocus:
+            # save viewer scale
             if not self.last_was_autofocus:
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
+            # resize to cropped view
             self.resetView()
             self.last_was_autofocus = True
         else:
             if not self.init_scale:
+                # init viewer scale
                 self.resetView()
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
                 self.init_scale = True
-
-            if self.last_was_autofocus and self.previous_scale is not None:
+            elif self.last_was_autofocus:
+                # return to to original view
                 self.viewer.camera.zoom = self.previous_scale
                 self.viewer.camera.center = self.previous_center
+            # save viewer scale
+            self.previous_scale = self.viewer.camera.zoom
+            self.previous_center = self.viewer.camera.center
             self.last_was_autofocus = False
 
         curr_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()

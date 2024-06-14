@@ -1901,8 +1901,7 @@ class MultiPointWorker(QObject):
                                     # process the image -  @@@ to move to camera
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                    # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-
+                                    
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
@@ -2002,6 +2001,10 @@ class MultiPointWorker(QObject):
 
                                             # add the image to dictionary
                                             images[config_.name] = np.copy(image)
+                                            # emit R, G, B images
+                                            image_to_display = utils.crop_image(images[config_.name], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
+                                            self.image_to_display.emit(image_to_display)
+                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
 
                                     # Check if the image is RGB or monochrome
                                     i_size = images['BF LED matrix full_R'].shape
@@ -2012,10 +2015,6 @@ class MultiPointWorker(QObject):
                                         print('writing R, G, B channels')
 
                                         for channel in channels:
-                                            image_to_display = utils.crop_image(images[channel], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
-                                            self.image_to_display.emit(image_to_display)
-                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
-
                                             if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
                                                 if not init_napari_layers:
                                                     print(f"init napari {channel} layer")

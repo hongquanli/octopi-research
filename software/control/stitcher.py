@@ -119,7 +119,7 @@ class Stitcher(QThread, QObject):
         #         'cols': self.acquisition_params.get("col direction", False),
         #         'z-planes': False}
         coordinates = pd.read_csv(os.path.join(input_folder, self.time_points[0], 'coordinates.csv'))
-        if IS_WELLPLATE:
+        if IS_HCS:
             try:
                 first_well = coordinates['well'].unique()[0]
                 coordinates = coordinates[coordinates['well'] == first_well]
@@ -147,7 +147,7 @@ class Stitcher(QThread, QObject):
         wells, channel_names = set(), set()
 
         for filename in sorted_input_files:
-            if IS_WELLPLATE:
+            if IS_HCS:
                 well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4)
             else:
                 well = '0'
@@ -174,7 +174,7 @@ class Stitcher(QThread, QObject):
         self.channel_names = sorted(channel_names)
         self.num_z, self.num_cols, self.num_rows = max_k + 1, max_j + 1, max_i + 1
 
-        first_coord = f"{self.wells[0]}_0_0_0_" if IS_WELLPLATE else "0_0_0_"
+        first_coord = f"{self.wells[0]}_0_0_0_" if IS_HCS else "0_0_0_"
         found_dims = False
         mono_channel_names = []
 
@@ -379,7 +379,7 @@ class Stitcher(QThread, QObject):
     def init_output(self, time_point, well):
         output_folder = os.path.join(self.input_folder, f"{time_point}_stitched")
         os.makedirs(output_folder, exist_ok=True)
-        self.output_path = os.path.join(output_folder, f"{well}_{self.output_name}" if IS_WELLPLATE else self.output_name)
+        self.output_path = os.path.join(output_folder, f"{well}_{self.output_name}" if IS_HCS else self.output_name)
 
         x_max = (self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + # horizontal width with overlap
                 abs((self.num_rows - 1) * self.v_shift[1])) # horizontal shift from vertical registration
@@ -632,7 +632,7 @@ class Stitcher(QThread, QObject):
         t_data = []
         t_shapes = []
         for t in self.time_points:
-            if IS_WELLPLATE:
+            if IS_HCS:
                 filepath = f"{well_id}_{self.output_name}"
             else:
                 filepath = f"{self.output_name}"
@@ -701,7 +701,7 @@ class Stitcher(QThread, QObject):
 
             if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
                 self.starting_saving.emit(True)
-                if IS_WELLPLATE:
+                if IS_HCS:
                     self.create_hcs_ome_zarr()
                     print(f"...done saving complete hcs successfully")
                 else:
