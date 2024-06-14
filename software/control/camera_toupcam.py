@@ -115,7 +115,7 @@ class Camera(object):
         self.GAIN_MAX = 40
         self.GAIN_MIN = 0
         self.GAIN_STEP = 1
-        self.EXPOSURE_TIME_MS_MIN = 0.1
+        self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
 
         self.ROI_offset_x = CAMERA_CONFIG.ROI_OFFSET_X_DEFAULT
@@ -350,6 +350,9 @@ class Camera(object):
             self.stop_streaming()
 
         self.pixel_format = pixel_format
+
+        if self._toupcam_pullmode_started:
+            self.camera.Stop()
 
         if self.data_format == 'RAW':
             if pixel_format == 'MONO8':
@@ -746,7 +749,7 @@ class Camera_Simulation(object):
         self.GAIN_MAX = 40
         self.GAIN_MIN = 0
         self.GAIN_STEP = 1
-        self.EXPOSURE_TIME_MS_MIN = 0.1
+        self.EXPOSURE_TIME_MS_MIN = 0.01
         self.EXPOSURE_TIME_MS_MAX = 3600000
 
         self.trigger_mode = None
