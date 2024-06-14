@@ -11,7 +11,8 @@ def conf_attribute_reader(string_value):
     :brief: standardized way for reading config entries
     that are strings, in priority order
     None -> bool -> dict/list (via json) -> int -> float -> string
-    REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN DOUBLE QUOTES
+    REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN
+    DOUBLE QUOTES
     """
     actualvalue = str(string_value).strip()
     try:
@@ -38,32 +39,33 @@ def conf_attribute_reader(string_value):
                 actualvalue = str(actualvalue)
     return actualvalue
 
+
 def populate_class_from_dict(myclass, options):
     """
     :brief: helper function to establish a compatibility
-    layer between new way of storing config and current
-    way of accessing it. assumes all class attributes are
-    all-uppercase, and pattern-matches attributes in
-    priority order dict/list (json) -> -> int -> float-> string
+        layer between new way of storing config and current
+        way of accessing it. assumes all class attributes are
+        all-uppercase, and pattern-matches attributes in
+        priority order dict/list (json) -> -> int -> float-> string
     REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS IN DOUBLE QUOTES
     """
     for key, value in options:
-        if key.startswith("_") and key.endswith("options"):
+        if key.startswith('_') and key.endswith('options'):
             continue
         actualkey = key.upper()
         actualvalue = conf_attribute_reader(value)
         setattr(myclass, actualkey, actualvalue)
 
 class TriggerMode:
-    SOFTWARE = "Software Trigger"
-    HARDWARE = "Hardware Trigger"
-    CONTINUOUS = "Continuous Acqusition"
+    SOFTWARE = 'Software Trigger'
+    HARDWARE = 'Hardware Trigger'
+    CONTINUOUS = 'Continuous Acqusition'
 
 class Acquisition:
     CROP_WIDTH = 3000
     CROP_HEIGHT = 3000
     NUMBER_OF_FOVS_PER_AF = 3
-    IMAGE_FORMAT = "bmp"
+    IMAGE_FORMAT = 'bmp'
     IMAGE_DISPLAY_SCALING_FACTOR = 0.3
     DX = 0.9
     DY = 0.9
@@ -148,8 +150,8 @@ BIT_POS_JOYSTICK_BUTTON = 0
 BIT_POS_SWITCH = 1
 
 class HOME_OR_ZERO:
-    HOME_NEGATIVE = 1  # motor moves along the negative direction (MCU coordinates)
-    HOME_POSITIVE = 0  # motor moves along the negative direction (MCU coordinates)
+    HOME_NEGATIVE = 1 # motor moves along the negative direction (MCU coordinates)
+    HOME_POSITIVE = 0 # motor moves along the negative direction (MCU coordinates)
     ZERO = 2
 
 class AXIS:
@@ -171,18 +173,19 @@ class LIMIT_SWITCH_POLARITY:
     ACTIVE_LOW = 0
     ACTIVE_HIGH = 1
     DISABLED = 2
-    X_HOME = 1
-    Y_HOME = 1
-    Z_HOME = 2
+    X_HOME= 1
+    Y_HOME= 1
+    Z_HOME= 2
+
 
 class ILLUMINATION_CODE:
-    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0
+    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
     ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1
     ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2
     ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3
-    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5
-    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6
+    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4;
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5;
+    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6;
     ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20
     ILLUMINATION_SOURCE_405NM = 11
     ILLUMINATION_SOURCE_488NM = 12
@@ -211,7 +214,7 @@ class CAMERA_CONFIG:
 #### machine specific configurations - to be overridden ###
 ###########################################################
 ROTATE_IMAGE_ANGLE = None
-FLIP_IMAGE = None  # "Horizontal", "Vertical", "Both"
+FLIP_IMAGE = None # 'Horizontal', 'Vertical', 'Both'
 
 CAMERA_REVERSE_X = False
 CAMERA_REVERSE_Y = False
@@ -260,12 +263,12 @@ FULLSTEPS_PER_REV_THETA = 200
 
 SCREW_PITCH_X_MM = 1
 SCREW_PITCH_Y_MM = 1
-SCREW_PITCH_Z_MM = 0.012 * 25.4
+SCREW_PITCH_Z_MM = 0.012*25.4
 
 MICROSTEPPING_DEFAULT_X = 8
 MICROSTEPPING_DEFAULT_Y = 8
 MICROSTEPPING_DEFAULT_Z = 8
-MICROSTEPPING_DEFAULT_THETA = 8  # not used, to be removed
+MICROSTEPPING_DEFAULT_THETA = 8 # not used, to be removed
 
 X_MOTOR_RMS_CURRENT_mA = 490
 Y_MOTOR_RMS_CURRENT_mA = 490
@@ -289,20 +292,20 @@ HAS_ENCODER_Y = False
 HAS_ENCODER_Z = False
 
 # enable PID control
-ENABLE_PID_X = False
-ENABLE_PID_Y = False
-ENABLE_PID_Z = False
+ENABLE_PID_X  = False
+ENABLE_PID_Y  = False
+ENABLE_PID_Z  = False
 
 # PID arguments
-PID_P_X = int(1 << 12)
+PID_P_X = int(1<<12)
 PID_I_X = int(0)
 PID_D_X = int(0)
 
-PID_P_Y = int(1 << 12)
+PID_P_Y = int(1<<12)
 PID_I_Y = int(0)
 PID_D_Y = int(0)
 
-PID_P_Z = int(1 << 12)
+PID_P_Z = int(1<<12)
 PID_I_Z = int(0)
 PID_D_Z = int(1)
 
@@ -333,7 +336,7 @@ LED_MATRIX_B_FACTOR = 1
 
 DEFAULT_SAVING_PATH = str(Path.home()) + "/Downloads"
 
-DEFAULT_PIXEL_FORMAT = "MONO12"
+DEFAULT_PIXEL_FORMAT = 'MONO12'
 
 class PLATE_READER:
     NUMBER_OF_ROWS = 8
@@ -343,30 +346,25 @@ class PLATE_READER:
     OFFSET_COLUMN_1_MM = 20
     OFFSET_ROW_A_MM = 20
 
-DEFAULT_DISPLAY_CROP = 100  # value ranges from 1 to 100 - image display crop size
+DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
-CAMERA_PIXEL_SIZE_UM = {
-    "IMX290": 2.9, "IMX178": 2.4, "IMX226": 1.85, "IMX250": 3.45, "IMX252": 3.45,
-    "IMX273": 3.45, "IMX264": 3.45, "IMX265": 3.45, "IMX571": 3.76, "PYTHON300": 4.8
-}
-OBJECTIVES = {
-    "2x": {"magnification": 2, "NA": 0.10, "tube_lens_f_mm": 180},
-    "4x": {"magnification": 4, "NA": 0.13, "tube_lens_f_mm": 180},
-    "10x": {"magnification": 10, "NA": 0.25, "tube_lens_f_mm": 180},
-    "10x (Mitutoyo)": {"magnification": 10, "NA": 0.25, "tube_lens_f_mm": 200},
-    "20x (Boli)": {"magnification": 20, "NA": 0.4, "tube_lens_f_mm": 180},
-    "20x (Nikon)": {"magnification": 20, "NA": 0.45, "tube_lens_f_mm": 200},
-    "20x": {"magnification": 20, "NA": 0.4, "tube_lens_f_mm": 180},
-    "40x": {"magnification": 40, "NA": 0.6, "tube_lens_f_mm": 180}
-}
+CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
+OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
+                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180}, 
+                '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
+                '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
+                '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
+                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
+                '20x':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
+                '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
-CAMERA_SENSOR = "IMX226"
-DEFAULT_OBJECTIVE = "10x (Mitutoyo)"
-TRACKERS = ["csrt", "kcf", "mil", "tld", "medianflow", "mosse", "daSiamRPN"]
-DEFAULT_TRACKER = "csrt"
+CAMERA_SENSOR = 'IMX226'
+DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
+TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
+DEFAULT_TRACKER = 'csrt'
 
 ENABLE_TRACKING = False
-TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS = False  # set to true when doing multimodal acquisition
+TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS = False # set to true when doing multimodal acquisition
 if ENABLE_TRACKING:
     DEFAULT_DISPLAY_CROP = 100
 
@@ -376,8 +374,8 @@ class AF:
     CROP_HEIGHT = 800
 
 class Tracking:
-    SEARCH_AREA_RATIO = 10  # @@@ check
-    CROPPED_IMG_RATIO = 10  # @@@ check
+    SEARCH_AREA_RATIO = 10 #@@@ check
+    CROPPED_IMG_RATIO = 10 #@@@ check
     BBOX_SCALE_FACTOR = 1.2
     DEFAULT_TRACKER = "csrt"
     INIT_METHODS = ["roi"]
@@ -416,23 +414,23 @@ class SOFTWARE_POS_LIMIT:
 SHOW_AUTOLEVEL_BTN = False
 AUTOLEVEL_DEFAULT_SETTING = False
 
-MULTIPOINT_AUTOFOCUS_CHANNEL = "BF LED matrix full"
-# MULTIPOINT_AUTOFOCUS_CHANNEL = "BF LED matrix left half"
+MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
+# MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix left half'
 MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
-MULTIPOINT_BF_SAVING_OPTION = "Raw"
-# MULTIPOINT_BF_SAVING_OPTION = "RGB2GRAY"
-# MULTIPOINT_BF_SAVING_OPTION = "Green Channel Only"
+MULTIPOINT_BF_SAVING_OPTION = 'Raw'
+# MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
+# MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
 
-DEFAULT_MULTIPOINT_NX = 1
-DEFAULT_MULTIPOINT_NY = 1
+DEFAULT_MULTIPOINT_NX=1
+DEFAULT_MULTIPOINT_NY=1
 
 ENABLE_FLEXIBLE_MULTIPOINT = False
 
-CAMERA_SN = {"ch 1": "SN1", "ch 2": "SN2"}  # for multiple cameras, to be overwritten in the configuration file
+CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
 
 ENABLE_STROBE_OUTPUT = False
 
-Z_STACKING_CONFIG = "FROM BOTTOM"  # "FROM BOTTOM", "FROM TOP"
+Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
 WELLPLATE_FORMAT = 384
@@ -441,36 +439,36 @@ WELLPLATE_FORMAT = 384
 X_MM_384_WELLPLATE_UPPERLEFT = 0
 Y_MM_384_WELLPLATE_UPPERLEFT = 0
 DEFAULT_Z_POS_MM = 2
-X_ORIGIN_384_WELLPLATE_PIXEL = 177  # upper left of B2
-Y_ORIGIN_384_WELLPLATE_PIXEL = 141  # upper left of B2
+X_ORIGIN_384_WELLPLATE_PIXEL = 177 # upper left of B2
+Y_ORIGIN_384_WELLPLATE_PIXEL = 141 # upper left of B2
 NUMBER_OF_SKIP_384 = 1
 A1_X_MM_384_WELLPLATE = 12.05
 A1_Y_MM_384_WELLPLATE = 9.05
 WELL_SPACING_MM_384_WELLPLATE = 4.5
 WELL_SIZE_MM_384_WELLPLATE = 3.3
-# B1 upper left corner in pixel: x = 124, y = 141
+# B1 upper left corner in piexel: x = 124, y = 141
 # B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
 # B2 upper left corner in pixel: x = 177, y = 141
 
-WELLPLATE_OFFSET_X_mm = 0  # x offset adjustment for using different plates
-WELLPLATE_OFFSET_Y_mm = 0  # y offset adjustment for using different plates
+WELLPLATE_OFFSET_X_mm = 0 # x offset adjustment for using different plates
+WELLPLATE_OFFSET_Y_mm = 0 # y offset adjustment for using different plates
 
 # for USB spectrometer
 N_SPECTRUM_PER_POINT = 5
 
 # focus measure operator
-FOCUS_MEASURE_OPERATOR = "LAPE"  # "GLVA" # LAPE has worked well for bright field images; GLVA works well for darkfield/fluorescence
+FOCUS_MEASURE_OPERATOR = 'LAPE' # 'GLVA' # LAPE has worked well for bright field images; GLVA works well for darkfield/fluorescence
 
 # controller version
-CONTROLLER_VERSION = "Arduino Due"  # "Teensy"
+CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 
-# How to read Spinnaker nodemaps, options are INDIVIDUAL or VALUE
-CHOSEN_READ = "INDIVIDUAL"
+#How to read Spinnaker nodemaps, options are INDIVIDUAL or VALUE
+CHOSEN_READ = 'INDIVIDUAL'
 
 # laser autofocus
 SUPPORT_LASER_AUTOFOCUS = False
-MAIN_CAMERA_MODEL = "MER2-1220-32U3M"
-FOCUS_CAMERA_MODEL = "MER2-630-60U3M"
+MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
+FOCUS_CAMERA_MODEL = 'MER2-630-60U3M'
 FOCUS_CAMERA_EXPOSURE_TIME_MS = 2
 FOCUS_CAMERA_ANALOG_GAIN = 0
 LASER_AF_AVERAGING_N = 5
@@ -488,33 +486,33 @@ RUN_CUSTOM_MULTIPOINT = False
 RETRACT_OBJECTIVE_BEFORE_MOVING_TO_LOADING_POSITION = True
 OBJECTIVE_RETRACTED_POS_MM = 0.1
 
-CLASSIFICATION_MODEL_PATH = "/home/cephla/Documents/tmp/model_perf_r34_b32.pt"
+CLASSIFICATION_MODEL_PATH ="/home/cephla/Documents/tmp/model_perf_r34_b32.pt"
 SEGMENTATION_MODEL_PATH = "/home/cephla/Documents/tmp/model_segmentation_1073_9.pth"
-CLASSIFICATION_TEST_MODE = False
+CLASSIFICATION_TEST_MODE=False
 
-USE_TRT_SEGMENTATION = False
-SEGMENTATION_CROP = 1500
+USE_TRT_SEGMENTATION=False
+SEGMENTATION_CROP=1500
 
-DISP_TH_DURING_MULTIPOINT = 0.95
+DISP_TH_DURING_MULTIPOINT=0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
 
-ENABLE_SPINNING_DISK_CONFOCAL = False
+ENABLE_SPINNING_DISK_CONFOCAL=False
 
 INVERTED_OBJECTIVE = False
 
 ILLUMINATION_INTENSITY_FACTOR = 0.6
 
-CAMERA_TYPE = "Default"
+CAMERA_TYPE="Default"
 
-FOCUS_CAMERA_TYPE = "Default"
+FOCUS_CAMERA_TYPE="Default"
 
 # Spinning disk confocal integration
 ENABLE_SPINNING_DISK_CONFOCAL = False
 USE_LDI_SERIAL_CONTROL = False
 
-XLIGHT_EMISSION_FILTER_MAPPING = {405: 1, 470: 2, 555: 3, 640: 4, 730: 5}
+XLIGHT_EMISSION_FILTER_MAPPING = {405:1,470:2,555:3,640:4,730:5}
 XLIGHT_SERIAL_NUMBER = "B00031BE"
 XLIGHT_SLEEP_TIME_FOR_WHEEL = 0.25
 XLIGHT_VALIDATE_WHEEL_POS = False
@@ -523,7 +521,7 @@ XLIGHT_VALIDATE_WHEEL_POS = False
 ENABLE_NL5 = False
 ENABLE_CELLX = False
 CELLX_SN = None
-CELLX_MODULATION = "EXT Digital"
+CELLX_MODULATION = 'EXT Digital'
 NL5_USE_AOUT = False
 NL5_USE_DOUT = True
 NL5_TRIGGER_PIN = 2
@@ -535,7 +533,7 @@ NL5_WAVENLENGTH_MAP = {
 }
 
 # Laser AF characterization mode
-LASER_AF_CHARACTERIZATION_MODE = False
+LASER_AF_CHARACTERIZATION_MODE=False
 
 # Napari integration
 USE_NAPARI_FOR_LIVE_VIEW = True
@@ -550,8 +548,8 @@ SUPPORT_SCIMICROSCOPY_LED_ARRAY = False
 SCIMICROSCOPY_LED_ARRAY_SN = None
 SCIMICROSCOPY_LED_ARRAY_DISTANCE = 50
 SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA = 0.8
-SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = [1, 1, 1]
-SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03  # time to wait before trigger the camera (in seconds)
+SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = [1,1,1]
+SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the camera (in seconds)
 
 # Tiled preview
 SHOW_TILED_PREVIEW = True
@@ -599,24 +597,24 @@ AWB_RATIOS_G = 1
 AWB_RATIOS_B = 1.4141
 
 try:
-    with open("cache/config_file_path.txt", "r") as file:
+    with open("cache/config_file_path.txt", 'r') as file:
         for line in file:
             CACHED_CONFIG_FILE_PATH = line
             break
 except FileNotFoundError:
     CACHED_CONFIG_FILE_PATH = None
 
-config_files = glob.glob("." + "/" + "configuration*.ini")
+config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
         if CACHED_CONFIG_FILE_PATH in config_files:
-            print("defaulting to last cached config file at " + CACHED_CONFIG_FILE_PATH)
+            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
             config_files = [CACHED_CONFIG_FILE_PATH]
         else:
-            print("multiple machine configuration files found, the program will exit")
+            print('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-    print("load machine-specific configuration")
-    # exec(open(config_files[0]).read())
+    print('load machine-specific configuration')
+    #exec(open(config_files[0]).read())
     cfp = ConfigParser()
     cfp.read(config_files[0])
     var_items = list(locals().keys())
@@ -626,7 +624,7 @@ if config_files:
         varnamelower = var_name.lower()
         if varnamelower not in cfp.options("GENERAL"):
             continue
-        value = cfp.get("GENERAL", varnamelower)
+        value = cfp.get("GENERAL",varnamelower)
         actualvalue = conf_attribute_reader(value)
         locals()[var_name] = actualvalue
     for classkey in var_items:
@@ -640,21 +638,21 @@ if config_files:
         if type(locals()[classkey]) is not type:
             continue
         myclass = locals()[classkey]
-        populate_class_from_dict(myclass, pop_items)
-    with open("cache/config_file_path.txt", "w") as file:
+        populate_class_from_dict(myclass,pop_items)
+    with open("cache/config_file_path.txt", 'w') as file:
         file.write(config_files[0])
     CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
-    print("configuration*.ini file not found, defaulting to legacy configuration")
-    config_files = glob.glob("." + "/" + "configuration*.txt")
+    print('configuration*.ini file not found, defaulting to legacy configuration')
+    config_files = glob.glob('.' + '/' + 'configuration*.txt')
     if config_files:
         if len(config_files) > 1:
-            print("multiple machine configuration files found, the program will exit")
+            print('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-        print("load machine-specific configuration")
+        print('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
-        print("machine-specific configuration not present, the program will exit")
+        print('machine-specific configuration not present, the program will exit')
         sys.exit(1)
 ##########################################################
 ##### end of loading machine specific configurations #####
@@ -666,7 +664,7 @@ if ENABLE_OBJECTIVE_PIEZO == False:
 
 # saving path
 if not (DEFAULT_SAVING_PATH.startswith(str(Path.home()))):
-    DEFAULT_SAVING_PATH = str(Path.home()) + "/" + DEFAULT_SAVING_PATH.strip("/")
+    DEFAULT_SAVING_PATH = str(Path.home())+"/"+DEFAULT_SAVING_PATH.strip("/")
 
 # limit switch
 X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.X_HOME
@@ -676,7 +674,7 @@ Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Z_HOME
 # home safety margin with (um) unit
 X_HOME_SAFETY_MARGIN_UM = 50
 Y_HOME_SAFETY_MARGIN_UM = 50
-Z_HOME_SAFETY_MARGIN_UM = 600
+Z_HOME_SAFETY_MARGIN_UM = 600 
 
 if ENABLE_TRACKING:
     DEFAULT_DISPLAY_CROP = Tracking.DEFAULT_DISPLAY_CROP
