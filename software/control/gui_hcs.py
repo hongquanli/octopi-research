@@ -120,7 +120,7 @@ class OctopiGUI(QMainWindow):
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT) # bug: comment out for confocal?
 
             if USE_ZABER_EMISSION_FILTER_WHEEL:
-                self.emission_filter_wheel = serial_peripherals.FilterController(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+                self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
 
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
