@@ -3951,8 +3951,8 @@ class WellSelectionWidget(QTableWidget):
 
     def onDoubleClick(self,row,col):
         if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
-            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            x_mm = col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
         # print('(' + str(row) + ',' + str(col) + ') doubleclicked')
 
@@ -4043,8 +4043,8 @@ class Well1536SelectionWidget(QWidget):
             col_index = int(col_part) - 1
             self.current_cell = (row_index, col_index)  # Update the current cell
             self.redraw_wells()  # Redraw with the new current cell
-            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col_index*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row_index*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            x_mm = col_index*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = row_index*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
 
     def select_cells(self):
