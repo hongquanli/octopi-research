@@ -4181,8 +4181,8 @@ class Well1536SelectionWidget(QWidget):
             col_index = int(col_part) - 1
             self.current_cell = (row_index, col_index)  # Update the current cell
             self.redraw_wells()  # Redraw with the new current cell
-            x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + col_index*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-            y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row_index*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            x_mm = col_index*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
+            y_mm = row_index*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
 
     def select_cells(self):
