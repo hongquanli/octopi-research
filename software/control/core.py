@@ -2237,9 +2237,9 @@ class MultiPointWorker(QObject):
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
             # finished XY scan
-            if n_regions >= 1:
+            if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
-                if self.NY > 1 and not IS_HCS:
+                if self.NY > 1:
                     # move y back
                     self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
                     self.wait_till_operation_is_completed()
