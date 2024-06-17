@@ -557,7 +557,6 @@ IS_HCS = True
 FULL_REGISTRATION = False
 STITCH_COMPLETE_ACQUISITION = False
 CHANNEL_COLORS_MAP = {
-<<<<<<< HEAD
     "405": {"hex": 0x3300FF, "name": "blue"},
     "488": {"hex": 0x1FFF00, "name": "green"},
     "561": {"hex": 0xFFCF00, "name": "yellow"},
@@ -566,16 +565,6 @@ CHANNEL_COLORS_MAP = {
     "R": {"hex": 0xFF0000, "name": "red"},
     "G": {"hex": 0x1FFF00, "name": "green"},
     "B": {"hex": 0x3300FF, "name": "blue"}
-=======
-    '405':      {'hex': 0x3300FF, 'name': 'blue'},
-    '488':      {'hex': 0x1FFF00, 'name': 'green'},
-    '561':      {'hex': 0xFFCF00, 'name': 'yellow'},
-    '638':      {'hex': 0xFF0000, 'name': 'red'},
-    '730':      {'hex': 0x770000, 'name': 'dark red'},
-    'R':        {'hex': 0xFF0000, 'name': 'red'},
-    'G':        {'hex': 0x1FFF00, 'name': 'green'},
-    'B':        {'hex': 0x3300FF, 'name': 'blue'}
->>>>>>> origin
 }
 
 # Emission filter wheel
