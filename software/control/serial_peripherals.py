@@ -93,7 +93,7 @@ class SerialDevice:
             if response == expected_response:
                 return response
             else:
-            	print(response)
+                print(response)
             
             # check prefix if the full response does not match
             if check_prefix:

@@ -1906,7 +1906,6 @@ class MultiPointWorker(QObject):
                                     # process the image -  @@@ to move to camera
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                    
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
@@ -2239,10 +2238,10 @@ class MultiPointWorker(QObject):
                         time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
-            if SHOW_TILED_PREVIEW:
-                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-
             # finished XY scan
+            if SHOW_TILED_PREVIEW and IS_HCS:
+                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
                 if self.NY > 1:
@@ -2251,6 +2250,9 @@ class MultiPointWorker(QObject):
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                     self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
+
+                if SHOW_TILED_PREVIEW and not IS_HCS:
+                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move x back at the end of the scan
                 if self.x_scan_direction == -1:

@@ -15,7 +15,8 @@ import control.core as core
 import control.widgets as widgets
 import control.camera as camera
 import control.microcontroller as microcontroller
-import control.stitcher as stitcher
+if ENABLE_STITCHER:
+    import control.stitcher as stitcher
 
 import pyqtgraph.dockarea as dock
 import time
@@ -259,13 +260,15 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
+        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
         if ENABLE_TRACKING:
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
@@ -327,9 +330,6 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
-
-        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
-        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
         self.navigationController.move_to_cached_position()
 
