@@ -2239,6 +2239,9 @@ class MultiPointWorker(QObject):
                         time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
+            if SHOW_TILED_PREVIEW:
+                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
             # finished XY scan
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
@@ -2254,9 +2257,6 @@ class MultiPointWorker(QObject):
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-                if SHOW_TILED_PREVIEW:
-                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:

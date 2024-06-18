@@ -263,7 +263,6 @@ class OctopiGUI(QMainWindow):
         if ENABLE_NL5:
             import control.NL5Widget as NL5Widget
             self.nl5Wdiget = NL5Widget.NL5Widget(self.nl5)
-
         if CAMERA_TYPE == "Toupcam":
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True, include_camera_auto_wb_setting = False)
         else:
@@ -276,20 +275,10 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None) # =self.scanCoordinates
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
-<<<<<<< HEAD
-        
         if ENABLE_STITCHER:
             self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
-       
-=======
-        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None) # =self.scanCoordinates
-        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        
->>>>>>> origin
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         else:
@@ -298,7 +287,6 @@ class OctopiGUI(QMainWindow):
 
         # image display tabs
         self.imageDisplayTabs = QTabWidget()
-
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
@@ -309,7 +297,6 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True,show_LUT=True,autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-
         if USE_NAPARI_FOR_MULTIPOINT:
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
             # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)  
@@ -318,7 +305,6 @@ class OctopiGUI(QMainWindow):
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
@@ -416,11 +402,7 @@ class OctopiGUI(QMainWindow):
         '''
 
         # make connections
-<<<<<<< HEAD
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
-=======
-        self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)          
->>>>>>> origin
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
@@ -431,7 +413,6 @@ class OctopiGUI(QMainWindow):
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
-<<<<<<< HEAD
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
@@ -440,8 +421,6 @@ class OctopiGUI(QMainWindow):
                 self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
                 self.multiPointWidget2.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
 
-=======
->>>>>>> origin
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
         self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
         if ENABLE_FLEXIBLE_MULTIPOINT:
@@ -471,11 +450,8 @@ class OctopiGUI(QMainWindow):
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
-<<<<<<< HEAD
             if ENABLE_STITCHER:
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
-=======
->>>>>>> origin
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow
@@ -492,11 +468,8 @@ class OctopiGUI(QMainWindow):
                 self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-<<<<<<< HEAD
             if ENABLE_STITCHER:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
-=======
->>>>>>> origin
             if USE_NAPARI_FOR_LIVE_VIEW:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
@@ -513,11 +486,8 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
-<<<<<<< HEAD
                 if ENABLE_STITCHER:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
-=======
->>>>>>> origin
                 if USE_NAPARI_FOR_LIVE_VIEW:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                     self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
@@ -635,15 +605,10 @@ class OctopiGUI(QMainWindow):
             dialog.exec_()
 
     def onTabChanged(self, index):
-<<<<<<< HEAD
         self.toggleWellSelector(index)
         acquisitionWidget = self.recordTabWidget.widget(index)
         if ENABLE_STITCHER:
             self.toggleStitcherWidget(acquisitionWidget.checkbox_stitchOutput.isChecked())
-=======
-        acquisitionWidget = self.recordTabWidget.widget(index)
-        self.toggleWellSelector(index)
->>>>>>> origin
         acquisitionWidget.emit_selected_channels()
 
     def toggleWellSelector(self, close):
@@ -656,7 +621,6 @@ class OctopiGUI(QMainWindow):
         if current_index == 0:
             self.dock_wellSelection.setVisible(not acquisition_started)
 
-<<<<<<< HEAD
     def toggleStitcherWidget(self, checked):
         central_layout = self.centralWidget.layout()
         if checked:
@@ -688,8 +652,6 @@ class OctopiGUI(QMainWindow):
             # Start the thread
             self.stitcherThread.start()
 
-=======
->>>>>>> origin
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 
