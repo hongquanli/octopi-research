@@ -28,7 +28,6 @@ try:
 except:
     pass
 
-# general libs
 from queue import Queue
 from threading import Thread, Lock
 from pathlib import Path
@@ -44,18 +43,8 @@ import numpy as np
 import pandas as pd
 import scipy.signal
 import cv2
-
-# stitching libs
 import imageio as iio
-import dask.array as da
-from dask_image.imread import imread as dask_imread
-from skimage.registration import phase_cross_correlation
-import ome_zarr
-import zarr
-from aicsimageio.writers import OmeTiffWriter
-from aicsimageio.writers import OmeZarrWriter
-from aicsimageio import types
-from basicpy import BaSiC
+
 
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
@@ -385,7 +374,7 @@ class ImageDisplay(QObject):
         self.thread.join()
 
 class Configuration:
-    def __init__(self,mode_id=None,name=None,color=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
+    def __init__(self,mode_id=None,name=None,color=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None,z_offset=None,pixel_format=None,_pixel_format_options=None,emission_filter_position=None):
         self.id = mode_id
         self.name = name
         self.color = color
@@ -401,6 +390,7 @@ class Configuration:
         self._pixel_format_options = _pixel_format_options
         if _pixel_format_options is None:
             self._pixel_format_options = self.pixel_format
+        self.emission_filter_position = emission_filter_position
 
 class LiveController(QObject):
 
@@ -515,6 +505,12 @@ class LiveController(QObject):
                     self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
+
+                if USE_ZABER_EMISSION_FILTER_WHEEL:
+                    try:
+                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
+                    except Exception as e:
+                        print('not setting emission filter position due to ' + str(e))
 
 
     def start_live(self):
@@ -695,84 +691,38 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
+
     def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9):
+        """
+        napariTiledDisplay uses the Nx, Ny, dx_mm, dy_mm fields to move to the correct fov first
+        imageArrayDisplayWindow assumes only a single fov (default values do not impact calculation but this is less correct)
+        """
+        # check if click to move enabled
+        if not self.click_to_move:
+            print("allow click to move")
+            return
         # restore to raw coordicate
         click_x = image_width / 2.0 + click_x
         click_y = image_height / 2.0 - click_y
-        if not self.click_to_move:
-            print("allow click to move")
-            return 
-
-        pixel_sign_x = 1
-        pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
-
-        print("click: x, y", click_x, click_y)
+        print("click - (x, y):", (click_x, click_y))
         cx = click_x * Nx // image_width
         cy = click_y * Ny // image_height
-        print("col row:", cx, cy)
-
+        print("fov - (col, row):", (cx, cy))
+        pixel_sign_x = 1
+        pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
+ 
+        # move to selected fov
         self.move_x_to(self.scan_begin_position_x+dx_mm*cx*pixel_sign_x)
         self.move_y_to(self.scan_begin_position_y-dy_mm*cy*pixel_sign_y)
 
+        # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
         tile_height = (image_height / Ny) * PRVIEW_DOWNSAMPLE_FACTOR
-        rx = (click_x * PRVIEW_DOWNSAMPLE_FACTOR) % tile_width
-        ry = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
-        rx_centered = int(rx - tile_width / 2)
-        ry_centered = int(tile_height / 2 - ry) 
-        self.move_from_click(rx_centered, ry_centered, tile_width, tile_height)
-
-        # try:
-        #     highest_res = (0,0)
-        #     for res in self.parent.camera.res_list:
-        #         if res[0] > highest_res[0] or res[1] > higest_res[1]:
-        #             highest_res = res
-        #     resolution = self.parent.camera.resolution
-
-        #     try:
-        #         pixel_binning_x = highest_res[0]/resolution[0]
-        #         pixel_binning_y = highest_res[1]/resolution[1]
-        #         if pixel_binning_x < 1:
-        #             pixel_binning_x = 1
-        #         if pixel_binning_y < 1:
-        #             pixel_binning_y = 1
-        #     except:
-        #         pixel_binning_x=1
-        #         pixel_binning_y=1
-        # except AttributeError:
-        #     pixel_binning_x = 1
-        #     pixel_binning_y = 1
-
-        # try:
-        #     current_objective = self.parent.objectiveStore.current_objective
-        #     objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
-        # except (AttributeError, KeyError):
-        #     objective_info = OBJECTIVES[DEFAULT_OBJECTIVE]
-
-        # magnification = objective_info["magnification"]
-        # objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
-        # tube_lens_mm = TUBE_LENS_MM
-        # pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-
-        # pixel_size_xy = pixel_size_um/(magnification/(objective_tube_lens_mm/tube_lens_mm))
-
-        # pixel_size_x = pixel_size_xy*pixel_binning_x
-        # pixel_size_y = pixel_size_xy*pixel_binning_y
-
-        # delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR * dx_mm
-        # delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR * dy_mm
-        # print("click: dy_mm, dx_mm", delta_y, delta_x)
-        # center_beginning_x = pixel_sign_x * pixel_size_x * image_width / Nx / 2 / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR
-        # center_beginning_y = pixel_sign_y * pixel_size_y * image_height / Ny / 2 / 1000.0 * PRVIEW_DOWNSAMPLE_FACTOR
-        # print("offset: y_mm, x_mm", center_beginning_y, center_beginning_x)
-        # print("center: y_mm, x_mm", self.scan_begin_position_y + center_beginning_y, self.scan_begin_position_x - center_beginning_x)
-
-        # if USE_NAPARI and IS_WELLPLATE:
-        #     self.move_x_to(self.scan_begin_position_x - center_beginning_x + delta_x)
-        #     self.move_y_to(self.scan_begin_position_y + center_beginning_y + delta_y)
-        # else:
-        #     self.move_x_to(self.scan_begin_position_x - center_beginning_x / 2 + delta_x / 2)
-        #     self.move_y_to(self.scan_begin_position_y + center_beginning_y / 2 + delta_y / 2)
+        offset_x = (click_x * PRVIEW_DOWNSAMPLE_FACTOR) % tile_width
+        offset_y = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
+        offset_x_centered = int(offset_x - tile_width / 2)
+        offset_y_centered = int(tile_height / 2 - offset_y)
+        self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -1755,8 +1705,7 @@ class MultiPointWorker(QObject):
         slide_path = os.path.join(self.base_path, self.experiment_ID)
 
         # create a dataframe to save coordinates
-
-        if IS_WELLPLATE:
+        if IS_HCS:
             if self.use_piezo:
                 self.coordinates_pd = pd.DataFrame(columns = ['well', 'i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'z_piezo (um)', 'time'])
             else:
@@ -1815,7 +1764,7 @@ class MultiPointWorker(QObject):
             if Z_STACKING_CONFIG == 'FROM TOP':
                 self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
-            if USE_NAPARI:
+            if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
                 init_napari_layers = False
 
             # reset piezo to home position
@@ -1992,6 +1941,13 @@ class MultiPointWorker(QObject):
                                         #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
 
+                                    if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                                        if not init_napari_layers:
+                                            print("init napari layers")
+                                            init_napari_layers = True
+                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
+                                        self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
+
                                     current_round_images[config.name] = np.copy(image)
 
                                     # dpc generation
@@ -2004,24 +1960,16 @@ class MultiPointWorker(QObject):
                                     keys_to_check = ['BF LED matrix full_R', 'BF LED matrix full_G', 'BF LED matrix full_B']
                                     if all(key in current_round_images for key in keys_to_check):
                                         print('constructing RGB image')
+                                        print(current_round_images['BF LED matrix full_R'].dtype)
                                         size = current_round_images['BF LED matrix full_R'].shape
-                                        #print(size)
                                         rgb_image = np.zeros((*size, 3),dtype=current_round_images['BF LED matrix full_R'].dtype)
-                                        #print(current_round_images['BF LED matrix full_R'].dtype)
-                                        #print(rgb_image.shape)
-                                        #print(rgb_image)
+                                        print(rgb_image.shape)
                                         rgb_image[:, :, 0] = current_round_images['BF LED matrix full_R']
                                         rgb_image[:, :, 1] = current_round_images['BF LED matrix full_G']
                                         rgb_image[:, :, 2] = current_round_images['BF LED matrix full_B']
 
                                         # send image to display
                                         image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                                        # self.image_to_display.emit(image_to_display)
-                                        # if USE_NAPARI:
-                                        #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
-                                        # else:
-                                        #     self.image_to_display.emit(image_to_display)
-                                        # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
                                         # write the image
                                         if len(rgb_image.shape) == 3:
@@ -2031,91 +1979,94 @@ class MultiPointWorker(QObject):
                                             else:
                                                 iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
 
-                                    if USE_NAPARI:
-                                        if not init_napari_layers:
-                                            print("init napari viewer")
-                                            init_napari_layers = True
-                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
-                                        self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
-
                                     QApplication.processEvents()
 
                                 # RGB
                                 elif 'RGB' in config.name:
                                     # go through the channels
-                                    channels = ['BF LED matrix full_R','BF LED matrix full_G','BF LED matrix full_B']
+                                    channels = ['BF LED matrix full_R', 'BF LED matrix full_G', 'BF LED matrix full_B']
                                     images = {}
-                                    # for config_ in [config_ for config_ in self.configurationManager.configurations if config_.name in channels]:
+
                                     for config_ in self.configurationManager.configurations:
                                         if config_.name in channels:
                                             # update the current configuration
-                                            self.signal_current_configuration.emit(config)
+                                            self.signal_current_configuration.emit(config_)
                                             self.wait_till_operation_is_completed()
+
                                             # trigger acquisition (including turning on the illumination)
                                             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                                 self.liveController.turn_on_illumination()
                                                 self.wait_till_operation_is_completed()
                                                 self.camera.send_trigger()
                                             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                                self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                                                self.microcontroller.send_hardware_trigger(control_illumination=True, illumination_on_time_us=self.camera.exposure_time * 1000)
+
                                             # read camera frame
                                             image = self.camera.read_frame()
                                             if image is None:
                                                 print('self.camera.read_frame() returned None')
                                                 continue
-                                            # tunr of the illumination if using software trigger
+
+                                            # turn off the illumination if using software trigger
                                             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                                 self.liveController.turn_off_illumination()
-                                            # process the image -  @@@ to move to camera
-                                            image = utils.crop_image(image,self.crop_width,self.crop_height)
-                                            image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
+
+                                            # process the image  -  @@@ to move to camera
+                                            image = utils.crop_image(image, self.crop_width, self.crop_height)
+                                            image = utils.rotate_and_flip_image(image, rotate_image_angle=self.camera.rotate_image_angle, flip_image=self.camera.flip_image)
+
                                             # add the image to dictionary
                                             images[config_.name] = np.copy(image)
-                                    # R G B -> RGB
-                                    print('constructing RGB image')
-                                    size = images['BF LED matrix full_R'].shape
-                                    # print(size)
-                                    rgb_image = np.zeros((*size, 3),dtype=images['BF LED matrix full_R'].dtype)
-                                    # print(images['BF LED matrix full_R'].dtype)
-                                    # print(rgb_image.shape)
-                                    rgb_image[:, :, 0] = images['BF LED matrix full_R']
-                                    rgb_image[:, :, 1] = images['BF LED matrix full_G']
-                                    rgb_image[:, :, 2] = images['BF LED matrix full_B']
-                                    print(rgb_image.shape)
-                                    # send image to display
-                                    image_to_display = utils.crop_image(rgb_image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
-                    
-                                    # self.image_to_display.emit(image_to_display)
-                                    # if USE_NAPARI:
-                                    #     self.image_to_display.emit(np.transpose(image_to_display,(2,0,1)))
-                                    # else:
-                                    #     self.image_to_display.emit(image_to_display)
-                                    # self.image_to_display_multi.emit(image_to_display,config.illumination_source) # to add: napari
 
-                                    # write the image
-                                    print('writing RGB image and R,G,B channels')
-                                    if rgb_image.dtype == np.uint16:
-                                        if len(rgb_image.shape) == 3:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
-                                        else:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.tiff'), rgb_image[:, :, 0])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.tiff'), rgb_image[:, :, 1])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.tiff'),rgb_image[:, :, 2])
+                                    # Check if the image is RGB or monochrome
+                                    i_size = images['BF LED matrix full_R'].shape
+                                    i_dtype = images['BF LED matrix full_R'].dtype
+
+                                    if len(i_size) == 3:
+                                        # If already RGB, write and emit individual channels
+                                        print('writing R, G, B channels')
+
+                                        for channel in channels:
+                                            image_to_display = utils.crop_image(images[channel], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
+                                            self.image_to_display.emit(image_to_display)
+                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
+
+                                            if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                                                if not init_napari_layers:
+                                                    print(f"init napari {channel} layer")
+                                                    init_napari_layers = True
+                                                    self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype, True)
+                                                self.napari_layers_update.emit(images[channel], real_i, real_j, k, config.name)
+
+                                            file_name = file_ID + '_' + channel.replace(' ', '_') + ('.tiff' if i_dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
+                                            iio.imwrite(os.path.join(current_path, file_name), images[channel])
+
                                     else:
-                                        if len(rgb_image.shape) == 3:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
-                                        else:
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_R.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 0])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_G.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 1])
-                                            iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_B.' + Acquisition.IMAGE_FORMAT),rgb_image[:, :, 2])
+                                        # If monochrome, reconstruct RGB image
+                                        print('constructing RGB image')
 
-                                    if USE_NAPARI:
-                                        if not init_napari_layers:
-                                            print("init rgb layer")
-                                            init_napari_layers = True
-                                            print(rgb_image.dtype)
-                                            self.napari_layers_init.emit(rgb_image.shape[0],rgb_image.shape[1], rgb_image.dtype, True)
-                                        self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
+                                        rgb_image = np.zeros((*i_size, 3), dtype=i_dtype)
+                                        rgb_image[:, :, 0] = images['BF LED matrix full_R']
+                                        rgb_image[:, :, 1] = images['BF LED matrix full_G']
+                                        rgb_image[:, :, 2] = images['BF LED matrix full_B']
+
+                                        # send image to display
+                                        image_to_display = utils.crop_image(rgb_image, round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
+                                        self.image_to_display.emit(image_to_display)
+                                        self.image_to_display_multi.emit(image_to_display, config.illumination_source)
+
+                                        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                                            if not init_napari_layers:
+                                                print("init napari rgb layer")
+                                                init_napari_layers = True
+                                                print(rgb_image.dtype)
+                                                self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype, True)
+                                            self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
+
+                                        # write the RGB image
+                                        print('writing RGB image')
+                                        file_name = file_ID + '_BF_LED_matrix_full_RGB' + ('.tiff' if rgb_image.dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
+                                        iio.imwrite(os.path.join(current_path, file_name), rgb_image)
 
                                 # USB spectrometer
                                 else:
@@ -2173,24 +2124,22 @@ class MultiPointWorker(QObject):
                                     print(repr(e))
                                                             
                             # add the coordinate of the current location
-                            if IS_WELLPLATE:
+                            if IS_HCS:
                                 if self.use_piezo:
-                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
                                                             'z (um)':[self.navigationController.z_pos_mm*1000],
                                                             'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
-                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
-                                                            )
+                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                                 else:
-                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
                                                             'z (um)':[self.navigationController.z_pos_mm*1000],
-                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
-                                                            )
+                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                             else:
                                 if self.use_piezo:
                                     new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
@@ -2198,16 +2147,13 @@ class MultiPointWorker(QObject):
                                                             'y (mm)':[self.navigationController.y_pos_mm],
                                                             'z (um)':[self.navigationController.z_pos_mm*1000],
                                                             'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
-                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
-                                                            )
+                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                                 else:
                                     new_row = pd.DataFrame({'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
                                                             'z (um)':[self.navigationController.z_pos_mm*1000],
-                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')},
-                                                            )
-                            print(new_row)
+                                                            'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
 
                             self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
@@ -2319,24 +2265,28 @@ class MultiPointWorker(QObject):
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
             # finished XY scan
-            if n_regions >= 1:
-                # move x back at the end of the scan
-                if self.x_scan_direction == -1:
-                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-                    self.wait_till_operation_is_completed()
-                    time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
+            if SHOW_TILED_PREVIEW and IS_HCS:
+                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
+            if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
-                if self.NY > 1 and not IS_WELLPLATE:
+                if self.NY > 1:
                     # move y back
                     self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                     self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
                 
-                if SHOW_TILED_PREVIEW:
+                if SHOW_TILED_PREVIEW and not IS_HCS:
                     self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-                    print(coordinate_name+ "scan_end_position:", self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
+                # move x back at the end of the scan
+                if self.x_scan_direction == -1:
+                    self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
+                    self.wait_till_operation_is_completed()
+                    time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
+
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:
                     _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
@@ -3957,16 +3907,16 @@ class NavigationViewer(QFrame):
         self.sample = sample
 
         if sample == 'glass slide':
-            self.origin_bottom_left_x = 200
-            self.origin_bottom_left_y = 120
+            self.origin_x_pixel = 200
+            self.origin_y_pixel = 120
             self.mm_per_pixel = 0.1453
             self.fov_size_mm = 3000*1.85/(50/9)/1000
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
             self.fov_size_mm = 3000*1.85/(50/10)/1000
-            self.origin_bottom_left_x = X_ORIGIN_384_WELLPLATE_PIXEL - (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
-            self.origin_bottom_left_y = Y_ORIGIN_384_WELLPLATE_PIXEL - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel         
+            self.origin_x_pixel = A1_X_PIXEL - (A1_X_MM)/self.mm_per_pixel
+            self.origin_y_pixel = A1_Y_PIXEL - (A1_Y_MM)/self.mm_per_pixel
 
         self.box_color = (255, 0, 0)
         self.box_line_thickness = 2
@@ -3993,15 +3943,15 @@ class NavigationViewer(QFrame):
     def draw_current_fov(self,x_mm,y_mm):
         self.current_image_display = np.copy(self.current_image)
         if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
 
     def update_display(self):
@@ -4015,43 +3965,43 @@ class NavigationViewer(QFrame):
     def register_fov(self,x_mm,y_mm):
         color = (0,0,255)
         if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
     def register_fov_to_image(self,x_mm,y_mm):
         color = (252,174,30)
         if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
     def deregister_fov_to_image(self,x_mm,y_mm):
         color = (255,255,255)
         if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
 
@@ -4120,7 +4070,7 @@ class ImageArrayDisplayWindow(QMainWindow):
             self.graphics_widget_4.img.setImage(image,autoLevels=False)
 
 class ConfigurationManager(QObject):
-    def __init__(self,filename="channel_configurations_color.xml"):
+    def __init__(self,filename="channel_configurations.xml"):
         QObject.__init__(self)
         self.config_filename = filename
         self.configurations = []
@@ -4141,12 +4091,13 @@ class ConfigurationManager(QObject):
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
-            self.num_configurations = self.num_configurations + 1
+            self.num_configurations += 1
+            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
-                    color = mode.get('Color'),
                     mode_id = mode.get('ID'),
                     name = mode.get('Name'),
+                    color = self.get_channel_color(mode.get('Name')),
                     exposure_time = float(mode.get('ExposureTime')),
                     analog_gain = float(mode.get('AnalogGain')),
                     illumination_source = int(mode.get('IlluminationSource')),
@@ -4154,7 +4105,8 @@ class ConfigurationManager(QObject):
                     camera_sn = mode.get('CameraSN'),
                     z_offset = float(mode.get('ZOffset')),
                     pixel_format = mode.get('PixelFormat'),
-                    _pixel_format_options = mode.get('_PixelFormat_options')
+                    _pixel_format_options = mode.get('_PixelFormat_options'),
+                    emission_filter_position = int(mode.get('EmissionFilterPosition', 1))
                 )
             )
 
@@ -4178,17 +4130,21 @@ class ConfigurationManager(QObject):
         for conf in selected_configurations:
             self.update_configuration_without_writing(conf.id, "Selected", 0)
 
-    def get_color_for_channel(self, channel):
-        for config in self.configurations:
-            if config.name == channel:
-                return config.color
-        if ' R' in channel:
-            return 'red'
-        if ' G' in channel:
-            return 'green'
-        if ' B' in channel:
-            return 'blue'
-        return 'gray'
+    def get_channel_color(self, channel):
+        channel_info = CHANNEL_COLORS_MAP.get(self.extract_wavelength(channel), {'hex': 0xFFFFFF, 'name': 'gray'})
+        return channel_info['hex']
+
+    def extract_wavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming 'Fluorescence 488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or "full_" + color in parts:
+                return color
+        return None
 
 class PlateReaderNavigationController(QObject):
 
@@ -4342,8 +4298,8 @@ class ScanCoordinates(object):
             if _increasing==False:
                 columns = np.flip(columns)
             for column in columns:
-                x_mm = X_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_X_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + column*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-                y_mm = Y_MM_384_WELLPLATE_UPPERLEFT + WELL_SIZE_MM_384_WELLPLATE/2 - (A1_Y_MM_384_WELLPLATE+WELL_SPACING_MM_384_WELLPLATE*NUMBER_OF_SKIP_384) + row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+                x_mm = A1_X_MM + column*WELL_SPACING_MM + WELLPLATE_OFFSET_X_mm
+                y_mm = A1_Y_MM + row*WELL_SPACING_MM + WELLPLATE_OFFSET_Y_mm
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
@@ -4468,12 +4424,13 @@ class LaserAutofocusController(QObject):
         self.microcontroller.turn_off_AF_laser()
         self.wait_till_operation_is_completed()
 
-        # calculate the conversion factor
-        self.pixel_to_um = 6.0/(x1-x0)
-        print('pixel to um conversion factor is ' + str(self.pixel_to_um) + ' um/pixel')
-        # for simulation
         if x1-x0 == 0:
-            self.pixel_to_um = 0.4
+            # for simulation
+             self.pixel_to_um = 0.4
+        else:
+            # calculate the conversion factor
+            self.pixel_to_um = 6.0/(x1-x0)
+        print('pixel to um conversion factor is ' + str(self.pixel_to_um) + ' um/pixel')
 
         # set reference
         self.x_reference = x1

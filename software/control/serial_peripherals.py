@@ -432,3 +432,200 @@ class CellX_Simulation:
 
     def close(self):
         pass
+
+class FilterDeviceInfo:
+    """
+    keep filter device information 
+    """
+    # default: 7.36
+    firmware_version = ''
+    # default: 250000
+    maxspeed = 0
+    # default: 900 
+    accel = 0
+
+class FilterController_Simulation:
+    """
+    controller of filter device
+    """
+    def __init__(self, _baudrate, _bytesize, _parity, _stopbits):
+        self.each_hole_microsteps = 4800
+        self.current_position = 0
+        self.offset_position = 0
+
+        self.deviceinfo = FilterDeviceInfo()
+
+    def __del__(self):
+        pass
+
+    def do_homing(self):
+        self.current_position = 0
+        self.offset_position = 1100
+
+    def wait_homing_finish(self):
+        pass
+
+    def set_emission_filter(self, position):
+        pass
+
+    def get_emission_filter(self):
+        return 1
+
+class FilterController:
+    """
+    controller of filter device
+    """
+    def __init__(self, SN, _baudrate, _bytesize, _parity, _stopbits):
+        self.each_hole_microsteps = 4800
+        self.current_position = 0
+        self.offset_position = 0
+
+        self.deviceinfo = FilterDeviceInfo()
+        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
+
+        self.serial = serial.Serial(optical_mounts_ports[0], baudrate=_baudrate, bytesize=_bytesize, parity=_parity, stopbits=_stopbits)
+        time.sleep(0.2)
+
+        if self.serial.isOpen(): 
+            self.deviceinfo.firmware_version = self.get_info('/get version')[1]
+
+            self.send_command_with_reply('/set maxspeed 250000')
+            self.send_command_with_reply('/set accel 900')
+
+            self.deviceinfo.maxspeed = self.get_info('/get maxspeed')[1]
+            self.deviceinfo.accel = self.get_info('/get accel')[1]
+
+            '''
+            print('filter control port open scucessfully')
+            print('firmware version: ' + self.deviceinfo.firmware_version)
+            print('maxspeed: ' + self.deviceinfo.maxspeed)
+            print('accel: ' + self.deviceinfo.accel)
+            '''
+
+    def __del__(self):
+        if self.serial.isOpen(): 
+            self.send_command('/stop')
+            time.sleep(0.5)
+            self.serial.close()
+    
+    def send_command(self, cmd):
+        cmd = cmd + '\n'
+        if self.serial.isOpen(): 
+            self.serial.write(cmd.encode('utf-8')) 
+        else:
+            print('Error: serial port is not open yet')
+
+    def send_command_with_reply(self, cmd):
+        cmd = cmd + '\n'
+        if self.serial.isOpen(): 
+            self.serial.write(cmd.encode('utf-8')) 
+            time.sleep(0.01)
+            result = self.serial.readline()
+            data_string = result.decode('utf-8')
+            return_list = data_string.split(' ')
+            if return_list[2] == 'OK' and return_list[3] == 'IDLE':
+                return True
+            else:
+                print('execute cmd fail: ' + cmd)
+                return False
+
+        else:
+            print('Error: serial port is not open yet')
+
+    def get_info(self, cmd):
+        cmd = cmd + '\n'
+        if self.serial.isOpen(): 
+            self.serial.write(cmd.encode('utf-8')) 
+            result = self.serial.readline()
+            data_string = result.decode('utf-8')
+            return_list = data_string.split(' ')
+            if return_list[2] == 'OK' and return_list[3] == 'IDLE':
+                value_string = return_list[5]
+                value_string = value_string.strip('\n')
+                value_string = value_string.strip('\r')
+                return True, value_string
+            else:
+                return False, '' 
+
+        else:
+            print('Error: serial port is not open yet')
+
+    def get_position(self):
+        if self.serial.isOpen(): 
+            result = self.serial.readline()
+            data_string = result.decode('utf-8')
+            return_list = data_string.split(' ')
+            if return_list[2] == 'OK' and return_list[3] == 'IDLE':
+                value_string = return_list[5]
+                value_string = value_string.strip('\n')
+                value_string = value_string.strip('\r')
+                return True, int(value_string) 
+            else:
+                return False, 0
+
+    def get_index(self):
+        index = (self.current_position - self.offset_position) / self.each_hole_microsteps
+        return int(index)
+
+    def _move_offset_position(self, offset):
+        cmd_str = '/move rel ' + str(offset)
+        self.send_command(cmd_str)
+        timeout = 50
+        while timeout != 0:
+            timeout -= 1
+            time.sleep(0.1)
+            self.send_command('/get pos')
+            result = self.get_position()
+            if result[0] == True and result[1] == self.current_position + offset:
+                self.current_position += offset
+                self.offset_position = offset
+                return
+        print('filter move offset timeout')
+
+    def move_index_position(self, pos_index):
+        mov_pos = pos_index * self.each_hole_microsteps
+        pos = self.current_position + mov_pos
+        cmd_str = '/move rel ' + str(mov_pos)
+        self.send_command(cmd_str)
+
+        timeout = 50
+        while timeout != 0:
+            timeout -= 1
+            time.sleep(0.005)
+            self.send_command('/get pos')
+            result = self.get_position()
+            if result[0] == True and result[1] == pos:
+                self.current_position = pos
+                return
+        print('filter move timeout')
+
+    def set_emission_filter(self, position):
+        if str(position) not in ["1","2","3","4","5","6","7"]:
+            raise ValueError("Invalid emission filter wheel position!")
+
+        pos = int(position)
+        current_pos = self.get_index() + 1
+        if pos == current_pos:
+            return
+
+        pos = pos - current_pos
+        self.move_index_position(pos)
+
+    def get_emission_filter(self):
+        return self.get_index() + 1
+
+    def do_homing(self):
+        self.send_command('/home')
+
+    def wait_homing_finish(self):
+        timesout = 100
+        while timesout != 0:
+            timesout -= 1
+            time.sleep(0.5)
+            self.send_command('/get pos')
+            result = self.get_position()
+            if result[0] == True and result[1] == 0:
+                self.current_position = 0
+                self._move_offset_position(1100)
+                return
+        print('Filter device homing fail')

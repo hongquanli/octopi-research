@@ -14,6 +14,7 @@ def generate_default_configuration(filename):
     mode_1.set('ZOffset','0.0')
     mode_1.set('PixelFormat','default')
     mode_1.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_1.set('EmissionFilterPosition','1')
 
     mode_4 = ET.SubElement(top,'mode')
     mode_4.set('ID','4')
@@ -26,6 +27,7 @@ def generate_default_configuration(filename):
     mode_4.set('ZOffset','0.0')
     mode_4.set('PixelFormat','default')
     mode_4.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_4.set('EmissionFilterPosition','1')
 
     mode_5 = ET.SubElement(top,'mode')
     mode_5.set('ID','5')
@@ -38,6 +40,7 @@ def generate_default_configuration(filename):
     mode_5.set('ZOffset','0.0')
     mode_5.set('PixelFormat','default')
     mode_5.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_5.set('EmissionFilterPosition','1')
 
     mode_6 = ET.SubElement(top,'mode')
     mode_6.set('ID','6')
@@ -50,6 +53,7 @@ def generate_default_configuration(filename):
     mode_6.set('ZOffset','0.0')
     mode_6.set('PixelFormat','default')
     mode_6.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_6.set('EmissionFilterPosition','1')
 
     mode_7 = ET.SubElement(top,'mode')
     mode_7.set('ID','7')
@@ -62,6 +66,7 @@ def generate_default_configuration(filename):
     mode_7.set('ZOffset','0.0')
     mode_7.set('PixelFormat','default')
     mode_7.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_7.set('EmissionFilterPosition','1')
 
     mode_8 = ET.SubElement(top,'mode')
     mode_8.set('ID','8')
@@ -74,6 +79,7 @@ def generate_default_configuration(filename):
     mode_8.set('ZOffset','0.0')
     mode_8.set('PixelFormat','default')
     mode_8.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_8.set('EmissionFilterPosition','1')
 
     mode_12 = ET.SubElement(top,'mode')
     mode_12.set('ID','12')
@@ -86,6 +92,7 @@ def generate_default_configuration(filename):
     mode_12.set('ZOffset','0.0')
     mode_12.set('PixelFormat','default')
     mode_12.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_12.set('EmissionFilterPosition','1')
 
     mode_9 = ET.SubElement(top,'mode')
     mode_9.set('ID','9')
@@ -98,6 +105,7 @@ def generate_default_configuration(filename):
     mode_9.set('ZOffset','0.0')
     mode_9.set('PixelFormat','default')
     mode_9.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_9.set('EmissionFilterPosition','1')
 
     # mode_10 = ET.SubElement(top,'mode')
     # mode_10.set('ID','10')
@@ -134,6 +142,7 @@ def generate_default_configuration(filename):
     mode_2.set('ZOffset','0.0')
     mode_2.set('PixelFormat','default')
     mode_2.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_2.set('EmissionFilterPosition','1')
 
     mode_3 = ET.SubElement(top,'mode')
     mode_3.set('ID','3')
@@ -146,6 +155,7 @@ def generate_default_configuration(filename):
     mode_3.set('ZOffset','0.0')
     mode_3.set('PixelFormat','default')
     mode_3.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_3.set('EmissionFilterPosition','1')
 
     mode_12 = ET.SubElement(top,'mode')
     mode_12.set('ID','12')
@@ -158,6 +168,7 @@ def generate_default_configuration(filename):
     mode_12.set('ZOffset','0.0')
     mode_12.set('PixelFormat','default')
     mode_12.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_12.set('EmissionFilterPosition','1')
 
     mode_13 = ET.SubElement(top,'mode')
     mode_13.set('ID','13')
@@ -170,6 +181,7 @@ def generate_default_configuration(filename):
     mode_13.set('ZOffset','0.0')
     mode_13.set('PixelFormat','default')
     mode_13.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_13.set('EmissionFilterPosition','1')
 
     mode_14 = ET.SubElement(top,'mode')
     mode_14.set('ID','1')
@@ -182,6 +194,7 @@ def generate_default_configuration(filename):
     mode_14.set('ZOffset','0.0')
     mode_14.set('PixelFormat','default')
     mode_14.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_14.set('EmissionFilterPosition','1')
 
     mode_15 = ET.SubElement(top,'mode')
     mode_15.set('ID','1')
@@ -194,6 +207,7 @@ def generate_default_configuration(filename):
     mode_15.set('ZOffset','0.0')
     mode_15.set('PixelFormat','default')
     mode_15.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_15.set('EmissionFilterPosition','1')
 
     mode_16 = ET.SubElement(top,'mode')
     mode_16.set('ID','1')
@@ -206,6 +220,7 @@ def generate_default_configuration(filename):
     mode_16.set('ZOffset','0.0')
     mode_16.set('PixelFormat','default')
     mode_16.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_16.set('EmissionFilterPosition','1')
 
     mode_21 = ET.SubElement(top,'mode')
     mode_21.set('ID','21')
@@ -218,6 +233,7 @@ def generate_default_configuration(filename):
     mode_21.set('ZOffset','0.0')
     mode_21.set('PixelFormat','default')
     mode_21.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_21.set('EmissionFilterPosition','1')
 
     mode_20 = ET.SubElement(top,'mode')
     mode_20.set('ID','20')
@@ -230,6 +246,7 @@ def generate_default_configuration(filename):
     mode_20.set('ZOffset','0.0')
     mode_20.set('PixelFormat','default')
     mode_20.set('_PixelFormat_options','[default,MONO8,MONO12,MONO14,MONO16,BAYER_RG8,BAYER_RG12]')
+    mode_20.set('EmissionFilterPosition','1')
 
     tree = ET.ElementTree(top)
     tree.write(filename,encoding="utf-8", xml_declaration=True, pretty_print=True)
