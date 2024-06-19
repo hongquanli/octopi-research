@@ -575,6 +575,7 @@ FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NFZP8'
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
+os.makedirs("cache/", exist_ok=True)
 CACHED_CONFIG_FILE_PATH = None
 
 # Piezo configuration items
