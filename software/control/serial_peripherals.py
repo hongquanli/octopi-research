@@ -451,6 +451,10 @@ class FilterController_Simulation:
     def __init__(self, _baudrate, _bytesize, _parity, _stopbits):
         self.each_hole_microsteps = 4800
         self.current_position = 0
+        '''
+        the variable be used to keep current offset of wheel
+        it could be used by get the index of wheel position, the index could be '1', '2', '3' ... 
+        '''
         self.offset_position = 0
 
         self.deviceinfo = FilterDeviceInfo()
@@ -568,6 +572,9 @@ class FilterController:
         return int(index)
 
     def _move_offset_position(self, offset):
+        '''
+        the function is inner function, be used to move wheel to a given position 
+        '''
         cmd_str = '/move rel ' + str(offset)
         self.send_command(cmd_str)
         timeout = 50
@@ -615,12 +622,18 @@ class FilterController:
         return self.get_index() + 1
 
     def do_homing(self):
+        '''
+        the /home command just make the wheel start to move
+        '''
         self.send_command('/home')
 
     def wait_homing_finish(self):
-        timesout = 100
-        while timesout != 0:
-            timesout -= 1
+        '''
+        the function is used to make the wheel be moving to the setting position 
+        '''
+        timeout_counter = 100
+        while timeout_counter != 0:
+            timeout_counter -= 1
             time.sleep(0.5)
             self.send_command('/get pos')
             result = self.get_position()
