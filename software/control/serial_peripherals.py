@@ -482,7 +482,7 @@ class FilterController:
     def __init__(self, SN, _baudrate, _bytesize, _parity, _stopbits):
         self.each_hole_microsteps = 4800
         self.current_position = 0
-        self.offset_position = 0
+        self.offset_position = -8500
 
         self.deviceinfo = FilterDeviceInfo()
         optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
@@ -571,11 +571,11 @@ class FilterController:
         index = (self.current_position - self.offset_position) / self.each_hole_microsteps
         return int(index)
 
-    def _move_offset_position(self, offset):
+    def move_to_offset(self):
         '''
         the function is inner function, be used to move wheel to a given position 
         '''
-        cmd_str = '/move rel ' + str(offset)
+        cmd_str = '/move rel ' + str(self.offset)
         self.send_command(cmd_str)
         timeout = 50
         while timeout != 0:
@@ -583,9 +583,8 @@ class FilterController:
             time.sleep(0.1)
             self.send_command('/get pos')
             result = self.get_position()
-            if result[0] == True and result[1] == self.current_position + offset:
-                self.current_position += offset
-                self.offset_position = offset
+            if result[0] == True and result[1] == self.offset:
+                self.current_position = self.offset
                 return
         print('filter move offset timeout')
 
@@ -639,6 +638,6 @@ class FilterController:
             result = self.get_position()
             if result[0] == True and result[1] == 0:
                 self.current_position = 0
-                self._move_offset_position(1100)
+                self.move_to_offset()
                 return
         print('Filter device homing fail')
