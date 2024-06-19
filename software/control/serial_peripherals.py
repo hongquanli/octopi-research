@@ -622,15 +622,15 @@ class FilterController:
         return self.get_index() + 1
 
     def do_homing(self):
-    '''
-    the /home command just make the wheel start to move
-    '''
+        '''
+        the /home command just make the wheel start to move
+        '''
         self.send_command('/home')
 
     def wait_homing_finish(self):
-    '''
-    the function is used to make the wheel be moving to the setting position 
-    '''
+        '''
+        the function is used to make the wheel be moving to the setting position 
+        '''
         timeout_counter = 100
         while timeout_counter != 0:
             timeout_counter -= 1
