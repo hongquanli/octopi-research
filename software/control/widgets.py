@@ -451,7 +451,7 @@ class ObjectivesWidget(QWidget):
         #self.text_browser = QTextBrowser(self)
         # Layout
         dropdownLayout = QHBoxLayout()
-        dropdownLabel = QLabel("Objectives:")
+        dropdownLabel = QLabel("Objective:")
         dropdownLayout.addWidget(dropdownLabel)
         dropdownLayout.addWidget(self.dropdown)
         #textLayout = QHBoxLayout()
@@ -1308,6 +1308,10 @@ class NavigationWidget(QFrame):
             grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
         elif self.widget_configuration == '96 well plate':
+            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
+            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
+            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
+        else:
             grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
             grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
             grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
@@ -2198,7 +2202,8 @@ class MultiPointWidget2(QFrame):
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
                 self.add_location()
-                self.acquisition_in_place =True
+                self.acquisition_in_place = True
+                self.multipointController.location_list = self.location_list
             self.setEnabled_all(False)
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
@@ -2254,14 +2259,12 @@ class MultiPointWidget2(QFrame):
                 print("Duplicate values not added based on x and y.")
                 #to-do: update z coordinate
 
-
-
     def acquisition_is_finished(self):
         if not self.acquisition_in_place:
             self.last_used_locations = self.location_list.copy()
             self.last_used_location_ids = self.location_ids.copy()
         else:
-            self.clear()
+            self.clear_only_location_list()
             self.acquisition_in_place = False
         self.signal_acquisition_started.emit(False)
         self.btn_startAcquisition.setChecked(False)
@@ -2382,9 +2385,9 @@ class MultiPointWidget2(QFrame):
         self.dropdown_location_list.clear()
         self.table_location_list.setRowCount(0)
 
-    def clear_only_location_list(self):
-        self.location_list = np.empty((0,3),dtype=float)
-        self.dropdown_location_list.clear()
+    # def clear_only_location_list(self):
+    #     self.location_list = np.empty((0,3),dtype=float)
+    #     self.dropdown_location_list.clear()
 
     def go_to(self,index):
         if index != -1:
@@ -3883,126 +3886,168 @@ class LaserAutofocusControlWidget(QFrame):
         self.laserAutofocusController.move_to_target(self.entry_target.value())
 
 
+class WellplateFormatWidget(QWidget):
+    formatChanged = Signal(int)  # Emit the selected format as an integer
+    signalWellplateSettings = Signal(int, float, float, int, int, float, float, int)
+
+    def __init__(self):
+        super().__init__()
+        # Initialize default values
+        self.wellplate_format = WELLPLATE_FORMAT  # Default format
+        self.initUI()
+
+    def initUI(self):
+        layout = QHBoxLayout(self)
+        self.label = QLabel("Wellplate Format:", self)
+        self.comboBox = QComboBox(self)
+        self.comboBox.addItem("glass slide", 0)
+        self.comboBox.addItem("6 wells", 6)
+        self.comboBox.addItem("12 wells", 12)
+        self.comboBox.addItem("24 wells", 24)
+        self.comboBox.addItem("96 wells", 96)
+        self.comboBox.addItem("384 wells", 384)
+        self.comboBox.addItem("1536 wells", 1536)
+        layout.addWidget(self.label)
+        layout.addWidget(self.comboBox)
+        self.comboBox.currentIndexChanged.connect(self.wellplateChanged)
+        index = self.comboBox.findData(self.wellplate_format)
+        if index >= 0:
+            self.comboBox.setCurrentIndex(index)
+
+    def wellplateChanged(self, index):
+        self.wellplate_format = self.comboBox.itemData(index)
+        self.setWellplateSettings(self.wellplate_format)
+        #self.formatChanged.emit(self.wellplate_format)  # Emit the selected format
+
+    def setWellplateSettings(self, wellplate_format):
+        # Define settings for each wellplate format
+        settings = {
+            # Desired order: a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip
+            0: (0, 0, 0, 0, 0, 0, 0),
+            6: (24.55, 23.01, 297, 209, 34.94, 39.2, 0),
+            12: (24.75, 16.26, 297, 209, 22.05, 26, 0),
+            24: (24.45, 22.07, 144, 108, 15.54, 19.3, 0), # 24: (17.05, 13.67, 144, 108, 15.54, 19.3, 0),
+            96: (14.3, 11.36, 171, 138, 6.21, 9, 0),
+            384: (12.05, 9.05, 144, 108, 3.3, 4.5, 1),
+            1536: (11.0, 7.86, 144, 108, 1.5, 2.25, 0)
+        }
+        if wellplate_format in settings:
+            self.signalWellplateSettings.emit(wellplate_format, *settings[wellplate_format])
+
+
 class WellSelectionWidget(QTableWidget):
 
     signal_wellSelected = Signal(bool)
-    signal_wellSelectedPos = Signal(float,float)
+    signal_wellSelectedPos = Signal(float, float)
 
-    def __init__(self, format_, *args):
-
-        if format_ == 6:
-            self.rows = 2
-            self.columns = 3
-            self.spacing_mm = 39.2
-        elif format_ == 12:
-            self.rows = 3
-            self.columns = 4
-            self.spacing_mm = 26
-        elif format_ == 24:
-            self.rows = 4
-            self.columns = 6
-            self.spacing_mm = 18
-        elif format_ == 96:
-            self.rows = 8
-            self.columns = 12
-            self.spacing_mm = 9
-        elif format_ == 384:
-            self.rows = 16
-            self.columns = 24
-            self.spacing_mm = 4.5
-        elif format_ == 1536:
-            self.rows = 32
-            self.columns = 48
-            self.spacing_mm = 2.25
-
-        self.format = format_
-
-        QTableWidget.__init__(self, self.rows, self.columns, *args)
-        self.setData()
-        self.resizeColumnsToContents()
-        self.resizeRowsToContents()
-        self.setEditTriggers(QTableWidget.NoEditTriggers)
+    def __init__(self, format_, *args, **kwargs):
+        super(WellSelectionWidget, self).__init__(*args, **kwargs)  # Initialize the base QTableWidget
+        self.well_size_mm = WELL_SIZE_MM
+        self.spacing_mm = WELL_SPACING_MM
+        self.number_of_skip = NUMBER_OF_SKIP
+        self.a1_x_mm = A1_X_MM
+        self.a1_y_mm = A1_Y_MM
+        self.a1_x_pixel = A1_X_PIXEL
+        self.a1_y_pixel = A1_Y_PIXEL
         self.cellDoubleClicked.connect(self.onDoubleClick)
         self.cellClicked.connect(self.onSingleClick)
         self.itemSelectionChanged.connect(self.get_selected_cells)
+        self.setFormat(format_)
 
-        # size
+    def setFormat(self, format_):
+        self.format = format_
+        print("setting wellplate format")
+        self.setupLayout(format_)
+        self.initUI()
+        self.setData()
+
+    def setupLayout(self, format_):
+        format_settings = { # format: (rows, cols, spacing_mm)
+            0: (1, 1, 0),
+            6: (2, 3, 39.2),
+            12: (3, 4, 26),
+            24: (4, 6, 18),
+            96: (8, 12, 9),
+            384: (16, 24, 4.5),
+            1536: (32, 48, 2.25)
+        }
+        self.rows, self.columns, self.spacing_mm = format_settings.get(format_, (1, 1, 0))
+        self.setRowCount(self.rows)
+        self.setColumnCount(self.columns)
+        if format_ == 0:
+            self.signal_wellSelected.emit(True)
+
+    def initUI(self):
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(int(5*self.spacing_mm))
+        self.verticalHeader().setDefaultSectionSize(int(5 * self.spacing_mm))
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.horizontalHeader().setMinimumSectionSize(int(5*self.spacing_mm))
-
-        self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
+        self.horizontalHeader().setMinimumSectionSize(int(5 * self.spacing_mm))
+        self.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.resizeColumnsToContents()
-        self.setFixedSize(self.horizontalHeader().length() + 
-                   self.verticalHeader().width(),
-                   self.verticalHeader().length() + 
-                   self.horizontalHeader().height())
+        self.setFixedSize(self.horizontalHeader().length() +
+                          self.verticalHeader().width(),
+                          self.verticalHeader().length() +
+                          self.horizontalHeader().height())
 
-    def setData(self): 
-        '''
-        # cells
-        for i in range(16):
-            for j in range(24):
-                newitem = QTableWidgetItem( chr(ord('A')+i) + str(j) )
-                self.setItem(i, j, newitem)
-        '''
-        # row header
-        row_headers = []
-        for i in range(16):
-            row_headers.append(chr(ord('A')+i))
+
+    def setData(self):
+        for i in range(self.rowCount()):
+            for j in range(self.columnCount()):
+                item = self.item(i, j)
+                if not item:  # Create a new item if none exists
+                    item = QTableWidgetItem()
+                    self.setItem(i, j, item)
+                # Reset to selectable by default
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+
+        # Apply non-selectability as needed
+        if self.format in [96, 384]:
+            skip = 1  # Skip is always 1 for 96 and 384 formats
+        else:
+            skip = self.number_of_skip
+
+        if skip > 0:
+            for i in range(skip):
+                for j in range(self.columns):  # Apply to rows
+                    self.item(i, j).setFlags(self.item(i, j).flags() & ~Qt.ItemIsSelectable)
+                    self.item(self.rows - 1 - i, j).setFlags(self.item(self.rows - 1 - i, j).flags() & ~Qt.ItemIsSelectable)
+                for k in range(self.rows):  # Apply to columns
+                    self.item(k, i).setFlags(self.item(k, i).flags() & ~Qt.ItemIsSelectable)
+                    self.item(k, self.columns - 1 - i).setFlags(self.item(k, self.columns - 1 - i).flags() & ~Qt.ItemIsSelectable)
+
+        # Update row headers
+        row_headers = [chr(ord('A') + i) for i in range(self.rows)]
         self.setVerticalHeaderLabels(row_headers)
 
-        # make the outer cells not selectable if using 96 and 384 well plates
-        if self.format == 384:
-            if NUMBER_OF_SKIP == 1:
-                for i in range(self.rows):
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(i,0,item)
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(i,self.columns-1,item)
-                for j in range(self.columns):
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(0,j,item)
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(self.rows-1,j,item)
-        elif self.format == 96:
-            if NUMBER_OF_SKIP == 1:
-                for i in range(self.rows):
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(i,0,item)
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(i,self.columns-1,item)
-                for j in range(self.columns):
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(0,j,item)
-                    item = QTableWidgetItem()
-                    item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
-                    self.setItem(self.rows-1,j,item)
-
+    def updateWellplateSettings(self, format_, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
+        self.format = format_
+        self.a1_x_mm = a1_x_mm
+        self.a1_y_mm = a1_y_mm
+        self.a1_x_pixel = a1_x_pixel
+        self.a1_y_pixel = a1_y_pixel
+        self.well_size_mm = well_size_mm
+        self.spacing_mm = well_spacing_mm
+        self.number_of_skip = number_of_skip
+        print(self.format, self.a1_x_mm, self.a1_y_mm, self.a1_x_pixel, self.a1_y_pixel, self.well_size_mm, self.spacing_mm, self.number_of_skip)
+        self.setFormat(format_)
 
     def onDoubleClick(self,row,col):
         print("double click well", row, col)
-        if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
-            self.signal_wellSelected.emit(True)
-            x_mm = col*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-            y_mm = row*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+        if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
+            x_mm = col*self.spacing_mm + self.a1_x_mm + WELLPLATE_OFFSET_X_mm
+            y_mm = row*self.spacing_mm + self.a1_y_mm + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
+            print("well location:", (x_mm,y_mm))
+            self.signal_wellSelected.emit(True)
         else:
             self.signal_wellSelected.emit(False)
  
     def onSingleClick(self,row,col):
         print("single click well", row, col)
-        if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows-1-NUMBER_OF_SKIP ) and ( col >= 0 + NUMBER_OF_SKIP and col <= self.columns-1-NUMBER_OF_SKIP ):
+        if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
             self.signal_wellSelected.emit(True)
         else:
             self.signal_wellSelected.emit(False)
@@ -4010,11 +4055,14 @@ class WellSelectionWidget(QTableWidget):
     def get_selected_cells(self):
         print("getting selected wells...")
         list_of_selected_cells = []
+        if self.format == 0:
+            self.signal_wellSelected.emit(True)
+            return list_of_selected_cells
         for index in self.selectedIndexes():
             row, col = index.row(), index.column()
             # Check if the cell is within the allowed bounds
-            if (row >= 0 + NUMBER_OF_SKIP and row <= self.rows - 1 - NUMBER_OF_SKIP) and \
-               (col >= 0 + NUMBER_OF_SKIP and col <= self.columns - 1 - NUMBER_OF_SKIP):
+            if (row >= 0 + self.number_of_skip and row <= self.rows - 1 - self.number_of_skip) and \
+               (col >= 0 + self.number_of_skip and col <= self.columns - 1 - self.number_of_skip):
                 list_of_selected_cells.append((row, col))
         
         if not list_of_selected_cells:
@@ -4022,7 +4070,7 @@ class WellSelectionWidget(QTableWidget):
         else:
             print("wells:",list_of_selected_cells)
             self.signal_wellSelected.emit(True)
-        return(list_of_selected_cells)
+        return list_of_selected_cells
 
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout
@@ -4036,11 +4084,18 @@ class Well1536SelectionWidget(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.format = 1536
         self.selected_cells = {}  # Dictionary to keep track of selected cells and their colors
         self.current_cell = None  # To track the current (green) cell
         self.rows = 32
         self.columns = 48
         self.spacing_mm = 2.25
+        self.number_of_skip = 0
+        self.well_size_mm = 1.5
+        self.a1_x_mm = 11.0      # measured stage position - to update
+        self.a1_y_mm = 7.86      # measured stage position - to update
+        self.a1_x_pixel = 144    # coordinate on the png - to update
+        self.a1_y_pixel = 108    # coordinate on the png - to update
         self.initUI()
 
     def initUI(self):
@@ -4101,8 +4156,8 @@ class Well1536SelectionWidget(QWidget):
             col_index = int(col_part) - 1
             self.current_cell = (row_index, col_index)  # Update the current cell
             self.redraw_wells()  # Redraw with the new current cell
-            x_mm = col_index*WELL_SPACING_MM + A1_X_MM + WELLPLATE_OFFSET_X_mm
-            y_mm = row_index*WELL_SPACING_MM + A1_Y_MM + WELLPLATE_OFFSET_Y_mm
+            x_mm = col_index * self.spacing_mm + self.a1_x_mm + WELLPLATE_OFFSET_X_mm
+            y_mm = row_index * self.spacing_mm + self.a1_y_mm + WELLPLATE_OFFSET_Y_mm
             self.signal_wellSelectedPos.emit(x_mm,y_mm)
 
     def select_cells(self):

@@ -272,7 +272,7 @@ class OctopiGUI(QMainWindow):
         else:
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
-        self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
+        self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=f'{WELLPLATE_FORMAT} well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
@@ -281,7 +281,8 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None) # =self.scanCoordinates
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        
+        self.wellplateFormatWidget = widgets.WellplateFormatWidget()
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         else:
@@ -338,8 +339,12 @@ class OctopiGUI(QMainWindow):
         self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
 
         # layout widgets
+        top_row_layout = QHBoxLayout()
+        top_row_layout.addWidget(self.objectivesWidget)
+        top_row_layout.addWidget(self.wellplateFormatWidget)
+
         layout = QVBoxLayout() #layout = QStackedLayout()
-        #layout.addWidget(self.cameraSettingWidget)
+        layout.addLayout(top_row_layout)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.microscopeControlTabWidget)
         if SHOW_DAC_CONTROL:
@@ -364,7 +369,7 @@ class OctopiGUI(QMainWindow):
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
-            #self.dock_wellSelection.addWidget(self.wellFormatWidget) # todo: add widget to select wellplate format
+            #self.dock_wellSelection.addWidget(self.wellplateFormatWidget) # todo: add widget to select wellplate format
             self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
             # dock_controlPanel.showTitleBar()
@@ -488,6 +493,11 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
         # (double) click to move to a well
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.scanCoordinates.update_wellplate_settings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(lambda format_, *args: self.onWellplateChanged(format_))
+
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
 
@@ -595,8 +605,33 @@ class OctopiGUI(QMainWindow):
 
     def onTabChanged(self, index):
         acquisitionWidget = self.recordTabWidget.widget(index)
-        self.toggleWellSelector(index)
+        if self.wellSelectionWidget.format != 0:
+            self.toggleWellSelector(index)
         acquisitionWidget.emit_selected_channels()
+
+    def onWellplateChanged(self, format_):
+        if ENABLE_FLEXIBLE_MULTIPOINT:
+            self.multiPointWidget2.clear_only_location_list()
+        if format_ == 0:
+            self.toggleWellSelector(True)
+        else:
+            self.toggleWellSelector(False)
+            if format_ == 1536:
+                self.wellSelectionWidget.setParent(None)
+                self.wellSelectionWidget.deleteLater()
+                self.wellSelectionWidget = widgets.Well1536SelectionWidget()
+                self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+                self.dock_wellSelection.addWidget(self.wellSelectionWidget)
+                self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+            elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
+                self.wellSelectionWidget.setParent(None)
+                self.wellSelectionWidget.deleteLater()
+                self.wellSelectionWidget = widgets.WellSelectionWidget(format_)
+                self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+                self.dock_wellSelection.addWidget(self.wellSelectionWidget)
+                self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
+                self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+                self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
 
     def toggleWellSelector(self, close):
         self.dock_wellSelection.setVisible(not close)
@@ -605,9 +640,9 @@ class OctopiGUI(QMainWindow):
         current_index = self.recordTabWidget.currentIndex()
         for index in range(self.recordTabWidget.count()):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
-        if current_index == 0:
+        if current_index == 0 and self.wellSelectionWidget.format != 0:
             self.dock_wellSelection.setVisible(not acquisition_started)
-
+        
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 

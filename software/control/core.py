@@ -690,7 +690,6 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
-
     def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9):
         """
         napariTiledDisplay uses the Nx, Ny, dx_mm, dy_mm fields to move to the correct fov first
@@ -704,15 +703,19 @@ class NavigationController(QObject):
         click_x = image_width / 2.0 + click_x
         click_y = image_height / 2.0 - click_y
         print("click - (x, y):", (click_x, click_y))
-        cx = click_x * Nx // image_width
-        cy = click_y * Ny // image_height
-        print("fov - (col, row):", (cx, cy))
-        pixel_sign_x = 1
+        click_col = click_x * Nx // image_width
+        click_row = click_y * Ny // image_height
+        print("fov - (col, row):", (click_col, click_row))
+        end_position_x = Ny % 2 # right side or left side
+        d_col = Nx - (click_col + 1) if end_position_x else click_col
+        print("d_col, row:", d_col, click_row)
+
+        pixel_sign_x = 1 * (-1)**end_position_x
         pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
  
         # move to selected fov
-        self.move_x_to(self.scan_begin_position_x+dx_mm*cx*pixel_sign_x)
-        self.move_y_to(self.scan_begin_position_y-dy_mm*cy*pixel_sign_y)
+        self.move_x_to(self.scan_begin_position_x+dx_mm*d_col*pixel_sign_x)
+        self.move_y_to(self.scan_begin_position_y-dy_mm*click_row*pixel_sign_y)
 
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -721,7 +724,7 @@ class NavigationController(QObject):
         offset_y = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
         offset_x_centered = int(offset_x - tile_width / 2)
         offset_y_centered = int(tile_height / 2 - offset_y)
-        self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
+        self.move_from_click(offset_x_centered, offset_y_centered, tile_width, tile_height)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -1623,9 +1626,8 @@ class MultiPointWorker(QObject):
 
         if self.multiPointController.location_list is None:
             # use scanCoordinates for well plates or regular multipoint scan
-            if self.multiPointController.scanCoordinates!=None:
+            if self.multiPointController.scanCoordinates!=None and self.multiPointController.scanCoordinates.get_selected_wells():
                 # use scan coordinates for the scan
-                self.multiPointController.scanCoordinates.get_selected_wells()
                 self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
                 self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
                 self.use_scan_coordinates = True
@@ -2237,6 +2239,9 @@ class MultiPointWorker(QObject):
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
             # finished XY scan
+            if SHOW_TILED_PREVIEW and IS_HCS:
+                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
                 if self.NY > 1:
@@ -2246,14 +2251,14 @@ class MultiPointWorker(QObject):
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                     self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
 
+                if SHOW_TILED_PREVIEW and not IS_HCS:
+                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
                 # move x back at the end of the scan
                 if self.x_scan_direction == -1:
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-                if SHOW_TILED_PREVIEW:
-                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:
@@ -3124,12 +3129,33 @@ class ImageDisplayWindow(QMainWindow):
         self.autoLevels = enabled
         print('set autolevel to ' + str(enabled))
 
+
 class NavigationViewer(QFrame):
 
     def __init__(self, sample = 'glass slide', invertX = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.sample = sample
+        self.well_size_mm = WELL_SIZE_MM
+        self.well_spacing_mm = WELL_SPACING_MM
+        self.number_of_skip = NUMBER_OF_SKIP
+        self.a1_x_mm = A1_X_MM
+        self.a1_y_mm = A1_Y_MM
+        self.a1_x_pixel = A1_X_PIXEL
+        self.a1_y_pixel = A1_Y_PIXEL
+        self.location_update_threshold_mm = 0.2
+        self.box_color = (255, 0, 0)
+        self.box_line_thickness = 2
+        self.x_mm = None
+        self.y_mm = None
 
+        print("navigation viewer:", sample)
+        self.init_ui(invertX)
+        self.load_background_image(sample)
+        self.update_display_properties(sample)
+        self.update_display()
+
+    def init_ui(self, invertX):
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.graphics_widget = pg.GraphicsLayoutWidget()
@@ -3145,47 +3171,54 @@ class NavigationViewer(QFrame):
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
 
-        if sample == 'glass slide':
-            self.background_image = cv2.imread('images/slide carrier_828x662.png')
-        elif sample == '384 well plate':
-            self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
-        elif sample == '96 well plate':
-            self.background_image = cv2.imread('images/96 well plate_1509x1010.png')
-        elif sample == '24 well plate':
-            self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
-        elif sample == '12 well plate':
-            self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
-        elif sample == '6 well plate':
-            self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
-        elif sample == '1536 well plate':
-            self.background_image = cv2.imread('images/1536 well plate_1509x1010.png')
-        
+    def load_background_image(self, sample):
+        image_paths = {
+            'glass slide': 'images/slide carrier_828x662.png',
+            '6 well plate': 'images/6 well plate_1509x1010.png',
+            '12 well plate': 'images/12 well plate_1509x1010.png',
+            '24 well plate': 'images/24 well plate_1509x1010.png',
+            '96 well plate': 'images/96 well plate_1509x1010.png',
+            '384 well plate': 'images/384 well plate_1509x1010.png',
+            '1536 well plate': 'images/1536 well plate_1509x1010.png'
+        }
+        self.background_image = cv2.imread(image_paths.get(sample, 'images/slide carrier_828x662.png'))
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
 
-        self.location_update_threshold_mm = 0.2
-        self.sample = sample
-
+    def update_display_properties(self, sample):
         if sample == 'glass slide':
-            self.origin_x_pixel = 200
-            self.origin_y_pixel = 120
+            self.location_update_threshold_mm = 0.2
             self.mm_per_pixel = 0.1453
             self.fov_size_mm = 3000*1.85/(50/9)/1000
+            self.origin_x_pixel = 200
+            self.origin_y_pixel = 120
+            self.graphics_widget.view.invertY(False)
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
             self.fov_size_mm = 3000*1.85/(50/10)/1000
-            self.origin_x_pixel = A1_X_PIXEL - (A1_X_MM)/self.mm_per_pixel
-            self.origin_y_pixel = A1_Y_PIXEL - (A1_Y_MM)/self.mm_per_pixel
+            self.origin_x_pixel = self.a1_x_pixel - (self.a1_x_mm)/self.mm_per_pixel
+            self.origin_y_pixel = self.a1_y_pixel - (self.a1_y_mm)/self.mm_per_pixel
+            self.graphics_widget.view.invertY(True)
 
-        self.box_color = (255, 0, 0)
-        self.box_line_thickness = 2
-
-        self.x_mm = None
-        self.y_mm = None
-
+    def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
+        if sample_format == 0:
+            sample = 'glass slide'
+        else:
+            sample = f'{sample_format} well plate'
+        self.sample = sample
+        self.a1_x_mm = a1_x_mm
+        self.a1_y_mm = a1_y_mm
+        self.a1_x_pixel = a1_x_pixel
+        self.a1_y_pixel = a1_y_pixel
+        self.well_size_mm = well_size_mm
+        self.well_spacing_mm = well_spacing_mm
+        self.number_of_skip = number_of_skip
+        self.load_background_image(sample)
+        self.update_display_properties(sample)
+        self.draw_current_fov(self.x_mm,self.y_mm)
         self.update_display()
 
     def update_current_location(self,x_mm,y_mm):
@@ -3528,6 +3561,11 @@ class ScanCoordinates(object):
         self.coordinates_mm = []
         self.name = []
         self.well_selector = None
+        self.a1_x_mm = A1_X_MM
+        self.a1_y_mm = A1_Y_MM
+        self.wellplate_offset_x_mm = WELLPLATE_OFFSET_X_mm
+        self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
+        self.well_spacing_mm = WELL_SPACING_MM
 
     def _index_to_row(self,index):
         index += 1
@@ -3541,6 +3579,16 @@ class ScanCoordinates(object):
     def add_well_selector(self,well_selector):
         self.well_selector = well_selector
 
+    def update_wellplate_settings(self, format_, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, size_mm, spacing_mm, number_of_skip):
+        self.format = format_
+        self.a1_x_mm = a1_x_mm
+        self.a1_y_mm = a1_y_mm
+        self.a1_x_pixel = a1_x_pixel
+        self.a1_y_pixel = a1_y_pixel
+        self.well_size_mm = size_mm
+        self.well_spacing_mm = spacing_mm
+        self.number_of_skip = number_of_skip
+
     def get_selected_wells(self):
         # get selected wells from the widget
         selected_wells = self.well_selector.get_selected_cells()
@@ -3549,7 +3597,7 @@ class ScanCoordinates(object):
         self.coordinates_mm = []
         self.name = []
         if len(selected_wells) == 0:
-            return
+            return False # if no well selected
         # populate the coordinates
         rows = np.unique(selected_wells[:,0])
         _increasing = True
@@ -3560,11 +3608,13 @@ class ScanCoordinates(object):
             if _increasing==False:
                 columns = np.flip(columns)
             for column in columns:
-                x_mm = A1_X_MM + column*WELL_SPACING_MM + WELLPLATE_OFFSET_X_mm
-                y_mm = A1_Y_MM + row*WELL_SPACING_MM + WELLPLATE_OFFSET_Y_mm
+                x_mm = self.a1_x_mm + column*self.well_spacing_mm + self.wellplate_offset_x_mm
+                y_mm = self.a1_y_mm + row*self.well_spacing_mm + self.wellplate_offset_y_mm
+                print("Scan Coordinates:", (x_mm, y_mm))
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
+        return len(selected_wells) # if wells selected
 
 
 class LaserAutofocusController(QObject):
