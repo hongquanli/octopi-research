@@ -52,6 +52,7 @@ static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
 static const int ANALOG_WRITE_ONBOARD_DAC = 15;
 static const int SET_DAC80508_REFDIV_GAIN = 16;
 static const int SET_ILLUMINATION_INTENSITY_FACTOR = 17;
+static const int SET_TRIGGER_DELAY_TIME = 18;
 static const int SET_LIM_SWITCH_POLARITY = 20;
 static const int CONFIGURE_STEPPER_DRIVER = 21;
 static const int SET_MAX_VELOCITY_ACCELERATION = 22;
@@ -138,7 +139,9 @@ const int pin_PG = 0;
 /***************************************************************************************************/
 /************************************ camera trigger and strobe ************************************/
 /***************************************************************************************************/
-static const int TRIGGER_PULSE_LENGTH_us = 50;
+// trigger delay + exposure time
+uint32_t trigger_delay_pulse_length_us = 50;
+
 bool trigger_output_level[6] = {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
 bool control_strobe[6] = {false, false, false, false, false, false};
 bool strobe_output_level[6] = {LOW, LOW, LOW, LOW, LOW, LOW};
@@ -1454,6 +1457,11 @@ void loop() {
             trigger_output_level[camera_channel] = LOW;
             break;
           }
+        case SET_TRIGGER_DELAY_TIME:
+          {
+            trigger_delay_pulse_length_us = uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]);
+            break;
+          }
         case SET_PIN_LEVEL:
           {
             int pin = buffer_rx[2];
@@ -1565,7 +1573,7 @@ void loop() {
   for (int camera_channel = 0; camera_channel < 6; camera_channel++)
   {
     // end the trigger pulse
-    if (trigger_output_level[camera_channel] == LOW && (micros() - timestamp_trigger_rising_edge[camera_channel]) >= TRIGGER_PULSE_LENGTH_us )
+    if (trigger_output_level[camera_channel] == LOW && (micros() - timestamp_trigger_rising_edge[camera_channel]) >= trigger_delay_pulse_length_us )
     {
       digitalWrite(camera_trigger_pins[camera_channel], HIGH);
       trigger_output_level[camera_channel] = HIGH;

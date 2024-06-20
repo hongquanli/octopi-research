@@ -171,6 +171,9 @@ class Camera(object):
             self.Width = resolution[0]
             self.Height = resolution[1]
 
+        # hardware trigger delay (us)
+        self.hardware_trigger_delay = 50
+
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
             time.sleep(2)
@@ -713,6 +716,98 @@ class Camera(object):
         # self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         # self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
         pass
+    
+    def calculate_hardware_trigger_arguments(self):
+        # use camera arguments such as resolutuon, ROI, exposure time, FPS, bandwidth to calculate the trigger delay time
+        resolution_width = 0
+        resolution_height = 0
+
+        roi_width = 0
+        roi_height = 0
+
+        pixel_bits = self.pixel_size_byte * 8
+        print(f'pixel_bits = {pixel_bits}')
+
+        line_length = 0
+        low_noise = 0
+
+        row_time = 0
+
+        vheight = 0
+
+        exp_length = 0
+
+        SHR = 0
+
+        TRG_DELAY = 0
+
+        try:
+            resolution_width, resolution_height = self.camera.get_Size()
+            print(f'res width = {resolution_width} res height = {resolution_height}')
+        except toupcam.HRESULTException as ex:
+            print('get resolution fail, hr=0x{:x}'.format(ex.hr))
+
+        xoffset, yoffset, roi_width, roi_height = self.camera.get_Roi()
+        print(f'roi_width = {roi_width} roi_height = {roi_height}')
+
+        bandwidth = self.camera.get_Optional(toupcam.TOUPCAM_OPTION_BANDWIDTH) 
+        print(f'bandwidth = {bandwidth}')
+        if self.has_low_noise_mode:
+            low_noise = self.camera.get_Optional(toupcam.TOUPCAM_OPTION_LOW_NOISE)
+        print(f'low_noise = {low_noise}')
+
+        if resolution_width == 6224 and resolution_height == 4168:
+            if pixel_bits == 8:
+                line_length = 1200 * (roi_width / 6224)
+                if line_length < 450:
+                    line_length = 450
+            elif pixel_bits == 16:
+                if low_noise == 1:
+                    line_length = 5000
+                elif low_noise == 0:
+                    line_length = 2500
+        elif resolution_width == 3104 and resolution_height == 2048: 
+            if pixel_bits == 8:
+                line_length = 906
+            elif pixel_bits == 16:
+                line_length = 1200
+        elif resolution_width == 2064 and resolution_height == 1368: 
+            if pixel_bits == 8:
+                line_length = 454
+            elif pixel_bits == 16:
+                line_length = 790
+
+        line_length = int(line_length / (bandwidth / 100.0))
+        print(f'line_length = {line_length}')
+
+        row_time = line_length / 72
+        print(f'row_time = {row_time}')
+
+        Frame, Time, TotalFrame = self.camera.get_frameRate()
+        FPS = Frame * 1000 / Time
+
+        vheight = 72000000 / (FPS * line_length)
+        if vheight < roi_height + 56:
+            vheight = roi_height + 56
+        print(f'vheight = {vheight}')
+        
+        print(f'exposure_time = {self.exposure_time}')
+        exp_length = 72 * self.exposure_time * 1000 / line_length
+
+        print(f'exp_length = {exp_length}')
+
+        if vheight >= exp_length - 1:
+            SHR = vheight - exp_length
+        else:
+            SHR = 1
+
+        print(f'SHR = {SHR}')
+
+        TRG_DELAY = int((SHR * line_length) / 72)
+        print(f'TRG_DELAY = {TRG_DELAY}')
+        
+        self.hardware_trigger_delay = TRG_DELAY
+
 
 class Camera_Simulation(object):
     
@@ -770,6 +865,9 @@ class Camera_Simulation(object):
         self.OffsetY = 0
 
         self.brand = 'ToupTek'
+
+        # hardware trigger delay (us)
+        self.hardware_trigger_delay = 50
 
     def open(self,index=0):
         pass
@@ -882,4 +980,7 @@ class Camera_Simulation(object):
         pass
 
     def set_line3_to_exposure_active(self):
+        pass
+
+    def calculate_hardware_trigger_arguments(self):
         pass
