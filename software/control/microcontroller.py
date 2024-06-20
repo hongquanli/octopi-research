@@ -143,6 +143,15 @@ class Microcontroller():
         cmd[6] = strobe_delay_us & 0xff
         self.send_command(cmd)
 
+    def set_trigger_delay_time_us(self, trigger_delay_us):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_TRIGGER_DELAY_TIME
+        cmd[2] = strobe_delay_us >> 24
+        cmd[3] = (strobe_delay_us >> 16) & 0xff
+        cmd[4] = (strobe_delay_us >> 8) & 0xff
+        cmd[5] = strobe_delay_us & 0xff
+        self.send_command(cmd)
+
     '''
     def move_x(self,delta):
         direction = int((np.sign(delta)+1)/2)
@@ -1125,6 +1134,15 @@ class Microcontroller_Simulation():
         cmd[4] = (strobe_delay_us >> 16) & 0xff
         cmd[5] = (strobe_delay_us >> 8) & 0xff
         cmd[6] = strobe_delay_us & 0xff
+        self.send_command(cmd)
+
+    def set_trigger_delay_time_us(self, trigger_delay_us):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_TRIGGER_DELAY_TIME
+        cmd[2] = strobe_delay_us >> 24
+        cmd[3] = (strobe_delay_us >> 16) & 0xff
+        cmd[4] = (strobe_delay_us >> 8) & 0xff
+        cmd[5] = strobe_delay_us & 0xff
         self.send_command(cmd)
 
     def get_pos(self):
