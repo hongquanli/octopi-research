@@ -575,7 +575,7 @@ class FilterController:
         '''
         the function is inner function, be used to move wheel to a given position 
         '''
-        cmd_str = '/move rel ' + str(self.offset)
+        cmd_str = '/move rel ' + str(self.offset_position)
         self.send_command(cmd_str)
         timeout = 50
         while timeout != 0:
@@ -583,8 +583,8 @@ class FilterController:
             time.sleep(0.1)
             self.send_command('/get pos')
             result = self.get_position()
-            if result[0] == True and result[1] == self.offset:
-                self.current_position = self.offset
+            if result[0] == True and result[1] == self.offset_position:
+                self.current_position = self.offset_position
                 return
         print('filter move offset timeout')
 
