@@ -713,7 +713,11 @@ class NavigationController(QObject):
  
         # move to selected fov
         self.move_x_to(self.scan_begin_position_x+dx_mm*cx*pixel_sign_x)
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
         self.move_y_to(self.scan_begin_position_y-dy_mm*cy*pixel_sign_y)
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
 
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -1864,7 +1868,7 @@ class MultiPointWorker(QObject):
                             real_i = self.NY-1-i if sgn_i == -1 else i
                             real_j = j if sgn_j == 1 else self.NX-1-j
 
-                            file_ID = coordinate_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
+                            file_ID = coordinate_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
@@ -1874,6 +1878,13 @@ class MultiPointWorker(QObject):
                                 saving_path = os.path.join(current_path, file_ID + '_laser af camera' + '.bmp')
                                 iio.imwrite(saving_path,image)
 
+                            # I_fluorescence = None
+                            # I_left = None
+                            # I_right = None
+
+                            # dpc_L = None
+                            # dpc_R = None
+                            
                             current_round_images = {}
                             # iterate through selected modes
                             for config in self.selected_configurations:
@@ -1978,6 +1989,15 @@ class MultiPointWorker(QObject):
                                                 iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
                                             else:
                                                 iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
+
+                                    # if config.name == 'BF LED matrix left half':
+                                    #     I_left = np.copy(image)
+                                    #     dpc_L = I_left
+                                    # elif config.name == 'BF LED matrix right half':
+                                    #     I_right = np.copy(image)
+                                    #     dpc_R = I_right
+                                    # elif config.name == 'Fluorescence 405 nm Ex':
+                                    #     I_fluorescence = np.copy(image)
 
                                     QApplication.processEvents()
 
@@ -2122,6 +2142,18 @@ class MultiPointWorker(QObject):
                                     malaria_rtp(I_fluorescence, I_left, I_right, self,classification_test_mode=CLASSIFICATION_TEST_MODE,sort_during_multipoint=SORT_DURING_MULTIPOINT,disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
                                 except AttributeError as e:
                                     print(repr(e))
+
+                            # if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
+                            #     if CLASSIFICATION_TEST_MODE: # testing mode
+                            #         I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
+                            #         I_fluorescence = I_fluorescence[:,:,::-1]
+                            #         I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
+                            #         I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
+                            #     processing_fn = process_fn_with_count_and_display
+                            #     processing_args = [process_fov, I_fluorescence.copy(),I_left.copy(), I_right.copy(), self.microscope.model, self.microscope.device, self.microscope.classification_th]
+                            #     processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler, 'multiPointWorker':self,'sort':SORT_DURING_MULTIPOINT,'disp_th':DISP_TH_DURING_MULTIPOINT}
+                            #     task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
+                            #     self.processingHandler.processing_queue.put(task_dict)
                                                             
                             # add the coordinate of the current location
                             if IS_HCS:
