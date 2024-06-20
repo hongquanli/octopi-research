@@ -1,0 +1,64 @@
+{
+    "default_save_path": "m2unet_model_flat_erode1_wdecay5_smallbatch/model.pth",
+    "model_config": {
+      "type": "m2unet",
+      "input_channels": 1,
+      "activation": "sigmoid",
+      "output_channels": 1,
+      "loss": { "name": "BCELoss", "kwargs": {} },
+      "optimizer": {
+        "name": "RMSprop",
+        "kwargs": { "lr": 0.01, "weight_decay": 1e-5, "momentum": 0.9 }
+      },
+      "augmentation": {
+        "__version__": "1.2.1",
+        "transform": {
+          "__class_fullname__": "Compose",
+          "p": 1.0,
+          "transforms": [
+            {
+              "__class_fullname__": "Rotate",
+              "always_apply": false,
+              "p": 1,
+              "limit": [-10, 10],
+              "interpolation": 1,
+              "border_mode": 4,
+              "value": null,
+              "mask_value": null,
+              "method": "largest_box",
+              "crop_border": false
+            },
+            {
+              "__class_fullname__": "RandomCrop",
+              "always_apply": false,
+              "p": 1.0,
+              "height": 1500,
+              "width": 1500
+            },
+            {
+              "__class_fullname__": "HorizontalFlip",
+              "always_apply": false,
+              "p": 0.5
+            },
+            {
+              "__class_fullname__": "VerticalFlip",
+              "always_apply": false,
+              "p": 0.5
+            },
+            {
+              "__class_fullname__": "CenterCrop",
+              "always_apply": false,
+              "p": 1.0,
+              "height": 1024,
+              "width": 1024
+            }
+          ],
+          "bbox_params": null,
+          "keypoint_params": null,
+          "additional_targets": {}
+        }
+      }
+    },
+    "model_id": null
+  }
+  
