@@ -9,17 +9,23 @@ import numpy as np
 ### and multiPointWorker.classification_th
 
 def malaria_rtp(I_fluorescence, I_left, I_right, multiPointWorker,classification_test_mode=False,sort_during_multipoint=True,disp_th_during_multipoint=0.95):
-            # real time processing 
+    # real time processing 
     print("malaria_rtp")
     print(multiPointWorker.microscope.dataHandler)
     print(multiPointWorker.microscope.model)
     print(multiPointWorker.microscope.device)
     print(multiPointWorker.classification_th)
+
     if classification_test_mode: # testing mode
         I_fluorescence = imageio.v2.imread('tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
         I_fluorescence = I_fluorescence[:,:,::-1]
         I_left = imageio.v2.imread('tmp/1_1_0_BF_LED_matrix_left_half.bmp')
         I_right = imageio.v2.imread('tmp/1_1_0_BF_LED_matrix_right_half.bmp')
+   
+    print("Fluorescent Image:", I_fluorescence.shape)
+    print("BF Left Image:", I_left.shape)
+    print("BF Right Image:", I_right.shape)
+    
     processing_fn = process_fn_with_count_and_display
     processing_args = [process_fov, np.copy(I_fluorescence),np.copy(I_left), np.copy(I_right), multiPointWorker.microscope.model, multiPointWorker.microscope.device, multiPointWorker.microscope.classification_th]
     processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':multiPointWorker.microscope.dataHandler, 'multiPointWorker':multiPointWorker,'sort':sort_during_multipoint,'disp_th':disp_th_during_multipoint}
