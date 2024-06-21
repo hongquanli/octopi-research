@@ -338,13 +338,16 @@ class OctopiGUI(QMainWindow):
         self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
         self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
 
-        # layout widgets
+        # Creating the frame widget
+        frame = QFrame()
+        frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        # Creating the top row layout and adding widgets
         top_row_layout = QHBoxLayout()
         top_row_layout.addWidget(self.objectivesWidget)
         top_row_layout.addWidget(self.wellplateFormatWidget)
-
+        frame.setLayout(top_row_layout)  # Set the layout on the frame
         layout = QVBoxLayout() #layout = QStackedLayout()
-        layout.addLayout(top_row_layout)
+        layout.addWidget(frame)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.microscopeControlTabWidget)
         if SHOW_DAC_CONTROL:
@@ -614,8 +617,27 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget2.clear_only_location_list()
         if format_ == 0:
             self.toggleWellSelector(True)
+            self.multipointController.inverted_objective = False
+            self.navigationController.inverted_objective = False
+            self.slidePositionController.setParent(None)
+            self.slidePositionController.deleteLater()
+            self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+            self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
         else:
             self.toggleWellSelector(False)
+            self.multipointController.inverted_objective = True
+            self.navigationController.inverted_objective = True
+            self.slidePositionController.setParent(None)
+            self.slidePositionController.deleteLater()
+            self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+            self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
             if format_ == 1536:
                 self.wellSelectionWidget.setParent(None)
                 self.wellSelectionWidget.deleteLater()
