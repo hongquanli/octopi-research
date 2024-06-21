@@ -1598,10 +1598,10 @@ class AutoFocusWidget(QFrame):
 
 
 class FilterControllerWidget(QFrame):
-    def __init__(self, filterController, disable_flag, main=None, *args, **kwargs):
+    def __init__(self, filterController, liveController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.filterController = filterController
-        self.disable = disable_flag
+        self.liveController = liveController
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1615,6 +1615,7 @@ class FilterControllerWidget(QFrame):
         layout.addWidget(QLabel('Filter wheel position:'), 0,0)
         layout.addWidget(self.comboBox, 0,1)
         layout.addWidget(self.checkBox, 2,0)
+        layout.addStretch()
 
         self.setLayout(layout)
         
@@ -1628,7 +1629,9 @@ class FilterControllerWidget(QFrame):
 
     def disable_movement_by_switching_channels(self, state):
         if state:
-            self.disable = True
+            self.liveController.enable_channel_auto_filter_switching = False
+        else:
+            self.liveController.enable_channel_auto_filter_switching = True
 
 
 class StatsDisplayWidget(QFrame):

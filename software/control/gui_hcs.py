@@ -276,7 +276,7 @@ class OctopiGUI(QMainWindow):
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController.DISABLE_FILTER_WHEEL_MOVEMENT)
+            self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
