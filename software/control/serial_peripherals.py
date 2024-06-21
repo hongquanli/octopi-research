@@ -451,6 +451,10 @@ class FilterController_Simulation:
     def __init__(self, _baudrate, _bytesize, _parity, _stopbits):
         self.each_hole_microsteps = 4800
         self.current_position = 0
+        '''
+        the variable be used to keep current offset of wheel
+        it could be used by get the index of wheel position, the index could be '1', '2', '3' ... 
+        '''
         self.offset_position = 0
 
         self.deviceinfo = FilterDeviceInfo()
@@ -478,7 +482,7 @@ class FilterController:
     def __init__(self, SN, _baudrate, _bytesize, _parity, _stopbits):
         self.each_hole_microsteps = 4800
         self.current_position = 0
-        self.offset_position = 0
+        self.offset_position = -8500
 
         self.deviceinfo = FilterDeviceInfo()
         optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
@@ -535,8 +539,13 @@ class FilterController:
     def get_info(self, cmd):
         cmd = cmd + '\n'
         if self.serial.isOpen(): 
-            self.serial.write(cmd.encode('utf-8')) 
-            result = self.serial.readline()
+            try:
+                self.serial.write(cmd.encode('utf-8')) 
+                result = self.serial.readline()
+                if not result:
+                    print("No response from filter controller")
+            except Exception as e:
+                print("Error occurred communicating with filter controller")
             data_string = result.decode('utf-8')
             return_list = data_string.split(' ')
             if return_list[2] == 'OK' and return_list[3] == 'IDLE':
@@ -567,8 +576,11 @@ class FilterController:
         index = (self.current_position - self.offset_position) / self.each_hole_microsteps
         return int(index)
 
-    def _move_offset_position(self, offset):
-        cmd_str = '/move rel ' + str(offset)
+    def move_to_offset(self):
+        '''
+        the function is inner function, be used to move wheel to a given position 
+        '''
+        cmd_str = '/move rel ' + str(self.offset_position)
         self.send_command(cmd_str)
         timeout = 50
         while timeout != 0:
@@ -576,9 +588,8 @@ class FilterController:
             time.sleep(0.1)
             self.send_command('/get pos')
             result = self.get_position()
-            if result[0] == True and result[1] == self.current_position + offset:
-                self.current_position += offset
-                self.offset_position = offset
+            if result[0] == True and result[1] == self.offset_position:
+                self.current_position = self.offset_position
                 return
         print('filter move offset timeout')
 
@@ -615,17 +626,23 @@ class FilterController:
         return self.get_index() + 1
 
     def do_homing(self):
+        '''
+        the /home command just make the wheel start to move
+        '''
         self.send_command('/home')
 
     def wait_homing_finish(self):
-        timesout = 100
-        while timesout != 0:
-            timesout -= 1
+        '''
+        the function is used to make the wheel be moving to the setting position 
+        '''
+        timeout_counter = 100
+        while timeout_counter != 0:
+            timeout_counter -= 1
             time.sleep(0.5)
             self.send_command('/get pos')
             result = self.get_position()
             if result[0] == True and result[1] == 0:
                 self.current_position = 0
-                self._move_offset_position(1100)
+                self.move_to_offset()
                 return
         print('Filter device homing fail')

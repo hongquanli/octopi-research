@@ -275,6 +275,8 @@ class OctopiGUI(QMainWindow):
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController.DISABLE_FILTER_WHEEL_MOVEMENT)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
@@ -336,6 +338,8 @@ class OctopiGUI(QMainWindow):
             self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
         self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
         self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+        if USE_ZABER_EMISSION_FILTER_WHEEL:
+            self.microscopeControlTabWidget.addTab(self.filterControllerWidget,"Filter")
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
