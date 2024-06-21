@@ -1615,7 +1615,6 @@ class FilterControllerWidget(QFrame):
         layout.addWidget(QLabel('Filter wheel position:'), 0,0)
         layout.addWidget(self.comboBox, 0,1)
         layout.addWidget(self.checkBox, 2,0)
-        layout.addStretch()
 
         self.setLayout(layout)
         
