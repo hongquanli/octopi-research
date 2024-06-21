@@ -391,7 +391,8 @@ class Configuration:
             self._pixel_format_options = self.pixel_format
 
 class LiveController(QObject):
-
+    DISABLE_FILTER_WHEEL_MOVEMENT = False
+    
     def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.microscope = parent
@@ -504,7 +505,7 @@ class LiveController(QObject):
                 except Exception as e:
                     print('not setting emission filter position due to ' + str(e))
 
-                if USE_ZABER_EMISSION_FILTER_WHEEL:
+                if USE_ZABER_EMISSION_FILTER_WHEEL and not self.DISABLE_FILTER_WHEEL_MOVEMENT:
                     try:
                         self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
                     except Exception as e:

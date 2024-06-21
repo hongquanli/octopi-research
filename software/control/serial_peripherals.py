@@ -535,8 +535,13 @@ class FilterController:
     def get_info(self, cmd):
         cmd = cmd + '\n'
         if self.serial.isOpen(): 
-            self.serial.write(cmd.encode('utf-8')) 
-            result = self.serial.readline()
+            try:
+                self.serial.write(cmd.encode('utf-8')) 
+                result = self.serial.readline()
+                if not result:
+                    print("No response from filter controller")
+            except Exception as e:
+                print("Error occurred communicating with filter controller")
             data_string = result.decode('utf-8')
             return_list = data_string.split(' ')
             if return_list[2] == 'OK' and return_list[3] == 'IDLE':
