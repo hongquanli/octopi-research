@@ -11,10 +11,6 @@ import numpy as np
 def malaria_rtp(I_fluorescence, I_left, I_right, multiPointWorker,classification_test_mode=False,sort_during_multipoint=True,disp_th_during_multipoint=0.95):
     # real time processing 
     print("malaria_rtp")
-    print(multiPointWorker.microscope.dataHandler)
-    print(multiPointWorker.microscope.model)
-    print(multiPointWorker.microscope.device)
-    print(multiPointWorker.classification_th)
 
     if classification_test_mode: # testing mode
         I_fluorescence = imageio.v2.imread('tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')

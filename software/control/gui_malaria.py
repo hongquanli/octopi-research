@@ -71,14 +71,15 @@ class OctopiGUI(QMainWindow):
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         # Display of detection result
         # core
-        self.dataHandler = DataHandler()
-        self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
+        if DO_FLUORESCENCE_RTP:
+            self.dataHandler = DataHandler()
+            self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
 
-        self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
-        self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
+            self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
 
-        self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
-        self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
+            self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
@@ -182,13 +183,30 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+        if DO_FLUORESCENCE_RTP:
+            self.dataLoaderWidget = DataLoaderWidget(self.dataHandler)
+            self.gallery = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler,is_main_gallery=True)
+            self.gallery_similarity = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_similarity,dataHandler2=self.dataHandler,is_for_similarity_search=True)
+            self.gallery_umap_selection = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_umap_selection,dataHandler2=self.dataHandler)
+            self.gallerySettings = GalleryViewSettingsWidget()
+            self.trainingAndVisualizationWidget = TrainingAndVisualizationWidget(self.dataHandler)
+            '''
+            self.plots = {}
+            self.plots['Labels'] = PiePlotWidget()
+            self.plots['Annotation Progress'] = BarPlotWidget()
+            self.plots['Inference Result'] = HistogramPlotWidget()
+            self.plots['Similarity'] = StemPlotWidget()
+            self.plots[dimentionality_reduction] = ScatterPlotWidget()
+            '''
+        
 
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
-        self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
+        if DO_FLUORESCENCE_RTP:
+            self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
         self.imageDisplayTabs = QTabWidget()
@@ -218,9 +236,19 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
+        if DO_FLUORESCENCE_RTP:
+            self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
+
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
         #layout.addWidget(self.cameraSettingWidget)
+        #
+        #layout.addWidget(self.dataLoaderWidget)
+        #layout.addWidget(self.gallerySettings)
+        #self.gallery_tab = QTabWidget()
+        #self.gallery_tab.addTab(self.gallery,'Full Dataset')
+        #layout.addWidget(self.gallery_tab)
+        #layout.addWidget(self.trainingAndVisualizationWidget)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
@@ -280,6 +308,8 @@ class OctopiGUI(QMainWindow):
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
+        if DO_FLUORESCENCE_RTP:
+            self.multipointController.detection_stats.connect(self.statsDisplayWidget.display_stats)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
@@ -336,141 +366,111 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
-        # widgets
-        self.dataLoaderWidget = DataLoaderWidget(self.dataHandler)
-        self.gallery = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler,is_main_gallery=True)
-        self.gallery_similarity = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_similarity,dataHandler2=self.dataHandler,is_for_similarity_search=True)
-        self.gallery_umap_selection = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_umap_selection,dataHandler2=self.dataHandler)
-        self.gallerySettings = GalleryViewSettingsWidget()
-        self.trainingAndVisualizationWidget = TrainingAndVisualizationWidget(self.dataHandler)
-        '''
-        self.plots = {}
-        self.plots['Labels'] = PiePlotWidget()
-        self.plots['Annotation Progress'] = BarPlotWidget()
-        self.plots['Inference Result'] = HistogramPlotWidget()
-        self.plots['Similarity'] = StemPlotWidget()
-        self.plots[dimentionality_reduction] = ScatterPlotWidget()
-        '''
+        if DO_FLUORESCENCE_RTP:
+            # connect
+            self.dataHandler.signal_set_total_page_count.connect(self.gallery.set_total_pages)
+            self.dataHandler.signal_populate_page0.connect(self.gallery.populate_page0)
 
-        # tab widget
-        self.gallery_tab = QTabWidget()
-        self.gallery_tab.addTab(self.gallery,'Full Dataset')
-        #self.gallery_tab.addTab(self.gallery_similarity,'Similarity Search')
-        #self.gallery_tab.addTab(self.gallery_umap_selection,dimentionality_reduction + ' Selection')
+            self.dataHandler_similarity.signal_set_total_page_count.connect(self.gallery_similarity.set_total_pages)
+            self.dataHandler_similarity.signal_populate_page0.connect(self.gallery_similarity.populate_page0)
 
-        # layout = QVBoxLayout()
-        # #layout.addWidget(self.dataLoaderWidget)
-        # #layout.addWidget(self.gallerySettings)
-        # layout.addWidget(self.gallery_tab)
-        # #layout.addWidget(self.trainingAndVisualizationWidget)
+            self.dataHandler_umap_selection.signal_set_total_page_count.connect(self.gallery_umap_selection.set_total_pages)
+            self.dataHandler_umap_selection.signal_populate_page0.connect(self.gallery_umap_selection.populate_page0)
 
-        # centralWidget = QWidget()
-        # centralWidget.setLayout(layout)
-        # #self.setCentralWidget(centralWidget)
+            # similarity search
+            self.gallery.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
+            # signal_updatePage will only be emitted by non-main galleries - (annotating in other galleries will not change the displayed annotations in the current page of the main gallery)
 
-        # connect
-        self.dataHandler.signal_set_total_page_count.connect(self.gallery.set_total_pages)
-        self.dataHandler.signal_populate_page0.connect(self.gallery.populate_page0)
+            self.gallery_similarity.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
+            self.gallery_similarity.signal_updatePage.connect(self.gallery.update_page)
 
-        self.dataHandler_similarity.signal_set_total_page_count.connect(self.gallery_similarity.set_total_pages)
-        self.dataHandler_similarity.signal_populate_page0.connect(self.gallery_similarity.populate_page0)
+            self.gallery_umap_selection.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
+            self.gallery_umap_selection.signal_updatePage.connect(self.gallery.update_page)
 
-        self.dataHandler_umap_selection.signal_set_total_page_count.connect(self.gallery_umap_selection.set_total_pages)
-        self.dataHandler_umap_selection.signal_populate_page0.connect(self.gallery_umap_selection.populate_page0)
+            # get selected images in UMAP scatter plot
+            ##self.plots[dimentionality_reduction].signal_selected_points.connect(self.dataHandler.prepare_selected_images)
+            self.dataHandler.signal_selected_images.connect(self.dataHandler_umap_selection.populate_selected_images)
 
-        # similarity search
-        self.gallery.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
-        # signal_updatePage will only be emitted by non-main galleries - (annotating in other galleries will not change the displayed annotations in the current page of the main gallery)
+            # show selected images in UMAP
+            self.gallery.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
+            self.gallery_similarity.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
+            self.gallery_umap_selection.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
 
-        self.gallery_similarity.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
-        self.gallery_similarity.signal_updatePage.connect(self.gallery.update_page)
+            #self.dataHandler.signal_umap_embedding.connect(self.plots[dimentionality_reduction].show_points)
 
-        self.gallery_umap_selection.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
-        self.gallery_umap_selection.signal_updatePage.connect(self.gallery.update_page)
+            # clear the overlay when images are de-selected
+            #self.gallery.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+            #self.gallery_similarity.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+            #self.gallery_umap_selection.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
 
-        # get selected images in UMAP scatter plot
-        ##self.plots[dimentionality_reduction].signal_selected_points.connect(self.dataHandler.prepare_selected_images)
-        self.dataHandler.signal_selected_images.connect(self.dataHandler_umap_selection.populate_selected_images)
+            # gallery settings
+            self.gallerySettings.signal_numRowsPerPage.connect(self.gallery.set_number_of_rows)
+            self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler.set_number_of_images_per_page)
+            self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler.set_k_similar)
 
-        # show selected images in UMAP
-        self.gallery.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
-        self.gallery_similarity.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
-        self.gallery_umap_selection.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
+            self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler_similarity.set_number_of_images_per_page)
+            self.gallerySettings.signal_numRowsPerPage.connect(self.gallery_similarity.set_number_of_rows)
+            self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_similarity.set_k_similar)
 
-        #self.dataHandler.signal_umap_embedding.connect(self.plots[dimentionality_reduction].show_points)
+            self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler_umap_selection.set_number_of_images_per_page)
+            self.gallerySettings.signal_numRowsPerPage.connect(self.gallery_umap_selection.set_number_of_rows)
+            self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_umap_selection.set_k_similar)
 
-        # clear the overlay when images are de-selected
-        #self.gallery.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
-        #self.gallery_similarity.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
-        #self.gallery_umap_selection.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+            # plots
+            '''
+            self.dataHandler.signal_annotation_stats.connect(self.plots['Labels'].update_plot)
+            self.dataHandler.signal_annotation_stats.connect(self.plots['Annotation Progress'].update_plot)
+            self.dataHandler.signal_predictions.connect(self.plots['Inference Result'].update_plot)
+            self.dataHandler.signal_distances.connect(self.plots['Similarity'].update_plot)
+            self.dataHandler.signal_UMAP_visualizations.connect(self.plots[dimentionality_reduction].update_plot)
+            '''
 
-        # gallery settings
-        self.gallerySettings.signal_numRowsPerPage.connect(self.gallery.set_number_of_rows)
-        self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler.set_number_of_images_per_page)
-        self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler.set_k_similar)
+            # dev mode
+            if False:
+                annotation_pd = pd.read_csv('tmp/score.csv',index_col='index')
+                images = np.load('tmp/test.npy')
+                self.dataHandler.load_images(images)
+                self.dataHandler.load_predictions(annotation_pd)
+                self.dataHandler.add_data(images,annotation_pd)
 
-        self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler_similarity.set_number_of_images_per_page)
-        self.gallerySettings.signal_numRowsPerPage.connect(self.gallery_similarity.set_number_of_rows)
-        self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_similarity.set_k_similar)
+            # deep learning classification
+            self.classification_th = 0.8
+            # model
+            # model_path = CLASSIFICATION_MODEL_PATH
+            model_path = 'tmp/model_perf_r34_b32.pt'
+            if torch.cuda.is_available():
+                self.model = torch.load(model_path)
+            else:
+                self.model = torch.load(model_path,map_location=torch.device('cpu'))
+                print('<<< using cpu >>>')
 
-        self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler_umap_selection.set_number_of_images_per_page)
-        self.gallerySettings.signal_numRowsPerPage.connect(self.gallery_umap_selection.set_number_of_rows)
-        self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_umap_selection.set_k_similar)
+            # cuda
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.model = self.model.to(self.device)
+            dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
+            if torch.cuda.is_available():
+                dummy_input = dummy_input.cuda()
+            dummy_model = self.model(dummy_input)
 
-        # plots
-        '''
-        self.dataHandler.signal_annotation_stats.connect(self.plots['Labels'].update_plot)
-        self.dataHandler.signal_annotation_stats.connect(self.plots['Annotation Progress'].update_plot)
-        self.dataHandler.signal_predictions.connect(self.plots['Inference Result'].update_plot)
-        self.dataHandler.signal_distances.connect(self.plots['Similarity'].update_plot)
-        self.dataHandler.signal_UMAP_visualizations.connect(self.plots[dimentionality_reduction].update_plot)
-        '''
-
-        self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
-
-        # dev mode
-        if False:
-
-            annotation_pd = pd.read_csv('tmp/score.csv',index_col='index')
-            images = np.load('tmp/test.npy')
-            self.dataHandler.load_images(images)
-            self.dataHandler.load_predictions(annotation_pd)
-
-            self.dataHandler.add_data(images,annotation_pd)
-
-        # deep learning classification
-        self.classification_th = 0.8
-        # model
-        # model_path = CLASSIFICATION_MODEL_PATH
-        model_path = 'tmp/model_perf_r34_b32.pt'
-        if torch.cuda.is_available():
-            self.model = torch.load(model_path)
-        else:
-            self.model = torch.load(model_path,map_location=torch.device('cpu'))
-            print('<<< using cpu >>>')
-
-        # cuda
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self.model.to(self.device)
-        dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
-        if torch.cuda.is_available():
-            dummy_input = dummy_input.cuda()
-        _ = self.model(dummy_input)
-
-        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
-        #segmentation_model_path=SEGMENTATION_MODEL_PATH
-        segmentation_model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
-        assert os.path.exists(segmentation_model_path)
-        use_trt_segmentation=USE_TRT_SEGMENTATION
-        self.segmentation_model = m2u(pretrained_model=segmentation_model_path, use_trt=use_trt_segmentation)
-        # run some dummy data thru model - warm-up
-        dummy_data = (255 * np.random.rand(3000,3000)).astype(np.uint8)
-        self.segmentation_model.predict_on_images(dummy_data)
-        print('done')
-
+            #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
+            #segmentation_model_path=SEGMENTATION_MODEL_PATH
+            segmentation_model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
+            assert os.path.exists(segmentation_model_path)
+            use_trt_segmentation=USE_TRT_SEGMENTATION
+            self.segmentation_model = m2u(pretrained_model=segmentation_model_path, use_trt=use_trt_segmentation)
+            # run some dummy data thru model - warm-up
+            dummy_data = (255 * np.random.rand(3000,3000)).astype(np.uint8)
+            self.segmentation_model.predict_on_images(dummy_data)
+            del dummy_input
+            del dummy_data
+            del dummy_model
+            print('done')
         self.navigationController.move_to_cached_position()
 
     def closeEvent(self, event):
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         self.navigationController.cache_current_position()
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
@@ -508,14 +508,16 @@ class OctopiGUI(QMainWindow):
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
-            self.stitcherThread = core.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format, 
-                                           apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
-            
+            self.stitcherThread = core.Stitcher(input_folder=acquisition_path,
+                                                output_name=output_name, output_format=output_format,
+                                                apply_flatfield=apply_flatfield,
+                                                use_registration=use_registration, registration_channel=registration_channel)
+
             # Connect signals to slots
             self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
             self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
             self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
             self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
-            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)        
+            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
             # Start the thread
             self.stitcherThread.start()

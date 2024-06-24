@@ -1562,7 +1562,7 @@ class MultiPointWorker(QObject):
     signal_detection_stats = Signal(object)
     signal_z_piezo_um = Signal(float)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
-    napari_layers_init = Signal(int, int, object, bool)
+    napari_layers_init = Signal(int, int, object)
 
     signal_update_stats = Signal(object)
 
@@ -1608,7 +1608,6 @@ class MultiPointWorker(QObject):
         self.time_point = 0
 
         self.microscope = self.multiPointController.parent
-
         try:
             self.model = self.microscope.segmentation_model
         except:
@@ -1956,7 +1955,7 @@ class MultiPointWorker(QObject):
                                         if not init_napari_layers:
                                             print("init napari layers")
                                             init_napari_layers = True
-                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
+                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
                                         self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
 
                                     current_round_images[config.name] = np.copy(image)
@@ -2055,7 +2054,7 @@ class MultiPointWorker(QObject):
                                                 if not init_napari_layers:
                                                     print(f"init napari {channel} layer")
                                                     init_napari_layers = True
-                                                    self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype, True)
+                                                    self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype)
                                                 self.napari_layers_update.emit(images[channel], real_i, real_j, k, config.name)
 
                                             file_name = file_ID + '_' + channel.replace(' ', '_') + ('.tiff' if i_dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
@@ -2080,7 +2079,7 @@ class MultiPointWorker(QObject):
                                                 print("init napari rgb layer")
                                                 init_napari_layers = True
                                                 print(rgb_image.dtype)
-                                                self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype, True)
+                                                self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype)
                                             self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
 
                                         # write the RGB image
@@ -2348,7 +2347,7 @@ class MultiPointController(QObject):
     detection_stats = Signal(object)
     signal_stitcher = Signal(str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
-    napari_layers_init = Signal(int, int, object, bool)
+    napari_layers_init = Signal(int, int, object)
     signal_z_piezo_um = Signal(float)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
@@ -2516,16 +2515,19 @@ class MultiPointController(QObject):
             else:
                 self.usb_spectrometer_was_streaming = False
 
+        # set current tabs
         if self.parent is not None:
-            try:
-                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
-            except:
-                pass
-            try:
+            if DO_FLUORESCENCE_RTP:
                 self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
-            except:
-                pass
-        
+                if USE_NAPARI_FOR_MULTIPOINT:
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMultiChannelWidget)
+                else:
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            elif USE_NAPARI_FOR_TILED_DISPLAY:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariTiledDisplayWidget)
+            else:
+                self.parent.imageDisplayTabs.setCurrentIndex(0)
+
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
 
@@ -2655,8 +2657,8 @@ class MultiPointController(QObject):
     def slot_napari_layers_update(self, image, i, j, k, channel):
         self.napari_layers_update.emit(image, i, j, k, channel)
 
-    def slot_napari_layers_init(self, image_height, image_width, dtype, rgb):
-        self.napari_layers_init.emit(image_height, image_width, dtype, rgb)
+    def slot_napari_layers_init(self, image_height, image_width, dtype):
+        self.napari_layers_init.emit(image_height, image_width, dtype)
 
     def slot_z_piezo_um(self, displacement_um):
         self.signal_z_piezo_um.emit(displacement_um)
