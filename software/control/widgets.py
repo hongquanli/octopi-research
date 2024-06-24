@@ -2710,8 +2710,8 @@ class NapariLiveWidget(QWidget):
     def initLiveLayer(self, channel, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
-        self.image_width = image_width // self.downsample_factor
-        self.image_height = image_height // self.downsample_factor
+        self.image_width = image_width
+        self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
         self.channels.append(channel)
         self.live_layer_name = channel

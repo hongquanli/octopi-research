@@ -2107,7 +2107,7 @@ class MultiPointWorker(QObject):
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                             # tiled preview
-                            if not USE_NAPARI and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
+                            if not USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
                                 # initialize the variable
                                 if self.tiled_preview is None:
                                     size = current_round_images['BF LED matrix left half'].shape
