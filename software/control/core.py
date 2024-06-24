@@ -726,7 +726,7 @@ class NavigationController(QObject):
         offset_y = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
         offset_x_centered = int(offset_x - tile_width / 2)
         offset_y_centered = int(tile_height / 2 - offset_y)
-        self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
+        self.move_from_click(offset_x_centered, offset_y_centered, tile_width, tile_height)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
