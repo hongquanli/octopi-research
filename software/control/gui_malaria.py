@@ -431,8 +431,8 @@ class OctopiGUI(QMainWindow):
         # dev mode
         if False:
 
-            annotation_pd = pd.read_csv('/home/cephla/Documents/tmp/score.csv',index_col='index')
-            images = np.load('/home/cephla/Documents/tmp/test.npy')
+            annotation_pd = pd.read_csv('tmp/score.csv',index_col='index')
+            images = np.load('tmp/test.npy')
             self.dataHandler.load_images(images)
             self.dataHandler.load_predictions(annotation_pd)
 
