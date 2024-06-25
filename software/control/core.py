@@ -513,6 +513,11 @@ class LiveController(QObject):
             except Exception as e:
                 print('not setting emission filter position due to ' + str(e))
 
+        if USE_OPTOSPIN_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching:
+            try:
+                self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
     def start_live(self):
         self.is_live = True

@@ -646,3 +646,122 @@ class FilterController:
                 self.move_to_offset()
                 return
         print('Filter device homing fail')
+
+
+class Optospin:
+    def __init__(self, SN, baudrate=115200, timeout=1, max_retries=3, retry_delay=0.5):
+
+        optospin_port = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
+        self.ser = serial.Serial(optospin_port[0], baudrate=baudrate, timeout=timeout)
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+
+    def _send_command(self, command, data=None):
+        if data is None:
+            data = []
+        full_command = struct.pack('>H', command) + bytes(data)
+
+        for attempt in range(self.max_retries):
+            try:
+                self.ser.write(full_command)
+                response = self.ser.read(2)
+
+                if len(response) != 2:
+                    raise serial.SerialTimeoutException("Timeout: No response from device")
+
+                status, length = struct.unpack('>BB', response)
+
+                if status != 0xFF:
+                    raise Exception(f"Command failed with status: {status}")
+
+                if length > 0:
+                    additional_data = self.ser.read(length)
+                    if len(additional_data) != length:
+                        raise serial.SerialTimeoutException("Timeout: Incomplete additional data")
+                    return additional_data
+                return None
+
+            except (serial.SerialTimeoutException, Exception) as e:
+                print(f"Attempt {attempt + 1} failed: {str(e)}")
+                if attempt < self.max_retries - 1:
+                    print(f"Retrying in {self.retry_delay} seconds...")
+                    time.sleep(self.retry_delay)
+                else:
+                    raise Exception(f"Command failed after {self.max_retries} attempts: {str(e)}")
+
+
+    def get_version(self):
+        result = self._send_command(0x0040)
+        return struct.unpack('>BB', result)
+
+    def set_speed(self, speed):
+        speed_int = int(speed * 100)
+        self._send_command(0x0048, struct.pack('<H', speed_int))
+
+    def spin_rotors(self):
+        self._send_command(0x0060)
+
+    def stop_rotors(self):
+        self._send_command(0x0064)
+
+    def _usb_go(self, rotor1_pos, rotor2_pos=0, rotor3_pos=0, rotor4_pos=0):
+        data = bytes([rotor1_pos | (rotor2_pos << 4), rotor3_pos | (rotor4_pos << 4)])
+        self._send_command(0x0088, data)
+
+    def set_emission_filter(self, index):
+        self._usb_go(index)
+
+    def get_rotor_positions(self):
+        result = self._send_command(0x0098)
+        rotor1 = result[0] & 0x07
+        rotor2 = (result[0] >> 4) & 0x07
+        rotor3 = result[1] & 0x07
+        rotor4 = (result[1] >> 4) & 0x07
+        return rotor1, rotor2, rotor3, rotor4
+
+    def measure_temperatures(self):
+        self._send_command(0x00A8)
+
+    def read_temperatures(self):
+        result = self._send_command(0x00AC)
+        return struct.unpack('>BBBB', result)
+
+    def close(self):
+        self.ser.close()
+
+class Optospin_Simulation:
+    def __init__(self, SN, baudrate=115200, timeout=1, max_retries=3, retry_delay=0.5):
+        pass
+
+    def _send_command(self, command, data=None):
+        pass
+
+    def get_version(self):
+        pass
+
+    def set_speed(self, speed):
+        pass
+
+    def spin_rotors(self):
+        pass
+
+    def stop_rotors(self):
+        pass
+
+    def _usb_go(self, rotor1_pos, rotor2_pos=0, rotor3_pos=0, rotor4_pos=0):
+        pass
+
+    def set_emission_filter(self, index):
+        pass
+
+    def get_rotor_positions(self):
+        return 0,0,0,0
+
+    def measure_temperatures(self):
+        pass
+
+    def read_temperatures(self):
+        pass
+
+    def close(self):
+        pass

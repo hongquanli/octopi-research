@@ -569,8 +569,9 @@ CHANNEL_COLORS_MAP = {
 
 # Emission filter wheel
 USE_ZABER_EMISSION_FILTER_WHEEL = False
-# need redefine it with real USB device serial number
-FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007' 
+USE_OPTOSPIN_EMISSION_FILTER_WHEEL = False
+FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
+OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 
 ##########################################################
 #### start of loading machine specific configurations ####
