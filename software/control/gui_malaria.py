@@ -243,14 +243,14 @@ class OctopiGUI(QMainWindow):
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
-        #layout.addWidget(self.cameraSettingWidget)
+        # layout.addWidget(self.cameraSettingWidget)
         #
-        #layout.addWidget(self.dataLoaderWidget)
-        #layout.addWidget(self.gallerySettings)
-        #self.gallery_tab = QTabWidget()
-        #self.gallery_tab.addTab(self.gallery,'Full Dataset')
-        #layout.addWidget(self.gallery_tab)
-        #layout.addWidget(self.trainingAndVisualizationWidget)
+        # layout.addWidget(self.dataLoaderWidget)
+        # layout.addWidget(self.gallerySettings)
+        # self.gallery_tab = QTabWidget()
+        # self.gallery_tab.addTab(self.gallery,'Full Dataset')
+        # layout.addWidget(self.gallery_tab)
+        # layout.addWidget(self.trainingAndVisualizationWidget)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:

@@ -18,6 +18,7 @@ import threading
 from sklearn.neighbors import KNeighborsClassifier
 import umap
 from sklearn.decomposition import PCA
+import control.models as models
 
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
