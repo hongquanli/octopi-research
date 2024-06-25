@@ -1860,7 +1860,7 @@ class MultiPointWorker(QObject):
                             sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
 
                             real_i = self.NY-1-i if sgn_i == -1 else i
-                            real_j = j if sgn_j == 1 else self.NX-1-j
+                            real_j = self.NX-1-j if sgn_j == -1 else j
 
                             file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
                             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
