@@ -1876,13 +1876,6 @@ class MultiPointWorker(QObject):
                                 image = self.microscope.laserAutofocusController.get_image()
                                 saving_path = os.path.join(current_path, file_ID + '_laser af camera' + '.bmp')
                                 iio.imwrite(saving_path,image)
-
-                            # I_fluorescence = None
-                            # I_left = None
-                            # I_right = None
-
-                            # dpc_L = None
-                            # dpc_R = None
                             
                             current_round_images = {}
                             # iterate through selected modes
@@ -1988,15 +1981,6 @@ class MultiPointWorker(QObject):
                                                 iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.tiff'), rgb_image)
                                             else:
                                                 iio.imwrite(os.path.join(current_path, file_ID + '_BF_LED_matrix_full_RGB.' + Acquisition.IMAGE_FORMAT),rgb_image)
-
-                                    # if config.name == 'BF LED matrix left half':
-                                    #     I_left = np.copy(image)
-                                    #     dpc_L = I_left
-                                    # elif config.name == 'BF LED matrix right half':
-                                    #     I_right = np.copy(image)
-                                    #     dpc_R = I_right
-                                    # elif config.name == 'Fluorescence 405 nm Ex':
-                                    #     I_fluorescence = np.copy(image)
 
                                     QApplication.processEvents()
 
