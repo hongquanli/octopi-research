@@ -501,17 +501,6 @@ class OctopiGUI(QMainWindow):
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
 
-        if USE_NAPARI:
-            self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
-            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
-        else:
-            self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-            if SHOW_TILED_PREVIEW:
-                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
-
         # laser autofocus
         if SUPPORT_LASER_AUTOFOCUS:
 

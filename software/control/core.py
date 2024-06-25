@@ -1755,7 +1755,7 @@ class MultiPointWorker(QObject):
                 if len(coordiante_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
-                coordiante_name = coordiante_name + '_'
+                coordinate_name = coordinate_name + '_'
 
             self.x_scan_direction = 1
             self.dx_usteps = 0 # accumulated x displacement
@@ -2147,7 +2147,7 @@ class MultiPointWorker(QObject):
                             # add the coordinate of the current location
                             if IS_HCS:
                                 if self.use_piezo:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
@@ -2155,7 +2155,7 @@ class MultiPointWorker(QObject):
                                                             'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
                                                             'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                                 else:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
