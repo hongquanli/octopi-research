@@ -451,6 +451,7 @@ class FilterController_Simulation:
     def __init__(self, _baudrate, _bytesize, _parity, _stopbits):
         self.each_hole_microsteps = 4800
         self.current_position = 0
+        self.current_index = 1
         '''
         the variable be used to keep current offset of wheel
         it could be used by get the index of wheel position, the index could be '1', '2', '3' ... 
@@ -469,7 +470,8 @@ class FilterController_Simulation:
     def wait_homing_finish(self):
         pass
 
-    def set_emission_filter(self, position):
+    def set_emission_filter(self, index):
+        self.current_index = index
         pass
 
     def get_emission_filter(self):
@@ -483,6 +485,7 @@ class FilterController:
         self.each_hole_microsteps = 4800
         self.current_position = 0
         self.offset_position = -8500
+        self.current_index = 1
 
         self.deviceinfo = FilterDeviceInfo()
         optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
@@ -574,7 +577,8 @@ class FilterController:
 
     def get_index(self):
         index = (self.current_position - self.offset_position) / self.each_hole_microsteps
-        return int(index)
+        self.current_index = int(index) + 1
+        return int(index) + 1
 
     def move_to_offset(self):
         '''
@@ -615,15 +619,16 @@ class FilterController:
             raise ValueError("Invalid emission filter wheel position!")
 
         pos = int(position)
-        current_pos = self.get_index() + 1
+        current_pos = self.get_index()
         if pos == current_pos:
             return
 
         pos = pos - current_pos
         self.move_index_position(pos)
+        self.current_index = position
 
     def get_emission_filter(self):
-        return self.get_index() + 1
+        return self.get_index()
 
     def do_homing(self):
         '''
@@ -655,6 +660,7 @@ class Optospin:
         self.ser = serial.Serial(optospin_port[0], baudrate=baudrate, timeout=timeout)
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.current_index = 1
 
     def _send_command(self, command, data=None):
         if data is None:
@@ -710,6 +716,7 @@ class Optospin:
 
     def set_emission_filter(self, index):
         self._usb_go(index)
+        self.current_index = index
 
     def get_rotor_positions(self):
         result = self._send_command(0x0098)
@@ -731,6 +738,7 @@ class Optospin:
 
 class Optospin_Simulation:
     def __init__(self, SN, baudrate=115200, timeout=1, max_retries=3, retry_delay=0.5):
+        self.current_index = 1
         pass
 
     def _send_command(self, command, data=None):
@@ -752,6 +760,7 @@ class Optospin_Simulation:
         pass
 
     def set_emission_filter(self, index):
+        self.current_index = index
         pass
 
     def get_rotor_positions(self):
