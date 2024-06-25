@@ -12,8 +12,7 @@ import sys
 # runs model
 def run_model(model, device, images, batch_size_inference=1024):
 
-    predictions = generate_predictions(model,device,images,batch_size_inference)
-    return predictions
+    return generate_predictions(model,device,images,batch_size_inference)
 
 def generate_predictions(model, device, images, batch_size_inference=1024):
 

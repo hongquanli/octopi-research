@@ -3,6 +3,7 @@ import queue
 import numpy as np
 import pandas as pd
 import control.utils as utils
+from control._def import *
 
 def default_image_preprocessor(image, callable_list):
     """
@@ -73,63 +74,65 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     :return: A process task, i.e. dict of 'function' (callable), 'args' (list), and
      'kwargs' (dict)
     """
-    dataHandler = process_kwargs['dataHandler'] # should be a DataHandler instance
-    process_kwargs.pop('dataHandler')
-    upload_fn = process_kwargs['upload_fn'] # this should be a callable
-    process_kwargs.pop('upload_fn')
-    multiPointWorker = None
+    # Extract required kwargs
+    dataHandler = process_kwargs.pop('dataHandler')
+    upload_fn = process_kwargs.pop('upload_fn')
+    i = process_kwargs.pop('i')
+    j = process_kwargs.pop('j')
+    k = process_kwargs.pop('k')
+
+    # Optional kwargs with default values
+    multiPointWorker = process_kwargs.pop('multiPointWorker', None)
+    sort = process_kwargs.pop('sort', False)
+    disp_th = process_kwargs.pop('disp_th', None)
+
     no_cells = 0
     no_positives = 0
     overlay = None
     dpc_image = None
-    try:
-        multiPointWorker = process_kwargs['multiPointWorker']
-        process_kwargs.pop('multiPointWorker')
-    except:
-        pass
-    sort = False
-    disp_th = None
-    try:
-        sort = process_kwargs['sort']
-        process_kwargs.pop('sort')
-    except:
-        pass
-    try:
-        disp_th = process_kwargs['disp_th']
-        process_kwargs.pop('disp_th')
-    except:
-        pass
+
     if multiPointWorker is not None:
         dpc_L = process_args[1]
         dpc_R = process_args[2]
-        dpc_L_area = dpc_L.shape[0]*dpc_L.shape[1]
-        dpc_R_area = dpc_R.shape[0]*dpc_R.shape[1]
-        biggest_area = max(dpc_L_area,dpc_R_area)
-        rbc_ratio = biggest_area/(multiPointWorker.crop**2)
+        dpc_L_area = dpc_L.shape[0] * dpc_L.shape[1]
+        dpc_R_area = dpc_R.shape[0] * dpc_R.shape[1]
+        biggest_area = max(dpc_L_area, dpc_R_area)
+        rbc_ratio = biggest_area / (multiPointWorker.crop ** 2)
         if multiPointWorker.crop > 0:
             dpc_L = utils.centerCrop(dpc_L, multiPointWorker.crop)
             dpc_R = utils.centerCrop(dpc_R, multiPointWorker.crop)
         dpc_image = utils.generate_dpc(dpc_L, dpc_R)
         result = multiPointWorker.model.predict_on_images(dpc_image)
-        probs = (255 * (result - np.min(result))/(np.max(result) - np.min(result))).astype(np.uint8)
+        probs = (255 * (result - np.min(result)) / (np.max(result) - np.min(result))).astype(np.uint8)
         threshold = 0.5
-        mask = (255*(result > threshold)).astype(np.uint8)
+        mask = (255 * (result > threshold)).astype(np.uint8)
         color_mask, no_cells = utils.colorize_mask_get_counts(mask)
         overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
+
     I, score = process_fn(*process_args, **process_kwargs)
     no_positives = len(score)
+
     if multiPointWorker is not None:
-        new_counts = {"Counted RBC": no_cells, "Estimated Total RBC":int(no_cells*rbc_ratio) , "Total Positives": no_positives,
-                "# FOV Processed":1}
+        new_counts = {
+            "Counted RBC": no_cells,
+            "Estimated Total RBC": int(no_cells * rbc_ratio),
+            "Total Positives": no_positives,
+            "# FOV Processed": 1
+        }
         multiPointWorker.signal_update_stats.emit(new_counts)
         multiPointWorker.image_to_display_multi.emit(overlay, 12)
         multiPointWorker.image_to_display_multi.emit(dpc_image, 13)
-    return_dict = {}
-    return_dict['function'] = upload_fn
-    return_dict['args'] = [I, score, dataHandler]
-    return_dict['kwargs'] = {'sort':sort,'disp_th':disp_th}
-    return return_dict
 
+        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+            print("emitting segmentation results...")
+            multiPointWorker.napari_layers_update.emit(overlay, i, j, k, "d Overlay")
+            multiPointWorker.napari_layers_update.emit(dpc_image, i, j, k, "DPC")
+
+    return {
+        'function': upload_fn,
+        'args': [I, score, dataHandler],
+        'kwargs': {'sort': sort, 'disp_th': disp_th}
+    }
 
 
 class ProcessingHandler():

@@ -848,7 +848,6 @@ class DataHandler(QObject):
         self.data_pd = pd.concat([predictions_df, self.data_pd])
 
         print(self.images.shape)
-        print(self.data_pd)
         if sort:
             sort_time = time.perf_counter_ns()
             self.data_pd = self.data_pd.sort_values('output',ascending=False)
@@ -858,16 +857,15 @@ class DataHandler(QObject):
             print("setting display with threshold "+str(disp_th))
             no_spots_to_display = count_consecutive_rows_above_threshold(self.data_pd, 'output',disp_th)
             self.set_number_of_images_per_page(no_spots_to_display)
-            print("displaying "+str(no_spots_to_display)+" spots")
+            print(f"displaying {no_spots_to_display} spots")
         #self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
         spot_idx_time = time.perf_counter_ns()
         if True:
             self.spot_idx_sorted = self.data_pd[
-            ( self.data_pd['annotation'].isin(self.filter_label) ) &
-            ( ( self.data_pd['output'].between(self.filter_score_min,self.filter_score_max) ) | ( self.data_pd['output']==-1 ) )
+                ( self.data_pd['annotation'].isin(self.filter_label) ) &
+                ( ( self.data_pd['output'].between(self.filter_score_min,self.filter_score_max) ) | ( self.data_pd['output']==-1 ) )
             ].index.to_numpy().astype(int) # apply the filters
         spot_idx_time = time.perf_counter_ns()-spot_idx_time
-        print(self.spot_idx_sorted)
         print("spot_idx_sorted generation took: "+str(spot_idx_time/10**6)+" ms")
         
         # self.signal_set_total_page_count.emit(int(np.ceil(self.get_number_of_rows()/self.n_images_per_page)))
@@ -883,8 +881,6 @@ class DataHandler(QObject):
         data_annotated_pd = self.data_pd[self.data_pd['annotation'].isin([0, 1])]
         annotations = data_annotated_pd['annotation'].values
         indices = data_annotated_pd.index.to_numpy()
-        print(indices)
-        print(annotations)
         images = self.images[indices,]
 
         # if not os.path.exists('training records'):

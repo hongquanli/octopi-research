@@ -773,7 +773,7 @@ class NavigationController(QObject):
             delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
 
-            if not IS_WELLPLATE:
+            if not IS_HCS:
                 delta_x /= 2.2
                 delta_y /= 2.2
 
@@ -2137,23 +2137,13 @@ class MultiPointWorker(QObject):
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
                                     I_left = current_round_images['BF LED matrix left half']
                                     I_right = current_round_images['BF LED matrix right half']
-                                    print("malaria real time processing")
-                                    malaria_rtp(I_fluorescence, I_left, I_right, self,classification_test_mode=CLASSIFICATION_TEST_MODE,sort_during_multipoint=SORT_DURING_MULTIPOINT,disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
+                                    malaria_rtp(I_fluorescence, I_left, I_right, real_i, real_j, k, self,
+                                                classification_test_mode=CLASSIFICATION_TEST_MODE,
+                                                sort_during_multipoint=SORT_DURING_MULTIPOINT,
+                                                disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
                                 except AttributeError as e:
                                     print(repr(e))
 
-                            # if I_fluorescence is not None and I_left is not None and I_right is not None and self.multiPointController.do_fluorescence_rtp:
-                            #     if CLASSIFICATION_TEST_MODE: # testing mode
-                            #         I_fluorescence = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_Fluorescence_405_nm_Ex.bmp')
-                            #         I_fluorescence = I_fluorescence[:,:,::-1]
-                            #         I_left = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_left_half.bmp')
-                            #         I_right = imageio.v2.imread('/home/prakashlab/Documents/tmp/1_1_0_BF_LED_matrix_right_half.bmp')
-                            #     processing_fn = process_fn_with_count_and_display
-                            #     processing_args = [process_fov, I_fluorescence.copy(),I_left.copy(), I_right.copy(), self.microscope.model, self.microscope.device, self.microscope.classification_th]
-                            #     processing_kwargs = {'upload_fn':default_upload_fn, 'dataHandler':self.microscope.dataHandler, 'multiPointWorker':self,'sort':SORT_DURING_MULTIPOINT,'disp_th':DISP_TH_DURING_MULTIPOINT}
-                            #     task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
-                            #     self.processingHandler.processing_queue.put(task_dict)
-                                                            
                             # add the coordinate of the current location
                             if IS_HCS:
                                 if self.use_piezo:
@@ -4126,7 +4116,7 @@ class ConfigurationManager(QObject):
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations += 1
-            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
+            # print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),
