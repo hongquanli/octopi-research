@@ -1561,9 +1561,9 @@ class MultiPointWorker(QObject):
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
     signal_z_piezo_um = Signal(float)
+    napari_rtp_layers_update = Signal(np.ndarray, str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object)
-
     signal_update_stats = Signal(object)
 
     def __init__(self,multiPointController):
@@ -2336,6 +2336,7 @@ class MultiPointController(QObject):
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
     signal_stitcher = Signal(str)
+    napari_rtp_layers_update = Signal(np.ndarray, str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object)
     signal_z_piezo_um = Signal(float)
@@ -2465,7 +2466,6 @@ class MultiPointController(QObject):
         f.write(json.dumps(acquisition_parameters))
         f.close()
 
-
     def set_selected_configurations(self, selected_configurations_name):
         self.selected_configurations = []
         for configuration_name in selected_configurations_name:
@@ -2507,10 +2507,12 @@ class MultiPointController(QObject):
 
         # set current tabs
         if self.parent is not None:
-            if DO_FLUORESCENCE_RTP:
+            configs = [config.name for config in self.selected_configurations]
+            print(configs)
+            if DO_FLUORESCENCE_RTP and 'BF LED matrix left half' in configs and 'BF LED matrix right half' in configs and 'Fluorescence 405 nm Ex' in configs:
                 self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
                 if USE_NAPARI_FOR_MULTIPOINT:
-                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMultiChannelWidget)
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariRTPWidget)
                 else:
                     self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
             elif USE_NAPARI_FOR_TILED_DISPLAY:
@@ -2577,6 +2579,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
         self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
+        self.multiPointWorker.napari_rtp_layers_update.connect(self.slot_napari_rtp_layers_update)
         self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
         self.multiPointWorker.signal_z_piezo_um.connect(self.slot_z_piezo_um)
         # self.thread.finished.connect(self.thread.deleteLater)
@@ -2643,6 +2646,9 @@ class MultiPointController(QObject):
 
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
+
+    def slot_napari_rtp_layers_update(self, image, channel):
+        self.napari_rtp_layers_update.emit(image, channel)
 
     def slot_napari_layers_update(self, image, i, j, k, channel):
         self.napari_layers_update.emit(image, i, j, k, channel)

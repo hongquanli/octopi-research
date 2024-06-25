@@ -795,7 +795,7 @@ class DataHandler(QObject):
         if 'output' in self.data_pd:
             self.data_pd = self.data_pd.drop(columns=['output'])
         self.data_pd = self.data_pd.merge(annotation_pd,left_index=True, right_index=True, how='outer')
-        print(self.data_pd)
+        # print(self.data_pd)
         # sort the predictions
         self.data_pd = self.data_pd.sort_values('output',ascending=False)
         # self.spot_idx_sorted = self.data_pd.index.to_numpy().astype(int)
@@ -1073,7 +1073,7 @@ class DataHandler(QObject):
         self.data_pd = self.data_pd.set_index('idx_global')
         self.data_pd_local = self.data_pd_local.set_index('idx_local')
         print('populated data_pd of the selected images data handler:')
-        print(self.data_pd)
+        # print(self.data_pd)
         self.images_loaded = True
         # self.spot_idx_sorted = self.data_pd['index'].to_numpy().astype(int)
         # self.spot_idx_sorted = np.arange(self.images.shape[0]).astype(int)
@@ -1097,7 +1097,7 @@ class DataHandler(QObject):
                 index = list(index)
             index_local = self.data_pd.loc[index,'idx_local'].tolist()
             self.data_pd_local.loc[index_local,'annotation'] = annotation # 20230323 - maybe data_pd_local is not useful
-            print(self.data_pd)
+            # print(self.data_pd)
         self.update_annotation_stats() # note - can also do it increamentally instead of going through the full df everytime
 
     def update_annotation_stats(self):

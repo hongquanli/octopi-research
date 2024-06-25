@@ -69,7 +69,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController = core.NavigationController(self.microcontroller, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-        # Display of detection result
+
         # core
         if DO_FLUORESCENCE_RTP:
             self.dataHandler = DataHandler()
@@ -176,14 +176,21 @@ class OctopiGUI(QMainWindow):
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-        self.statsDisplayWidget = widgets.StatsDisplayWidget()
         self.focusMapWidget = widgets.FocusMapWidget(self.autofocusController)
+        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         if ENABLE_STITCHER:
             self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
+
+        # record tab widgets
+        self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
-        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+            self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
+        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
         if DO_FLUORESCENCE_RTP:
+            self.statsDisplayWidget = widgets.StatsDisplayWidget()
+            self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
             self.dataLoaderWidget = DataLoaderWidget(self.dataHandler)
             self.gallery = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler,is_main_gallery=True)
             self.gallery_similarity = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_similarity,dataHandler2=self.dataHandler,is_for_similarity_search=True)
@@ -198,20 +205,12 @@ class OctopiGUI(QMainWindow):
             self.plots['Similarity'] = StemPlotWidget()
             self.plots[dimentionality_reduction] = ScatterPlotWidget()
             '''
-        
-
-        self.recordTabWidget = QTabWidget()
-        if ENABLE_TRACKING:
-            self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
-        if DO_FLUORESCENCE_RTP:
-            self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
+        # image display tab widgets
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.liveControlWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -222,15 +221,18 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
         if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+            if DO_FLUORESCENCE_RTP:
+                self.napariRTPWidget = widgets.NapariMultiChannelWidget(grid_enabled=True)
+                self.imageDisplayTabs.addTab(self.napariRTPWidget, "Segmentation")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget()
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
             else:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
@@ -330,6 +332,8 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+            if DO_FLUORESCENCE_RTP:
+                self.multipointController.napari_rtp_layers_update.connect(self.napariRTPWidget.updateRTPLayers)
             if USE_NAPARI_FOR_LIVE_VIEW:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)

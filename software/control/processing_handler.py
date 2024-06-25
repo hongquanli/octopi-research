@@ -125,8 +125,8 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
 
         if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
             print("emitting segmentation results...")
-            multiPointWorker.napari_layers_update.emit(overlay, i, j, k, "d Overlay")
-            multiPointWorker.napari_layers_update.emit(dpc_image, i, j, k, "DPC")
+            multiPointWorker.napari_rtp_layers_update.emit(overlay, "Segmentation Overlay")
+            multiPointWorker.napari_rtp_layers_update.emit(dpc_image, "DPC")
 
     return {
         'function': upload_fn,

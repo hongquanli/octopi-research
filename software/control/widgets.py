@@ -2668,10 +2668,9 @@ class NapariLiveWidget(QWidget):
     signal_coordinates_clicked = Signal(int, int, int, int)
     signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, liveControlWidget, parent=None):
+    def __init__(self, liveControlWidget, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        self.configurationManager = configurationManager
         self.liveControlWidget = liveControlWidget
         self.live_layer_name = ""
         self.image_width = 0
@@ -2803,10 +2802,9 @@ class NapariMultiChannelWidget(QWidget):
 
     signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, parent=None):
+    def __init__(self, grid_enabled=False, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        self.configurationManager = configurationManager
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
@@ -2816,7 +2814,7 @@ class NapariMultiChannelWidget(QWidget):
         self.pixel_size_um = 1
         self.layers_initialized = False
         self.viewer_scale_initialized = False
-        self.grid_enabled = False
+        self.grid_enabled = grid_enabled
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
 
@@ -2857,7 +2855,7 @@ class NapariMultiChannelWidget(QWidget):
              (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
-    def initLayers(self, image_height, image_width, image_dtype, rgb=False):
+    def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         self.viewer.layers.clear()
         self.image_width = image_width
@@ -2900,6 +2898,38 @@ class NapariMultiChannelWidget(QWidget):
         self.viewer.dims.set_point(0, k)
         layer.refresh()
 
+    def updateRTPLayers(self, image, channel_name):
+        """Updates the appropriate slice of the canvas with the new image data."""
+        if not self.layers_initialized:
+            self.initLayers(image.shape[0], image.shape[1], image.dtype)
+
+        rgb = len(image.shape) == 3
+        if channel_name not in self.viewer.layers:
+            self.channels.append(channel_name)
+            if rgb:
+                color = None  # RGB images do not need a colormap
+                canvas = np.zeros((self.image_height, self.image_width, 3), dtype=self.dtype)
+            else:
+                channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+                if channel_info['name'] in AVAILABLE_COLORMAPS:
+                    color = AVAILABLE_COLORMAPS[channel_info['name']]
+                else:
+                    color = self.generateColormap(channel_info)
+                canvas = np.zeros((self.image_height, self.image_width), dtype=self.dtype)
+
+            limits = self.getContrastLimits(self.dtype)
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
+                                          colormap=color, contrast_limits=limits, blending='additive')
+            layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
+            layer.events.contrast_limits.connect(self.signalContrastLimits)
+
+            self.resetView()
+
+        layer = self.viewer.layers[channel_name]
+        layer.data = image
+        layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
+        layer.refresh()
+
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
             return (np.iinfo(dtype).min, np.iinfo(dtype).max)
@@ -2927,10 +2957,9 @@ class NapariTiledDisplayWidget(QWidget):
     signal_coordinates_clicked = Signal(int, int, int, int, int, int, float, float)
     signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        self.configurationManager = configurationManager
         self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
         self.image_width = 0
         self.image_height = 0
