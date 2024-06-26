@@ -104,7 +104,6 @@ install_cuda_nvidia_linux() {
     fi
 }
 
-
 # Creates and activates a Conda environment if it doesn't already exist
 create_conda_env() {
     local env_name="octopi"
@@ -127,8 +126,8 @@ install_python_packages() {
     pip install -U pip setuptools wheel numpy pandas scikit-learn \
                    PyQt5 pyqtgraph qtpy pyserial lxml==4.9.4 crc==1.3.0 \
                    opencv-python-headless opencv-contrib-python-headless \
-                   dask_image imageio aicsimageio tifffile \
-                   napari[all] napari-ome-zarr basicpy
+                   dask_image imageio aicsimageio tifffile matplotlib\
+                   napari[all] napari-ome-zarr basicpy umap mpl_interactions
 }
 
 # Installs PyTorch with CUDA support for Linux using Conda, updates JAX to a specific version based on the OS

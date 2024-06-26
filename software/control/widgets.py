@@ -2814,6 +2814,7 @@ class NapariMultiChannelWidget(QWidget):
         self.pixel_size_um = 1
         self.layers_initialized = False
         self.viewer_scale_initialized = False
+        self.update_z_slider = False
         self.grid_enabled = grid_enabled
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
@@ -2830,6 +2831,8 @@ class NapariMultiChannelWidget(QWidget):
         
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
         self.Nz = Nz
+        if Nz > 1:
+            self.update_z_slider = True
 
     def initChannels(self, channels):
         self.channels = channels
@@ -2895,8 +2898,10 @@ class NapariMultiChannelWidget(QWidget):
         layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
-        self.viewer.dims.set_point(0, k)
+        if self.update_z_slider:
+            self.viewer.dims.set_point(0, k)
         layer.refresh()
+
 
     def updateRTPLayers(self, image, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""

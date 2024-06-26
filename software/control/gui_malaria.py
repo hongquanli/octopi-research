@@ -60,26 +60,14 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.imageDisplayTabs = QTabWidget()
+        # core
         self.objectiveStore = core.ObjectiveStore()
-        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.configurationManager = core.ConfigurationManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-
-        # core
-        if DO_FLUORESCENCE_RTP:
-            self.dataHandler = DataHandler()
-            self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
-
-            self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
-            self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
-
-            self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
-            self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
@@ -170,6 +158,7 @@ class OctopiGUI(QMainWindow):
         self.camera.enable_callback()
 
         # load widgets
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='malaria')
@@ -190,6 +179,12 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
         if DO_FLUORESCENCE_RTP:
             self.statsDisplayWidget = widgets.StatsDisplayWidget()
+            self.dataHandler = DataHandler()
+            self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
+            self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
+            self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
             self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
             self.dataLoaderWidget = DataLoaderWidget(self.dataHandler)
             self.gallery = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler,is_main_gallery=True)
@@ -251,6 +246,8 @@ class OctopiGUI(QMainWindow):
         # self.gallery_tab.addTab(self.gallery,'Full Dataset')
         # layout.addWidget(self.gallery_tab)
         # layout.addWidget(self.trainingAndVisualizationWidget)
+        #
+        layout.addWidget(self.objectivesWidget)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
@@ -258,7 +255,6 @@ class OctopiGUI(QMainWindow):
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
         layout.addWidget(self.navigationViewer)
-        layout.addWidget(self.objectivesWidget)
         layout.addStretch()
 
         # transfer the layout to the central widget
@@ -467,7 +463,6 @@ class OctopiGUI(QMainWindow):
             self.segmentation_model.predict_on_images(dummy_data)
             del dummy_input
             del dummy_data
-            del dummy_model
             print('done')
         self.navigationController.move_to_cached_position()
 

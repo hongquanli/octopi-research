@@ -52,6 +52,7 @@ class M2UnetInteractiveModel:
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
+        print("device:", self.device)
         
         assert pretrained_model != None, "Need a pretrained model"
         assert os.path.exists(pretrained_model), "Pretrained model path not found."
