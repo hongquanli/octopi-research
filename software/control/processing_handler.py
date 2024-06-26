@@ -25,7 +25,7 @@ def default_upload_fn(I,score, dataHandler, sort=False,disp_th=None):
     :brief: designed to be called by default_process_fn that's using
         the pre-existing process_fov method
     """
-    if len(I) == 0:
+    if I is None or len(I) == 0:
         return
     images = I*255
     score_df = pd.DataFrame(score, columns=["output"])
@@ -56,6 +56,8 @@ def default_process_fn(process_fn, *process_args, **process_kwargs):
     except:
         pass
     I, score = process_fn(*process_args, **process_kwargs)
+    if I is None or score is None:
+        return None
     return_dict = {}
     return_dict['function'] = upload_fn
     return_dict['args'] = [I, score, dataHandler]
@@ -110,6 +112,8 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
         overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
 
     I, score = process_fn(*process_args, **process_kwargs)
+    if I is None or score is None: 
+        return
     no_positives = len(score)
 
     if multiPointWorker is not None:
@@ -177,7 +181,8 @@ class ProcessingHandler():
                 upload_task = processing_task['function'](
                                                 *processing_task['args'],
                                                 **processing_task['kwargs'])
-                self.upload_queue.put(upload_task)
+                if upload_task is not None:
+                    self.upload_queue.put(upload_task)
                 self.processing_queue.task_done()
 
     def upload_queue_handler(self, queue_timeout=None):

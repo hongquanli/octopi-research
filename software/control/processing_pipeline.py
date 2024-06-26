@@ -30,7 +30,7 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,device,classification_
     spot_list = detect_spots(resize_image_cp(I_fluorescence_bg_removed,downsize_factor=settings['spot_detection_downsize_factor']),thresh=settings['spot_detection_threshold'])
     if(len(spot_list)==0):
         print('no spots!')
-        return None
+        return None, None
     spot_list = prune_blobs(spot_list)
 
     # scale coordinates for full-res image

@@ -2121,6 +2121,8 @@ class MultiPointWorker(QObject):
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
                                     I_left = current_round_images['BF LED matrix left half']
                                     I_right = current_round_images['BF LED matrix right half']
+                                    I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
+                                    I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
                                     malaria_rtp(I_fluorescence, I_left, I_right, real_i, real_j, k, self,
                                                 classification_test_mode=CLASSIFICATION_TEST_MODE,
                                                 sort_during_multipoint=SORT_DURING_MULTIPOINT,
