@@ -16,7 +16,7 @@ parameters['crop_x1'] = 2900
 parameters['crop_y0'] = 100
 parameters['crop_y1'] = 2900
 
-def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,device,classification_th):
+def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classification_th):
 
     # crop image
     I_fluorescence = I_fluorescence[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1'], : ]
@@ -45,8 +45,18 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,device,classification_
     I = I.transpose(0, 3, 1, 2)
 
     # classify
+    print("running models")
     prediction_score = run_model(model,device,I)[:,1]
+    prediction_score2 = run_model(model2,device,I)[:,1]
+
     indices = np.where(prediction_score > classification_th)[0]
+    indices2 = np.where(prediction_score2 > classification_th)[0]
+
+    if len(indices2) < len(indices):
+        indices = indices2
+        print("choosing classification model 2")
+    else:
+        print("choosing classification model 1")
 
     # return positive spots
     return I[indices],prediction_score[indices]

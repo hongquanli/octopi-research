@@ -2116,7 +2116,7 @@ class MultiPointWorker(QObject):
                             if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
                                 print("try real time processing")
                                 try:
-                                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
+                                    if (self.microscope.model is None) or (self.microscope.model2 is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
                                         raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
                                     I_left = current_round_images['BF LED matrix left half']

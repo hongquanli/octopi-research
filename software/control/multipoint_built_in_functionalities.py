@@ -23,7 +23,7 @@ def malaria_rtp(I_fluorescence, I_left, I_right, i, j, k, multiPointWorker,class
     print("BF Right Image:", I_right.shape)
 
     processing_fn = process_fn_with_count_and_display
-    processing_args = [process_fov, np.copy(I_fluorescence),np.copy(I_left), np.copy(I_right), multiPointWorker.microscope.model, multiPointWorker.microscope.device, multiPointWorker.microscope.classification_th]
+    processing_args = [process_fov, np.copy(I_fluorescence),np.copy(I_left), np.copy(I_right), multiPointWorker.microscope.model, multiPointWorker.microscope.model2, multiPointWorker.microscope.device, multiPointWorker.microscope.classification_th]
     processing_kwargs = {'upload_fn':default_upload_fn,
                         'dataHandler':multiPointWorker.microscope.dataHandler,
                         'multiPointWorker':multiPointWorker,

@@ -434,23 +434,29 @@ class OctopiGUI(QMainWindow):
                 self.dataHandler.add_data(images,annotation_pd)
 
             # deep learning classification
-            self.classification_th = 0.3
+            self.classification_th = CLASSIFICATION_TH
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
             # model
             #model_path = 'tmp/model_perf_r34_b32.pt'
             model_path = CLASSIFICATION_MODEL_PATH
 
             self.model = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
-
             state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
             self.model.load_state_dict(state_dict)
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model = self.model.to(self.device)
+
+            model_path2 = CLASSIFICATION_MODEL_PATH2
+            self.model2 = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
+            state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
+            self.model2.load_state_dict(state_dict)
+            self.model2 = self.model2.to(self.device)
 
             dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
             if torch.cuda.is_available():
                 dummy_input = dummy_input.cuda()
             dummy_model = self.model(dummy_input)
-
+            dummy_model2 = self.model2(dummy_input)
             #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
             #segmentation_model_path=SEGMENTATION_MODEL_PATH
             segmentation_model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
