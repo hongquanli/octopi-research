@@ -434,19 +434,18 @@ class OctopiGUI(QMainWindow):
                 self.dataHandler.add_data(images,annotation_pd)
 
             # deep learning classification
-            self.classification_th = 0.8
+            self.classification_th = 0.3
             # model
-            # model_path = CLASSIFICATION_MODEL_PATH
-            model_path = 'tmp/model_perf_r34_b32.pt'
-            if torch.cuda.is_available():
-                self.model = torch.load(model_path)
-            else:
-                self.model = torch.load(model_path,map_location=torch.device('cpu'))
-                print('<<< using cpu >>>')
+            #model_path = 'tmp/model_perf_r34_b32.pt'
+            model_path = CLASSIFICATION_MODEL_PATH
 
-            # cuda
+            self.model = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
+
+            state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
+            self.model.load_state_dict(state_dict)
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model = self.model.to(self.device)
+
             dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
             if torch.cuda.is_available():
                 dummy_input = dummy_input.cuda()

@@ -2121,8 +2121,10 @@ class MultiPointWorker(QObject):
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
                                     I_left = current_round_images['BF LED matrix left half']
                                     I_right = current_round_images['BF LED matrix right half']
-                                    I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
-                                    I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
+                                    if len(I_left.shape) == 3:
+                                        I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
+                                    if len(I_right.shape) == 3:
+                                        I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
                                     malaria_rtp(I_fluorescence, I_left, I_right, real_i, real_j, k, self,
                                                 classification_test_mode=CLASSIFICATION_TEST_MODE,
                                                 sort_during_multipoint=SORT_DURING_MULTIPOINT,
@@ -2369,6 +2371,7 @@ class MultiPointController(QObject):
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
         self.parent = parent
+        self.start_time = 0
 
         self.old_images_per_page = 1
         try:
@@ -2460,6 +2463,7 @@ class MultiPointController(QObject):
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+        self.start_time = time.time()
 
         if location_list is not None:
             print(location_list)
@@ -2575,6 +2579,7 @@ class MultiPointController(QObject):
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
+        print("total time for acquisition:", time.time() - self.start_time)
         if self.gen_focus_map:
             self.autofocusController.clear_focus_map()
             for x,y,z in self.focus_map_storage:
