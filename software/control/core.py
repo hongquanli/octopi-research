@@ -2602,15 +2602,7 @@ class MultiPointController(QObject):
         
         # emit the acquisition finished signal to enable the UI
         self.processingHandler.end_processing()
-        if self.parent is not None:
-            try:
-                self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
-                self.parent.dataHandler.sort('Sort by prediction score')
-                self.parent.dataHandler.signal_populate_page0.emit()
-            except:
-                pass
         self.acquisitionFinished.emit()
-        #self.signal_stitcher.emit("/Users/soham/Documents/cephla/scan-data/5x5_4_channels_2024-05-19_00-45-46.094077")
         self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 

@@ -446,11 +446,14 @@ class OctopiGUI(QMainWindow):
             self.model.load_state_dict(state_dict)
             self.model = self.model.to(self.device)
 
-            model_path2 = CLASSIFICATION_MODEL_PATH2
-            self.model2 = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
-            state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
-            self.model2.load_state_dict(state_dict)
-            self.model2 = self.model2.to(self.device)
+            if TWO_CLASSIFICATION_MODELS:
+                model_path2 = CLASSIFICATION_MODEL_PATH2
+                self.model2 = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
+                state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
+                self.model2.load_state_dict(state_dict)
+                self.model2 = self.model2.to(self.device)
+            else:
+                self.model2 = None
 
             dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
             if torch.cuda.is_available():

@@ -47,16 +47,17 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classifi
     # classify
     print("running models")
     prediction_score = run_model(model,device,I)[:,1]
-    prediction_score2 = run_model(model2,device,I)[:,1]
-
     indices = np.where(prediction_score > classification_th)[0]
-    indices2 = np.where(prediction_score2 > classification_th)[0]
 
-    if len(indices2) < len(indices):
-        indices = indices2
-        print("choosing classification model 2")
-    else:
-        print("choosing classification model 1")
+    if TWO_CLASSIFICATION_MODELS and model2 is not None:
+        prediction_score2 = run_model(model2,device,I)[:,1]
+        indices2 = np.where(prediction_score2 > classification_th)[0]
+
+        if len(indices2) < len(indices):
+            indices = indices2
+            print("choosing classification model 2")
+        else:
+            print("choosing classification model 1")
 
     # return positive spots
     return I[indices],prediction_score[indices]
