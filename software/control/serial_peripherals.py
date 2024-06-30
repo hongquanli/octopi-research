@@ -715,8 +715,8 @@ class Optospin:
         self._send_command(0x0088, data)
 
     def set_emission_filter(self, index):
-        self._usb_go(index)
-        self.current_index = index
+        self._usb_go(int(index))
+        self.current_index = int(index)
 
     def get_rotor_positions(self):
         result = self._send_command(0x0098)
