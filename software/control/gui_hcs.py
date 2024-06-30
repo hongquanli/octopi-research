@@ -625,7 +625,7 @@ class OctopiGUI(QMainWindow):
             self.emission_filter_wheel.set_emission_filter('1')
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter('1')
-        self.emission_filter_wheel.close()
+            self.emission_filter_wheel.close()
 
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
