@@ -2827,6 +2827,7 @@ class NapariMultiChannelWidget(QWidget):
         self.layers_initialized = False
         self.viewer_scale_initialized = False
         self.grid_enabled = False
+        self.update_layer_count = 0
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
 
@@ -2877,6 +2878,7 @@ class NapariMultiChannelWidget(QWidget):
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
         self.layers_initialized = True
+        self.update_layer_count = 0
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
@@ -2911,7 +2913,11 @@ class NapariMultiChannelWidget(QWidget):
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.viewer.dims.set_point(0, k)
-        layer.refresh()
+        self.update_layer_count += 1
+        if self.update_layer_count == len(self.channels):
+            for layer in self.viewer.layers:
+                layer.refresh()
+            self.update_layer_count = 0
 
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
@@ -2953,6 +2959,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.Ny = 1
         self.Nz = 1
         self.layers_initialized = False
+        self.acquisition_initialized = False
         self.viewer_scale_initialized = False
         self.contrast_limits = {}
         self.initNapariViewer()
@@ -2972,6 +2979,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.dx_mm = dx
         self.dy_mm = dy
         self.dz_um = dz
+        self.acquisition_initialized = False
 
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -2998,10 +3006,13 @@ class NapariTiledDisplayWidget(QWidget):
 
     def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        #self.viewer.layers.clear()
-        for layer in list(self.viewer.layers):
-            if layer.name not in self.channels:
-                self.viewer.layers.remove(layer)
+        if self.acquisition_initialized:
+            for layer in list(self.viewer.layers):
+                if layer.name not in self.channels:
+                    self.viewer.layers.remove(layer)
+        else:
+            self.viewer.layers.clear()
+            self.acquisition_initialized = True
         self.image_width = image_width // self.downsample_factor
         self.image_height = image_height // self.downsample_factor
         self.dtype = np.dtype(image_dtype)

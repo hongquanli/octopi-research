@@ -2115,10 +2115,7 @@ class MultiPointWorker(QObject):
                                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
                                 # populate the tiled_preview
-                                if sgn_j == 1:
-                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, j*width:(j+1)*width, ] = I
-                                else:
-                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, (self.NX-j-1)*width:(self.NX-j)*width, ] = I
+                                self.tiled_preview[(self.NY-real_i-1)*height:(self.NY-real_i)*height, real_j*width:(real_j+1)*width, ] = I
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
