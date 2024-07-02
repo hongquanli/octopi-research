@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import control.utils as utils
 from control._def import *
+import time
 
 def default_image_preprocessor(image, callable_list):
     """
@@ -123,12 +124,14 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
             "Total Positives": no_positives,
             "# FOV Processed": 1
         }
+        print("emitting detection stats ...")
+        print(new_counts)
         multiPointWorker.signal_update_stats.emit(new_counts)
         multiPointWorker.image_to_display_multi.emit(overlay, 12)
         multiPointWorker.image_to_display_multi.emit(dpc_image, 13)
 
         if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
-            print("emitting segmentation results...")
+            print("emitting segmentation image...")
             multiPointWorker.napari_rtp_layers_update.emit(overlay, "Segmentation Overlay")
             multiPointWorker.napari_rtp_layers_update.emit(dpc_image, "DPC")
 
@@ -139,12 +142,18 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     }
 
 
-class ProcessingHandler():
+
+from qtpy.QtCore import *
+
+class ProcessingHandler(QObject):
     """
     :brief: Handler class for parallelizing FOV processing. GENERAL NOTE:
         REMEMBER TO PASS COPIES OF IMAGES WHEN QUEUEING THEM FOR PROCESSING
     """
+    finished = Signal(bool)
+
     def __init__(self):
+        super().__init__()
         self.processing_queue = queue.Queue() # elements in this queue are
                                               # dicts in the form
                                               # {'function': callable, 'args':list
@@ -210,7 +219,20 @@ class ProcessingHandler():
     def end_uploading(self, *args, **kwargs):
         return {'function':'end'}
     def end_processing(self):
+        print("end processing... wait for all processing tasks")
+        while not self.upload_queue.empty():
+            print("waiting")
+            time.sleep(0.5)
         self.processing_queue.put({'function':self.end_uploading,'args':[],
                                    'kwargs':{}})
         self.processing_queue.put({'function':'end'})
-
+            # Wait for the processing thread to finish
+        # if self.processing_thread is not None:
+        #     self.processing_thread.join()
+        
+        # # Wait for the uploading thread to finish
+        # if self.uploading_thread is not None:
+        #     self.uploading_thread.join()
+        
+        self.finished.emit(True)
+        print("All processing and uploading tasks are completed.")

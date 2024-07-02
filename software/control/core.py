@@ -1621,9 +1621,12 @@ class MultiPointWorker(QObject):
         self.t_over=[]
 
         self.tiled_preview = None
+        self.count = 0
         
 
     def update_stats(self, new_stats):
+        self.count += 1
+        print("stats", self.count)
         for k in new_stats.keys():
             try:
                 self.detection_stats[k]+=new_stats[k]
@@ -1686,7 +1689,7 @@ class MultiPointWorker(QObject):
         self.processingHandler.processing_queue.join()
         self.processingHandler.upload_queue.join()
         elapsed_time = time.perf_counter_ns()-self.start_time
-        print("Time taken for acquisition/processing: "+str(elapsed_time/10**9))
+        print("Time taken for acquisition: "+str(elapsed_time/10**9))
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -1780,6 +1783,7 @@ class MultiPointWorker(QObject):
                 if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
                     self.signal_z_piezo_um.emit(self.z_piezo_um)
 
+            count_rtp = 1
             # along y
             for i in range(self.NY):
 
@@ -2114,8 +2118,8 @@ class MultiPointWorker(QObject):
                             # real time processing 
                             acquired_image_configs = list(current_round_images.keys())
                             if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
-                                print("try real time processing")
                                 try:
+                                    print("real time processing", count_rtp)
                                     if (self.microscope.model is None) or (self.microscope.model2 is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
                                         raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
@@ -2129,6 +2133,7 @@ class MultiPointWorker(QObject):
                                                 classification_test_mode=CLASSIFICATION_TEST_MODE,
                                                 sort_during_multipoint=SORT_DURING_MULTIPOINT,
                                                 disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
+                                    count_rtp += 1
                                 except AttributeError as e:
                                     print(repr(e))
 
@@ -2560,8 +2565,12 @@ class MultiPointController(QObject):
         self.thread.started.connect(self.multiPointWorker.run)
         self.multiPointWorker.signal_detection_stats.connect(self.slot_detection_stats)
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
-        self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
-        self.multiPointWorker.finished.connect(self.thread.quit)
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.finished.connect(self.multiPointWorker.deleteLater)
+            self.processingHandler.finished.connect(self.thread.quit)
+        else:
+            #self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
+            self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
@@ -2579,7 +2588,6 @@ class MultiPointController(QObject):
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
-        print("total time for acquisition:", time.time() - self.start_time)
         if self.gen_focus_map:
             self.autofocusController.clear_focus_map()
             for x,y,z in self.focus_map_storage:
@@ -2601,7 +2609,15 @@ class MultiPointController(QObject):
                 self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
+        if self.parent is not None:
+            try:
+                # self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+                self.parent.dataHandler.sort('Sort by prediction score')
+                self.parent.dataHandler.signal_populate_page0.emit()
+            except:
+                pass
         self.processingHandler.end_processing()
+        print("total time for acquisition / processing:", time.time() - self.start_time)
         self.acquisitionFinished.emit()
         self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()

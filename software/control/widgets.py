@@ -1627,6 +1627,7 @@ class StatsDisplayWidget(QFrame):
         self.setLayout(self.layout)
 
     def display_stats(self, stats):
+        print("displaying parasite stats")
         locale.setlocale(locale.LC_ALL, '')
         self.table_widget.setRowCount(len(stats))
         row = 0

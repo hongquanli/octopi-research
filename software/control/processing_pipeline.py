@@ -49,7 +49,7 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classifi
     prediction_score = run_model(model,device,I)[:,1]
     indices = np.where(prediction_score > classification_th)[0]
 
-    if TWO_CLASSIFICATION_MODELS and model2 is not None:
+    if model2 is not None:
         prediction_score2 = run_model(model2,device,I)[:,1]
         indices2 = np.where(prediction_score2 > classification_th)[0]
 

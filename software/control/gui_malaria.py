@@ -218,9 +218,6 @@ class OctopiGUI(QMainWindow):
         if USE_NAPARI_FOR_MULTIPOINT:
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget()
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-            if DO_FLUORESCENCE_RTP:
-                self.napariRTPWidget = widgets.NapariMultiChannelWidget(grid_enabled=True)
-                self.imageDisplayTabs.addTab(self.napariRTPWidget, "Segmentation")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
@@ -234,6 +231,9 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         if DO_FLUORESCENCE_RTP:
+            if USE_NAPARI_FOR_MULTIPOINT:
+                self.napariRTPWidget = widgets.NapariMultiChannelWidget(grid_enabled=True)
+                self.imageDisplayTabs.addTab(self.napariRTPWidget, "Segmentation")
             self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
 
         # layout widgets
