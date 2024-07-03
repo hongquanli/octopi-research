@@ -610,9 +610,9 @@ class FilterController:
         success, _ = self._send_command(f'/move abs {target_position}')
         if not success:
             raise FilterControllerError("Failed to initiate filter movement")
-        self._wait_for_position(target_position, timeout)
+        self._wait_for_position(target_position, target_index=None, timeout=timeout)
 
-    def set_emission_filter_position(self, index: int, blocking: bool = True, timeout: int = 5):
+    def set_emission_filter(self, index: int, blocking: bool = True, timeout: int = 5):
         """
         Set the emission filter to the specified position.
         
@@ -626,7 +626,7 @@ class FilterController:
             FilterControllerError: If the command fails to initiate movement.
             TimeoutError: If the movement doesn't complete within the specified timeout (only in blocking mode).
         """
-        if position not in self.VALID_POSITIONS:
+        if index not in self.VALID_POSITIONS:
             raise ValueError(f"Invalid emission filter wheel position: {position}")
         
         target_position = self.OFFSET_POSITION + (index - 1) * self.MICROSTEPS_PER_HOLE
