@@ -510,11 +510,14 @@ class LiveController(QObject):
         if USE_ZABER_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching:
             try:
                 if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
-                    self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
-                    if self.trigger_mode == TriggerMode.SOFTWARE:
-                        time.sleep(ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
+                    if ZABER_EMISSION_FILTER_WHEEL_BLOCKING_CALL:
+                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position),blocking=True)
                     else:
-                        time.sleep(max(0,ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000-self.camera.strobe_delay_us/1e6))
+                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position),blocking=False)
+                        if self.trigger_mode == TriggerMode.SOFTWARE:
+                            time.sleep(ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
+                        else:
+                            time.sleep(max(0,ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000-self.camera.strobe_delay_us/1e6))
             except Exception as e:
                 print('not setting emission filter position due to ' + str(e))
 
