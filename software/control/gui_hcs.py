@@ -407,7 +407,7 @@ class OctopiGUI(QMainWindow):
             desktopWidget = QDesktopWidget()
             width = 0.96*desktopWidget.height()
             height = width
-            self.tabbedImageDisplayWindow.setFixedSize(width,height)
+            self.tabbedImageDisplayWindow.setFixedSize(int(width), int(height))
             self.tabbedImageDisplayWindow.show()
 
         '''
