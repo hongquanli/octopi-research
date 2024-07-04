@@ -14,9 +14,7 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
-import control.ImSwitch.napariViewerWidget as napariViewerWidget
 import serial
-
 
 if CAMERA_TYPE == "Toupcam":
     try:
