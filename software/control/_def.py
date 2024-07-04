@@ -692,8 +692,8 @@ elif WELLPLATE_FORMAT == 96:
     NUMBER_OF_SKIP = 0
     WELL_SIZE_MM = 6.21
     WELL_SPACING_MM = 9
-    A1_X_MM = 14.3      # measured stage position - to update
-    A1_Y_MM = 11.36     # measured stage position - to update
+    A1_X_MM = 11.66      # measured stage position - to update
+    A1_Y_MM = 10.43     # measured stage position - to update
     A1_X_PIXEL = 171    # coordinate on the png
     A1_Y_PIXEL = 138    # coordinate on the png
 elif WELLPLATE_FORMAT == 24:
