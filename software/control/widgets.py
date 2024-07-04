@@ -2821,12 +2821,13 @@ class NapariMultiChannelWidget(QWidget):
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
-        self.channels = []
+        self.channels = set()
         self.contrast_limits = {}
         self.pixel_size_um = 1
         self.layers_initialized = False
         self.viewer_scale_initialized = False
         self.grid_enabled = False
+        self.update_layer_count = 0
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
 
@@ -2844,7 +2845,7 @@ class NapariMultiChannelWidget(QWidget):
         self.Nz = Nz
 
     def initChannels(self, channels):
-        self.channels = channels
+        self.channels = set(channels)
 
     def extractWavelength(self, name):
         # Split the string and find the wavelength number immediately after "Fluorescence"
@@ -2869,11 +2870,15 @@ class NapariMultiChannelWidget(QWidget):
 
     def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        self.viewer.layers.clear()
+        #self.viewer.layers.clear()
+        for layer in list(self.viewer.layers):
+            if layer.name not in self.channels:
+                self.viewer.layers.remove(layer)
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
         self.layers_initialized = True
+        self.update_layer_count = 0
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
@@ -2882,7 +2887,7 @@ class NapariMultiChannelWidget(QWidget):
  
         rgb = len(image.shape) == 3
         if channel_name not in self.viewer.layers:
-            self.channels.append(channel_name)
+            self.channels.add(channel_name)
             if rgb:
                 color = None  # RGB images do not need a colormap
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width, 3), dtype=self.dtype)
@@ -2908,7 +2913,11 @@ class NapariMultiChannelWidget(QWidget):
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.viewer.dims.set_point(0, k)
-        layer.refresh()
+        self.update_layer_count += 1
+        if self.update_layer_count == len(self.channels):
+            for layer in self.viewer.layers:
+                layer.refresh()
+            self.update_layer_count = 0
 
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
@@ -2945,11 +2954,12 @@ class NapariTiledDisplayWidget(QWidget):
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
-        self.channels = []
+        self.channels = set()
         self.Nx = 1
         self.Ny = 1
         self.Nz = 1
         self.layers_initialized = False
+        self.acquisition_initialized = False
         self.viewer_scale_initialized = False
         self.contrast_limits = {}
         self.initNapariViewer()
@@ -2969,9 +2979,10 @@ class NapariTiledDisplayWidget(QWidget):
         self.dx_mm = dx
         self.dy_mm = dy
         self.dz_um = dz
+        self.acquisition_initialized = False
 
     def initChannels(self, channels):
-        self.channels = channels
+        self.channels = set(channels)
 
     def extractWavelength(self, name):
         # Split the string and find the wavelength number immediately after "Fluorescence"
@@ -2995,7 +3006,13 @@ class NapariTiledDisplayWidget(QWidget):
 
     def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        self.viewer.layers.clear()
+        if self.acquisition_initialized:
+            for layer in list(self.viewer.layers):
+                if layer.name not in self.channels:
+                    self.viewer.layers.remove(layer)
+        else:
+            self.viewer.layers.clear()
+            self.acquisition_initialized = True
         self.image_width = image_width // self.downsample_factor
         self.image_height = image_height // self.downsample_factor
         self.dtype = np.dtype(image_dtype)
@@ -3011,7 +3028,7 @@ class NapariTiledDisplayWidget(QWidget):
            self.initLayers(image.shape[0], image.shape[1], image.dtype)
  
         if channel_name not in self.viewer.layers:
-            self.channels.append(channel_name)
+            self.channels.add(channel_name)
             if rgb:
                 color = None  # No colormap for RGB images
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
