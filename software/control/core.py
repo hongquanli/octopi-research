@@ -511,9 +511,9 @@ class LiveController(QObject):
             try:
                 if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
                     if ZABER_EMISSION_FILTER_WHEEL_BLOCKING_CALL:
-                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position),blocking=True)
+                        self.microscope.emission_filter_wheel.set_emission_filter(self.currentConfiguration.emission_filter_position,blocking=True)
                     else:
-                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position),blocking=False)
+                        self.microscope.emission_filter_wheel.set_emission_filter(self.currentConfiguration.emission_filter_position,blocking=False)
                         if self.trigger_mode == TriggerMode.SOFTWARE:
                             time.sleep(ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
                         else:
@@ -524,7 +524,7 @@ class LiveController(QObject):
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching and OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER == False:
             try:
                 if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
-                    self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
+                    self.microscope.emission_filter_wheel.set_emission_filter(self.currentConfiguration.emission_filter_position)
                     if self.trigger_mode == TriggerMode.SOFTWARE:
                         time.sleep(OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
                     elif self.trigger_mode == TriggerMode.HARDWARE:
