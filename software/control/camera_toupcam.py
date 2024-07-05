@@ -209,7 +209,7 @@ class Camera(object):
             # set temperature
             # print('max fan speed is ' + str(self.camera.FanMaxSpeed()))
             self.set_fan_speed(1)
-            self.set_temperature(0)
+            self.set_temperature(20)
 
             self.set_data_format('RAW')
             self.set_pixel_format('MONO16') # 'MONO8'

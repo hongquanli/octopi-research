@@ -569,8 +569,13 @@ CHANNEL_COLORS_MAP = {
 
 # Emission filter wheel
 USE_ZABER_EMISSION_FILTER_WHEEL = False
-# need redefine it with real USB device serial number
-FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NFZP8' 
+ZABER_EMISSION_FILTER_WHEEL_DELAY_MS = 70
+ZABER_EMISSION_FILTER_WHEEL_BLOCKING_CALL = False
+USE_OPTOSPIN_EMISSION_FILTER_WHEEL = False
+FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
+OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
+OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
+OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 
 ##########################################################
 #### start of loading machine specific configurations ####
@@ -578,7 +583,7 @@ FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NFZP8'
 CACHED_CONFIG_FILE_PATH = None
 
 # Piezo configuration items
-ENABLE_OBJECTIVE_PIEZO = True
+ENABLE_OBJECTIVE_PIEZO = False
 # the value of OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
 OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
 OBJECTIVE_PIEZO_RANGE_UM = 300
@@ -687,8 +692,8 @@ elif WELLPLATE_FORMAT == 96:
     NUMBER_OF_SKIP = 0
     WELL_SIZE_MM = 6.21
     WELL_SPACING_MM = 9
-    A1_X_MM = 14.3      # measured stage position - to update
-    A1_Y_MM = 11.36     # measured stage position - to update
+    A1_X_MM = 11.66      # measured stage position - to update
+    A1_Y_MM = 10.43     # measured stage position - to update
     A1_X_PIXEL = 171    # coordinate on the png
     A1_Y_PIXEL = 138    # coordinate on the png
 elif WELLPLATE_FORMAT == 24:

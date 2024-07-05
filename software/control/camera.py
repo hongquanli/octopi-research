@@ -486,6 +486,8 @@ class Camera_Simulation(object):
         self.OffsetX = 0
         self.OffsetY = 0
 
+        self.new_image_callback_external = None
+
 
     def open(self,index=0):
         pass

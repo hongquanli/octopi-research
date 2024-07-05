@@ -392,7 +392,7 @@ class Configuration:
         self.emission_filter_position = emission_filter_position
 
 class LiveController(QObject):
-
+    
     def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.microscope = parent
@@ -421,6 +421,8 @@ class LiveController(QObject):
         self.timestamp_last = 0
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
+
+        self.enable_channel_auto_filter_switching = True
 
         if USE_LDI_SERIAL_CONTROL:
             self.ldi = serial_peripherals.LDI()
@@ -498,19 +500,37 @@ class LiveController(QObject):
             else:
                 self.microcontroller.set_illumination(illumination_source,intensity)
 
-            # set emission filter position
-            if 'Fluorescence' in self.currentConfiguration.name:
-                try:
-                    self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
-                except Exception as e:
-                    print('not setting emission filter position due to ' + str(e))
+        # set emission filter position
+        if ENABLE_SPINNING_DISK_CONFOCAL:
+            try:
+                self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
-                if USE_ZABER_EMISSION_FILTER_WHEEL:
-                    try:
-                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
-                    except Exception as e:
-                        print('not setting emission filter position due to ' + str(e))
+        if USE_ZABER_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching:
+            try:
+                if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
+                    if ZABER_EMISSION_FILTER_WHEEL_BLOCKING_CALL:
+                        self.microscope.emission_filter_wheel.set_emission_filter(self.currentConfiguration.emission_filter_position,blocking=True)
+                    else:
+                        self.microscope.emission_filter_wheel.set_emission_filter(self.currentConfiguration.emission_filter_position,blocking=False)
+                        if self.trigger_mode == TriggerMode.SOFTWARE:
+                            time.sleep(ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
+                        else:
+                            time.sleep(max(0,ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000-self.camera.strobe_delay_us/1e6))
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
+        if USE_OPTOSPIN_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching and OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER == False:
+            try:
+                if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
+                    self.microscope.emission_filter_wheel.set_emission_filter(self.currentConfiguration.emission_filter_position)
+                    if self.trigger_mode == TriggerMode.SOFTWARE:
+                        time.sleep(OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
+                    elif self.trigger_mode == TriggerMode.HARDWARE:
+                        time.sleep(max(0,OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS/1000-self.camera.strobe_delay_us/1e6))
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
     def start_live(self):
         self.is_live = True
@@ -690,7 +710,6 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
-
     def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9):
         """
         napariTiledDisplay uses the Nx, Ny, dx_mm, dy_mm fields to move to the correct fov first
@@ -704,16 +723,23 @@ class NavigationController(QObject):
         click_x = image_width / 2.0 + click_x
         click_y = image_height / 2.0 - click_y
         print("click - (x, y):", (click_x, click_y))
-        cx = click_x * Nx // image_width
-        cy = click_y * Ny // image_height
-        print("fov - (col, row):", (cx, cy))
-        pixel_sign_x = 1
-        pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
+        fov_col = click_x * Nx // image_width
+        fov_row = click_y * Ny // image_height
+        print("image - (col, row):", (fov_col, fov_row))
+        end_position_x = Ny % 2 # right side or left side
+        fov_col = Nx - (fov_col + 1) if end_position_x else fov_col
+        fov_row = fov_row
+        print("fov - (col, row):", fov_col, fov_row)
+
+        pixel_sign_x = (-1)**end_position_x # inverted
+        pixel_sign_y = -1 if INVERTED_OBJECTIVE else 1
+        print("pixel_sign_x, pixel_sign_y", pixel_sign_x, pixel_sign_y)
  
         # move to selected fov
-        self.move_x_to(self.scan_begin_position_x+dx_mm*cx*pixel_sign_x)
-        self.move_y_to(self.scan_begin_position_y-dy_mm*cy*pixel_sign_y)
-
+        self.move_x_to(self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x)
+        self.microcontroller.wait_till_operation_is_completed()
+        self.move_y_to(self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
+        self.microcontroller.wait_till_operation_is_completed()
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
         tile_height = (image_height / Ny) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -721,7 +747,7 @@ class NavigationController(QObject):
         offset_y = (click_y * PRVIEW_DOWNSAMPLE_FACTOR) % tile_height
         offset_x_centered = int(offset_x - tile_width / 2)
         offset_y_centered = int(tile_height / 2 - offset_y)
-        self.move_from_click(offset_x_centered, ry_centered, tile_width, tile_height)
+        self.move_from_click(offset_x_centered, offset_y_centered, tile_width, tile_height)
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
@@ -768,8 +794,14 @@ class NavigationController(QObject):
             delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
 
+            if not IS_HCS:
+                delta_x /= 2
+                delta_y /= 2
+
             self.move_x(delta_x)
+            self.microcontroller.wait_till_operation_is_completed()
             self.move_y(delta_y)
+            self.microcontroller.wait_till_operation_is_completed()
 
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
@@ -1591,7 +1623,6 @@ class MultiPointWorker(QObject):
         self.use_piezo = self.multiPointController.use_piezo
         self.detection_stats = {}
         self.async_detection_stats = {}
-
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
 
@@ -1623,9 +1654,8 @@ class MultiPointWorker(QObject):
 
         if self.multiPointController.location_list is None:
             # use scanCoordinates for well plates or regular multipoint scan
-            if self.multiPointController.scanCoordinates!=None:
+            if self.multiPointController.scanCoordinates!=None and self.multiPointController.scanCoordinates.get_selected_wells():
                 # use scan coordinates for the scan
-                self.multiPointController.scanCoordinates.get_selected_wells()
                 self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
                 self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
                 self.use_scan_coordinates = True
@@ -1846,15 +1876,15 @@ class MultiPointWorker(QObject):
                             
                             # Ensure that i/y-indexing is always top to bottom
                             sgn_i = -1 if self.deltaY >= 0 else 1
-                            if INVERTED_OBJECTIVE: # to do
-                                sgn_i = -sgn_i
+                            sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
                             sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
 
                             real_i = self.NY-1-i if sgn_i == -1 else i
-                            real_j = j if sgn_j == 1 else self.NX-1-j
+                            real_j = self.NX-1-j if sgn_j == -1 else j
 
                             file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
-                            # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
+                            metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
+                            print("scan coordinate:", metadata)
                             # metadata = json.dumps(metadata)
 
                             # laser af characterization mode
@@ -2023,7 +2053,7 @@ class MultiPointWorker(QObject):
                                                     print(f"init napari {channel} layer")
                                                     init_napari_layers = True
                                                     self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype, True)
-                                                self.napari_layers_update.emit(images[channel], real_i, real_j, k, config.name)
+                                                self.napari_layers_update.emit(images[channel], real_i, real_j, k, channel)
 
                                             file_name = file_ID + '_' + channel.replace(' ', '_') + ('.tiff' if i_dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
                                             iio.imwrite(os.path.join(current_path, file_name), images[channel])
@@ -2088,10 +2118,7 @@ class MultiPointWorker(QObject):
                                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
                                 # populate the tiled_preview
-                                if sgn_j == 1:
-                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, j*width:(j+1)*width, ] = I
-                                else:
-                                    self.tiled_preview[(self.NY-i-1)*height:(self.NY-i)*height, (self.NX-j-1)*width:(self.NX-j)*width, ] = I
+                                self.tiled_preview[(self.NY-real_i-1)*height:(self.NY-real_i)*height, real_j*width:(real_j+1)*width, ] = I
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
@@ -2237,6 +2264,9 @@ class MultiPointWorker(QObject):
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
             # finished XY scan
+            if SHOW_TILED_PREVIEW and IS_HCS:
+                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
                 if self.NY > 1:
@@ -2246,14 +2276,14 @@ class MultiPointWorker(QObject):
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                     self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
 
+                if SHOW_TILED_PREVIEW and not IS_HCS:
+                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
                 # move x back at the end of the scan
                 if self.x_scan_direction == -1:
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-                if SHOW_TILED_PREVIEW:
-                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:
@@ -2326,7 +2356,6 @@ class MultiPointController(QObject):
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
         self.parent = parent
-
         self.old_images_per_page = 1
         try:
             if self.parent is not None:
@@ -3124,12 +3153,33 @@ class ImageDisplayWindow(QMainWindow):
         self.autoLevels = enabled
         print('set autolevel to ' + str(enabled))
 
+
 class NavigationViewer(QFrame):
 
     def __init__(self, sample = 'glass slide', invertX = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.sample = sample
+        self.well_size_mm = WELL_SIZE_MM
+        self.well_spacing_mm = WELL_SPACING_MM
+        self.number_of_skip = NUMBER_OF_SKIP
+        self.a1_x_mm = A1_X_MM
+        self.a1_y_mm = A1_Y_MM
+        self.a1_x_pixel = A1_X_PIXEL
+        self.a1_y_pixel = A1_Y_PIXEL
+        self.location_update_threshold_mm = 0.2
+        self.box_color = (255, 0, 0)
+        self.box_line_thickness = 2
+        self.x_mm = None
+        self.y_mm = None
 
+        print("navigation viewer:", sample)
+        self.init_ui(invertX)
+        self.load_background_image(sample)
+        self.update_display_properties(sample)
+        self.update_display()
+
+    def init_ui(self, invertX):
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.graphics_widget = pg.GraphicsLayoutWidget()
@@ -3145,47 +3195,54 @@ class NavigationViewer(QFrame):
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
 
-        if sample == 'glass slide':
-            self.background_image = cv2.imread('images/slide carrier_828x662.png')
-        elif sample == '384 well plate':
-            self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
-        elif sample == '96 well plate':
-            self.background_image = cv2.imread('images/96 well plate_1509x1010.png')
-        elif sample == '24 well plate':
-            self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
-        elif sample == '12 well plate':
-            self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
-        elif sample == '6 well plate':
-            self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
-        elif sample == '1536 well plate':
-            self.background_image = cv2.imread('images/1536 well plate_1509x1010.png')
-        
+    def load_background_image(self, sample):
+        image_paths = {
+            'glass slide': 'images/slide carrier_828x662.png',
+            '6 well plate': 'images/6 well plate_1509x1010.png',
+            '12 well plate': 'images/12 well plate_1509x1010.png',
+            '24 well plate': 'images/24 well plate_1509x1010.png',
+            '96 well plate': 'images/96 well plate_1509x1010.png',
+            '384 well plate': 'images/384 well plate_1509x1010.png',
+            '1536 well plate': 'images/1536 well plate_1509x1010.png'
+        }
+        self.background_image = cv2.imread(image_paths.get(sample, 'images/slide carrier_828x662.png'))
         self.current_image = np.copy(self.background_image)
         self.current_image_display = np.copy(self.background_image)
         self.image_height = self.background_image.shape[0]
         self.image_width = self.background_image.shape[1]
 
-        self.location_update_threshold_mm = 0.2
-        self.sample = sample
-
+    def update_display_properties(self, sample):
         if sample == 'glass slide':
-            self.origin_x_pixel = 200
-            self.origin_y_pixel = 120
+            self.location_update_threshold_mm = 0.2
             self.mm_per_pixel = 0.1453
             self.fov_size_mm = 3000*1.85/(50/9)/1000
+            self.origin_x_pixel = 200
+            self.origin_y_pixel = 120
+            #self.graphics_widget.view.invertY(False)
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
             self.fov_size_mm = 3000*1.85/(50/10)/1000
-            self.origin_x_pixel = A1_X_PIXEL - (A1_X_MM)/self.mm_per_pixel
-            self.origin_y_pixel = A1_Y_PIXEL - (A1_Y_MM)/self.mm_per_pixel
+            self.origin_x_pixel = self.a1_x_pixel - (self.a1_x_mm)/self.mm_per_pixel
+            self.origin_y_pixel = self.a1_y_pixel - (self.a1_y_mm)/self.mm_per_pixel
+            #self.graphics_widget.view.invertY(True)
 
-        self.box_color = (255, 0, 0)
-        self.box_line_thickness = 2
-
-        self.x_mm = None
-        self.y_mm = None
-
+    def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
+        if sample_format == 0:
+            sample = 'glass slide'
+        else:
+            sample = f'{sample_format} well plate'
+        self.sample = sample
+        self.a1_x_mm = a1_x_mm
+        self.a1_y_mm = a1_y_mm
+        self.a1_x_pixel = a1_x_pixel
+        self.a1_y_pixel = a1_y_pixel
+        self.well_size_mm = well_size_mm
+        self.well_spacing_mm = well_spacing_mm
+        self.number_of_skip = number_of_skip
+        self.load_background_image(sample)
+        self.update_display_properties(sample)
+        self.draw_current_fov(self.x_mm,self.y_mm)
         self.update_display()
 
     def update_current_location(self,x_mm,y_mm):
@@ -3202,18 +3259,28 @@ class NavigationViewer(QFrame):
             self.x_mm = x_mm
             self.y_mm = y_mm
 
-    def draw_current_fov(self,x_mm,y_mm):
-        self.current_image_display = np.copy(self.current_image)
+    def get_FOV_pixel_coordinates(self, x_mm, y_mm):
         if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+            if INVERTED_OBJECTIVE:
+                current_FOV_top_left = (round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)),
                                     round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                current_FOV_bottom_right = (round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)),
                                     round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+            else:
+                current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                                        round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
+                current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                                        round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
         else:
             current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
                                     round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
             current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
                                     round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        return current_FOV_top_left, current_FOV_bottom_right
+
+    def draw_current_fov(self,x_mm,y_mm):
+        self.current_image_display = np.copy(self.current_image)
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
         cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
 
     def update_display(self):
@@ -3226,44 +3293,17 @@ class NavigationViewer(QFrame):
 
     def register_fov(self,x_mm,y_mm):
         color = (0,0,255)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
     def register_fov_to_image(self,x_mm,y_mm):
         color = (252,174,30)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
     def deregister_fov_to_image(self,x_mm,y_mm):
         color = (255,255,255)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
 
 
@@ -3528,6 +3568,11 @@ class ScanCoordinates(object):
         self.coordinates_mm = []
         self.name = []
         self.well_selector = None
+        self.a1_x_mm = A1_X_MM
+        self.a1_y_mm = A1_Y_MM
+        self.wellplate_offset_x_mm = WELLPLATE_OFFSET_X_mm
+        self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
+        self.well_spacing_mm = WELL_SPACING_MM
 
     def _index_to_row(self,index):
         index += 1
@@ -3541,6 +3586,16 @@ class ScanCoordinates(object):
     def add_well_selector(self,well_selector):
         self.well_selector = well_selector
 
+    def update_wellplate_settings(self, format_, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, size_mm, spacing_mm, number_of_skip):
+        self.format = format_
+        self.a1_x_mm = a1_x_mm
+        self.a1_y_mm = a1_y_mm
+        self.a1_x_pixel = a1_x_pixel
+        self.a1_y_pixel = a1_y_pixel
+        self.well_size_mm = size_mm
+        self.well_spacing_mm = spacing_mm
+        self.number_of_skip = number_of_skip
+
     def get_selected_wells(self):
         # get selected wells from the widget
         selected_wells = self.well_selector.get_selected_cells()
@@ -3549,7 +3604,7 @@ class ScanCoordinates(object):
         self.coordinates_mm = []
         self.name = []
         if len(selected_wells) == 0:
-            return
+            return False # if no well selected
         # populate the coordinates
         rows = np.unique(selected_wells[:,0])
         _increasing = True
@@ -3560,11 +3615,13 @@ class ScanCoordinates(object):
             if _increasing==False:
                 columns = np.flip(columns)
             for column in columns:
-                x_mm = A1_X_MM + column*WELL_SPACING_MM + WELLPLATE_OFFSET_X_mm
-                y_mm = A1_Y_MM + row*WELL_SPACING_MM + WELLPLATE_OFFSET_Y_mm
+                x_mm = self.a1_x_mm + column*self.well_spacing_mm + self.wellplate_offset_x_mm
+                y_mm = self.a1_y_mm + row*self.well_spacing_mm + self.wellplate_offset_y_mm
+                print("Scan Coordinates:", (x_mm, y_mm))
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
+        return len(selected_wells) # if wells selected
 
 
 class LaserAutofocusController(QObject):
