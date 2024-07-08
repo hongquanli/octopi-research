@@ -260,9 +260,21 @@ class LDI:
                 parity=serial.PARITY_NONE, 
                 xonxoff=False,rtscts=False,dsrdtr=False)
         self.serial_connection.open_ser()
+        self.intensity_mode = 'PC'
+        self.shutter_mode = 'PC'
     
     def run(self):
         self.serial_connection.write_and_check("run!\r","ok")
+
+    def set_shutter_mode(self,mode):
+        if mode in ['EXT','PC']:
+            self.serial_connection.write_and_check('SH_MODE='+mode+'\r',"ok")
+            self.intensity_mode = mode
+
+    def set_intensity_mode(self,mode):
+        if mode in ['EXT','PC']:
+            self.serial_connection.write_and_check('INT_MODE='+mode+'\r',"ok")
+            self.intensity_mode = mode
 
     def set_intensity(self,channel,intensity):
         channel = str(channel)

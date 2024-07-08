@@ -462,7 +462,7 @@ class LiveController(QObject):
         self.enable_channel_auto_filter_switching = True
 
         if USE_LDI_SERIAL_CONTROL:
-            self.ldi = serial_peripherals.LDI()
+            self.ldi = self.microscope.ldi
       
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
             # to do: add error handling
@@ -471,7 +471,7 @@ class LiveController(QObject):
 
     # illumination control
     def turn_on_illumination(self):
-        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name and LDI_SHUTTER_MODE == 'PC':
             self.ldi.set_active_channel_shutter(1)
         elif SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
             self.led_array.turn_on_illumination()
@@ -480,7 +480,7 @@ class LiveController(QObject):
         self.illumination_on = True
 
     def turn_off_illumination(self):
-        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
+        if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name and LDI_SHUTTER_MODE == 'PC':
             self.ldi.set_active_channel_shutter(0)
         elif SUPPORT_SCIMICROSCOPY_LED_ARRAY and 'LED matrix' in self.currentConfiguration.name:
             self.led_array.turn_off_illumination()
@@ -520,13 +520,15 @@ class LiveController(QObject):
         else:
             # update illumination
             if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
-                # set LDI active channel
-                print('set active channel to ' + str(illumination_source))
-                self.ldi.set_active_channel(int(illumination_source))
-                if update_channel_settings:
-                    # set intensity for active channel
-                    print('set intensity')
-                    self.ldi.set_intensity(int(illumination_source),intensity)
+                if LDI_SHUTTER_MODE == 'PC':
+                    # set LDI active channel
+                    print('set active channel to ' + str(illumination_source))
+                    self.ldi.set_active_channel(int(illumination_source))
+                if LDI_INTENSITY_MODE == 'PC':
+                    if update_channel_settings:
+                        # set intensity for active channel
+                        print('set intensity')
+                        self.ldi.set_intensity(int(illumination_source),intensity)
             elif ENABLE_NL5 and NL5_USE_DOUT and 'Fluorescence' in self.currentConfiguration.name:
                 wavelength = int(self.currentConfiguration.name[13:16])
                 self.microscope.nl5.set_active_channel(NL5_WAVENLENGTH_MAP[wavelength])

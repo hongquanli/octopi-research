@@ -109,6 +109,8 @@ class OctopiGUI(QMainWindow):
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
                 print('LDI initialized')
+                self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
+                self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
             if SUPPORT_LASER_AUTOFOCUS:
                 sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
                 self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
