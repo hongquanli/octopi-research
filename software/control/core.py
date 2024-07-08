@@ -67,7 +67,7 @@ class ObjectiveStore:
     def set_current_objective(self, objective_name):
         if objective_name in self.objectives_dict:
             self.current_objective = objective_name
-            self.pixel_size_um = self.get_pixel_size(objective_name)
+            self.pixel_size_um = self.calculate_pixel_size(objective_name)
         else:
             raise ValueError(f"Objective {objective_name} not found in the store.")
 
@@ -3231,7 +3231,7 @@ class NavigationViewer(QFrame):
         self.update_fov_size()
 
     def update_fov_size(self):
-        self.fov_size_mm = self.acquisition_size * self.objectiveStore.pixel_size_um / 1000
+        self.fov_size_mm = self.acquisition_size * self.objectiveStore.get_pixel_size() / 1000
 
     def on_objective_changed(self):
         self.clear_slide()
