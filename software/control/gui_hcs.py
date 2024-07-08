@@ -14,9 +14,7 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
-import control.ImSwitch.napariViewerWidget as napariViewerWidget
 import serial
-
 
 if CAMERA_TYPE == "Toupcam":
     try:
@@ -129,7 +127,7 @@ class OctopiGUI(QMainWindow):
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.do_homing()
+            self.emission_filter_wheel.start_homing()
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_speed(OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ)
 
@@ -218,7 +216,7 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.homing_done = True
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.wait_homing_finish()
+            self.emission_filter_wheel.wait_for_homing_complete()
 
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
@@ -406,7 +404,7 @@ class OctopiGUI(QMainWindow):
             desktopWidget = QDesktopWidget()
             width = 0.96*desktopWidget.height()
             height = width
-            self.tabbedImageDisplayWindow.setFixedSize(width,height)
+            self.tabbedImageDisplayWindow.setFixedSize(int(width), int(height))
             self.tabbedImageDisplayWindow.show()
 
         '''
@@ -682,7 +680,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController.cache_current_position()
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.set_emission_filter('1')
+            self.emission_filter_wheel.set_emission_filter(1)
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter(1)
             self.emission_filter_wheel.close()

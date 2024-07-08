@@ -1,6 +1,7 @@
 import serial
 from serial.tools import list_ports
 import time
+from typing import Tuple, Optional
 
 class SerialDevice:
     """
@@ -477,180 +478,249 @@ class FilterController_Simulation:
     def get_emission_filter(self):
         return 1
 
+class FilterControllerError(Exception):
+    """Custom exception for FilterController errors."""
+    pass
+
 class FilterController:
-    """
-    controller of filter device
-    """
-    def __init__(self, SN, _baudrate, _bytesize, _parity, _stopbits):
-        self.each_hole_microsteps = 4800
+    """Controller for filter device."""
+
+    MICROSTEPS_PER_HOLE = 4800
+    OFFSET_POSITION = -8500
+    VALID_POSITIONS = set(range(1, 8))
+    MAX_RETRIES = 3
+    COMMAND_TIMEOUT = 1  # seconds
+
+    def __init__(self, serial_number: str, baudrate: int, bytesize: int, parity: str, stopbits: int):
         self.current_position = 0
-        self.offset_position = -8500
         self.current_index = 1
+        self.serial = self._initialize_serial(serial_number, baudrate, bytesize, parity, stopbits)
+        self._configure_device()
 
-        self.deviceinfo = FilterDeviceInfo()
-        optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
+    def _initialize_serial(self, serial_number: str, baudrate: int, bytesize: int, parity: str, stopbits: int) -> serial.Serial:
+        ports = [p.device for p in list_ports.comports() if serial_number == p.serial_number]
+        if not ports:
+            raise ValueError(f"No device found with serial number: {serial_number}")
+        return serial.Serial(ports[0], baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=self.COMMAND_TIMEOUT)
 
-        self.serial = serial.Serial(optical_mounts_ports[0], baudrate=_baudrate, bytesize=_bytesize, parity=_parity, stopbits=_stopbits)
+    def _configure_device(self):
         time.sleep(0.2)
-
-        if self.serial.isOpen(): 
-            self.deviceinfo.firmware_version = self.get_info('/get version')[1]
-
-            self.send_command_with_reply('/set maxspeed 250000')
-            self.send_command_with_reply('/set accel 900')
-
-            self.deviceinfo.maxspeed = self.get_info('/get maxspeed')[1]
-            self.deviceinfo.accel = self.get_info('/get accel')[1]
-
-            '''
-            print('filter control port open scucessfully')
-            print('firmware version: ' + self.deviceinfo.firmware_version)
-            print('maxspeed: ' + self.deviceinfo.maxspeed)
-            print('accel: ' + self.deviceinfo.accel)
-            '''
+        self.firmware_version = self._get_device_info('/get version')
+        self._send_command_with_reply('/set maxspeed 250000')
+        self._send_command_with_reply('/set accel 900')
+        self.maxspeed = self._get_device_info('/get maxspeed')
+        self.accel = self._get_device_info('/get accel')
 
     def __del__(self):
-        if self.serial.isOpen(): 
-            self.send_command('/stop')
+        if hasattr(self, 'serial') and self.serial.is_open:
+            self._send_command('/stop')
             time.sleep(0.5)
             self.serial.close()
-    
-    def send_command(self, cmd):
-        cmd = cmd + '\n'
-        if self.serial.isOpen(): 
-            self.serial.write(cmd.encode('utf-8')) 
-        else:
-            print('Error: serial port is not open yet')
 
-    def send_command_with_reply(self, cmd):
-        cmd = cmd + '\n'
-        if self.serial.isOpen(): 
-            self.serial.write(cmd.encode('utf-8')) 
-            time.sleep(0.01)
-            result = self.serial.readline()
-            data_string = result.decode('utf-8')
-            return_list = data_string.split(' ')
-            if return_list[2] == 'OK' and return_list[3] == 'IDLE':
-                return True
-            else:
-                print('execute cmd fail: ' + cmd)
-                return False
+    def _send_command(self, cmd: str) -> Tuple[bool, str]:
+        """
+        Send a command to the device and handle the response.
 
-        else:
-            print('Error: serial port is not open yet')
+        Args:
+            cmd (str): The command to send.
 
-    def get_info(self, cmd):
-        cmd = cmd + '\n'
-        if self.serial.isOpen(): 
+        Returns:
+            Tuple[bool, str]: A tuple containing a success flag and the response message.
+
+        Raises:
+            FilterControllerError: If the command fails after maximum retries.
+        """
+        if not self.serial.is_open:
+            raise RuntimeError("Serial port is not open")
+
+        for attempt in range(self.MAX_RETRIES):
             try:
-                self.serial.write(cmd.encode('utf-8')) 
-                result = self.serial.readline()
-                if not result:
-                    print("No response from filter controller")
-            except Exception as e:
-                print("Error occurred communicating with filter controller")
-            data_string = result.decode('utf-8')
-            return_list = data_string.split(' ')
-            if return_list[2] == 'OK' and return_list[3] == 'IDLE':
-                value_string = return_list[5]
-                value_string = value_string.strip('\n')
-                value_string = value_string.strip('\r')
-                return True, value_string
-            else:
-                return False, '' 
+                self.serial.write(f"{cmd}\n".encode('utf-8'))
+                response = self.serial.readline().decode('utf-8').strip()
+                success, message = self._parse_response(response)
+                
+                if success:
+                    return True, message
+                elif message.startswith('BUSY'):
+                    time.sleep(0.1)  # Wait a bit if the device is busy
+                    continue
+                else:
+                    # Log the error and retry
+                    print(f"Command failed (attempt {attempt + 1}): {message}")
+            except serial.SerialTimeoutException:
+                print(f"Command timed out (attempt {attempt + 1})")
+            
+            time.sleep(0.5)  # Wait before retrying
+        
+        raise FilterControllerError(f"Command '{cmd}' failed after {self.MAX_RETRIES} attempts")
 
+    def _parse_response(self, response: str) -> Tuple[bool, str]:
+        """
+        Parse the response from the device.
+
+        Args:
+            response (str): The response string from the device.
+
+        Returns:
+            Tuple[bool, str]: A tuple containing a success flag and the parsed message.
+        """
+        if not response:
+            return False, "No response received"
+        
+        parts = response.split()
+        if len(parts) < 4:
+            return False, f"Invalid response format: {response}"
+
+        if parts[0].startswith('@'):
+            if parts[2] == 'OK':
+                return True, ' '.join(parts[3:])
+            else:
+                return False, ' '.join(parts[2:])
+        elif parts[0].startswith('!'):
+            return False, f"Alert: {' '.join(parts[1:])}"
+        elif parts[0].startswith('#'):
+            return True, f"Info: {' '.join(parts[1:])}"
         else:
-            print('Error: serial port is not open yet')
+            return False, f"Unknown response format: {response}"
 
-    def get_position(self):
-        if self.serial.isOpen(): 
-            result = self.serial.readline()
-            data_string = result.decode('utf-8')
-            return_list = data_string.split(' ')
-            if return_list[2] == 'OK' and return_list[3] == 'IDLE':
-                value_string = return_list[5]
-                value_string = value_string.strip('\n')
-                value_string = value_string.strip('\r')
-                return True, int(value_string) 
-            else:
+    def _send_command_with_reply(self, cmd: str) -> bool:
+        success, message = self._send_command(cmd)
+        return success and (message == 'IDLE' or message.startswith('BUSY'))
+
+    def _get_device_info(self, cmd: str) -> Optional[str]:
+        success, message = self._send_command(cmd)
+        return message if success else None
+
+    def get_current_position(self) -> Tuple[bool, int]:
+        success, message = self._send_command('/get pos')
+        if success:
+            try:
+                return True, int(message.split()[-1])
+            except (ValueError, IndexError):
                 return False, 0
+        return False, 0
 
-    def get_index(self):
-        index = (self.current_position - self.offset_position) / self.each_hole_microsteps
-        self.current_index = int(index) + 1
-        return int(index) + 1
+    def calculate_filter_index(self) -> int:
+        return (self.current_position - self.OFFSET_POSITION) // self.MICROSTEPS_PER_HOLE
 
-    def move_to_offset(self):
-        '''
-        the function is inner function, be used to move wheel to a given position 
-        '''
-        cmd_str = '/move rel ' + str(self.offset_position)
-        self.send_command(cmd_str)
-        timeout = 50
-        while timeout != 0:
-            timeout -= 1
-            time.sleep(0.1)
-            self.send_command('/get pos')
-            result = self.get_position()
-            if result[0] == True and result[1] == self.offset_position:
-                self.current_position = self.offset_position
+    def move_to_offset_position(self):
+        self._move_to_absolute_position(self.OFFSET_POSITION)
+
+    def _move_to_absolute_position(self, target_position: int, timeout: int = 5):
+        success, _ = self._send_command(f'/move abs {target_position}')
+        if not success:
+            raise FilterControllerError("Failed to initiate filter movement")
+        self._wait_for_position(target_position, target_index=None, timeout=timeout)
+
+    def set_emission_filter(self, index: int, blocking: bool = True, timeout: int = 5):
+        """
+        Set the emission filter to the specified position.
+        
+        Args:
+            position (int): The desired filter position (1-7).
+            blocking (bool): If True, wait for the movement to complete. If False, return immediately.
+            timeout (int): Maximum time to wait for the movement to complete (in seconds).
+        
+        Raises:
+            ValueError: If the position is invalid.
+            FilterControllerError: If the command fails to initiate movement.
+            TimeoutError: If the movement doesn't complete within the specified timeout (only in blocking mode).
+        """
+        if index not in self.VALID_POSITIONS:
+            raise ValueError(f"Invalid emission filter wheel position: {position}")
+        
+        target_position = self.OFFSET_POSITION + (index - 1) * self.MICROSTEPS_PER_HOLE
+        success, _ = self._send_command(f'/move abs {target_position}')
+        
+        if not success:
+            raise FilterControllerError("Failed to initiate filter movement")
+        
+        if blocking:
+            self._wait_for_position(target_position, index, timeout)
+        else:
+            # Update the current position without waiting
+            self.current_position = target_position
+            self.current_index = index
+
+    def _wait_for_position(self, target_position: int, target_index : int, timeout: int):
+        """
+        Wait for the filter to reach the target position.
+        
+        Args:
+            target_position (int): The expected final position.
+            timeout (int): Maximum time to wait (in seconds).
+        
+        Raises:
+            TimeoutError: If the movement doesn't complete within the specified timeout.
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            time.sleep(0.003)
+            success, position = self.get_current_position()
+            if success and position == target_position:
+                self.current_position = target_position
+                self.current_index = target_index
                 return
-        print('filter move offset timeout')
+        raise TimeoutError(f"Filter move to position {target_position} timed out")
 
-    def move_index_position(self, pos_index):
-        mov_pos = pos_index * self.each_hole_microsteps
-        pos = self.current_position + mov_pos
-        cmd_str = '/move rel ' + str(mov_pos)
-        self.send_command(cmd_str)
+    def get_emission_filter_position(self) -> int:
+        return self.calculate_filter_index() + 1
 
-        timeout = 50
-        while timeout != 0:
-            timeout -= 1
-            time.sleep(0.005)
-            self.send_command('/get pos')
-            result = self.get_position()
-            if result[0] == True and result[1] == pos:
-                self.current_position = pos
-                return
-        print('filter move timeout')
+    def start_homing(self):
+        """
+        Start the homing sequence for the filter device.
 
-    def set_emission_filter(self, position):
-        if str(position) not in ["1","2","3","4","5","6","7"]:
-            raise ValueError("Invalid emission filter wheel position!")
+        This function initiates the homing process but does not wait for it to complete.
+        Use wait_for_homing_complete() to wait for the homing process to finish.
 
-        pos = int(position)
-        current_pos = self.get_index()
-        if pos == current_pos:
-            return
+        Raises:
+            FilterControllerError: If the homing command fails to initiate.
+        """
+        success, _ = self._send_command('/home')
+        if not success:
+            raise FilterControllerError("Failed to initiate homing sequence")
 
-        pos = pos - current_pos
-        self.move_index_position(pos)
-        self.current_index = position
+    def wait_for_homing_complete(self, timeout: int = 50) -> bool:
+        """
+        Wait for the homing sequence to complete.
 
-    def get_emission_filter(self):
-        return self.get_index()
+        Args:
+            timeout (int): Maximum time to wait for homing to complete, in seconds.
 
-    def do_homing(self):
-        '''
-        the /home command just make the wheel start to move
-        '''
-        self.send_command('/home')
+        Returns:
+            bool: True if homing completed successfully, False if it timed out.
 
-    def wait_homing_finish(self):
-        '''
-        the function is used to make the wheel be moving to the setting position 
-        '''
-        timeout_counter = 100
-        while timeout_counter != 0:
-            timeout_counter -= 1
+        Raises:
+            FilterControllerError: If there's an error while checking the homing status.
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
             time.sleep(0.5)
-            self.send_command('/get pos')
-            result = self.get_position()
-            if result[0] == True and result[1] == 0:
+            success, position = self.get_current_position()
+            if not success:
+                raise FilterControllerError("Failed to get current position during homing")
+            if position == 0:
                 self.current_position = 0
-                self.move_to_offset()
-                return
-        print('Filter device homing fail')
+                self.move_to_offset_position()
+                return True
+        return False
+
+    def complete_homing_sequence(self, timeout: int = 50):
+        """
+        Perform a complete homing sequence.
+
+        This method starts the homing sequence and waits for it to complete.
+
+        Args:
+            timeout (int): Maximum time to wait for homing to complete, in seconds.
+
+        Raises:
+            FilterControllerError: If homing fails to start or complete.
+            TimeoutError: If homing doesn't complete within the specified timeout.
+        """
+        self.start_homing()
+        if not self.wait_for_homing_complete(timeout):
+            raise TimeoutError("Filter device homing failed")
 
 
 class Optospin:
