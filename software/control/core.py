@@ -9,10 +9,12 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+from control._def import *
+
 from control.processing_handler import ProcessingHandler
 
 import control.utils as utils
-from control._def import *
+import control.utils_config as utils_config
 
 import control.tracking as tracking
 try:
@@ -34,8 +36,6 @@ from datetime import datetime
 
 from lxml import etree as ET
 from pathlib import Path
-import control.utils_config as utils_config
-
 import math
 import json
 import pandas as pd
@@ -740,6 +740,7 @@ class NavigationController(QObject):
         self.microcontroller.wait_till_operation_is_completed()
         self.move_y_to(self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
         self.microcontroller.wait_till_operation_is_completed()
+        
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
         tile_height = (image_height / Ny) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -1718,7 +1719,6 @@ class MultiPointWorker(QObject):
 
         slide_path = os.path.join(self.base_path, self.experiment_ID)
 
-
         # create a dataframe to save coordinates
         if IS_HCS:
             if self.use_piezo:
@@ -1736,26 +1736,26 @@ class MultiPointWorker(QObject):
 
         for coordinate_id in range(n_regions):
 
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            print(coordiante_mm)
+            coordinate_mm = self.scan_coordinates_mm[coordinate_id]
+            print(coordinate_mm)
 
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
-                coordiante_name = str(coordinate_id)
+                coordinate_name = str(coordinate_id)
             else:
-                coordiante_name = self.scan_coordinates_name[coordinate_id]
+                coordinate_name = self.scan_coordinates_name[coordinate_id]
             
             if self.use_scan_coordinates:
                 # move to the specified coordinate
-                self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+                self.navigationController.move_x_to(coordinate_mm[0]-self.deltaX*(self.NX-1)/2)
+                self.navigationController.move_y_to(coordinate_mm[1]-self.deltaY*(self.NY-1)/2)
                 # check if z is included in the coordinate
-                if len(coordiante_mm) == 3:
-                    if coordiante_mm[2] >= self.navigationController.z_pos_mm:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                if len(coordinate_mm) == 3:
+                    if coordinate_mm[2] >= self.navigationController.z_pos_mm:
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                     else:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                         # remove backlash
                         if self.navigationController.get_pid_control_flag(2) is False:
@@ -1767,10 +1767,10 @@ class MultiPointWorker(QObject):
                 else:
                     self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                if len(coordiante_mm) == 3:
+                if len(coordinate_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
-                coordiante_name = coordiante_name + '_'
+                coordinate_name = coordinate_name + '_'
 
 
             self.x_scan_direction = 1
@@ -1807,7 +1807,7 @@ class MultiPointWorker(QObject):
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
-                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordinate_name,i,j)
 
                     else:
 
@@ -1824,7 +1824,7 @@ class MultiPointWorker(QObject):
                                     self.autofocusController.autofocus()
                                     self.autofocusController.wait_till_autofocus_has_completed()
                                 # upate z location of scan_coordinates_mm after AF
-                                if len(coordiante_mm) == 3:
+                                if len(coordinate_mm) == 3:
                                     self.scan_coordinates_mm[coordinate_id,2] = self.navigationController.z_pos_mm
                                     # update the coordinate in the widget
                                     try:
@@ -1853,7 +1853,7 @@ class MultiPointWorker(QObject):
                                     else:
                                         self.microscope.laserAutofocusController.move_to_target(0)
                                 except:
-                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    file_ID = coordinate_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
                                     saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
                                     iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
                                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -1933,8 +1933,6 @@ class MultiPointWorker(QObject):
                                     # process the image -  @@@ to move to camera
                                     image = utils.crop_image(image,self.crop_width,self.crop_height)
                                     image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-                                    # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-
                                     image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
                                     self.image_to_display.emit(image_to_display)
                                     self.image_to_display_multi.emit(image_to_display,config.illumination_source)
@@ -2035,6 +2033,11 @@ class MultiPointWorker(QObject):
                                             # add the image to dictionary
                                             images[config_.name] = np.copy(image)
 
+                                            # emit R, G, B images
+                                            image_to_display = utils.crop_image(images[config_.name], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
+                                            self.image_to_display.emit(image_to_display)
+                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
+
                                     # Check if the image is RGB or monochrome
                                     i_size = images['BF LED matrix full_R'].shape
                                     i_dtype = images['BF LED matrix full_R'].dtype
@@ -2044,10 +2047,6 @@ class MultiPointWorker(QObject):
                                         print('writing R, G, B channels')
 
                                         for channel in channels:
-                                            image_to_display = utils.crop_image(images[channel], round(self.crop_width * self.display_resolution_scaling), round(self.crop_height * self.display_resolution_scaling))
-                                            self.image_to_display.emit(image_to_display)
-                                            self.image_to_display_multi.emit(image_to_display, config.illumination_source)
-
                                             if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
                                                 if not init_napari_layers:
                                                     print(f"init napari {channel} layer")
@@ -2125,7 +2124,7 @@ class MultiPointWorker(QObject):
                             # add the coordinate of the current location
                             if IS_HCS:
                                 if self.use_piezo:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
@@ -2133,7 +2132,7 @@ class MultiPointWorker(QObject):
                                                             'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
                                                             'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                                 else:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
@@ -2312,6 +2311,7 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    signal_stitcher = Signal(str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object, bool)
     signal_z_piezo_um = Signal(float)
@@ -2580,6 +2580,7 @@ class MultiPointController(QObject):
             except:
                 pass
         self.acquisitionFinished.emit()
+        self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
     def request_abort_aquisition(self):
@@ -2960,7 +2961,7 @@ class TrackingWorker(QObject):
             # track
             objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
             if objectFound == False:
-                print('')
+                print('tracker: object not found')
                 break
             in_plane_position_error_pixel = image_center - centroid 
             in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
@@ -3394,7 +3395,7 @@ class ConfigurationManager(QObject):
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations += 1
-            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
+            # print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),
@@ -3745,7 +3746,7 @@ class LaserAutofocusController(QObject):
 
         if x1-x0 == 0:
             # for simulation
-             self.pixel_to_um = 0.4
+            self.pixel_to_um = 0.4
         else:
             # calculate the conversion factor
             self.pixel_to_um = 6.0/(x1-x0)

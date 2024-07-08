@@ -1,19 +1,22 @@
-# set QT_API environment variable
-import os 
-os.environ["QT_API"] = "pyqt5"
-import qtpy
+import os
+import sys
 
-import locale
+# set QT_API environment variable
+os.environ["QT_API"] = "pyqt5"
 
 # qt libraries
+import qtpy
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
-
 import pyqtgraph as pg
 
 import pandas as pd
+import locale
 import napari
+from napari.utils.colormaps import Colormap, AVAILABLE_COLORMAPS
+import re
+import cv2
 
 from napari.utils.colormaps import Colormap, AVAILABLE_COLORMAPS
 import re
@@ -1376,7 +1379,6 @@ class NavigationWidget(QFrame):
         self.btn_moveZ_backward.setEnabled(enabled)
         self.btn_load_slide.setEnabled(enabled)
 
-        
     def move_x_forward(self):
         self.navigationController.move_x(self.entry_dX.value())
     def move_x_backward(self):
@@ -1674,6 +1676,7 @@ class MultiPointWidget(QFrame):
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int, float, float, float)
+    signal_stitcher_widget = Signal(bool)
 
     def __init__(self, multipointController, configurationManager = None, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1774,6 +1777,9 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
+        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput.setChecked(False)
+
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
@@ -1814,6 +1820,8 @@ class MultiPointWidget(QFrame):
         grid_af.addWidget(self.checkbox_genFocusMap)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+        if ENABLE_STITCHER:
+            grid_af.addWidget(self.checkbox_stitchOutput)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -1843,6 +1851,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
+        self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
@@ -1905,7 +1914,7 @@ class MultiPointWidget(QFrame):
             self.setEnabled_all(False)
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
-             # emit acquisition data
+            # emit acquisition data
             self.signal_acquisition_started.emit(True)
             self.signal_acquisition_shape.emit(self.entry_NX.value(),
                                                self.entry_NY.value(),
@@ -1951,8 +1960,12 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.setEnabled(enabled)
         self.checkbox_withReflectionAutofocus.setEnabled(enabled)
         self.checkbox_genFocusMap.setEnabled(enabled)
+        self.checkbox_stitchOutput.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
+
+    def display_stitcher_widget(self, checked):
+        self.signal_stitcher_widget.emit(checked)
 
     def disable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(False)
@@ -2085,9 +2098,14 @@ class MultiPointWidget2(QFrame):
         self.checkbox_withAutofocus = QCheckBox('Contrast AF')
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
+
+        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput.setChecked(False)
+
         self.btn_startAcquisition = QPushButton('Start Acquisition')
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
         self.btn_startAcquisition.setCheckable(True)
@@ -2141,6 +2159,8 @@ class MultiPointWidget2(QFrame):
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+        if ENABLE_STITCHER:
+            grid_af.addWidget(self.checkbox_stitchOutput)
 
         grid_line3 = QHBoxLayout()
         grid_line3.addWidget(self.list_configurations)
@@ -2173,6 +2193,7 @@ class MultiPointWidget2(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
@@ -2224,6 +2245,9 @@ class MultiPointWidget2(QFrame):
     def emit_selected_channels(self):
         selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
         self.signal_acquisition_channels.emit(selected_channels)
+
+    def display_stitcher_widget(self, checked):
+        self.signal_stitcher_widget.emit(checked)
 
     def toggle_acquisition(self,pressed):
         if self.base_path_is_set == False:
@@ -2322,6 +2346,7 @@ class MultiPointWidget2(QFrame):
         self.list_configurations.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         self.checkbox_withReflectionAutofocus.setEnabled(enabled)
+        self.checkbox_stitchOutput.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
@@ -2522,21 +2547,20 @@ class MultiPointWidget2(QFrame):
 
 class StitcherWidget(QFrame):
 
-    def __init__(self, configurationManager, *args, **kwargs): #multiPointWidget, multiPointWidget2,*args, **kwargs):
+    def __init__(self, configurationManager, *args, **kwargs):
         super(StitcherWidget, self).__init__(*args, **kwargs)
         self.configurationManager = configurationManager
-        #self.multiPointWidget = multiPointWidget
-        #self.multiPointWidget2 = self.MultiPointWidget2
         self.output_path = ""
-        self.contrast_limits = None
+        self.contrast_limit = None
+        self.contrast_limits = {}
+        self.initUI()
 
+    def initUI(self):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)  # Set frame style
-        #self.layout = QGridLayout(self)  # Initialize layout with self as the parent
         self.layout = QVBoxLayout(self)
         self.topLayout = QHBoxLayout()
         self.colLayout1 = QVBoxLayout()
         self.colLayout2 = QVBoxLayout()
-
 
         # Apply flatfield correction checkbox
         self.applyFlatfieldCheck = QCheckBox("Apply Flatfield Correction")
@@ -2555,18 +2579,14 @@ class StitcherWidget(QFrame):
         self.useRegistrationCheck.toggled.connect(self.onRegistrationCheck)
         self.colLayout2.addWidget(self.useRegistrationCheck)
 
-        # Select Registartion Channel
+        # Select registration channel
         self.registrationChannelLabel = QLabel("Select Registration Channel:", self)
         self.registrationChannelLabel.setVisible(False)
         self.colLayout2.addWidget(self.registrationChannelLabel)
         self.registrationChannelCombo = QComboBox(self)
-        #self.registrationChannelCombo.setEnabled(False)
         self.registrationChannelLabel.setVisible(False)
         self.registrationChannelCombo.setVisible(False)
-        #for microscope_configuration in self.configurationManager.configurations:
-        #    self.registrationChannelCombo.addItems([microscope_configuration.name])
         self.colLayout2.addWidget(self.registrationChannelCombo)
-        ### todo: make sure selected channel is one of the selected modes (check if in multipointcontroller channels selected)
         
         self.topLayout.addLayout(self.colLayout1)
         self.topLayout.addLayout(self.colLayout2)
@@ -2590,7 +2610,6 @@ class StitcherWidget(QFrame):
         self.statusLabel.setVisible(False)
 
     def onRegistrationCheck(self, checked):
-        #self.registrationChannelCombo.setEnabled(checked)
         self.registrationChannelLabel.setVisible(checked)
         self.registrationChannelCombo.setVisible(checked)
         if checked:
@@ -2613,7 +2632,7 @@ class StitcherWidget(QFrame):
         self.progressBar.setVisible(True)
 
     def startingStitching(self):
-        self.statusLabel.setText('Status: Stitching Acquisition Images...')
+        self.statusLabel.setText('Status: Stitching Acquisition Scans...')
         self.viewOutputButton.setVisible(False)
         self.progressBar.setValue(0)
         self.statusLabel.setVisible(True)
@@ -2624,10 +2643,13 @@ class StitcherWidget(QFrame):
         self.progressBar.setValue(value)
         self.progressBar.setVisible(True)
 
-    def startingSaving(self):
-        self.statusLabel.setText('Status: Saving Stitched Image...')
-        self.progressBar.setRange(0, 0)  # indeterminate mode.
+    def startingSaving(self, stitch_complete=False):
+        if stitch_complete:
+            self.statusLabel.setText('Status: Saving Complete Acquisition Image...')
+        else:
+            self.statusLabel.setText('Status: Saving Stitched Image...')
         self.statusLabel.setVisible(True)
+        self.progressBar.setRange(0, 0)  # indeterminate mode.
         self.progressBar.setVisible(True)
 
     def finishedSaving(self, output_path, dtype):
@@ -2642,36 +2664,86 @@ class StitcherWidget(QFrame):
             pass
         self.viewOutputButton.clicked.connect(self.viewOutputNapari)
 
+        self.output_path = output_path
         if np.issubdtype(dtype, np.integer):  # Check if dtype is an integer type
-            contrast_limits = (np.iinfo(dtype).min, np.iinfo(dtype).max) 
+            self.contrast_limit = (np.iinfo(dtype).min, np.iinfo(dtype).max)
         elif np.issubdtype(dtype, np.floating):  # floating point type
-            contrast_limits = (0.0, 1.0)
+            self.contrast_limit = (0.0, 1.0)
         else:
-            contrast_limits = None
+            self.contrast_limit = None
             raise ValueError("Unsupported dtype")
 
-        self.output_path = output_path
-        self.contrast_limits = contrast_limits
-        print("Stitching completed.")
-        print(output_path)
-        print(dtype)
+    def saveContrastLimits(self, layer_name, min_val, max_val):
+        self.contrast_limits[layer_name] = (min_val, max_val)
+        #print(f"Stitcher saved contrast limits for {layer_name}: ({min_val}, {max_val})")
+
+    def extractWavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or "full_" + color in parts:
+                return color
+        return None
+
+    def generateColormap(self, channel_info):
+        """Convert a HEX value to a normalized RGB tuple."""
+        c0 = (0, 0, 0)
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
+             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def viewOutputNapari(self):
         try:
             napari_viewer = napari.Viewer()
             if ".ome.zarr" in self.output_path:
-                napari_viewer.open(self.output_path, plugin='napari-ome-zarr', contrast_limits=self.contrast_limits)
+                napari_viewer.open(self.output_path, plugin='napari-ome-zarr', contrast_limits=self.contrast_limit)
             else:
-                napari_viewer.open(self.output_path, contrast_limits=self.contrast_limits)
+                napari_viewer.open(self.output_path, contrast_limits=self.contrast_limit)
 
-            colors = ['gray', 'cyan', 'magma', 'green', 'red', 'blue', 'magenta', 'yellow',
-                      'bop orange', 'bop blue', 'gray', 'magma', 'viridis', 'inferno'] #etc
-            for i, layer in enumerate(napari_viewer.layers):
-                #layer.contrast_limits = self.contrast_limits
-                layer.colormap = colors[i]
-            # napari.run()  # Start the Napari event loop
+            for layer in napari_viewer.layers:
+                layer_name = layer.name.replace("_", " ").replace("full ", "full_")
+                channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(layer_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+
+                # Check if Napari has a colormap with this name and use it; otherwise, create a new one
+                if channel_info['name'] in AVAILABLE_COLORMAPS:
+                    layer.colormap = AVAILABLE_COLORMAPS[channel_info['name']]
+                else:
+                    layer.colormap = self.generateColormap(channel_info)
+
+                if layer_name in self.contrast_limits:
+                    layer.contrast_limits = self.contrast_limits[layer_name]
+                else:
+                    layer.contrast_limits = self.contrast_limit  # Default contrast limits
+
         except Exception as e:
             QMessageBox.critical(self, "Error Opening in Napari", str(e))
+            print(f"An error occurred while opening output in Napari: {e}")
+
+    def resetUI(self):
+        self.output_path = ""
+        self.contrast_limit = None
+        self.contrast_limits = {}
+
+        # Reset UI components to their default states
+        self.applyFlatfieldCheck.setChecked(False)
+        self.outputFormatCombo.setCurrentIndex(0)  # Assuming the first index is the default
+        self.useRegistrationCheck.setChecked(False)
+        self.registrationChannelCombo.clear()  # Clear existing items
+        self.registrationChannelLabel.setVisible(False)
+        self.registrationChannelCombo.setVisible(False)
+
+        # Reset the visibility and state of buttons and labels
+        self.viewOutputButton.setEnabled(False)
+        self.viewOutputButton.setVisible(False)
+        self.progressBar.setValue(0)
+        self.progressBar.setVisible(False)
+        self.statusLabel.setText("Status: Image Acquisition")
+        self.statusLabel.setVisible(False)
 
 
 class NapariLiveWidget(QWidget):
@@ -2735,7 +2807,13 @@ class NapariLiveWidget(QWidget):
                                       contrast_limits=contrast_limits, blending='additive')
         layer.mouse_double_click_callbacks.append(self.onDoubleClick)
         layer.events.contrast_limits.connect(self.signalContrastLimits)  # Connect to contrast limits event
-        self.resetView()
+        if not self.init_scale:
+            self.resetView()
+            self.previous_scale = self.viewer.camera.zoom
+            self.previous_center = self.viewer.camera.center
+        else:
+            self.viewer.camera.zoom = self.previous_scale
+            self.viewer.camera.center = self.previous_center
 
     def updateLiveLayer(self, image, from_autofocus=False):
         """Updates the appropriate slice of the canvas with the new image data."""
@@ -2755,21 +2833,27 @@ class NapariLiveWidget(QWidget):
         layer.data = image
 
         if from_autofocus:
+            # save viewer scale
             if not self.last_was_autofocus:
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
+            # resize to cropped view
             self.resetView()
             self.last_was_autofocus = True
         else:
             if not self.init_scale:
+                # init viewer scale
                 self.resetView()
                 self.previous_scale = self.viewer.camera.zoom
                 self.previous_center = self.viewer.camera.center
                 self.init_scale = True
-
-            if self.last_was_autofocus and self.previous_scale is not None:
+            elif self.last_was_autofocus:
+                # return to to original view
                 self.viewer.camera.zoom = self.previous_scale
                 self.viewer.camera.center = self.previous_center
+            # save viewer scale
+            self.previous_scale = self.viewer.camera.zoom
+            self.previous_center = self.viewer.camera.center
             self.last_was_autofocus = False
 
         curr_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
@@ -2823,7 +2907,7 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.uint8
         self.channels = set()
         self.contrast_limits = {}
-        self.pixel_size_um = 1
+        self.Nz = 1
         self.layers_initialized = False
         self.viewer_scale_initialized = False
         self.grid_enabled = False

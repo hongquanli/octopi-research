@@ -94,7 +94,7 @@ class SerialDevice:
             if response == expected_response:
                 return response
             else:
-            	print(response)
+                print(response)
             
             # check prefix if the full response does not match
             if check_prefix:
@@ -496,6 +496,8 @@ class FilterController:
         self.current_index = 1
         self.serial = self._initialize_serial(serial_number, baudrate, bytesize, parity, stopbits)
         self._configure_device()
+#         self.deviceinfo = FilterDeviceInfo()
+#         optical_mounts_ports = [p.device for p in serial.tools.list_ports.comports() if SN == p.serial_number]
 
     def _initialize_serial(self, serial_number: str, baudrate: int, bytesize: int, parity: str, stopbits: int) -> serial.Serial:
         ports = [p.device for p in list_ports.comports() if serial_number == p.serial_number]
