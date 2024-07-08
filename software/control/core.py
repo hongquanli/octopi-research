@@ -52,9 +52,12 @@ class ObjectiveStore:
         self.current_objective = default_objective
         self.tube_lens_mm = TUBE_LENS_MM
         self.sensor_pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-        self.pixel_size_um = self.get_pixel_size(self.current_objective)
+        self.pixel_size_um = self.calculate_pixel_size(self.current_objective)
 
-    def get_pixel_size(self, objective_name):
+    def get_pixel_size(self):
+        return self.pixel_size_um
+
+    def calculate_pixel_size(self, objective_name):
         objective = self.objectives_dict[objective_name]
         magnification = objective["magnification"]
         objective_tube_lens_mm = objective["tube_lens_f_mm"]
