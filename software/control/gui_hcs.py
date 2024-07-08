@@ -620,7 +620,10 @@ class OctopiGUI(QMainWindow):
         acquisitionWidget = self.recordTabWidget.widget(index)
         if self.wellSelectionWidget.format != 0:
             self.toggleWellSelector(index)
-        acquisitionWidget.emit_selected_channels()
+        try:
+            acquisitionWidget.emit_selected_channels()
+        except AttributeError:
+            pass
 
     def onWellplateChanged(self, format_):
         if ENABLE_FLEXIBLE_MULTIPOINT:

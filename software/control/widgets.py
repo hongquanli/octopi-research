@@ -2811,7 +2811,9 @@ class NapariMultiChannelWidget(QWidget):
         self.channels = set()
         self.contrast_limits = {}
         self.pixel_size_um = 1
+        self.Nz = 1
         self.layers_initialized = False
+        self.acquisition_initialized = False
         self.viewer_scale_initialized = False
         self.grid_enabled = False
         self.update_layer_count = 0
@@ -2829,8 +2831,10 @@ class NapariMultiChannelWidget(QWidget):
         self.setLayout(self.layout)
         
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
+        if self.Nz != Nz:
+            self.acquisition_initialized = False
         self.Nz = Nz
-
+        
     def initChannels(self, channels):
         self.channels = set(channels)
 
@@ -2858,9 +2862,13 @@ class NapariMultiChannelWidget(QWidget):
     def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         #self.viewer.layers.clear()
-        for layer in list(self.viewer.layers):
-            if layer.name not in self.channels:
-                self.viewer.layers.remove(layer)
+        if self.acquisition_initialized:
+            for layer in list(self.viewer.layers):
+                if layer.name not in self.channels:
+                    self.viewer.layers.remove(layer)
+        else:
+            self.viewer.layers.clear()
+            self.acquisition_initialized = True
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
@@ -2899,9 +2907,9 @@ class NapariMultiChannelWidget(QWidget):
         layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
-        self.viewer.dims.set_point(0, k)
         self.update_layer_count += 1
         if self.update_layer_count == len(self.channels):
+            self.viewer.dims.set_point(0, k)
             for layer in self.viewer.layers:
                 layer.refresh()
             self.update_layer_count = 0
@@ -3984,7 +3992,7 @@ class WellplateFormatWidget(QWidget):
             6: (24.55, 23.01, 297, 209, 34.94, 39.2, 0),
             12: (24.75, 16.26, 297, 209, 22.05, 26, 0),
             24: (24.45, 22.07, 144, 108, 15.54, 19.3, 0), # 24: (17.05, 13.67, 144, 108, 15.54, 19.3, 0),
-            96: (14.3, 11.36, 171, 138, 6.21, 9, 0),
+            96: (11.31, 10.75, 171, 138, 6.21, 9, 0),
             384: (12.05, 9.05, 144, 108, 3.3, 4.5, 1),
             1536: (11.0, 7.86, 144, 108, 1.5, 2.25, 0)
         }
