@@ -430,42 +430,29 @@ class SpinningDiskConfocalWidget(QWidget):
         selected_pos = self.dropdown_dichroic.currentText()
         self.xlight.set_dichroic(selected_pos)
         self.enable_all_buttons()
-  
+
 class ObjectivesWidget(QWidget):
+    signal_objective_changed = Signal()
+
     def __init__(self, objective_store):
         super(ObjectivesWidget, self).__init__()
-
         self.objectiveStore = objective_store
-    
         self.init_ui()
-
         self.dropdown.setCurrentText(self.objectiveStore.current_objective)
 
     def init_ui(self):
-        # Dropdown for selecting keys
         self.dropdown = QComboBox(self)
         self.dropdown.addItems(self.objectiveStore.objectives_dict.keys())
-        self.dropdown.currentIndexChanged.connect(self.display_objective)
+        self.dropdown.currentTextChanged.connect(self.on_objective_changed)
 
-        # TextBrowser to display key-value pairs
-        #self.text_browser = QTextBrowser(self)
-        # Layout
-        dropdownLayout = QHBoxLayout()
-        dropdownLabel = QLabel("Objective:")
-        dropdownLayout.addWidget(dropdownLabel)
-        dropdownLayout.addWidget(self.dropdown)
-        #textLayout = QHBoxLayout()
-        #textLayout.addWidget(self.text_browser)
-        layout = QVBoxLayout(self)
-        layout.addLayout(dropdownLayout)
-        #layout.addLayout(textLayout)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Objective:"))
+        layout.addWidget(self.dropdown)
+        self.setLayout(layout)
 
-    def display_objective(self, index):
-        selected_key = self.dropdown.currentText()
-        objective_data = self.objectiveStore.objectives_dict.get(selected_key, {})
-        #text = "\n".join([f"{key}: {value}" for key, value in objective_data.items()])
-        self.objectiveStore.current_objective = selected_key
-        #self.text_browser.setPlainText(text)
+    def on_objective_changed(self, objective_name):
+        self.objectiveStore.set_current_objective(objective_name)
+        self.signal_objective_changed.emit()
 
 class FocusMapWidget(QWidget):
 
@@ -2824,7 +2811,9 @@ class NapariMultiChannelWidget(QWidget):
         self.channels = set()
         self.contrast_limits = {}
         self.pixel_size_um = 1
+        self.Nz = 1
         self.layers_initialized = False
+        self.acquisition_initialized = False
         self.viewer_scale_initialized = False
         self.grid_enabled = False
         self.update_layer_count = 0
@@ -2842,8 +2831,10 @@ class NapariMultiChannelWidget(QWidget):
         self.setLayout(self.layout)
         
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
+        if self.Nz != Nz:
+            self.acquisition_initialized = False
         self.Nz = Nz
-
+        
     def initChannels(self, channels):
         self.channels = set(channels)
 
@@ -2871,9 +2862,13 @@ class NapariMultiChannelWidget(QWidget):
     def initLayers(self, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         #self.viewer.layers.clear()
-        for layer in list(self.viewer.layers):
-            if layer.name not in self.channels:
-                self.viewer.layers.remove(layer)
+        if self.acquisition_initialized:
+            for layer in list(self.viewer.layers):
+                if layer.name not in self.channels:
+                    self.viewer.layers.remove(layer)
+        else:
+            self.viewer.layers.clear()
+            self.acquisition_initialized = True
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
@@ -2912,9 +2907,9 @@ class NapariMultiChannelWidget(QWidget):
         layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
-        self.viewer.dims.set_point(0, k)
         self.update_layer_count += 1
         if self.update_layer_count == len(self.channels):
+            self.viewer.dims.set_point(0, k)
             for layer in self.viewer.layers:
                 layer.refresh()
             self.update_layer_count = 0
@@ -3123,9 +3118,10 @@ class TrackingControllerWidget(QFrame):
 
         self.lineEdit_experimentID = QLineEdit()
 
-        self.dropdown_objective = QComboBox()
-        self.dropdown_objective.addItems(list(OBJECTIVES.keys()))
-        self.dropdown_objective.setCurrentText(DEFAULT_OBJECTIVE)
+        # self.dropdown_objective = QComboBox()
+        # self.dropdown_objective.addItems(list(OBJECTIVES.keys()))
+        # self.dropdown_objective.setCurrentText(DEFAULT_OBJECTIVE)
+        self.objectivesWidget = ObjectivesWidget(self.objectiveStore)
 
         self.dropdown_tracker = QComboBox()
         self.dropdown_tracker.addItems(TRACKERS)
@@ -3164,8 +3160,10 @@ class TrackingControllerWidget(QFrame):
         grid_line0.addWidget(self.lineEdit_experimentID, 1,1, 1,1)
         tmp = QLabel('Objective')
         tmp.setFixedWidth(90)
+        # grid_line0.addWidget(tmp,1,2)
+        # grid_line0.addWidget(self.dropdown_objective, 1,3)
         grid_line0.addWidget(tmp,1,2)
-        grid_line0.addWidget(self.dropdown_objective, 1,3)
+        grid_line0.addWidget(self.objectivesWidget, 1,3)
 
         grid_line3 = QHBoxLayout()
         tmp = QLabel('Configurations')
@@ -3207,7 +3205,8 @@ class TrackingControllerWidget(QFrame):
         self.btn_track.clicked.connect(self.toggle_acquisition)
         # connections - selections and entries
         self.dropdown_tracker.currentIndexChanged.connect(self.update_tracker)
-        self.dropdown_objective.currentIndexChanged.connect(self.update_pixel_size)
+        #self.dropdown_objective.currentIndexChanged.connect(self.update_pixel_size)
+        self.objectivesWidget.dropdown.currentIndexChanged.connect(self.update_pixel_size)
         # controller to widget
         self.trackingController.signal_tracking_stopped.connect(self.slot_tracking_stopped)
 
@@ -3278,6 +3277,18 @@ class TrackingControllerWidget(QFrame):
         pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR] / ( TUBE_LENS_MM/ (OBJECTIVES[objective]['tube_lens_f_mm']/OBJECTIVES[objective]['magnification']) )
         self.trackingController.update_pixel_size(pixel_size_um)
         print('pixel size is ' + str(pixel_size_um) + ' um')
+
+    def update_pixel_size(self): 
+        objective = self.objectiveStore.current_objective
+        self.trackingController.objective = objective
+        objective_info = self.objectiveStore.objectives_dict[objective]
+        magnification = objective_info["magnification"]
+        objective_tube_lens_mm = objective_info["tube_lens_f_mm"]
+        tube_lens_mm = TUBE_LENS_MM
+        pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+        pixel_size_xy = pixel_size_um / (magnification / (objective_tube_lens_mm / tube_lens_mm))
+        self.trackingController.update_pixel_size(pixel_size_xy)
+        print(f'pixel size is {pixel_size_xy:.2f} um')
 
 
     '''
@@ -3981,7 +3992,7 @@ class WellplateFormatWidget(QWidget):
             6: (24.55, 23.01, 297, 209, 34.94, 39.2, 0),
             12: (24.75, 16.26, 297, 209, 22.05, 26, 0),
             24: (24.45, 22.07, 144, 108, 15.54, 19.3, 0), # 24: (17.05, 13.67, 144, 108, 15.54, 19.3, 0),
-            96: (14.3, 11.36, 171, 138, 6.21, 9, 0),
+            96: (11.31, 10.75, 171, 138, 6.21, 9, 0),
             384: (12.05, 9.05, 144, 108, 3.3, 4.5, 1),
             1536: (11.0, 7.86, 144, 108, 1.5, 2.25, 0)
         }

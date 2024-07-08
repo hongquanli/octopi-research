@@ -147,7 +147,7 @@ class OctopiGUI(QMainWindow):
         self.objectiveStore = core.ObjectiveStore() # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
-        self.navigationController = core.NavigationController(self.microcontroller, parent=self)
+        self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.scanCoordinates = core.ScanCoordinates()
@@ -156,8 +156,7 @@ class OctopiGUI(QMainWindow):
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         self.imageSaver = core.ImageSaver()
         self.imageDisplay = core.ImageDisplay()
-        self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
-
+        self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=str(WELLPLATE_FORMAT)+' well plate')
         # retract the objective
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -442,6 +441,7 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
+        self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
 
         # load vs scan position switching
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -618,7 +618,10 @@ class OctopiGUI(QMainWindow):
         acquisitionWidget = self.recordTabWidget.widget(index)
         if self.wellSelectionWidget.format != 0:
             self.toggleWellSelector(index)
-        acquisitionWidget.emit_selected_channels()
+        try:
+            acquisitionWidget.emit_selected_channels()
+        except AttributeError:
+            pass
 
     def onWellplateChanged(self, format_):
         if ENABLE_FLEXIBLE_MULTIPOINT:
