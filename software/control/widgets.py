@@ -2912,12 +2912,11 @@ class NapariMultiChannelWidget(QWidget):
         layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
+        self.viewer.dims.set_point(0, k * self.dz_um)
         self.update_layer_count += 1
-        if self.update_layer_count == len(self.channels):
-            self.viewer.dims.set_point(0, k)
+        if self.update_layer_count % len(self.channels) == 0:
             for layer in self.viewer.layers:
                 layer.refresh()
-            self.update_layer_count = 0
 
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
@@ -2981,7 +2980,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.dx_mm = dx
         self.dy_mm = dy
         self.dz_um = dz
-        self.pixel_size_um = self.objectiveStore.get_pixel_size()
+        self.pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
         self.acquisition_initialized = False
 
     def initChannels(self, channels):
@@ -3057,18 +3056,17 @@ class NapariTiledDisplayWidget(QWidget):
         if not self.viewer_scale_initialized:
             self.resetView()
             self.viewer_scale_initialized = True
- 
+        self.viewer.dims.set_point(0, k * self.dz_um)
         layer = self.viewer.layers[channel_name]
         layer_data = layer.data
+
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
         if rgb:
             layer_data[k, y_slice, x_slice, :] = image
         else:
             layer_data[k, y_slice, x_slice] = image
-        
         layer.data = layer_data
-        self.viewer.dims.set_point(0, k)
         layer.refresh()
 
     def signalContrastLimits(self, event):
