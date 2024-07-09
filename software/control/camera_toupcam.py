@@ -726,7 +726,7 @@ class Camera(object):
         roi_height = 0
 
         pixel_bits = self.pixel_size_byte * 8
-        print(f'pixel_bits = {pixel_bits}')
+        #print(f'pixel_bits = {pixel_bits}')
 
         line_length = 0
         low_noise = 0
@@ -743,18 +743,25 @@ class Camera(object):
 
         try:
             resolution_width, resolution_height = self.camera.get_Size()
-            print(f'res width = {resolution_width} res height = {resolution_height}')
+            #print(f'res width = {resolution_width} res height = {resolution_height}')
         except toupcam.HRESULTException as ex:
             print('get resolution fail, hr=0x{:x}'.format(ex.hr))
 
         xoffset, yoffset, roi_width, roi_height = self.camera.get_Roi()
-        print(f'roi_width = {roi_width} roi_height = {roi_height}')
+        #print(f'roi_width = {roi_width} roi_height = {roi_height}')
 
-        bandwidth = self.camera.get_Optional(toupcam.TOUPCAM_OPTION_BANDWIDTH) 
-        print(f'bandwidth = {bandwidth}')
+        try:
+            bandwidth = self.camera.get_Option(toupcam.TOUPCAM_OPTION_BANDWIDTH) 
+        except toupcam.HRESULTException as ex:
+            print('get badwidth fail, hr=0x{:x}'.format(ex.hr))
+        #print(f'bandwidth = {bandwidth}')
+
         if self.has_low_noise_mode:
-            low_noise = self.camera.get_Optional(toupcam.TOUPCAM_OPTION_LOW_NOISE)
-        print(f'low_noise = {low_noise}')
+            try:
+                low_noise = self.camera.get_Option(toupcam.TOUPCAM_OPTION_LOW_NOISE)
+            except toupcam.HRESULTException as ex:
+                print('get low_noise fail, hr=0x{:x}'.format(ex.hr))
+        #print(f'low_noise = {low_noise}')
 
         if resolution_width == 6224 and resolution_height == 4168:
             if pixel_bits == 8:
@@ -766,7 +773,7 @@ class Camera(object):
                     line_length = 5000
                 elif low_noise == 0:
                     line_length = 2500
-        elif resolution_width == 3104 and resolution_height == 2048: 
+        elif resolution_width == 3104 and resolution_height == 2084: 
             if pixel_bits == 8:
                 line_length = 906
             elif pixel_bits == 16:
@@ -778,33 +785,34 @@ class Camera(object):
                 line_length = 790
 
         line_length = int(line_length / (bandwidth / 100.0))
-        print(f'line_length = {line_length}')
+        #print(f'line_length = {line_length}')
 
         row_time = line_length / 72
-        print(f'row_time = {row_time}')
-
-        Frame, Time, TotalFrame = self.camera.get_frameRate()
-        FPS = Frame * 1000 / Time
+        #print(f'row_time = {row_time}')
+        try:
+            FPS = (self.camera.get_Option(toupcam.TOUPCAM_OPTION_PRECISE_FRAMERATE)) / 10
+        except toupcam.HRESULTException as ex:
+            print('get frame rate fail, hr=0x{:x}'.format(ex.hr))
 
         vheight = 72000000 / (FPS * line_length)
         if vheight < roi_height + 56:
             vheight = roi_height + 56
-        print(f'vheight = {vheight}')
+        #print(f'vheight = {vheight}')
         
-        print(f'exposure_time = {self.exposure_time}')
+        #print(f'exposure_time = {self.exposure_time}')
         exp_length = 72 * self.exposure_time * 1000 / line_length
 
-        print(f'exp_length = {exp_length}')
+        #print(f'exp_length = {exp_length}')
 
         if vheight >= exp_length - 1:
             SHR = vheight - exp_length
         else:
             SHR = 1
 
-        print(f'SHR = {SHR}')
+        #print(f'SHR = {SHR}')
 
         TRG_DELAY = int((SHR * line_length) / 72)
-        print(f'TRG_DELAY = {TRG_DELAY}')
+        #print(f'TRG_DELAY = {TRG_DELAY}')
         
         self.hardware_trigger_delay = TRG_DELAY
 
