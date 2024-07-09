@@ -2898,7 +2898,6 @@ class NapariMultiChannelWidget(QWidget):
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width), dtype=self.dtype)
             
             limits = self.getContrastLimits(self.dtype)
-            print("napari scale: ", self.dz_um, self.pixel_size_um, self.pixel_size_um)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
                                           colormap=color, contrast_limits=limits, blending='additive',
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
@@ -3043,7 +3042,6 @@ class NapariTiledDisplayWidget(QWidget):
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
 
             limits = self.getContrastLimits(self.dtype)
-            print("scale", self.dz_um, self.pixel_size_um, self.pixel_size_um)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
                                           colormap=color, contrast_limits=limits, blending='additive', 
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
