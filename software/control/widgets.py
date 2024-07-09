@@ -2911,9 +2911,9 @@ class NapariMultiChannelWidget(QWidget):
         layer = self.viewer.layers[channel_name]
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
-        self.viewer.dims.set_point(0, k * self.dz_um)
         self.update_layer_count += 1
         if self.update_layer_count % len(self.channels) == 0:
+            self.viewer.dims.set_point(0, k * self.dz_um)
             for layer in self.viewer.layers:
                 layer.refresh()
 
