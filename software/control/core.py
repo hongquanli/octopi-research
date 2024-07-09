@@ -613,7 +613,7 @@ class LiveController(QObject):
                     self.camera.calculate_hardware_trigger_arguments()
                 except AttributeError:
                     pass
-                self.microcontroller.set_trigger_delay_time_us(self.camera.hardware_trigger_delay + self.camera.exposure_time * 1000)
+                self.microcontroller.set_trigger_delay_time_us(int(self.camera.hardware_trigger_delay + self.camera.exposure_time * 1000))
 
     def _start_triggerred_acquisition(self):
         self.timer_trigger.start()
