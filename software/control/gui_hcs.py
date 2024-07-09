@@ -144,7 +144,7 @@ class OctopiGUI(QMainWindow):
 
         print('load channel_configurations.xml')
         self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
-        self.objectiveStore = core.ObjectiveStore() # todo: add widget to select/save objective save
+        self.objectiveStore = core.ObjectiveStore(parent=self) # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
         self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)

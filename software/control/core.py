@@ -46,33 +46,47 @@ import subprocess
 
 
 class ObjectiveStore:
-    def __init__(self, objectives_dict=OBJECTIVES, default_objective=DEFAULT_OBJECTIVE):
+    def __init__(self, objectives_dict=OBJECTIVES, default_objective=DEFAULT_OBJECTIVE, parent=None):
         self.objectives_dict = objectives_dict
         self.default_objective = default_objective
         self.current_objective = default_objective
         self.tube_lens_mm = TUBE_LENS_MM
         self.sensor_pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-        self.pixel_size_um = self.calculate_pixel_size(self.current_objective)
+        self.pixel_size_x, self.pixel_size_y = self.calculate_pixel_size(self.current_objective)
 
     def get_pixel_size(self):
-        return self.pixel_size_um
+        return self.pixel_size_x, self.pixel_size_y
 
     def calculate_pixel_size(self, objective_name):
         objective = self.objectives_dict[objective_name]
         magnification = objective["magnification"]
         objective_tube_lens_mm = objective["tube_lens_f_mm"]
         pixel_size_um = self.sensor_pixel_size_um / (magnification / (objective_tube_lens_mm / self.tube_lens_mm)) 
-        return pixel_size_um
+        binning_x, binning_y = self.get_pixel_binning()
+        pixel_size_x = pixel_size_um * binning_x
+        pixel_size_y = pixel_size_um * binning_y
+        return pixel_size_x, pixel_size_y
 
     def set_current_objective(self, objective_name):
         if objective_name in self.objectives_dict:
             self.current_objective = objective_name
-            self.pixel_size_um = self.calculate_pixel_size(objective_name)
+            self.pixel_size_x, self.pixel_size_y = self.calculate_pixel_size(objective_name)
         else:
             raise ValueError(f"Objective {objective_name} not found in the store.")
 
     def get_current_objective_info(self):
         return self.objectives_dict[self.current_objective]
+
+    def get_pixel_binning(self):
+        try:
+            highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
+            resolution = self.parent.camera.resolution
+            pixel_binning_x = max(1, highest_res[0] / resolution[0])
+            pixel_binning_y = max(1, highest_res[1] / resolution[1])
+        except AttributeError:
+            pixel_binning_x = 1
+            pixel_binning_y = 1
+        return pixel_binning_x, pixel_binning_y
 
 class StreamHandler(QObject):
 
@@ -775,18 +789,13 @@ class NavigationController(QObject):
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
-            pixel_size_um = self.objectiveStore.pixel_size_um
-            #pixel_binning_x, pixel_binning_y = self.get_pixel_binning()
-            #pixel_size_x = pixel_size_um * pixel_binning_x
-            #pixel_size_y = pixel_size_um * pixel_binning_y
+            pixel_size_x, pixel_size_y = self.objectiveStore.get_pixel_size()
 
             pixel_sign_x = 1
             pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
 
-            #delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
-            #delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
-            delta_x = pixel_sign_x * pixel_size_um * click_x / 1000.0
-            delta_y = pixel_sign_y * pixel_size_um * click_y / 1000.0
+            delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
+            delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
 
             if not IS_HCS:
                 delta_x /= 2
@@ -796,17 +805,6 @@ class NavigationController(QObject):
             self.microcontroller.wait_till_operation_is_completed()
             self.move_y(delta_y)
             self.microcontroller.wait_till_operation_is_completed()
-
-    def get_pixel_binning(self):
-        try:
-            highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
-            resolution = self.parent.camera.resolution
-            pixel_binning_x = max(1, highest_res[0] / resolution[0])
-            pixel_binning_y = max(1, highest_res[1] / resolution[1])
-        except AttributeError:
-            pixel_binning_x = 1
-            pixel_binning_y = 1
-        return pixel_binning_x, pixel_binning_y
 
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
@@ -2431,6 +2429,7 @@ class MultiPointController(QObject):
                 acquisition_parameters['objective']['name']=DEFAULT_OBJECTIVE
             except:
                 pass
+        # TODO: USE OBJECTIVE STORE DATA
         acquisition_parameters['sensor_pixel_size_um'] = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
         acquisition_parameters['tube_lens_mm'] = TUBE_LENS_MM
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
@@ -3234,7 +3233,9 @@ class NavigationViewer(QFrame):
         self.update_fov_size()
 
     def update_fov_size(self):
-        self.fov_size_mm = self.acquisition_size * self.objectiveStore.get_pixel_size() / 1000
+        pixel_size_x, pixel_size_y = self.objectiveStore.get_pixel_size()
+        self.fov_size_x_mm = self.acquisition_size * pixel_size_x / 1000
+        self.fov_size_y_mm = self.acquisition_size * pixel_size_y / 1000
 
     def on_objective_changed(self):
         self.clear_slide()
@@ -3279,30 +3280,30 @@ class NavigationViewer(QFrame):
         if self.sample == 'glass slide':
             if INVERTED_OBJECTIVE:
                 current_FOV_top_left = (
-                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_x_mm/2/self.mm_per_pixel)),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_y_mm/2/self.mm_per_pixel)
                 )
                 current_FOV_bottom_right = (
-                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_x_mm/2/self.mm_per_pixel)),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_y_mm/2/self.mm_per_pixel)
                 )
             else:
                 current_FOV_top_left = (
-                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_x_mm/2/self.mm_per_pixel),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_y_mm/2/self.mm_per_pixel)
                 )
                 current_FOV_bottom_right = (
-                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_x_mm/2/self.mm_per_pixel),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_y_mm/2/self.mm_per_pixel)
                 )
         else:
             current_FOV_top_left = (
-                round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+                round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_x_mm/2/self.mm_per_pixel),
+                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_y_mm/2/self.mm_per_pixel)
             )
             current_FOV_bottom_right = (
-                round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+                round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_x_mm/2/self.mm_per_pixel),
+                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_y_mm/2/self.mm_per_pixel)
             )
         return current_FOV_top_left, current_FOV_bottom_right
 
