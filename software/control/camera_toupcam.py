@@ -717,7 +717,7 @@ class Camera(object):
         # self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
         pass
     
-    def calculate_hardware_trigger_arguments(self):
+    def calculate_hardware_trigger_arguments(self, real_framerate):
         # use camera arguments such as resolutuon, ROI, exposure time, FPS, bandwidth to calculate the trigger delay time
         resolution_width = 0
         resolution_height = 0
@@ -789,12 +789,10 @@ class Camera(object):
 
         row_time = line_length / 72
         #print(f'row_time = {row_time}')
-        try:
-            FPS = (self.camera.get_Option(toupcam.TOUPCAM_OPTION_PRECISE_FRAMERATE)) / 10
-        except toupcam.HRESULTException as ex:
-            print('get frame rate fail, hr=0x{:x}'.format(ex.hr))
 
-        vheight = 72000000 / (FPS * line_length)
+        #print(f'real_framerate = {real_framerate}')
+
+        vheight = 72000000 / (real_framerate * line_length)
         if vheight < roi_height + 56:
             vheight = roi_height + 56
         #print(f'vheight = {vheight}')
@@ -990,5 +988,5 @@ class Camera_Simulation(object):
     def set_line3_to_exposure_active(self):
         pass
 
-    def calculate_hardware_trigger_arguments(self):
+    def calculate_hardware_trigger_arguments(self, real_framerate):
         pass
