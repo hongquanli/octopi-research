@@ -1686,10 +1686,16 @@ class MultiPointWorker(QObject):
                     if self.multiPointController.abort_acqusition_requested:
                         break
                     time.sleep(0.05)
-        self.processingHandler.processing_queue.join()
-        self.processingHandler.upload_queue.join()
-        elapsed_time = time.perf_counter_ns()-self.start_time
-        print("Time taken for acquisition: "+str(elapsed_time/10**9))
+        elapsed_time = time.perf_counter_ns() - self.start_time
+        print("Time taken for acquisition: " + str(elapsed_time/10**9))
+
+        # End processing using the updated method
+        self.processingHandler.end_processing()
+        # Emit final stats one more time to ensure the last update is captured
+        print("emitting final detection")
+        self.signal_detection_stats.emit(self.detection_stats)
+
+        print("Time taken for acquisition/processing: ", (time.perf_counter_ns() - self.start_time) / 1e9)
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -2120,7 +2126,7 @@ class MultiPointWorker(QObject):
                             if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
                                 try:
                                     print("real time processing", count_rtp)
-                                    if (self.microscope.model is None) or (self.microscope.model2 is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
+                                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
                                         raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
                                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
                                     I_left = current_round_images['BF LED matrix left half']
@@ -2130,7 +2136,7 @@ class MultiPointWorker(QObject):
                                     if len(I_right.shape) == 3:
                                         I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
                                     malaria_rtp(I_fluorescence, I_left, I_right, real_i, real_j, k, self,
-                                                classification_test_mode=CLASSIFICATION_TEST_MODE,
+                                                classification_test_mode=self.microscope.classification_test_mode,
                                                 sort_during_multipoint=SORT_DURING_MULTIPOINT,
                                                 disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
                                     count_rtp += 1
@@ -2569,7 +2575,7 @@ class MultiPointController(QObject):
             self.processingHandler.finished.connect(self.multiPointWorker.deleteLater)
             self.processingHandler.finished.connect(self.thread.quit)
         else:
-            #self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
+            self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
             self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
@@ -2616,8 +2622,7 @@ class MultiPointController(QObject):
                 self.parent.dataHandler.signal_populate_page0.emit()
             except:
                 pass
-        self.processingHandler.end_processing()
-        print("total time for acquisition / processing:", time.time() - self.start_time)
+        print("total time for acquisition + processing + reset:", time.time() - self.start_time)
         self.acquisitionFinished.emit()
         self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()

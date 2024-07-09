@@ -16,16 +16,30 @@ parameters['crop_x1'] = 2900
 parameters['crop_y0'] = 100
 parameters['crop_y1'] = 2900
 
-def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classification_th):
+def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classification_th, I_DPC):
+    print("process_fov")
 
+    starttime = time.time()
     # crop image
+    print("shapes before crop")
+    print(I_fluorescence.shape)
+    print(I_BF_left.shape)
+    print(I_BF_right.shape)
+    print(I_DPC.shape)
     I_fluorescence = I_fluorescence[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1'], : ]
     I_BF_left = I_BF_left[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
     I_BF_right = I_BF_right[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
-
+    I_DPC = I_DPC[parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
+    print("shapes after crop")
+    print(I_fluorescence.shape)
+    print(I_BF_left.shape)
+    print(I_BF_right.shape)
+    print(I_DPC.shape)
     # remove background
     I_fluorescence_bg_removed = remove_background(I_fluorescence,return_gpu_image=True)
 
+    backtime = time.time()
+    print("time to crop and remove background", backtime - starttime)
     # detect spots
     spot_list = detect_spots(resize_image_cp(I_fluorescence_bg_removed,downsize_factor=settings['spot_detection_downsize_factor']),thresh=settings['spot_detection_threshold'])
     if(len(spot_list)==0):
@@ -36,13 +50,20 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classifi
     # scale coordinates for full-res image
     spot_list = spot_list*settings['spot_detection_downsize_factor']
 
+    detecttime = time.time()
+    print("time to detect spots", detecttime - backtime)
+
     # generate spot arrays
-    I_BF_left = I_BF_left.astype('float')/255
-    I_BF_right = I_BF_right.astype('float')/255
-    I_DPC = generate_dpc(I_BF_left,I_BF_right)
     I_fluorescence = I_fluorescence.astype('float')/255
+    # I_BF_left = I_BF_left.astype('float')/255
+    # I_BF_right = I_BF_right.astype('float')/255
+    # I_DPC = generate_dpc(I_BF_left,I_BF_right)
+    # dpctime = time.time()
+    # print("time to generate dpc", dpctime - detecttime)
     I = get_spot_images_from_fov(I_fluorescence,I_DPC,spot_list,r=15)
     I = I.transpose(0, 3, 1, 2)
+    spottime = time.time()
+    print("time to generate dpc", spottime - detecttime)
 
     # classify
     print("running models")
@@ -60,6 +81,7 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classifi
             print("choosing classification model 1")
 
     # return positive spots
+    print("time to run models", time.time() - spottime)
     return I[indices],prediction_score[indices]
 
 
@@ -249,16 +271,21 @@ def process_spots(I_background_removed,I_raw,spot_list,i,j,k,settings,I_mask=Non
     spot_data_pd = extract_spot_data(I_background_removed,I_raw,spot_list,i,j,k,settings)
     return spot_list, spot_data_pd
 
-def generate_dpc(I1,I2,use_gpu=False):
+def generate_dpc(I1, I2, use_gpu=False):
     if use_gpu:
-        # img_dpc = cp.divide(img_left_gpu - img_right_gpu, img_left_gpu + img_right_gpu)
-        # to add
-        I_dpc = 0
+        if cp is None:
+            raise ImportError("CuPy is not installed. Install CuPy or set use_gpu to False.")
+        I1_gpu = cp.asarray(I1)
+        I2_gpu = cp.asarray(I2)
+        I_dpc_gpu = cp.divide(I1_gpu - I2_gpu, I1_gpu + I2_gpu)
+        I_dpc_gpu = I_dpc_gpu + 0.5
+        I_dpc_gpu = cp.clip(I_dpc_gpu, 0, 1)  # Ensures values are between 0 and 1
+        I_dpc = cp.asnumpy(I_dpc_gpu)
     else:
-        I_dpc = np.divide(I1-I2,I1+I2)
+        I_dpc = np.divide(I1 - I2, I1 + I2)
         I_dpc = I_dpc + 0.5
-    I_dpc[I_dpc<0] = 0
-    I_dpc[I_dpc>1] = 1
+        I_dpc = np.clip(I_dpc, 0, 1)  # Ensures values are between 0 and 1
+
     return I_dpc
 
 def get_spot_images_from_fov(I_fluorescence,I_dpc,spot_list,r=15):

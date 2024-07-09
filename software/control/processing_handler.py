@@ -95,22 +95,31 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     dpc_image = None
 
     if multiPointWorker is not None:
-        dpc_L = process_args[1]
-        dpc_R = process_args[2]
-        dpc_L_area = dpc_L.shape[0] * dpc_L.shape[1]
-        dpc_R_area = dpc_R.shape[0] * dpc_R.shape[1]
-        biggest_area = max(dpc_L_area, dpc_R_area)
+        bf_L = process_args[1]
+        bf_R = process_args[2]
+
+        bf_L_area = bf_L.shape[0] * bf_L.shape[1]
+        bf_R_area = bf_R.shape[0] * bf_R.shape[1]
+        biggest_area = max(bf_L_area, bf_R_area)
         rbc_ratio = biggest_area / (multiPointWorker.crop ** 2)
+
+        dpc_image = utils.generate_dpc(bf_L, bf_R, use_gpu=True)
+        process_args = list(process_args)  # Convert to list to append dpc_image
+        process_args.append(dpc_image)  # Add dpc_image to args
+        process_args = tuple(process_args)  # Add dpc_image to args
+        dpc_uint8 = (255 * dpc_image).astype(np.uint8)
+
         if multiPointWorker.crop > 0:
-            dpc_L = utils.centerCrop(dpc_L, multiPointWorker.crop)
-            dpc_R = utils.centerCrop(dpc_R, multiPointWorker.crop)
-        dpc_image = utils.generate_dpc(dpc_L, dpc_R)
-        result = multiPointWorker.model.predict_on_images(dpc_image)
-        probs = (255 * (result - np.min(result)) / (np.max(result) - np.min(result))).astype(np.uint8)
+            bf_L = utils.centerCrop(bf_L, multiPointWorker.crop)
+            bf_R = utils.centerCrop(bf_R, multiPointWorker.crop)
+            dpc_uint8 = utils.centerCrop(dpc_uint8, multiPointWorker.crop)
+
+        result = multiPointWorker.model.predict_on_images(dpc_uint8)
+        # probs = (255 * (result - np.min(result)) / (np.max(result) - np.min(result))).astype(np.uint8)
         threshold = 0.5
         mask = (255 * (result > threshold)).astype(np.uint8)
         color_mask, no_cells = utils.colorize_mask_get_counts(mask)
-        overlay = utils.overlay_mask_dpc(color_mask, dpc_image)
+        overlay = utils.overlay_mask_dpc(color_mask, dpc_uint8)
 
     I, score = process_fn(*process_args, **process_kwargs)
     if I is None or score is None: 
@@ -127,20 +136,20 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
         print("emitting detection stats ...")
         print(new_counts)
         multiPointWorker.signal_update_stats.emit(new_counts)
+        print("emitting overlay")
         multiPointWorker.image_to_display_multi.emit(overlay, 12)
-        multiPointWorker.image_to_display_multi.emit(dpc_image, 13)
+        multiPointWorker.image_to_display_multi.emit(dpc_uint8, 13)
 
         if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
             print("emitting segmentation image...")
             multiPointWorker.napari_rtp_layers_update.emit(overlay, "Segmentation Overlay")
-            multiPointWorker.napari_rtp_layers_update.emit(dpc_image, "DPC")
+            multiPointWorker.napari_rtp_layers_update.emit(dpc_uint8, "DPC")
 
     return {
         'function': upload_fn,
         'args': [I, score, dataHandler],
         'kwargs': {'sort': sort, 'disp_th': disp_th}
     }
-
 
 
 from qtpy.QtCore import *
@@ -219,20 +228,17 @@ class ProcessingHandler(QObject):
     def end_uploading(self, *args, **kwargs):
         return {'function':'end'}
     def end_processing(self):
-        print("end processing... wait for all processing tasks")
-        while not self.upload_queue.empty():
-            print("waiting")
-            time.sleep(0.5)
+        starttime = time.time()
+        self.wait_for_processing_completion()
         self.processing_queue.put({'function':self.end_uploading,'args':[],
                                    'kwargs':{}})
         self.processing_queue.put({'function':'end'})
-            # Wait for the processing thread to finish
-        # if self.processing_thread is not None:
-        #     self.processing_thread.join()
-        
-        # # Wait for the uploading thread to finish
-        # if self.uploading_thread is not None:
-        #     self.uploading_thread.join()
-        
+
+        print("additional time to finish processing", time.time()-starttime)
         self.finished.emit(True)
         print("All processing and uploading tasks are completed.")
+
+    def wait_for_processing_completion(self, timeout=None):
+        print("end processing... wait for all processing tasks")
+        self.processing_queue.join()
+        self.upload_queue.join()

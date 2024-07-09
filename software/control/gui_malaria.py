@@ -35,15 +35,18 @@ class OctopiGUI(QMainWindow):
 
         # load objects
         if is_simulation:
+            self.classification_test_mode = True
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
+            self.classification_test_mode = False
             try:
                 self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.open()
             except:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.open()
+                self.classification_test_mode = True
                 print('! camera not detected, using simulated camera !')
             try:
                 self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
@@ -459,7 +462,8 @@ class OctopiGUI(QMainWindow):
             if torch.cuda.is_available():
                 dummy_input = dummy_input.cuda()
             dummy_model = self.model(dummy_input)
-            dummy_model2 = self.model2(dummy_input)
+            if TWO_CLASSIFICATION_MODELS:
+                dummy_model2 = self.model2(dummy_input)
             #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
             #segmentation_model_path=SEGMENTATION_MODEL_PATH
             segmentation_model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
