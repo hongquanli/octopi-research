@@ -56,6 +56,7 @@ class OctopiGUI(QMainWindow):
         # configure the actuators
         self.microcontroller.configure_actuators()
         self.objectiveStore = core.ObjectiveStore(parent=self)
+        self.scanCoordinates = core.ScanCoordinates()
         self.configurationManager = core.ConfigurationManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
@@ -163,13 +164,16 @@ class OctopiGUI(QMainWindow):
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
+        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates)
 
         self.recordTabWidget = QTabWidget()
+        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+        if ENABLE_SCAN_GRID:
+            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Auto-Grid Multipoint")
+        self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
-        self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
 
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
@@ -268,6 +272,8 @@ class OctopiGUI(QMainWindow):
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+        if ENABLE_SCAN_GRID:
+            self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
@@ -284,8 +290,13 @@ class OctopiGUI(QMainWindow):
         if USE_NAPARI_FOR_MULTIPOINT:
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            if ENABLE_SCAN_GRID:
+                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+
             if USE_NAPARI_FOR_LIVE_VIEW:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
@@ -296,12 +307,18 @@ class OctopiGUI(QMainWindow):
             if USE_NAPARI_FOR_TILED_DISPLAY:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                if ENABLE_SCAN_GRID:
+                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+
                 if USE_NAPARI_FOR_LIVE_VIEW:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                     self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
+
                 if USE_NAPARI_FOR_MULTIPOINT:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
                     self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)

@@ -52,25 +52,24 @@ class ObjectiveStore:
         self.current_objective = default_objective
         self.tube_lens_mm = TUBE_LENS_MM
         self.sensor_pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
-        self.pixel_size_x, self.pixel_size_y = self.calculate_pixel_size(self.current_objective)
+        self.pixel_binning = self.get_pixel_binning()
+        self.pixel_size_um = self.calculate_pixel_size(self.current_objective)
 
     def get_pixel_size(self):
-        return self.pixel_size_x, self.pixel_size_y
+        return self.pixel_size_um
 
     def calculate_pixel_size(self, objective_name):
         objective = self.objectives_dict[objective_name]
         magnification = objective["magnification"]
         objective_tube_lens_mm = objective["tube_lens_f_mm"]
         pixel_size_um = self.sensor_pixel_size_um / (magnification / (objective_tube_lens_mm / self.tube_lens_mm)) 
-        binning_x, binning_y = self.get_pixel_binning()
-        pixel_size_x = pixel_size_um * binning_x
-        pixel_size_y = pixel_size_um * binning_y
-        return pixel_size_x, pixel_size_y
+        pixel_size_um *= self.pixel_binning
+        return pixel_size_um
 
     def set_current_objective(self, objective_name):
         if objective_name in self.objectives_dict:
             self.current_objective = objective_name
-            self.pixel_size_x, self.pixel_size_y = self.calculate_pixel_size(objective_name)
+            self.pixel_size_um = self.calculate_pixel_size(objective_name)
         else:
             raise ValueError(f"Objective {objective_name} not found in the store.")
 
@@ -81,12 +80,12 @@ class ObjectiveStore:
         try:
             highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
             resolution = self.parent.camera.resolution
-            pixel_binning_x = max(1, highest_res[0] / resolution[0])
-            pixel_binning_y = max(1, highest_res[1] / resolution[1])
+            pixel_binning = max(1, highest_res[0] / resolution[0])
+            # pixel_binning_x = max(1, highest_res[0] / resolution[0])
+            # pixel_binning_y = max(1, highest_res[1] / resolution[1])
         except AttributeError:
-            pixel_binning_x = 1
-            pixel_binning_y = 1
-        return pixel_binning_x, pixel_binning_y
+            pixel_binning = 1
+        return pixel_binning
 
 class StreamHandler(QObject):
 
@@ -791,17 +790,13 @@ class NavigationController(QObject):
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
-            pixel_size_x, pixel_size_y = self.objectiveStore.get_pixel_size()
+            pixel_size_um = self.objectiveStore.get_pixel_size()
 
             pixel_sign_x = 1
             pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
 
-            delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
-            delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
-
-            if not IS_HCS:
-                delta_x /= 2
-                delta_y /= 2
+            delta_x = pixel_sign_x * pixel_size_um * click_x / 1000.0
+            delta_y = pixel_sign_y * pixel_size_um * click_y / 1000.0
 
             self.move_x(delta_x)
             self.microcontroller.wait_till_operation_is_completed()
@@ -1669,6 +1664,7 @@ class MultiPointWorker(QObject):
                 self.scan_coordinates_mm = [(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)]
                 self.scan_coordinates_name = ['']
                 self.use_scan_coordinates = False
+                # self.use_scan_coordinates = True
         else:
             # use location_list specified by the multipoint controlller
             self.scan_coordinates_mm = self.multiPointController.location_list
@@ -3234,9 +3230,8 @@ class NavigationViewer(QFrame):
         self.update_fov_size()
 
     def update_fov_size(self):
-        pixel_size_x, pixel_size_y = self.objectiveStore.get_pixel_size()
-        self.fov_size_x_mm = self.acquisition_size * pixel_size_x / 1000
-        self.fov_size_y_mm = self.acquisition_size * pixel_size_y / 1000
+        pixel_size_um = self.objectiveStore.get_pixel_size()
+        self.fov_size_mm = self.acquisition_size * pixel_size_um / 1000
 
     def on_objective_changed(self):
         self.clear_slide()
@@ -3281,30 +3276,30 @@ class NavigationViewer(QFrame):
         if self.sample == 'glass slide':
             if INVERTED_OBJECTIVE:
                 current_FOV_top_left = (
-                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_x_mm/2/self.mm_per_pixel)),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_y_mm/2/self.mm_per_pixel)
+                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
                 )
                 current_FOV_bottom_right = (
-                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_x_mm/2/self.mm_per_pixel)),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_y_mm/2/self.mm_per_pixel)
+                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
                 )
             else:
                 current_FOV_top_left = (
-                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_x_mm/2/self.mm_per_pixel),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_y_mm/2/self.mm_per_pixel)
+                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
                 )
                 current_FOV_bottom_right = (
-                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_x_mm/2/self.mm_per_pixel),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_y_mm/2/self.mm_per_pixel)
+                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
                 )
         else:
             current_FOV_top_left = (
-                round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_x_mm/2/self.mm_per_pixel),
-                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_y_mm/2/self.mm_per_pixel)
+                round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
             )
             current_FOV_bottom_right = (
-                round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_x_mm/2/self.mm_per_pixel),
-                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_y_mm/2/self.mm_per_pixel)
+                round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                round((self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
             )
         return current_FOV_top_left, current_FOV_bottom_right
 
@@ -3603,6 +3598,7 @@ class ScanCoordinates(object):
         self.wellplate_offset_x_mm = WELLPLATE_OFFSET_X_mm
         self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
         self.well_spacing_mm = WELL_SPACING_MM
+        self.well_size_mm = WELL_SIZE_MM
 
     def _index_to_row(self,index):
         index += 1
@@ -3628,6 +3624,8 @@ class ScanCoordinates(object):
 
     def get_selected_wells(self):
         # get selected wells from the widget
+        if not self.well_selector:
+            return False
         selected_wells = self.well_selector.get_selected_cells()
         selected_wells = np.array(selected_wells)
         # clear the previous selection
