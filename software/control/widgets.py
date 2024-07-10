@@ -1776,13 +1776,10 @@ class MultiPointWidget(QFrame):
 
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
-<<<<<<< HEAD
 
         self.checkbox_stitchOutput = QCheckBox('Stitch Output')
         self.checkbox_stitchOutput.setChecked(False)
 
-=======
->>>>>>> c9259b9 (scan-grid multipointwidget, define overlap percentage, define scan size if no wellplate)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
         self.btn_startAcquisition = QPushButton('Start Acquisition')
@@ -3178,8 +3175,7 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.uint8
         self.channels = set()
         self.contrast_limits = {}
-        self.pixel_size_x_um = 1
-        self.pixel_size_y_um = 1
+        self.pixel_size_um = 1
         self.dz_um = 1
         self.Nz = 1
         self.layers_initialized = False
@@ -3206,8 +3202,8 @@ class NapariMultiChannelWidget(QWidget):
             self.acquisition_initialized = False
             self.Nz = Nz
             self.dz_um = dz
-        self.pixel_size_x_um, self.pixel_size_y_um = self.objectiveStore.get_pixel_size()
-
+        self.pixel_size_um = self.objectiveStore.get_pixel_size()
+        
     def initChannels(self, channels):
         self.channels = set(channels)
 
@@ -3270,8 +3266,8 @@ class NapariMultiChannelWidget(QWidget):
             limits = self.getContrastLimits(self.dtype)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
                                           colormap=color, contrast_limits=limits, blending='additive',
-                                          scale=(self.dz_um, self.pixel_size_y_um, self.pixel_size_x_um))
-            print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_y_um}, pixel_x_um:{self.pixel_size_x_um}")
+                                          scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
+            print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
@@ -3361,8 +3357,12 @@ class NapariTiledDisplayWidget(QWidget):
         self.Ny = 1
         self.Nz = 1
         self.dz_um = 1
+<<<<<<< HEAD
         self.pixel_size_x_um = 1
         self.pixel_size_y_um = 1
+=======
+        self.pixel_size_um = 1
+>>>>>>> 6ddfa58 (scan grid for malaria)
         self.layers_initialized = False
         self.acquisition_initialized = False
         self.viewer_scale_initialized = False
@@ -3385,9 +3385,9 @@ class NapariTiledDisplayWidget(QWidget):
         self.dx_mm = dx
         self.dy_mm = dy
         self.dz_um = dz
-        pixel_size_x_um, pixel_size_y_um = self.objectiveStore.get_pixel_size()
-        self.pixel_size_x_um = pixel_size_x_um * self.downsample_factor
-        self.pixel_size_y_um = pixel_size_y_um * self.downsample_factor
+        pixel_size_um, pixel_size_um = self.objectiveStore.get_pixel_size()
+        self.pixel_size_um = pixel_size_um * self.downsample_factor
+        self.pixel_size_um = pixel_size_um * self.downsample_factor
 
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -3451,8 +3451,8 @@ class NapariTiledDisplayWidget(QWidget):
             limits = self.getContrastLimits(self.dtype)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
                                           colormap=color, contrast_limits=limits, blending='additive', 
-                                          scale=(self.dz_um, self.pixel_size_y_um, self.pixel_size_x_um))
-            print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_y_um}, pixel_x_um:{self.pixel_size_x_um}")
+                                          scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
+            print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
