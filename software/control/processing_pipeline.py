@@ -17,24 +17,15 @@ parameters['crop_y0'] = 100
 parameters['crop_y1'] = 2900
 
 def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classification_th, I_DPC):
-    print("process_fov")
 
+    print("process_fov")
     starttime = time.time()
     # crop image
-    print("shapes before crop")
-    print(I_fluorescence.shape)
-    print(I_BF_left.shape)
-    print(I_BF_right.shape)
-    print(I_DPC.shape)
     I_fluorescence = I_fluorescence[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1'], : ]
     I_BF_left = I_BF_left[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
     I_BF_right = I_BF_right[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
     I_DPC = I_DPC[parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
-    print("shapes after crop")
-    print(I_fluorescence.shape)
-    print(I_BF_left.shape)
-    print(I_BF_right.shape)
-    print(I_DPC.shape)
+
     # remove background
     I_fluorescence_bg_removed = remove_background(I_fluorescence,return_gpu_image=True)
 

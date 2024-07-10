@@ -1707,11 +1707,11 @@ class MultiPointWorker(QObject):
         print("Time taken for acquisition: " + str(elapsed_time/10**9))
 
         # End processing using the updated method
+        self.processingHandler.processing_queue.join()
+        self.processingHandler.upload_queue.join()
         self.processingHandler.end_processing()
-        # Emit final stats one more time to ensure the last update is captured
-        print("emitting final detection")
-        self.signal_detection_stats.emit(self.detection_stats)
-
+        time.sleep(0.2)
+        # wait for signal_update_stats in process_fn_with_count_and_display
         print("Time taken for acquisition/processing: ", (time.perf_counter_ns() - self.start_time) / 1e9)
         self.finished.emit()
 

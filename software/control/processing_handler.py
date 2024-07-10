@@ -194,6 +194,8 @@ class ProcessingHandler(QObject):
                 break
             if processing_task['function'] == 'end':
                 self.processing_queue.task_done()
+                # All processing tasks are completed
+                print("All processing tasks are completed.")
                 break
             else:
                 upload_task = processing_task['function'](
@@ -212,6 +214,7 @@ class ProcessingHandler(QObject):
                 break
             if upload_task['function'] == 'end':
                 self.upload_queue.task_done()
+                print("All uploading tasks are completed.")
                 break
             else:
                 upload_task['function'](*upload_task['args'],**upload_task['kwargs'])
@@ -227,18 +230,34 @@ class ProcessingHandler(QObject):
         self.uploading_thread.start()
     def end_uploading(self, *args, **kwargs):
         return {'function':'end'}
+
     def end_processing(self):
         starttime = time.time()
-        self.wait_for_processing_completion()
-        self.processing_queue.put({'function':self.end_uploading,'args':[],
-                                   'kwargs':{}})
-        self.processing_queue.put({'function':'end'})
-
-        print("additional time to finish processing", time.time()-starttime)
-        self.finished.emit(True)
-        print("All processing and uploading tasks are completed.")
-
-    def wait_for_processing_completion(self, timeout=None):
-        print("end processing... wait for all processing tasks")
+        # Add end_uploading task to the queue
+        self.processing_queue.put({'function': self.end_uploading, 'args': [], 'kwargs': {}})
+        # Add the 'end' task to mark the end of tasks
+        self.processing_queue.put({'function': 'end'})
+        # Wait for processing queue to finish
         self.processing_queue.join()
+        # Wait for upload queue to finish
         self.upload_queue.join()
+
+        # Join threads
+        if self.processing_thread:
+            self.processing_thread.join()
+        if self.uploading_thread:
+            self.uploading_thread.join()
+
+        print("All processing threads ended")
+        print("Additional time to finish processing:", time.time() - starttime)
+        self.finished.emit(True)
+
+    # def end_processing(self):
+    #     starttime = time.time()
+    #     self.processing_queue.put({'function':self.end_uploading,'args':[],
+    #                                'kwargs':{}})
+    #     self.processing_queue.put({'function':'end'})
+
+    #     print("additional time to finish processing", time.time()-starttime)
+    #     
+    #     print("All processing and uploading tasks are completed.")
