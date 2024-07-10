@@ -232,6 +232,15 @@ class OctopiGUI(QMainWindow):
         self.navigationController.move_y(20)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
+        # # move z
+        # self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+        # # wait for the operation to finish
+        # t0 = time.time() 
+        # while self.microcontroller.is_busy():
+        #     time.sleep(0.005)
+        #     if time.time() - t0 > 5:
+        #         print('z return timeout, the program will exit')
+        #         sys.exit(1)
 
         # set piezo arguments
         if ENABLE_OBJECTIVE_PIEZO is True:
@@ -274,6 +283,7 @@ class OctopiGUI(QMainWindow):
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = True, include_camera_auto_wb_setting = False)
         else:
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
+
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=f'{WELLPLATE_FORMAT} well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
@@ -537,7 +547,7 @@ class OctopiGUI(QMainWindow):
             # controllers
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
             self.streamHandler_focus_camera = core.StreamHandler()
-            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,self,control_illumination=False,for_displacement_measurement=True)
+            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera, self, control_illumination=False,for_displacement_measurement=True)
             self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
             self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
@@ -592,6 +602,7 @@ class OctopiGUI(QMainWindow):
                 laserfocus_dockArea.addDock(dock_waveform,'bottom',relativeTo=dock_laserfocus_liveController)
                 laserfocus_dockArea.addDock(dock_displayMeasurement,'bottom',relativeTo=dock_waveform)
 
+            # self.imageDisplayWindow_focus.widget
             self.imageDisplayTabs.addTab(laserfocus_dockArea,"Laser-Based Focus")
 
             # connections
@@ -693,9 +704,6 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
         if current_index == 0 and self.wellSelectionWidget.format != 0:
             self.dock_wellSelection.setVisible(not acquisition_started)
-<<<<<<< HEAD
-        
-=======
 
     def toggleStitcherWidget(self, checked):
         central_layout = self.centralWidget.layout()
@@ -728,7 +736,6 @@ class OctopiGUI(QMainWindow):
             # Start the thread
             self.stitcherThread.start()
 
->>>>>>> stitching
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 
