@@ -507,6 +507,8 @@ FOCUS_CAMERA_TYPE="Default"
 # Spinning disk confocal integration
 ENABLE_SPINNING_DISK_CONFOCAL = False
 USE_LDI_SERIAL_CONTROL = False
+LDI_INTENSITY_MODE = 'PC'
+LDI_SHUTTER_MODE = 'PC'
 
 XLIGHT_EMISSION_FILTER_MAPPING = {405:1,470:2,555:3,640:4,730:5}
 XLIGHT_SERIAL_NUMBER = "B00031BE"
@@ -570,6 +572,7 @@ CHANNEL_COLORS_MAP = {
 # Emission filter wheel
 USE_ZABER_EMISSION_FILTER_WHEEL = False
 ZABER_EMISSION_FILTER_WHEEL_DELAY_MS = 70
+ZABER_EMISSION_FILTER_WHEEL_BLOCKING_CALL = False
 USE_OPTOSPIN_EMISSION_FILTER_WHEEL = False
 FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
 OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
@@ -691,8 +694,8 @@ elif WELLPLATE_FORMAT == 96:
     NUMBER_OF_SKIP = 0
     WELL_SIZE_MM = 6.21
     WELL_SPACING_MM = 9
-    A1_X_MM = 14.3      # measured stage position - to update
-    A1_Y_MM = 11.36     # measured stage position - to update
+    A1_X_MM = 11.31      # measured stage position - to update
+    A1_Y_MM = 10.75     # measured stage position - to update
     A1_X_PIXEL = 171    # coordinate on the png
     A1_Y_PIXEL = 138    # coordinate on the png
 elif WELLPLATE_FORMAT == 24:

@@ -14,9 +14,7 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
-import control.ImSwitch.napariViewerWidget as napariViewerWidget
 import serial
-
 
 if CAMERA_TYPE == "Toupcam":
     try:
@@ -111,6 +109,8 @@ class OctopiGUI(QMainWindow):
                 self.ldi = serial_peripherals.LDI()
                 self.ldi.run()
                 print('LDI initialized')
+                self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
+                self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
             if SUPPORT_LASER_AUTOFOCUS:
                 sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
                 self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
@@ -129,7 +129,7 @@ class OctopiGUI(QMainWindow):
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.do_homing()
+            self.emission_filter_wheel.start_homing()
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_speed(OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ)
 
@@ -149,7 +149,7 @@ class OctopiGUI(QMainWindow):
         self.objectiveStore = core.ObjectiveStore() # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
-        self.navigationController = core.NavigationController(self.microcontroller, parent=self)
+        self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.scanCoordinates = core.ScanCoordinates()
@@ -158,8 +158,7 @@ class OctopiGUI(QMainWindow):
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         self.imageSaver = core.ImageSaver()
         self.imageDisplay = core.ImageDisplay()
-        self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
-
+        self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=str(WELLPLATE_FORMAT)+' well plate')
         # retract the objective
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -219,7 +218,7 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.homing_done = True
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.wait_homing_finish()
+            self.emission_filter_wheel.wait_for_homing_complete()
 
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
@@ -278,7 +277,7 @@ class OctopiGUI(QMainWindow):
         else:
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
-        self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
+        self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=f'{WELLPLATE_FORMAT} well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
@@ -289,7 +288,8 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None) # =self.scanCoordinates
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        
+        self.wellplateFormatWidget = widgets.WellplateFormatWidget()
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         else:
@@ -347,9 +347,16 @@ class OctopiGUI(QMainWindow):
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.microscopeControlTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
-        # layout widgets
+        # Creating the frame widget
+        frame = QFrame()
+        frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        # Creating the top row layout and adding widgets
+        top_row_layout = QHBoxLayout()
+        top_row_layout.addWidget(self.objectivesWidget)
+        top_row_layout.addWidget(self.wellplateFormatWidget)
+        frame.setLayout(top_row_layout)  # Set the layout on the frame
         layout = QVBoxLayout() #layout = QStackedLayout()
-        #layout.addWidget(self.cameraSettingWidget)
+        layout.addWidget(frame)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.microscopeControlTabWidget)
         if SHOW_DAC_CONTROL:
@@ -374,7 +381,7 @@ class OctopiGUI(QMainWindow):
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
-            #self.dock_wellSelection.addWidget(self.wellFormatWidget) # todo: add widget to select wellplate format
+            #self.dock_wellSelection.addWidget(self.wellplateFormatWidget) # todo: add widget to select wellplate format
             self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
             # dock_controlPanel.showTitleBar()
@@ -399,7 +406,7 @@ class OctopiGUI(QMainWindow):
             desktopWidget = QDesktopWidget()
             width = 0.96*desktopWidget.height()
             height = width
-            self.tabbedImageDisplayWindow.setFixedSize(width,height)
+            self.tabbedImageDisplayWindow.setFixedSize(int(width), int(height))
             self.tabbedImageDisplayWindow.show()
 
         '''
@@ -436,6 +443,7 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
+        self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
 
         # load vs scan position switching
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -498,6 +506,11 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
         # (double) click to move to a well
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.scanCoordinates.update_wellplate_settings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(lambda format_, *args: self.onWellplateChanged(format_))
+
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
 
@@ -605,8 +618,55 @@ class OctopiGUI(QMainWindow):
 
     def onTabChanged(self, index):
         acquisitionWidget = self.recordTabWidget.widget(index)
-        self.toggleWellSelector(index)
-        acquisitionWidget.emit_selected_channels()
+        if self.wellSelectionWidget.format != 0:
+            self.toggleWellSelector(index)
+        try:
+            acquisitionWidget.emit_selected_channels()
+        except AttributeError:
+            pass
+
+    def onWellplateChanged(self, format_):
+        if ENABLE_FLEXIBLE_MULTIPOINT:
+            self.multiPointWidget2.clear_only_location_list()
+        if format_ == 0:
+            self.toggleWellSelector(True)
+            self.multipointController.inverted_objective = False
+            self.navigationController.inverted_objective = False
+            self.slidePositionController.setParent(None)
+            self.slidePositionController.deleteLater()
+            self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+            self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
+        else:
+            self.toggleWellSelector(False)
+            self.multipointController.inverted_objective = True
+            self.navigationController.inverted_objective = True
+            self.slidePositionController.setParent(None)
+            self.slidePositionController.deleteLater()
+            self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+            self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
+            if format_ == 1536:
+                self.wellSelectionWidget.setParent(None)
+                self.wellSelectionWidget.deleteLater()
+                self.wellSelectionWidget = widgets.Well1536SelectionWidget()
+                self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+                self.dock_wellSelection.addWidget(self.wellSelectionWidget)
+                self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+            elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
+                self.wellSelectionWidget.setParent(None)
+                self.wellSelectionWidget.deleteLater()
+                self.wellSelectionWidget = widgets.WellSelectionWidget(format_)
+                self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
+                self.dock_wellSelection.addWidget(self.wellSelectionWidget)
+                self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
+                self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+                self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
 
     def toggleWellSelector(self, close):
         self.dock_wellSelection.setVisible(not close)
@@ -615,14 +675,14 @@ class OctopiGUI(QMainWindow):
         current_index = self.recordTabWidget.currentIndex()
         for index in range(self.recordTabWidget.count()):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
-        if current_index == 0:
+        if current_index == 0 and self.wellSelectionWidget.format != 0:
             self.dock_wellSelection.setVisible(not acquisition_started)
-
+        
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.set_emission_filter('1')
+            self.emission_filter_wheel.set_emission_filter(1)
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter(1)
             self.emission_filter_wheel.close()
