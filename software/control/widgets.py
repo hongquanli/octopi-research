@@ -1610,6 +1610,42 @@ class AutoFocusWidget(QFrame):
         self.btn_autofocus.setChecked(False)
 
 
+class FilterControllerWidget(QFrame):
+    def __init__(self, filterController, liveController, main=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.filterController = filterController
+        self.liveController = liveController
+        self.add_components()
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+    def add_components(self):
+        self.comboBox = QComboBox()
+        for i in range(1, 8):  # Assuming 7 filter positions
+            self.comboBox.addItem(f"Position {i}")
+        self.checkBox = QCheckBox("Disable filter wheel movement on changing Microscope Configuration", self)
+            
+        layout = QGridLayout()
+        layout.addWidget(QLabel('Filter wheel position:'), 0,0)
+        layout.addWidget(self.comboBox, 0,1)
+        layout.addWidget(self.checkBox, 2,0)
+
+        self.setLayout(layout)
+        
+        self.comboBox.currentIndexChanged.connect(self.on_selection_change)  # Connecting to selection change
+        self.checkBox.stateChanged.connect(self.disable_movement_by_switching_channels)
+
+    def on_selection_change(self, index):
+        # The 'index' parameter is the new index of the combo box
+        if index >= 0 and index <= 7:  # Making sure the index is valid
+            self.filterController.set_emission_filter(index+1)
+
+    def disable_movement_by_switching_channels(self, state):
+        if state:
+            self.liveController.enable_channel_auto_filter_switching = False
+        else:
+            self.liveController.enable_channel_auto_filter_switching = True
+
+
 class StatsDisplayWidget(QFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

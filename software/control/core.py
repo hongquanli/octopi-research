@@ -393,7 +393,7 @@ class Configuration:
         self.emission_filter_position = emission_filter_position
 
 class LiveController(QObject):
-
+    
     def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.microscope = parent
@@ -422,6 +422,8 @@ class LiveController(QObject):
         self.timestamp_last = 0
 
         self.display_resolution_scaling = DEFAULT_DISPLAY_CROP/100
+
+        self.enable_channel_auto_filter_switching = True
 
         if USE_LDI_SERIAL_CONTROL:
             self.ldi = serial_peripherals.LDI()
@@ -499,19 +501,34 @@ class LiveController(QObject):
             else:
                 self.microcontroller.set_illumination(illumination_source,intensity)
 
-            # set emission filter position
-            if 'Fluorescence' in self.currentConfiguration.name:
-                try:
-                    self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
-                except Exception as e:
-                    print('not setting emission filter position due to ' + str(e))
+        # set emission filter position
+        if ENABLE_SPINNING_DISK_CONFOCAL:
+            try:
+                self.microscope.xlight.set_emission_filter(XLIGHT_EMISSION_FILTER_MAPPING[illumination_source],extraction=False,validate=XLIGHT_VALIDATE_WHEEL_POS)
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
-                if USE_ZABER_EMISSION_FILTER_WHEEL:
-                    try:
-                        self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
-                    except Exception as e:
-                        print('not setting emission filter position due to ' + str(e))
+        if USE_ZABER_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching:
+            try:
+                if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
+                    self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
+                    if self.trigger_mode == TriggerMode.SOFTWARE:
+                        time.sleep(ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
+                    else:
+                        time.sleep(max(0,ZABER_EMISSION_FILTER_WHEEL_DELAY_MS/1000-self.camera.strobe_delay_us/1e6))
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
+        if USE_OPTOSPIN_EMISSION_FILTER_WHEEL and self.enable_channel_auto_filter_switching and OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER == False:
+            try:
+                if self.currentConfiguration.emission_filter_position != self.microscope.emission_filter_wheel.current_index:
+                    self.microscope.emission_filter_wheel.set_emission_filter(str(self.currentConfiguration.emission_filter_position))
+                    if self.trigger_mode == TriggerMode.SOFTWARE:
+                        time.sleep(OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS/1000)
+                    elif self.trigger_mode == TriggerMode.HARDWARE:
+                        time.sleep(max(0,OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS/1000-self.camera.strobe_delay_us/1e6))
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
 
     def start_live(self):
         self.is_live = True

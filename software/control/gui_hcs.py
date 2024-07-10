@@ -84,6 +84,8 @@ class OctopiGUI(QMainWindow):
 
             if USE_ZABER_EMISSION_FILTER_WHEEL:
                 self.emission_filter_wheel = serial_peripherals.FilterController_Simulation(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel = serial_peripherals.Optospin_Simulation(SN=None)
 
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
@@ -118,11 +120,15 @@ class OctopiGUI(QMainWindow):
 
             if USE_ZABER_EMISSION_FILTER_WHEEL:
                 self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
 
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.do_homing()
+        if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.set_speed(OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ)
 
         # reset the MCU
         self.microcontroller.reset()
@@ -282,6 +288,8 @@ class OctopiGUI(QMainWindow):
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='384 well plate')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
+        if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+            self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
@@ -343,6 +351,8 @@ class OctopiGUI(QMainWindow):
             self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
         self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
         self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+        if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+            self.microscopeControlTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
         # layout widgets
         layout = QVBoxLayout() #layout = QStackedLayout()
@@ -621,6 +631,9 @@ class OctopiGUI(QMainWindow):
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter('1')
+        if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+            self.emission_filter_wheel.set_emission_filter(1)
+            self.emission_filter_wheel.close()
 
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick

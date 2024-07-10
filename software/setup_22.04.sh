@@ -26,6 +26,8 @@ cd ~/Desktop/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Gal
 cd ~/Desktop/octopi-research/software/drivers\ and\ libraries/daheng\ camera/Galaxy_Linux_Python_1.0.1905.9081/api
 python3 setup.py build
 sudo python3 setup.py install
+cd ~/Desktop/octopi-research/software
+sudo cp drivers\ and\ libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/rules.d
 
 # enable access to serial ports without sudo
 sudo usermod -aG dialout $USER
