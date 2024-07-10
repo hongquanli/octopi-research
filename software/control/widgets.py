@@ -2666,10 +2666,10 @@ class NapariLiveWidget(QWidget):
     signal_coordinates_clicked = Signal(int, int, int, int)
     signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, liveControlWidget, parent=None):
+    def __init__(self, liveControlWidget, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        self.configurationManager = configurationManager
+        # self.objectiveStore = objectiveStore
         self.liveControlWidget = liveControlWidget
         self.live_layer_name = ""
         self.image_width = 0
@@ -2801,16 +2801,18 @@ class NapariMultiChannelWidget(QWidget):
 
     signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, parent=None):
+    def __init__(self, objectiveStore, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        self.configurationManager = configurationManager
+        self.objectiveStore = objectiveStore
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
         self.channels = set()
         self.contrast_limits = {}
-        self.pixel_size_um = 1
+        self.pixel_size_x_um = 1
+        self.pixel_size_y_um = 1
+        self.dz_um = 1
         self.Nz = 1
         self.layers_initialized = False
         self.acquisition_initialized = False
@@ -2831,9 +2833,11 @@ class NapariMultiChannelWidget(QWidget):
         self.setLayout(self.layout)
         
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
-        if self.Nz != Nz:
+        if self.Nz != Nz or self.dz_um != dz:
             self.acquisition_initialized = False
-        self.Nz = Nz
+            self.Nz = Nz
+            self.dz_um = dz
+        self.pixel_size_x_um, self.pixel_size_y_um = self.objectiveStore.get_pixel_size()
         
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -2896,7 +2900,9 @@ class NapariMultiChannelWidget(QWidget):
             
             limits = self.getContrastLimits(self.dtype)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
-                                          colormap=color, contrast_limits=limits, blending='additive')
+                                          colormap=color, contrast_limits=limits, blending='additive',
+                                          scale=(self.dz_um, self.pixel_size_y_um, self.pixel_size_x_um))
+            print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_y_um}, pixel_x_um:{self.pixel_size_x_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
@@ -2908,11 +2914,10 @@ class NapariMultiChannelWidget(QWidget):
         layer.data[k] = image
         layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         self.update_layer_count += 1
-        if self.update_layer_count == len(self.channels):
-            self.viewer.dims.set_point(0, k)
+        if self.update_layer_count % len(self.channels) == 0:
+            self.viewer.dims.set_point(0, k * self.dz_um)
             for layer in self.viewer.layers:
                 layer.refresh()
-            self.update_layer_count = 0
 
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
@@ -2941,10 +2946,10 @@ class NapariTiledDisplayWidget(QWidget):
     signal_coordinates_clicked = Signal(int, int, int, int, int, int, float, float)
     signal_layer_contrast_limits = Signal(str, float, float)
 
-    def __init__(self, configurationManager, parent=None):
+    def __init__(self, objectiveStore, parent=None):
         super().__init__(parent)
         # Initialize placeholders for the acquisition parameters
-        self.configurationManager = configurationManager
+        self.objectiveStore = objectiveStore
         self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
         self.image_width = 0
         self.image_height = 0
@@ -2953,6 +2958,9 @@ class NapariTiledDisplayWidget(QWidget):
         self.Nx = 1
         self.Ny = 1
         self.Nz = 1
+        self.dz_um = 1
+        self.pixel_size_x_um = 1 # um
+        self.pixel_size_y_um = 1 # um
         self.layers_initialized = False
         self.acquisition_initialized = False
         self.viewer_scale_initialized = False
@@ -2968,13 +2976,16 @@ class NapariTiledDisplayWidget(QWidget):
         self.setLayout(self.layout)
         
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
+        self.acquisition_initialized = False
         self.Nx = Nx
         self.Ny = Ny
         self.Nz = Nz
         self.dx_mm = dx
         self.dy_mm = dy
         self.dz_um = dz
-        self.acquisition_initialized = False
+        pixel_size_x_um, pixel_size_y_um = self.objectiveStore.get_pixel_size()
+        self.pixel_size_x_um = pixel_size_x_um * self.downsample_factor
+        self.pixel_size_y_um = pixel_size_y_um * self.downsample_factor
 
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -3036,7 +3047,10 @@ class NapariTiledDisplayWidget(QWidget):
                 canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
 
             limits = self.getContrastLimits(self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, colormap=color, contrast_limits=limits, blending='additive')
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
+                                          colormap=color, contrast_limits=limits, blending='additive', 
+                                          scale=(self.dz_um, self.pixel_size_y_um, self.pixel_size_x_um))
+            print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_y_um}, pixel_x_um:{self.pixel_size_x_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
@@ -3046,18 +3060,17 @@ class NapariTiledDisplayWidget(QWidget):
         if not self.viewer_scale_initialized:
             self.resetView()
             self.viewer_scale_initialized = True
- 
+        self.viewer.dims.set_point(0, k * self.dz_um)
         layer = self.viewer.layers[channel_name]
         layer_data = layer.data
+
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
         if rgb:
             layer_data[k, y_slice, x_slice, :] = image
         else:
             layer_data[k, y_slice, x_slice] = image
-        
         layer.data = layer_data
-        self.viewer.dims.set_point(0, k)
         layer.refresh()
 
     def signalContrastLimits(self, event):

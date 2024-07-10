@@ -146,7 +146,7 @@ class OctopiGUI(QMainWindow):
 
         print('load channel_configurations.xml')
         self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
-        self.objectiveStore = core.ObjectiveStore() # todo: add widget to select/save objective save
+        self.objectiveStore = core.ObjectiveStore(parent=self) # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
         self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)
@@ -300,7 +300,7 @@ class OctopiGUI(QMainWindow):
         self.imageDisplayTabs = QTabWidget()
 
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.configurationManager, self.liveControlWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.liveControlWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -311,7 +311,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
         if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.configurationManager)
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore)
             # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)  
             # ^ for 60x, IMX571, 2x2 binning, to change to using objective and camera config
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
@@ -321,7 +321,7 @@ class OctopiGUI(QMainWindow):
 
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.configurationManager)
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore)
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
             else:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True) 
@@ -443,7 +443,6 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
-        self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
 
         # load vs scan position switching
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -453,6 +452,7 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
 
         # display the FOV in the viewer
+        self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
