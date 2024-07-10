@@ -1912,7 +1912,11 @@ class MultiPointWorker(QObject):
                             real_i = self.NY-1-i if sgn_i == -1 else i
                             real_j = self.NX-1-j if sgn_j == -1 else j
 
+<<<<<<< HEAD
                             file_ID = coordinate_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
+=======
+                            file_ID = coordiante_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
+>>>>>>> c9259b9 (scan-grid multipointwidget, define overlap percentage, define scan size if no wellplate)
                             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             print("scan coordinate:", metadata)
                             # metadata = json.dumps(metadata)
@@ -4426,6 +4430,62 @@ class ScanCoordinates(object):
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
         return len(selected_wells) # if wells selected
+
+    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, navigationController=None):
+        pixel_size_um = objectiveStore.get_pixel_size()
+
+        if self.well_selector and self.get_selected_wells():
+            # Case 1: Well plate selected
+            return self._create_wellplate_grid(pixel_size_um, overlap_percent)
+        else:
+            # Case 2: No well selected or using glass slide
+            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent, navigationController)
+
+    def _create_wellplate_grid(self, pixel_size_um, overlap_percent):
+        # Calculate field of view size in mm
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+
+        # Calculate step size with exact overlap
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
+        # Calculate number of steps to cover the well
+        steps = math.ceil(self.well_size_mm / step_size_mm)
+
+        actual_scan_size_mm = steps * step_size_mm
+        print("well size mm", self.well_size_mm)
+        print("actual scan size mm", actual_scan_size_mm)
+
+        return steps, step_size_mm
+
+    def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent, navigationController):
+        # Calculate field of view size in mm
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+
+        # Calculate step size with exact overlap
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
+        # Calculate number of steps to cover at least the minimum scan size
+        steps = math.ceil(scan_size_mm / step_size_mm)
+
+        # Calculate actual scan size (which may be larger than the minimum)
+        actual_scan_size_mm = steps * step_size_mm
+        print("minimum scan size mm", scan_size_mm)
+        print("actual scan size mm", actual_scan_size_mm)
+
+        # Use NavigationController's current position as center
+        center_x_mm = navigationController.x_pos_mm
+        center_y_mm = navigationController.y_pos_mm
+
+        # Update coordinates
+        self.coordinates_mm = []
+        for i in range(steps):
+            for j in range(steps):
+                x_mm = center_x_mm + (i - steps//2) * step_size_mm
+                y_mm = center_y_mm + (j - steps//2) * step_size_mm
+                self.coordinates_mm.append((x_mm, y_mm))
+                self.name.append(f"Pos_{i}_{j}")
+
+        return steps, step_size_mm
 
 
 class LaserAutofocusController(QObject):

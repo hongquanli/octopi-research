@@ -293,6 +293,7 @@ class OctopiGUI(QMainWindow):
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None) # =self.scanCoordinates
+        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates)
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
         self.wellplateFormatWidget = widgets.WellplateFormatWidget()
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
@@ -339,11 +340,14 @@ class OctopiGUI(QMainWindow):
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
+        if ENABLE_SCAN_GRID:
+            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Grid Multipoint")
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-        self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        if ENABLE_RECORDING:
+            self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
         self.microscopeControlTabWidget = QTabWidget()
         self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
@@ -457,6 +461,10 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.currentChanged.connect(self.onTabChanged)
             self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidget2.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+        if ENABLE_SCAN_GRID:
+            self.recordTabWidget.currentChanged.connect(self.onTabChanged)
+            self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+            self.multiPointWidgetGrid.signal_acquisition_started.connect(self.toggleAcquisitionStart)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -497,13 +505,20 @@ class OctopiGUI(QMainWindow):
             if ENABLE_FLEXIBLE_MULTIPOINT:
                 self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
                 self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            if ENABLE_SCAN_GRID:
+                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+
             if ENABLE_STITCHER:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+
             if USE_NAPARI_FOR_LIVE_VIEW:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
+
         else:
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
@@ -514,11 +529,17 @@ class OctopiGUI(QMainWindow):
                 if ENABLE_FLEXIBLE_MULTIPOINT:
                     self.multiPointWidget2.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                     self.multiPointWidget2.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                if ENABLE_SCAN_GRID:
+                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+
                 if ENABLE_STITCHER:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+
                 if USE_NAPARI_FOR_LIVE_VIEW:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                     self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
@@ -537,6 +558,8 @@ class OctopiGUI(QMainWindow):
 
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
+        if ENABLE_SCAN_GRID:
+            self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_selected)
 
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
@@ -643,8 +666,9 @@ class OctopiGUI(QMainWindow):
 
     def onTabChanged(self, index):
         acquisitionWidget = self.recordTabWidget.widget(index)
-        if self.wellSelectionWidget.format != 0:
-            self.toggleWellSelector(index)
+        is_multipoint = (index == self.recordTabWidget.indexOf(self.multiPointWidget))
+        is_scan_grid = (index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
+        self.toggleWellSelector((is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0)
         try:
             if ENABLE_STITCHER:
                 self.toggleStitcherWidget(acquisitionWidget.checkbox_stitchOutput.isChecked())
@@ -653,10 +677,8 @@ class OctopiGUI(QMainWindow):
             pass
 
     def onWellplateChanged(self, format_):
-        if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.multiPointWidget2.clear_only_location_list()
         if format_ == 0:
-            self.toggleWellSelector(True)
+            self.toggleWellSelector(False)
             self.multipointController.inverted_objective = False
             self.navigationController.inverted_objective = False
             self.slidePositionController.setParent(None)
@@ -668,7 +690,7 @@ class OctopiGUI(QMainWindow):
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
             self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
         else:
-            self.toggleWellSelector(False)
+            self.toggleWellSelector(True)
             self.multipointController.inverted_objective = True
             self.navigationController.inverted_objective = True
             self.slidePositionController.setParent(None)
@@ -695,15 +717,26 @@ class OctopiGUI(QMainWindow):
                 self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
                 self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
 
-    def toggleWellSelector(self, close):
-        self.dock_wellSelection.setVisible(not close)
+        if ENABLE_FLEXIBLE_MULTIPOINT:
+            self.multiPointWidget2.clear_only_location_list()
+        if ENABLE_SCAN_GRID:
+            self.multiPointWidgetGrid.update_scan_size_availability()
+
+    def toggleWellSelector(self, show):
+        self.dock_wellSelection.setVisible(show)
 
     def toggleAcquisitionStart(self, acquisition_started):
         current_index = self.recordTabWidget.currentIndex()
         for index in range(self.recordTabWidget.count()):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
+
         if current_index == 0 and self.wellSelectionWidget.format != 0:
             self.dock_wellSelection.setVisible(not acquisition_started)
+
+        is_multipoint = (current_index == self.recordTabWidget.indexOf(self.multiPointWidget))
+        is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
+        if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0:
+            self.toggleWellSelector(not acquisition_started)
 
     def toggleStitcherWidget(self, checked):
         central_layout = self.centralWidget.layout()
@@ -735,7 +768,7 @@ class OctopiGUI(QMainWindow):
             self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
             # Start the thread
             self.stitcherThread.start()
-
+        
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 
