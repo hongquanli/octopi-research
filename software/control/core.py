@@ -12,10 +12,10 @@ from qtpy.QtGui import *
 
 # control 
 from control._def import *
-from control.processing_handler import ProcessingHandler
-from control.processing_pipeline import *
-#from control.stitcher import Stitcher, default_image_reader
-from control.multipoint_built_in_functionalities import malaria_rtp
+if DO_FLUORESCENCE_RTP:
+    from control.processing_handler import ProcessingHandler
+    from control.processing_pipeline import *
+    from control.multipoint_built_in_functionalities import malaria_rtp
 
 import control.utils as utils
 import control.utils_config as utils_config
@@ -1589,7 +1589,8 @@ class MultiPointWorker(QObject):
 
         self.signal_update_stats.connect(self.update_stats)
         self.start_time = 0
-        self.processingHandler = multiPointController.processingHandler
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1706,11 +1707,12 @@ class MultiPointWorker(QObject):
         elapsed_time = time.perf_counter_ns() - self.start_time
         print("Time taken for acquisition: " + str(elapsed_time/10**9))
 
-        # End processing using the updated method
-        self.processingHandler.processing_queue.join()
-        self.processingHandler.upload_queue.join()
-        self.processingHandler.end_processing()
-        time.sleep(0.2)
+        if DO_FLUORESCENCE_RTP:
+            # End processing using the updated method
+            self.processingHandler.processing_queue.join()
+            self.processingHandler.upload_queue.join()
+            self.processingHandler.end_processing()
+            time.sleep(0.2)
         # wait for signal_update_stats in process_fn_with_count_and_display
         print("Time taken for acquisition/processing: ", (time.perf_counter_ns() - self.start_time) / 1e9)
         self.finished.emit()
@@ -2361,7 +2363,8 @@ class MultiPointController(QObject):
         QObject.__init__(self)
 
         self.camera = camera
-        self.processingHandler = ProcessingHandler()
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
@@ -2579,8 +2582,9 @@ class MultiPointController(QObject):
 
         self.thread = QThread()
         # create a worker object
-        self.processingHandler.start_processing()
-        self.processingHandler.start_uploading()
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.start_processing()
+            self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
         # move the worker to the thread
         self.multiPointWorker.moveToThread(self.thread)
