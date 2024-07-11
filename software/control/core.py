@@ -3669,7 +3669,7 @@ class ScanCoordinates(object):
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
 
         # Calculate number of steps to cover the well
-        steps = math.ceil(self.well_size_mm / step_size_mm)
+        steps = math.floor(self.well_size_mm / step_size_mm)
 
         actual_scan_size_mm = steps * step_size_mm
         print("well size mm", self.well_size_mm)
