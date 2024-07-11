@@ -2937,44 +2937,58 @@ class MultiPointController(QObject):
 
     def set_NX(self,N):
         self.NX = N
+
     def set_NY(self,N):
         self.NY = N
+
     def set_NZ(self,N):
         self.NZ = N
+
     def set_Nt(self,N):
         self.Nt = N
+
     def set_deltaX(self,delta):
         mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
         self.deltaX = delta
         self.deltaX_usteps = round(delta/mm_per_ustep_X)
+
     def set_deltaY(self,delta):
         mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
         self.deltaY = delta
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
+
     def set_deltaZ(self,delta_um):
         mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
+
     def set_deltat(self,delta):
         self.deltat = delta
+
     def set_af_flag(self,flag):
         self.do_autofocus = flag
+
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
+
     def set_gen_focus_map_flag(self, flag):
         self.gen_focus_map = flag
         if not flag:
             self.autofocusController.set_focus_map_use(False)
+
     def set_stitch_tiles_flag(self, flag):
         self.do_stitch_tiles = flag
+
     def set_segmentation_flag(self, flag):
         self.do_segmentation = flag
+
     def set_fluorescence_rtp_flag(self, flag):
         self.do_fluorescence_rtp = flag
-    def set_crop(self,crop_width,height):
+
+    def set_crop(self,crop_width, crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
-
+        
     def set_base_path(self,path):
         self.base_path = path
 
