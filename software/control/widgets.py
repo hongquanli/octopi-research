@@ -1965,7 +1965,7 @@ class MultiPointWidget2(QFrame):
         self.scanCoordinates = scanCoordinates
         self.base_path_is_set = False
         self.location_list = np.empty((0, 3), dtype=float)
-        self.location_ids = np.empty((0,), dtype=str)
+        self.location_ids = np.empty((0,), dtype='<U20')
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.acquisition_in_place=False
