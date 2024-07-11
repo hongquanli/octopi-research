@@ -2401,7 +2401,7 @@ class MultiPointController(QObject):
         self.gen_focus_map = flag
         if not flag:
             self.autofocusController.set_focus_map_use(False)
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width, crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
