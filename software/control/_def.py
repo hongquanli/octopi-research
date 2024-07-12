@@ -432,7 +432,7 @@ CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritt
 
 ENABLE_STROBE_OUTPUT = False
 
-Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
+Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
 WELLPLATE_FORMAT = 384
