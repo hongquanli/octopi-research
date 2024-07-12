@@ -3721,25 +3721,27 @@ class ScanCoordinates(object):
 
         self.grid_skip_positions = []
 
-        # Calculate the distance from center to corner of FOV
-        distance_fov_center_to_fov_corner = math.sqrt(2) * fov_size_mm / 2
-
-
         for i in range(steps):
             for j in range(steps):
                 # Calculate the center position of the FOV relative to well center
                 center_y = (i - (steps - 1) / 2) * step_size_mm
                 center_x = (j - (steps - 1) / 2) * step_size_mm
 
-                # Calculate the distance from the well center to the FOV center
-                distance_fov_to_well_center = math.sqrt(center_x**2 + center_y**2)
+                # Calculate distances to all four corners of the FOV
+                corners = [
+                    (center_x - half_fov, center_y - half_fov),  # Top-left
+                    (center_x + half_fov, center_y - half_fov),  # Top-right
+                    (center_x - half_fov, center_y + half_fov),  # Bottom-left
+                    (center_x + half_fov, center_y + half_fov)   # Bottom-right
+                ]
 
-                # If the furthest corner is outside the well, skip this FOV
-                if distance_fov_to_well_center + distance_fov_center_to_fov_corner > radius:
+                # Check if any corner is outside the well
+                if any(math.sqrt(x*x + y*y) > radius for x, y in corners):
                     self.grid_skip_positions.append((i, j))
                     print(f"skipping {i}, {j}")
 
         return steps, step_size_mm
+
 
     def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent, navigationController):
         # Calculate field of view size in mm
