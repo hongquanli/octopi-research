@@ -2120,7 +2120,7 @@ class MultiPointWorker(QObject):
                                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
                                 # populate the tiled_preview
-                                self.tiled_preview[(self.NY-real_i-1)*height:(self.NY-real_i)*height, real_j*width:(real_j+1)*width, ] = I
+                                self.tiled_preview[real_i*height:(real_i+1)*height, real_j*width:(real_j+1)*width, ] = I
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
@@ -3690,29 +3690,36 @@ class ScanCoordinates(object):
     def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-
+        
         # Calculate step size with exact overlap
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-
+        
         # Calculate radius
         radius = self.well_size_mm / 2
-
+        
         # Calculate number of steps to cover the diameter
-        steps = math.ceil(self.well_size_mm / step_size_mm)
-
+        steps = math.floor(self.well_size_mm / step_size_mm)
+        
         actual_scan_size_mm = steps * step_size_mm
         print("well size mm", self.well_size_mm)
         print("actual scan size mm", actual_scan_size_mm)
 
         self.grid_skip_positions = []
+
+        # Calculate the distance from center to corner of FOV
+        distance_fov_center_to_fov_corner = math.sqrt(2) * fov_size_mm / 2
+
         for i in range(steps):
             for j in range(steps):
-                # Calculate the center position of the FOV
-                center_y = (i - steps // 2 + 0.5) * step_size_mm
+                # Calculate the center position of the FOV (add 0.5 step_size_mm to get FOV center)
+                center_y = (i - steps // 2 + 0.5) * step_size_mm 
                 center_x = (j - steps // 2 + 0.5) * step_size_mm
-
-                # Check if the center of the FOV is outside the well
-                if center_y*center_y + center_x*center_x > radius*radius:
+                
+                # Calculate the distance from the well center to the FOV center
+                distance_fov_to_well_center = math.sqrt(center_x**2 + center_y**2)
+                
+                # If the furthest corner is outside the well, skip this FOV
+                if distance_fov_to_well_center + distance_fov_center_to_fov_corner > radius:
                     self.grid_skip_positions.append((i, j))
                     print(f"skipping {i}, {j}")
 
