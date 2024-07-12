@@ -1305,6 +1305,7 @@ class AutofocusWorker(QObject):
             self.wait_till_operation_is_completed()
 
         steps_moved = 0
+        # start from bottom, current z is center
         for i in range(self.N):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
@@ -3722,6 +3723,10 @@ class ScanCoordinates(object):
         print("overlap %", overlap_percent)
         print("step_size_mm", step_size_mm)
 
+        # When fov larger than well, still take scan
+        if fov_size_mm > well_size_mm:
+            return 1, step_size_mm
+
         # Calculate radius
         radius = self.well_size_mm / 2
 
@@ -3736,6 +3741,7 @@ class ScanCoordinates(object):
 
         # Calculate the distance from center to corner of FOV
         distance_fov_center_to_fov_corner = math.sqrt(2) * fov_size_mm / 2
+
 
         for i in range(steps):
             for j in range(steps):

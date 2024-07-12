@@ -408,7 +408,7 @@ class SOFTWARE_POS_LIMIT:
     X_NEGATIVE = -0.5
     Y_POSITIVE = 56
     Y_NEGATIVE = -0.5
-    Z_POSITIVE = 6
+    Z_POSITIVE = 7
     Z_NEGATIVE = 0.05
 
 SHOW_AUTOLEVEL_BTN = False
@@ -432,7 +432,7 @@ CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritt
 
 ENABLE_STROBE_OUTPUT = False
 
-Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
+Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
 WELLPLATE_FORMAT = 384
