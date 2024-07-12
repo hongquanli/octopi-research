@@ -2726,12 +2726,14 @@ class MultiPointWidgetGrid(QFrame):
             self.signal_acquisition_started.emit(True)
             self.signal_acquisition_shape.emit(Nx, Ny, self.entry_NZ.value(),
                                                dx_mm, dy_mm, self.entry_deltaZ.value())
+            print("Nx,Ny,Nz", Nx, Ny, self.entry_NZ.value())
+            print("dx,dy,zd", dx_mm, dy_mm, self.entry_deltaZ.value())
 
             # Start acquisition
             if self.scanCoordinates.get_selected_wells():
-                self.multipointController.run_acquisition(self.scanCoordinates.coordinates_mm)
+                self.multipointController.run_acquisition(self.scanCoordinates.coordinates_mm) # passed as location list? 
             else:
-                self.multipointController.run_acquisition()
+                self.multipointController.run_acquisition() # enter current coordinates from navigationController?
         else:
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
@@ -3101,7 +3103,7 @@ class NapariMultiChannelWidget(QWidget):
             self.acquisition_initialized = False
             self.Nz = Nz
             self.dz_um = dz
-        self.pixel_size_um, self.pixel_size_um = self.objectiveStore.get_pixel_size()
+        self.pixel_size_um = self.objectiveStore.get_pixel_size()
         
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -3246,8 +3248,7 @@ class NapariTiledDisplayWidget(QWidget):
         self.dx_mm = dx
         self.dy_mm = dy
         self.dz_um = dz
-        pixel_size_um, pixel_size_um = self.objectiveStore.get_pixel_size()
-        self.pixel_size_um = pixel_size_um * self.downsample_factor
+        pixel_size_um = self.objectiveStore.get_pixel_size()
         self.pixel_size_um = pixel_size_um * self.downsample_factor
 
     def initChannels(self, channels):

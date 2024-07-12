@@ -1805,12 +1805,21 @@ class MultiPointWorker(QObject):
                 # along x
                 for j in range(self.NX):
 
+                    # Ensure that i/y-indexing is always top to bottom
+                    sgn_i = -1 if self.deltaY >= 0 else 1
+                    sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
+                    sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
+
+                    real_i = self.NY-1-i if sgn_i == -1 else i
+                    real_j = self.NX-1-j if sgn_j == -1 else j
+
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
                         multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
 
-                    else:
+                    # scan image if not skipped grid position
+                    elif self.multiPointController.scanCoordinates is not None and (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
 
                         # autofocus
                         if self.do_reflection_af == False:
@@ -1874,14 +1883,6 @@ class MultiPointWorker(QObject):
 
                         # z-stack
                         for k in range(self.NZ):
-                            
-                            # Ensure that i/y-indexing is always top to bottom
-                            sgn_i = -1 if self.deltaY >= 0 else 1
-                            sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
-                            sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
-
-                            real_i = self.NY-1-i if sgn_i == -1 else i
-                            real_j = self.NX-1-j if sgn_j == -1 else j
 
                             file_ID = coordiante_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
                             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
@@ -2236,6 +2237,9 @@ class MultiPointWorker(QObject):
 
                         # update FOV counter
                         self.FOV_counter = self.FOV_counter + 1
+
+                    else: # skip current grid position for this acquisition
+                        print(f"skipping grid position ({real_i}, {real_j})")
 
                     if self.NX > 1:
                         # move x
@@ -3588,17 +3592,20 @@ class PlateReaderNavigationController(QObject):
     def home_y(self):
         self.microcontroller.home_y()
 
+
 class ScanCoordinates(object):
     def __init__(self):
         self.coordinates_mm = []
         self.name = []
         self.well_selector = None
+        self.format = WELLPLATE_FORMAT
         self.a1_x_mm = A1_X_MM
         self.a1_y_mm = A1_Y_MM
         self.wellplate_offset_x_mm = WELLPLATE_OFFSET_X_mm
         self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
         self.well_spacing_mm = WELL_SPACING_MM
         self.well_size_mm = WELL_SIZE_MM
+        self.grid_skip_positions = []
 
     def _index_to_row(self,index):
         index += 1
@@ -3652,11 +3659,14 @@ class ScanCoordinates(object):
         return len(selected_wells) # if wells selected
 
     def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, navigationController=None):
+        self.grid_skip_positions =[]
         pixel_size_um = objectiveStore.get_pixel_size()
-
-        if self.well_selector and self.get_selected_wells():
+        if self.format != 0 and self.well_selector:
             # Case 1: Well plate selected
-            return self._create_wellplate_grid(pixel_size_um, overlap_percent)
+            if self.format <= 96:
+                return self._create_wellplate_circle(pixel_size_um, overlap_percent)
+            else:
+                return self._create_wellplate_grid(pixel_size_um, overlap_percent)
         else:
             # Case 2: No well selected or using glass slide
             return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent, navigationController)
@@ -3677,6 +3687,37 @@ class ScanCoordinates(object):
 
         return steps, step_size_mm
 
+    def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
+        # Calculate field of view size in mm
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+
+        # Calculate step size with exact overlap
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
+        # Calculate radius
+        radius = self.well_size_mm / 2
+
+        # Calculate number of steps to cover the diameter
+        steps = math.ceil(self.well_size_mm / step_size_mm)
+
+        actual_scan_size_mm = steps * step_size_mm
+        print("well size mm", self.well_size_mm)
+        print("actual scan size mm", actual_scan_size_mm)
+
+        self.grid_skip_positions = []
+        for i in range(steps):
+            for j in range(steps):
+                # Calculate the center position of the FOV
+                center_y = (i - steps // 2 + 0.5) * step_size_mm
+                center_x = (j - steps // 2 + 0.5) * step_size_mm
+
+                # Check if the center of the FOV is outside the well
+                if center_y*center_y + center_x*center_x > radius*radius:
+                    self.grid_skip_positions.append((i, j))
+                    print(f"skipping {i}, {j}")
+
+        return steps, step_size_mm
+
     def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent, navigationController):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
@@ -3691,20 +3732,7 @@ class ScanCoordinates(object):
         actual_scan_size_mm = steps * step_size_mm
         print("minimum scan size mm", scan_size_mm)
         print("actual scan size mm", actual_scan_size_mm)
-
-        # Use NavigationController's current position as center
-        center_x_mm = navigationController.x_pos_mm
-        center_y_mm = navigationController.y_pos_mm
-
-        # Update coordinates
-        self.coordinates_mm = []
-        for i in range(steps):
-            for j in range(steps):
-                x_mm = center_x_mm + (i - steps//2) * step_size_mm
-                y_mm = center_y_mm + (j - steps//2) * step_size_mm
-                self.coordinates_mm.append((x_mm, y_mm))
-                self.name.append(f"Pos_{i}_{j}")
-
+    
         return steps, step_size_mm
 
 
