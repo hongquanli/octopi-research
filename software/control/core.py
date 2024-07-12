@@ -1673,7 +1673,7 @@ class MultiPointWorker(QObject):
 
         if self.multiPointController.location_list is None:
             # use scanCoordinates for well plates or regular multipoint scan
-            if self.multiPointController.scanCoordinates!=None and self.multiPointController.scanCoordinates.get_selected_wells():
+            if self.multiPointController.scanCoordinates is not None and self.multiPointController.scanCoordinates.get_selected_wells():
                 # use scan coordinates for the scan
                 self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
                 self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
@@ -1768,13 +1768,22 @@ class MultiPointWorker(QObject):
                 # flexible scan, use a sequencial ID
                 coordinate_name = str(coordinate_id)
             else:
-                coordinate_name = self.scan_coordinates_name[coordinate_id]
-            
-            if self.use_scan_coordinates:
-                # move to the specified coordinate
-                self.navigationController.move_x_to(coordinate_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.navigationController.move_y_to(coordinate_mm[1]-self.deltaY*(self.NY-1)/2)
+                coordiante_name = self.scan_coordinates_name[coordinate_id]
 
+            if self.use_scan_coordinates: # move to the specified coordinate (top left of grid)
+                # Calculate grid size
+                grid_size_x_mm = (self.NX - 1) * self.deltaX
+                grid_size_y_mm = (self.NY - 1) * self.deltaY
+
+                # Calculate top-left corner position
+                start_x = coordinate_mm[0] - grid_size_x_mm / 2
+                start_y = coordinate_mm[1] - grid_size_y_mm / 2
+
+                # Move to the top-left corner
+                self.navigationController.move_x_to(start_x)
+                self.navigationController.move_y_to(start_y)
+                # self.navigationController.move_x_to(coordinate_mm[0]-self.deltaX*(self.NX-1)/2)
+                # self.navigationController.move_y_to(coordinate_mm[1]-self.deltaY*(self.NY-1)/2)
                 # check if z is included in the coordinate
                 if len(coordinate_mm) == 3:
                     if coordinate_mm[2] >= self.navigationController.z_pos_mm:
@@ -1909,11 +1918,8 @@ class MultiPointWorker(QObject):
                         # z-stack
                         for k in range(self.NZ):
 
-<<<<<<< HEAD
                             file_ID = coordinate_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
-=======
-                            file_ID = coordiante_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
->>>>>>> c9259b9 (scan-grid multipointwidget, define overlap percentage, define scan size if no wellplate)
+
                             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             print("scan coordinate:", metadata)
                             # metadata = json.dumps(metadata)
@@ -4016,7 +4022,7 @@ class NavigationViewer(QFrame):
         self.fov_size_mm = self.acquisition_size * pixel_size_um / 1000
 
     def on_objective_changed(self):
-        self.clear_slide()
+        # self.clear_slide()
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
             self.draw_current_fov(self.x_mm, self.y_mm)
@@ -4468,16 +4474,16 @@ class ScanCoordinates(object):
     def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        
+
         # Calculate step size with exact overlap
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        
+
         # Calculate radius
         radius = self.well_size_mm / 2
-        
+
         # Calculate number of steps to cover the diameter
         steps = math.floor(self.well_size_mm / step_size_mm)
-        
+
         actual_scan_size_mm = steps * step_size_mm
         print("well size mm", self.well_size_mm)
         print("actual scan size mm", actual_scan_size_mm)
@@ -4489,13 +4495,13 @@ class ScanCoordinates(object):
 
         for i in range(steps):
             for j in range(steps):
-                # Calculate the center position of the FOV (add 0.5 step_size_mm to get FOV center)
-                center_y = (i - steps // 2 + 0.5) * step_size_mm 
-                center_x = (j - steps // 2 + 0.5) * step_size_mm
-                
+                # Calculate the center position of the FOV relative to well center
+                center_y = (i - (steps - 1) / 2) * step_size_mm
+                center_x = (j - (steps - 1) / 2) * step_size_mm
+
                 # Calculate the distance from the well center to the FOV center
                 distance_fov_to_well_center = math.sqrt(center_x**2 + center_y**2)
-                
+
                 # If the furthest corner is outside the well, skip this FOV
                 if distance_fov_to_well_center + distance_fov_center_to_fov_corner > radius:
                     self.grid_skip_positions.append((i, j))
