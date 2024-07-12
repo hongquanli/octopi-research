@@ -221,13 +221,15 @@ class ProcessingHandler(QObject):
                 self.upload_queue.task_done()
 
     def start_processing(self, queue_timeout=None):
-        self.processing_thread =\
-        threading.Thread(target=self.processing_queue_handler, args=[queue_timeout])
+        print("Starting processing thread")
+        self.processing_thread = threading.Thread(target=self.processing_queue_handler, args=[queue_timeout], name="Processing Thread")
         self.processing_thread.start()
-    def start_uploading(self,queue_timeout=None):
-        self.uploading_thread =\
-        threading.Thread(target=self.upload_queue_handler,args=[queue_timeout])
+
+    def start_uploading(self, queue_timeout=None):
+        print("Starting uploading thread")
+        self.uploading_thread = threading.Thread(target=self.upload_queue_handler, args=[queue_timeout], name="Uploading Thread")
         self.uploading_thread.start()
+
     def end_uploading(self, *args, **kwargs):
         return {'function':'end'}
 
@@ -251,13 +253,4 @@ class ProcessingHandler(QObject):
         print("All processing threads ended")
         print("Additional time to finish processing:", time.time() - starttime)
         self.finished.emit(True)
-
-    # def end_processing(self):
-    #     starttime = time.time()
-    #     self.processing_queue.put({'function':self.end_uploading,'args':[],
-    #                                'kwargs':{}})
-    #     self.processing_queue.put({'function':'end'})
-
-    #     print("additional time to finish processing", time.time()-starttime)
-    #     
-    #     print("All processing and uploading tasks are completed.")
+        

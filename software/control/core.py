@@ -1640,7 +1640,6 @@ class MultiPointWorker(QObject):
 
         self.tiled_preview = None
         self.count = 0
-        
 
     def update_stats(self, new_stats):
         self.count += 1
@@ -1658,6 +1657,7 @@ class MultiPointWorker(QObject):
     def run(self):
 
         self.start_time = time.perf_counter_ns()
+
         if self.camera.is_streaming == False:
              self.camera.start_streaming()
 
@@ -2490,6 +2490,14 @@ class MultiPointController(QObject):
         self.selected_configurations = []
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
+
+    def reset_gallery(self):
+        if hasattr(self.parent, 'dataHandler'):
+            self.parent.dataHandler.reset()
+        if hasattr(self, 'multiPointWorker'):
+            self.multiPointWorker.detection_stats = {}
+            self.multiPointWorker.async_detection_stats = {}
+            self.multiPointWorker.count = 0
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')

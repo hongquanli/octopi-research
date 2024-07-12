@@ -729,6 +729,17 @@ class DataHandler(QObject):
         self.filter_score_max = 1
         self.filter_label = ANNOTATIONS_DICT.values()
 
+    def reset(self):
+        self.images = None
+        self.image_path = None
+        self.data_pd = None
+        self.embeddings = None
+        self.model_loaded = False
+        self.images_loaded = False
+        self.embeddings_loaded = False
+        self.annotations_loaded = False
+        self.spot_idx_sorted = None
+
     def load_model(self,path):
         # check whether it's a model or model state_dict
         if torch.cuda.is_available():

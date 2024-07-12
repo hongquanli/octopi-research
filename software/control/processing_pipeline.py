@@ -46,30 +46,19 @@ def process_fov(I_fluorescence,I_BF_left,I_BF_right,model,model2,device,classifi
 
     # generate spot arrays
     I_fluorescence = I_fluorescence.astype('float')/255
-    # I_BF_left = I_BF_left.astype('float')/255
-    # I_BF_right = I_BF_right.astype('float')/255
-    # I_DPC = generate_dpc(I_BF_left,I_BF_right)
-    # dpctime = time.time()
-    # print("time to generate dpc", dpctime - detecttime)
     I = get_spot_images_from_fov(I_fluorescence,I_DPC,spot_list,r=15)
     I = I.transpose(0, 3, 1, 2)
     spottime = time.time()
-    print("time to generate dpc", spottime - detecttime)
+    print("time to get spots images from fov", spottime - detecttime)
 
     # classify
     print("running models")
     prediction_score = run_model(model,device,I)[:,1]
-    indices = np.where(prediction_score > classification_th)[0]
 
     if model2 is not None:
         prediction_score2 = run_model(model2,device,I)[:,1]
-        indices2 = np.where(prediction_score2 > classification_th)[0]
-
-        if len(indices2) < len(indices):
-            indices = indices2
-            print("choosing classification model 2")
-        else:
-            print("choosing classification model 1")
+        prdecition_score = np.minimum(prediction_score, prediction_score2)
+    indices = np.where(prediction_score > classification_th)[0]
 
     # return positive spots
     print("time to run models", time.time() - spottime)
@@ -262,73 +251,32 @@ def process_spots(I_background_removed,I_raw,spot_list,i,j,k,settings,I_mask=Non
     spot_data_pd = extract_spot_data(I_background_removed,I_raw,spot_list,i,j,k,settings)
     return spot_list, spot_data_pd
 
-def generate_dpc(I1, I2, use_gpu=False):
-    if use_gpu:
-        if cp is None:
-            raise ImportError("CuPy is not installed. Install CuPy or set use_gpu to False.")
-        I1_gpu = cp.asarray(I1)
-        I2_gpu = cp.asarray(I2)
-        I_dpc_gpu = cp.divide(I1_gpu - I2_gpu, I1_gpu + I2_gpu)
-        I_dpc_gpu = I_dpc_gpu + 0.5
-        I_dpc_gpu = cp.clip(I_dpc_gpu, 0, 1)  # Ensures values are between 0 and 1
-        I_dpc = cp.asnumpy(I_dpc_gpu)
-    else:
-        I_dpc = np.divide(I1 - I2, I1 + I2)
-        I_dpc = I_dpc + 0.5
-        I_dpc = np.clip(I_dpc, 0, 1)  # Ensures values are between 0 and 1
-
-    return I_dpc
-
 def get_spot_images_from_fov(I_fluorescence,I_dpc,spot_list,r=15):
-    
     if(len(I_dpc.shape)==3):
-        # I_dpc_RGB = I_dpc
         I_dpc = I_dpc[:,:,1]
-    else:
-        # I_dpc_RGB = np.dstack((I_dpc,I_dpc,I_dpc))
-        pass
-    # get the full image size
     height,width,channels = I_fluorescence.shape
-    # go through spot
-    counter = 0
-    
-    # for idx, entry in spot_data.iterrows():
-    #   # get coordinate
-    #   x = int(entry['x'])
-    #   y = int(entry['y'])
-    for s in spot_list:
+    num_spots = len(spot_list)
+    print("num spots:", num_spots)
+
+    I = np.zeros((num_spots, 2*r+1, 2*r+1, 4), float)  # preallocate memory
+    for counter, s in enumerate(spot_list):
         x = int(s[0])
         y = int(s[1])
-        # create the arrays for cropped images
-        I_DPC_cropped = np.zeros((2*r+1,2*r+1), float)
-        I_fluorescence_cropped = np.zeros((2*r+1,2*r+1,3), float)
-        # I_overlay_cropped = np.zeros((2*r+1,2*r+1,3), np.float)
-        # identify cropping region in the full FOV 
         x_start = max(0,x-r)
         x_end = min(x+r,width-1)
         y_start = max(0,y-r)
         y_end = min(y+r,height-1)
         x_idx_FOV = slice(x_start,x_end+1)
         y_idx_FOV = slice(y_start,y_end+1)
-        # identify cropping region in the cropped images
         x_cropped_start = x_start - (x-r)
         x_cropped_end = (2*r+1-1) - ((x+r)-x_end)
         y_cropped_start = y_start - (y-r)
         y_cropped_end = (2*r+1-1) - ((y+r)-y_end)
         x_idx_cropped = slice(x_cropped_start,x_cropped_end+1)
         y_idx_cropped = slice(y_cropped_start,y_cropped_end+1)
-        # do the cropping 
-        I_DPC_cropped[y_idx_cropped,x_idx_cropped] = I_dpc[y_idx_FOV,x_idx_FOV]
-        I_fluorescence_cropped[y_idx_cropped,x_idx_cropped,:] = I_fluorescence[y_idx_FOV,x_idx_FOV,:]
-        
-        # combine
-        if counter == 0:
-            I = np.dstack((I_fluorescence_cropped,I_DPC_cropped))[np.newaxis,:]
-        else:
-            I = np.concatenate((I,np.dstack((I_fluorescence_cropped,I_DPC_cropped))[np.newaxis,:]))
-        counter = counter + 1
-
-    if counter == 0:
+        I[counter, y_idx_cropped, x_idx_cropped, :3] = I_fluorescence[y_idx_FOV,x_idx_FOV,:]
+        I[counter, y_idx_cropped, x_idx_cropped, 3] = I_dpc[y_idx_FOV,x_idx_FOV]
+    if num_spots == 0:
         print('no spot in this FOV')
         return None
     else:

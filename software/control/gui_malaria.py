@@ -407,6 +407,8 @@ class OctopiGUI(QMainWindow):
             #self.gallery_umap_selection.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
 
             # gallery settings
+            self.multiPointWidget.signal_acquisition_started.connect(self.multipointController.reset_gallery)
+
             self.gallerySettings.signal_numRowsPerPage.connect(self.gallery.set_number_of_rows)
             self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler.set_number_of_images_per_page)
             self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler.set_k_similar)
@@ -430,6 +432,7 @@ class OctopiGUI(QMainWindow):
 
             # dev mode
             if False:
+                print("testing dataHandler")
                 annotation_pd = pd.read_csv('tmp/score.csv',index_col='index')
                 images = np.load('tmp/test.npy')
                 self.dataHandler.load_images(images)

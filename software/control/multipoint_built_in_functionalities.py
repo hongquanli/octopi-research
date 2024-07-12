@@ -32,3 +32,7 @@ def malaria_rtp(I_fluorescence, I_left, I_right, i, j, k, multiPointWorker,class
                         'i':i, 'j':j, 'k':k}
     task_dict = {'function':processing_fn, 'args':processing_args, 'kwargs':processing_kwargs}
     multiPointWorker.processingHandler.processing_queue.put(task_dict)
+    if not multiPointWorker.processingHandler.processing_thread or not multiPointWorker.processingHandler.processing_thread.is_alive():
+        multiPointWorker.processingHandler.start_processing()
+    if not multiPointWorker.processingHandler.uploading_thread or not multiPointWorker.processingHandler.uploading_thread.is_alive():
+        multiPointWorker.processingHandler.start_uploading()
