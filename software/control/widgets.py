@@ -1865,6 +1865,7 @@ class MultiPointWidget(QFrame):
 
     def emit_selected_channels(self):
         selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
+        print(selected_channels)
         self.signal_acquisition_channels.emit(selected_channels)
 
     def toggle_acquisition(self,pressed):

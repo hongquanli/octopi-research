@@ -330,9 +330,9 @@ class OctopiGUI(QMainWindow):
 
         # acquisition tabs
         self.recordTabWidget = QTabWidget()
-        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint (Wellplate)")
+        self.recordTabWidget.addTab(self.multiPointWidget, "Custom Multipoint")
         if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
+            self.recordTabWidget.addTab(self.multiPointWidget2, "ROI Multipoint")
         if ENABLE_SCAN_GRID:
             self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Grid Multipoint")
         if ENABLE_SPINNING_DISK_CONFOCAL:
