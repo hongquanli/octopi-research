@@ -3390,10 +3390,11 @@ class NapariMosaicDisplayWidget(QWidget):
         self.layout.addWidget(self.clear_button)
         
         self.setLayout(self.layout)
+        self.viewer_pixel_size_mm = 1
         self.dz_um = None
-        self.NZ = None
+        self.Nz = None
         self.channels = set()
-        self.layer_extents = {}  # {channel: [min_y, max_y, min_x, max_x]}
+        self.viewer_extents = [] # [min_y, max_y, min_x, max_x]
         self.top_left_coordinate = None  # [y, x] in mm
         self.contrast_limits = {}
 
@@ -3401,7 +3402,7 @@ class NapariMosaicDisplayWidget(QWidget):
         self.channels = set(channels)
 
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
-        self.NZ = 1
+        self.Nz = 1
         self.dz_um = dz
 
     def extractWavelength(self, name):
@@ -3425,16 +3426,30 @@ class NapariMosaicDisplayWidget(QWidget):
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def updateMosaic(self, image, x_mm, y_mm, k, channel_name):
-        pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
-        pixel_size_mm = pixel_size_um / 1000
+        # Calculate the pixel size for this image
+        image_pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
+        image_pixel_size_mm = image_pixel_size_um / 1000
 
         # Downsample the image
         if self.downsample_factor != 1:
             image = cv2.resize(image, (image.shape[1] // self.downsample_factor, image.shape[0] // self.downsample_factor), interpolation=cv2.INTER_AREA)
 
         # Adjust x_mm and y_mm to be the center of the image
-        x_mm -= (image.shape[1] * pixel_size_mm) / 2
-        y_mm -= (image.shape[0] * pixel_size_mm) / 2
+        x_mm -= (image.shape[1] * image_pixel_size_mm) / 2
+        y_mm -= (image.shape[0] * image_pixel_size_mm) / 2
+
+        if not self.viewer.layers:
+            # This is the first image, so set the viewer_pixel_size_mm
+            self.viewer_pixel_size_mm = image_pixel_size_mm
+            self.viewer_extents = [y_mm, y_mm + image.shape[0] * image_pixel_size_mm, 
+                                   x_mm, x_mm + image.shape[1] * image_pixel_size_mm]
+            self.top_left_coordinate = [y_mm, x_mm]
+        else:
+            # Scale the image to match the viewer's resolution if necessary
+            if image_pixel_size_mm != self.viewer_pixel_size_mm:
+                scale_factor = image_pixel_size_mm / self.viewer_pixel_size_mm
+                image = cv2.resize(image, (int(image.shape[1] * scale_factor), int(image.shape[0] * scale_factor)), interpolation=cv2.INTER_LINEAR)
+
 
         if channel_name not in self.viewer.layers:
             # Create a new layer for this channel
@@ -3444,49 +3459,28 @@ class NapariMosaicDisplayWidget(QWidget):
             else:
                 color = self.generateColormap(channel_info)
             
-            # Determine the size and scale for the new layer based on the existing layer if any
-            if self.viewer.layers:
-                first_layer = next(iter(self.viewer.layers))
-                initial_shape = first_layer.data.shape
-                prev_pixel_size_mm = first_layer.scale[0] / 1000  # assuming uniform scaling
-            else:
-                initial_shape = image.shape
-                prev_pixel_size_mm = pixel_size_mm
-                self.viewer_extents = [y_mm, y_mm + image.shape[0] * pixel_size_mm, x_mm, x_mm + image.shape[1] * pixel_size_mm]
-
+            # Use the viewer's pixel size for all layers
             self.viewer.add_image(
-                np.zeros(initial_shape, dtype=image.dtype), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
-                visible=True, blending='additive', scale=(pixel_size_um, pixel_size_um)
+                np.zeros_like(image), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
+                visible=True, blending='additive', scale=(self.viewer_pixel_size_mm * 1000, self.viewer_pixel_size_mm * 1000)
             )
-            self.top_left_coordinate = [y_mm, x_mm]
-
-        else:
-            # Match the resolution of the existing layers
-            first_layer = next(iter(self.viewer.layers))
-            prev_pixel_size_mm = self.viewer.layers[0].scale[0] / 1000  # assuming uniform scaling
-
-            if pixel_size_mm != prev_pixel_size_mm:
-                scale_factor = pixel_size_mm / prev_pixel_size_mm
-                image = cv2.resize(image, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)
 
         # Get the layer for the channel
         layer = self.viewer.layers[channel_name]
 
         # Update extents to include the new image
         self.viewer_extents[0] = min(self.viewer_extents[0], y_mm)
-        self.viewer_extents[1] = max(self.viewer_extents[1], y_mm + image.shape[0] * pixel_size_mm)
+        self.viewer_extents[1] = max(self.viewer_extents[1], y_mm + image.shape[0] * self.viewer_pixel_size_mm)
         self.viewer_extents[2] = min(self.viewer_extents[2], x_mm)
-        self.viewer_extents[3] = max(self.viewer_extents[3], x_mm + image.shape[1] * pixel_size_mm)
+        self.viewer_extents[3] = max(self.viewer_extents[3], x_mm + image.shape[1] * self.viewer_pixel_size_mm)
 
         # Store the previous top-left coordinate
         prev_top_left = self.top_left_coordinate.copy()
         # Update top_left_coordinate to the new minimum values
         self.top_left_coordinate = [self.viewer_extents[0], self.viewer_extents[2]]
-        print("prev top left y,x", prev_top_left)
-        print("top left y,x", self.top_left_coordinate)
 
         # Call updateLayer to handle the layer update
-        self.updateLayer(layer, image, x_mm, y_mm, k, prev_pixel_size_mm, self.viewer_extents, prev_top_left)
+        self.updateLayer(layer, image, x_mm, y_mm, k, prev_top_left)
 
         # Update contrast limits if necessary
         if channel_name in self.contrast_limits:
@@ -3495,10 +3489,10 @@ class NapariMosaicDisplayWidget(QWidget):
         layer.refresh()
         self.viewer.reset_view()
 
-    def updateLayer(self, layer, image, x_mm, y_mm, k, pixel_size_mm, extents, prev_top_left):
+    def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
         # Calculate new mosaic size and position
-        mosaic_height = int(math.ceil((extents[1] - extents[0]) / pixel_size_mm))
-        mosaic_width = int(math.ceil((extents[3] - extents[2]) / pixel_size_mm))
+        mosaic_height = int(math.ceil((self.viewer_extents[1] - self.viewer_extents[0]) / self.viewer_pixel_size_mm))
+        mosaic_width = int(math.ceil((self.viewer_extents[3] - self.viewer_extents[2]) / self.viewer_pixel_size_mm))
 
         if layer.data.shape != (mosaic_height, mosaic_width):
             print("shifting mosaic...", layer.data.shape, (mosaic_height, mosaic_width))
@@ -3506,8 +3500,8 @@ class NapariMosaicDisplayWidget(QWidget):
                 new_data = np.zeros((mosaic_height, mosaic_width), dtype=layer.data.dtype)
 
                 # Calculate offsets for the existing data based on previous and new top-left coordinates
-                y_offset = int(math.floor((prev_top_left[0] - self.top_left_coordinate[0]) / pixel_size_mm))
-                x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / pixel_size_mm))
+                y_offset = int(math.floor((prev_top_left[0] - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
+                x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
 
                 # Ensure the offsets do not exceed the bounds of the new data shape
                 y_end = y_offset + mosaic.data.shape[0]
@@ -3521,8 +3515,8 @@ class NapariMosaicDisplayWidget(QWidget):
                 # mosaic.refresh()
 
         # Insert new image
-        y_pos = int(math.floor((y_mm - self.top_left_coordinate[0]) / pixel_size_mm))
-        x_pos = int(math.floor((x_mm - self.top_left_coordinate[1]) / pixel_size_mm))
+        y_pos = int(math.floor((y_mm - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
+        x_pos = int(math.floor((x_mm - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
 
         # Ensure the indices are within bounds
         y_end = min(y_pos + image.shape[0], layer.data.shape[0])
@@ -3551,7 +3545,7 @@ class NapariMosaicDisplayWidget(QWidget):
     def onDoubleClick(self, layer, event):
         coords = layer.world_to_data(event.position)
         if coords is not None:
-            x_mm = self.top_left_coordinate[1] + coords[-1] * self.objectiveStore.get_pixel_size() / 1000 * self.downsample_factor
+            x_mm = self.top_left_coordinate[1] + coords[-1] * self.viewer_pixel_size_mm / 1000 * self.downsample_factor
             y_mm = self.top_left_coordinate[0] + coords[-2] * self.objectiveStore.get_pixel_size() / 1000 * self.downsample_factor
             print("clicked x,y:", (x_mm, y_mm))
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
@@ -3567,7 +3561,7 @@ class NapariMosaicDisplayWidget(QWidget):
         self.top_left_coordinate = None
         self.channels = set()
         self.dz_um = None
-        self.NZ = None
+        self.Nz = None
         
 
 
