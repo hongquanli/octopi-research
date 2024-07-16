@@ -1,24 +1,22 @@
 # set QT_API environment variable
 import os 
+import sys
+
 os.environ["QT_API"] = "pyqt5"
-import qtpy
-
-import locale
-
 # qt libraries
+import qtpy
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
-
 import pyqtgraph as pg
 
 import pandas as pd
 import napari
-
 from napari.utils.colormaps import Colormap, AVAILABLE_COLORMAPS
 import re
 import cv2
-
+import math
+import locale
 from datetime import datetime
 
 from control._def import *
@@ -3130,7 +3128,7 @@ class NapariMultiChannelWidget(QWidget):
              (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
-    def initLayers(self, image_height, image_width, image_dtype, rgb=False):
+    def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         #self.viewer.layers.clear()
         if self.acquisition_initialized:
@@ -3372,6 +3370,203 @@ class NapariTiledDisplayWidget(QWidget):
         self.viewer.reset_view()
         for layer in self.viewer.layers:
             layer.refresh()
+
+
+class NapariMosaicDisplayWidget(QWidget):
+
+    signal_coordinates_clicked = Signal(float, float)  # x, y in mm
+    signal_layer_contrast_limits = Signal(str, float, float)
+
+    def __init__(self, objectiveStore, parent=None):
+        super().__init__(parent)
+        self.objectiveStore = objectiveStore
+        self.viewer = napari.Viewer(show=False)
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.viewer.window._qt_window)
+        self.clear_button = QPushButton("Clear All Layers")
+        self.clear_button.clicked.connect(self.clearAllLayers)
+        self.layout.addWidget(self.clear_button)
+        self.setLayout(self.layout)
+
+        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
+        self.dz_um = None
+        self.NZ = None
+        self.channels = set()
+        self.top_left_coordinate = None  # [x, y, z] in mm
+        self.contrast_limits = {}
+
+    def initChannels(self, channels):
+        self.channels = set(channels)
+
+    def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
+        self.NZ = 1
+        self.dz_um = dz
+
+    def extractWavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or f"full_{color}" in parts:
+                return color
+        return None
+
+    def generateColormap(self, channel_info):
+        """Convert a HEX value to a normalized RGB tuple."""
+        c0 = (0, 0, 0)
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
+             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
+
+    def updateMosaic(self, image, x_mm, y_mm, k, channel_name):
+        # pixel_size_um = self.objectiveStore.get_pixel_size()
+        pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
+        pixel_size_mm = pixel_size_um / 1000
+
+        # Downsample the image
+        if self.downsample_factor != 1:
+            image = cv2.resize(image, (image.shape[1] // self.downsample_factor, image.shape[0] // self.downsample_factor), interpolation=cv2.INTER_AREA)
+
+
+        if channel_name not in self.viewer.layers:
+            # Create a new layer for this channel
+            channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+            if channel_info['name'] in AVAILABLE_COLORMAPS:
+                color = AVAILABLE_COLORMAPS[channel_info['name']]
+            else:
+                color = self.generateColormap(channel_info)
+            
+            # Determine the size and scale for the new layer based on the existing layer if any
+            if self.viewer.layers:
+                first_layer = next(iter(self.viewer.layers))
+                initial_shape = first_layer.data.shape
+                prev_pixel_size_mm = first_layer.scale[0] / 1000  # assuming uniform scaling
+            else:
+                initial_shape = image.shape
+                prev_pixel_size_mm = pixel_size_mm
+                self.viewer_extents = [y_mm, y_mm + image.shape[0] * pixel_size_mm, x_mm, x_mm + image.shape[1] * pixel_size_mm]
+
+            self.top_left_coordinate = [y_mm, x_mm]
+            layer = self.viewer.add_image(
+                np.zeros(initial_shape, dtype=image.dtype), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
+                visible=True, blending='additive', scale=(pixel_size_um, pixel_size_um)
+            )
+            layer.events.contrast_limits.connect(self.signalContrastLimits)
+            layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+
+        else:
+            # Match the resolution of the existing layers
+            first_layer = next(iter(self.viewer.layers))
+            prev_pixel_size_mm = self.viewer.layers[0].scale[0] / 1000  # assuming uniform scaling
+
+            if pixel_size_mm != prev_pixel_size_mm:
+                scale_factor = pixel_size_mm / prev_pixel_size_mm
+                image = cv2.resize(image, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)
+
+        # Get the layer for the channel
+        layer = self.viewer.layers[channel_name]
+
+        # Update extents to include the new image
+        self.viewer_extents[0] = min(self.viewer_extents[0], y_mm)
+        self.viewer_extents[1] = max(self.viewer_extents[1], y_mm + image.shape[0] * pixel_size_mm)
+        self.viewer_extents[2] = min(self.viewer_extents[2], x_mm)
+        self.viewer_extents[3] = max(self.viewer_extents[3], x_mm + image.shape[1] * pixel_size_mm)
+
+        # Store the previous top-left coordinate
+        prev_top_left = self.top_left_coordinate.copy()
+        # Update top_left_coordinate to the new minimum values
+        self.top_left_coordinate = [self.viewer_extents[0], self.viewer_extents[2]]
+        print("prev top left y,x", prev_top_left)
+        print("top left y,x", self.top_left_coordinate)
+
+        # Call updateLayer to handle the layer update
+        self.updateLayer(layer, image, x_mm, y_mm, k, prev_pixel_size_mm, self.viewer_extents, prev_top_left)
+
+        # Update contrast limits if necessary
+        if channel_name in self.contrast_limits:
+            layer.contrast_limits = self.contrast_limits[channel_name]
+
+        layer.refresh()
+        self.viewer.reset_view()
+
+    def updateLayer(self, layer, image, x_mm, y_mm, k, pixel_size_mm, extents, prev_top_left):
+        # Calculate new mosaic size and position
+        mosaic_height = int(math.ceil((extents[1] - extents[0]) / pixel_size_mm))
+        mosaic_width = int(math.ceil((extents[3] - extents[2]) / pixel_size_mm))
+
+        if layer.data.shape != (mosaic_height, mosaic_width):
+            print("shifting mosaic...", layer.data.shape, (mosaic_height, mosaic_width))
+            for mosaic in self.viewer.layers:
+                new_data = np.zeros((mosaic_height, mosaic_width), dtype=layer.data.dtype)
+
+                # Calculate offsets for the existing data based on previous and new top-left coordinates
+                y_offset = int(math.floor((prev_top_left[0] - self.top_left_coordinate[0]) / pixel_size_mm))
+                x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / pixel_size_mm))
+
+                # Ensure the offsets do not exceed the bounds of the new data shape
+                y_end = y_offset + mosaic.data.shape[0]
+                x_end = x_offset + mosaic.data.shape[1]
+                if y_end > new_data.shape[0] or x_end > new_data.shape[1]:
+                    raise ValueError("Offsets result in out of bounds dimensions for new data array")
+
+                # Shift existing data
+                new_data[y_offset:y_offset + mosaic.data.shape[0], x_offset:x_offset + mosaic.data.shape[1]] = mosaic.data
+                mosaic.data = new_data
+                # mosaic.refresh()
+
+        # Insert new image
+        y_pos = int(math.floor((y_mm - self.top_left_coordinate[0]) / pixel_size_mm))
+        x_pos = int(math.floor((x_mm - self.top_left_coordinate[1]) / pixel_size_mm))
+
+        # Ensure the indices are within bounds
+        y_end = min(y_pos + image.shape[0], layer.data.shape[0])
+        x_end = min(x_pos + image.shape[1], layer.data.shape[1])
+
+        # Insert the image data
+        layer.data[y_pos:y_end, x_pos:x_end] = image[:y_end - y_pos, :x_end - x_pos]
+        layer.refresh()
+
+    def getContrastLimits(self, dtype):
+        if np.issubdtype(dtype, np.integer):
+            return (np.iinfo(dtype).min, np.iinfo(dtype).max)
+        elif np.issubdtype(dtype, np.floating):
+            return (0.0, 1.0)
+        return None
+
+    def signalContrastLimits(self, event):
+        layer = event.source
+        min_val, max_val = map(float, layer.contrast_limits)
+        self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
+        self.contrast_limits[layer.name] = (min_val, max_val)
+
+    def saveContrastLimits(self, layer_name, min_val, max_val):
+        self.contrast_limits[layer_name] = (min_val, max_val)
+
+    def onDoubleClick(self, layer, event):
+        coords = layer.world_to_data(event.position)
+        if coords is not None:
+            x_mm = self.top_left_coordinate[1] + coords[-1] * self.objectiveStore.get_pixel_size() / 1000 * self.downsample_factor
+            y_mm = self.top_left_coordinate[0] + coords[-2] * self.objectiveStore.get_pixel_size() / 1000 * self.downsample_factor
+            print("clicked x,y:", (x_mm, y_mm))
+            self.signal_coordinates_clicked.emit(x_mm, y_mm)
+
+    def resetView(self):
+        self.viewer.reset_view()
+        for layer in self.viewer.layers:
+            layer.refresh()
+
+    def clearAllLayers(self):
+        self.viewer.layers.clear()
+        self.viewer_extents = None
+        self.top_left_coordinate = None
+        self.channels = set()
+        self.dz_um = None
+        self.NZ = None
+        
 
 
 class TrackingControllerWidget(QFrame):
@@ -4414,11 +4609,6 @@ class WellSelectionWidget(QTableWidget):
             self.signal_wellSelected.emit(True)
         return list_of_selected_cells
 
-
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout
-from PyQt5.QtGui import QPixmap, QPainter, QColor
-import re
-import sys
 
 class Well1536SelectionWidget(QWidget):
 

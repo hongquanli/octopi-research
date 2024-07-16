@@ -328,6 +328,10 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True) 
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
+        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+            self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore)
+            self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic Preview")
+
         # acquisition tabs
         self.recordTabWidget = QTabWidget()
         self.recordTabWidget.addTab(self.multiPointWidget, "Custom Multipoint")
@@ -523,6 +527,14 @@ class OctopiGUI(QMainWindow):
             else:
                 self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
+
+        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+            self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
+            self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_to)
+            #self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
+            #self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMosaicDisplayWidget.saveContrastLimits)
 
         # (double) click to move to a well
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
