@@ -1631,7 +1631,7 @@ class MultiPointWorker(QObject):
 
         self.t_dpc = []
         self.t_inf = []
-        self.t_over=[]
+        self.t_over = []
 
         self.tiled_preview = None
         
@@ -3670,8 +3670,9 @@ class ScanCoordinates(object):
         return len(selected_wells) # if wells selected
 
     def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, navigationController=None):
-        self.grid_skip_positions =[]
+        self.grid_skip_positions = []
         pixel_size_um = objectiveStore.get_pixel_size()
+
         if self.format != 0 and self.well_selector:
             # Case 1: Well plate selected
             if self.format <= 96:
@@ -3705,15 +3706,14 @@ class ScanCoordinates(object):
         # Calculate step size with exact overlap
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
 
-        # When fov larger than well, still take scan
-        if fov_size_mm > well_size_mm:
-            return 1, step_size_mm
-
         # Calculate radius
         radius = self.well_size_mm / 2
 
         # Calculate number of steps to cover the diameter
         steps = math.floor(self.well_size_mm / step_size_mm)
+
+        if steps <= 1:
+            return 1, step_size_mm
 
         actual_scan_size_mm = steps * step_size_mm
         print("well size mm", self.well_size_mm)
@@ -3729,10 +3729,10 @@ class ScanCoordinates(object):
 
                 # Calculate distances to all four corners of the FOV
                 corners = [
-                    (center_x - half_fov, center_y - half_fov),  # Top-left
-                    (center_x + half_fov, center_y - half_fov),  # Top-right
-                    (center_x - half_fov, center_y + half_fov),  # Bottom-left
-                    (center_x + half_fov, center_y + half_fov)   # Bottom-right
+                    (center_x - fov_size_mm / 2, center_y - fov_size_mm / 2),  # Top-left
+                    (center_x + fov_size_mm / 2, center_y - fov_size_mm / 2),  # Top-right
+                    (center_x - fov_size_mm / 2, center_y + fov_size_mm / 2),  # Bottom-left
+                    (center_x + fov_size_mm / 2, center_y + fov_size_mm / 2)   # Bottom-right
                 ]
 
                 # Check if any corner is outside the well
