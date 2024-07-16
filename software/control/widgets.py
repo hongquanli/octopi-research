@@ -1888,6 +1888,7 @@ class MultiPointWidget(QFrame):
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
+            self.multipointController.scanCoordinates.grid_skip_positions = []
             self.setEnabled_all(False)
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
@@ -2227,12 +2228,15 @@ class MultiPointWidget2(QFrame):
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
+            # clear skip positions
+            self.multipointController.scanCoordinates.grid_skip_positions = []
 
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
                 self.add_location()
                 self.acquisition_in_place = True
                 self.multipointController.location_list = self.location_list
+
             self.setEnabled_all(False)
             self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
             self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
@@ -2729,10 +2733,8 @@ class MultiPointWidgetGrid(QFrame):
             print("dx,dy,zd", dx_mm, dy_mm, self.entry_deltaZ.value())
 
             # Start acquisition
-            if self.scanCoordinates.get_selected_wells():
-                self.multipointController.run_acquisition(self.scanCoordinates.coordinates_mm) # passed as location list? 
-            else:
-                self.multipointController.run_acquisition() # enter current coordinates from navigationController?
+            self.multipointController.run_acquisition() # enter current coordinates from navigationController?
+
         else:
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
