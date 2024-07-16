@@ -3100,11 +3100,12 @@ class NapariMultiChannelWidget(QWidget):
         self.setLayout(self.layout)
         
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
-        if self.Nz != Nz or self.dz_um != dz:
+        pixel_size_um = self.objectiveStore.get_pixel_size()
+        if self.Nz != Nz or self.dz_um != dz or self.pixel_size_um != pixel_size_um:
             self.acquisition_initialized = False
             self.Nz = Nz
             self.dz_um = dz
-        self.pixel_size_um = self.objectiveStore.get_pixel_size()
+            self.pixel_size_um = pixel_size_um
         
     def initChannels(self, channels):
         self.channels = set(channels)
