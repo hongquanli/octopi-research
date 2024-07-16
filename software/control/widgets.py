@@ -3373,26 +3373,28 @@ class NapariTiledDisplayWidget(QWidget):
 
 
 class NapariMosaicDisplayWidget(QWidget):
-
-    signal_coordinates_clicked = Signal(float, float)  # x, y in mm
+    signal_coordinates_clicked = Signal(float, float, float)  # x, y, z in mm
     signal_layer_contrast_limits = Signal(str, float, float)
 
     def __init__(self, objectiveStore, parent=None):
         super().__init__(parent)
         self.objectiveStore = objectiveStore
+        self.downsample_factor = 1  # Initialize with a default downsample factor
         self.viewer = napari.Viewer(show=False)
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewer.window._qt_window)
+        
+        # Add button to clear all layers
         self.clear_button = QPushButton("Clear All Layers")
         self.clear_button.clicked.connect(self.clearAllLayers)
         self.layout.addWidget(self.clear_button)
+        
         self.setLayout(self.layout)
-
-        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
         self.dz_um = None
         self.NZ = None
         self.channels = set()
-        self.top_left_coordinate = None  # [x, y, z] in mm
+        self.layer_extents = {}  # {channel: [min_y, max_y, min_x, max_x]}
+        self.top_left_coordinate = None  # [y, x] in mm
         self.contrast_limits = {}
 
     def initChannels(self, channels):
@@ -3423,7 +3425,6 @@ class NapariMosaicDisplayWidget(QWidget):
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def updateMosaic(self, image, x_mm, y_mm, k, channel_name):
-        # pixel_size_um = self.objectiveStore.get_pixel_size()
         pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
         pixel_size_mm = pixel_size_um / 1000
 
@@ -3431,6 +3432,9 @@ class NapariMosaicDisplayWidget(QWidget):
         if self.downsample_factor != 1:
             image = cv2.resize(image, (image.shape[1] // self.downsample_factor, image.shape[0] // self.downsample_factor), interpolation=cv2.INTER_AREA)
 
+        # Adjust x_mm and y_mm to be the center of the image
+        x_mm -= (image.shape[1] * pixel_size_mm) / 2
+        y_mm -= (image.shape[0] * pixel_size_mm) / 2
 
         if channel_name not in self.viewer.layers:
             # Create a new layer for this channel
@@ -3450,13 +3454,11 @@ class NapariMosaicDisplayWidget(QWidget):
                 prev_pixel_size_mm = pixel_size_mm
                 self.viewer_extents = [y_mm, y_mm + image.shape[0] * pixel_size_mm, x_mm, x_mm + image.shape[1] * pixel_size_mm]
 
-            self.top_left_coordinate = [y_mm, x_mm]
-            layer = self.viewer.add_image(
+            self.viewer.add_image(
                 np.zeros(initial_shape, dtype=image.dtype), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
                 visible=True, blending='additive', scale=(pixel_size_um, pixel_size_um)
             )
-            layer.events.contrast_limits.connect(self.signalContrastLimits)
-            layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+            self.top_left_coordinate = [y_mm, x_mm]
 
         else:
             # Match the resolution of the existing layers

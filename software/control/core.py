@@ -953,7 +953,9 @@ class NavigationController(QObject):
     
     def move_to(self,x_mm,y_mm):
         self.move_x_to(x_mm)
+        self.microcontroller.wait_till_operation_is_completed()
         self.move_y_to(y_mm)
+        self.microcontroller.wait_till_operation_is_completed()
 
     def configure_encoder(self, axis, transitions_per_revolution,flip_direction):
         self.microcontroller.configure_stage_pid(axis, transitions_per_revolution=int(transitions_per_revolution), flip_direction=flip_direction)
