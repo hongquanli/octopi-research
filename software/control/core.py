@@ -1588,11 +1588,13 @@ class MultiPointWorker(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
-    signal_z_piezo_um = Signal(float)
-    napari_rtp_layers_update = Signal(np.ndarray, str)
-    napari_layers_update = Signal(np.ndarray, int, int, int, str)
-    napari_layers_init = Signal(int, int, object)
     signal_update_stats = Signal(object)
+    signal_z_piezo_um = Signal(float)
+    napari_layers_init = Signal(int, int, object)
+    napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
+    napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
+    napari_rtp_layers_update = Signal(np.ndarray, str)
+    
 
     def __init__(self,multiPointController):
         QObject.__init__(self)
@@ -2001,6 +2003,8 @@ class MultiPointWorker(QObject):
                                             init_napari_layers = True
                                             self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
                                         self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
+                                    if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+                                        self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config.name)
 
                                     current_round_images[config.name] = np.copy(image)
 
@@ -2091,7 +2095,8 @@ class MultiPointWorker(QObject):
                                                     print(f"init napari {channel} layer")
                                                     init_napari_layers = True
                                                     self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype)
-                                                self.napari_layers_update.emit(images[channel], real_i, real_j, k, config.name)
+
+                                                self.napari_layers_update.emit(images[channel], real_i, real_j, k, channel)
 
                                             file_name = file_ID + '_' + channel.replace(' ', '_') + ('.tiff' if i_dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
                                             iio.imwrite(os.path.join(current_path, file_name), images[channel])
@@ -2117,6 +2122,8 @@ class MultiPointWorker(QObject):
                                                 print(rgb_image.dtype)
                                                 self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype)
                                             self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
+                                        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+                                            self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config.name)
 
                                         # write the RGB image
                                         print('writing RGB image')
@@ -2380,8 +2387,9 @@ class MultiPointController(QObject):
     detection_stats = Signal(object)
     signal_stitcher = Signal(str)
     napari_rtp_layers_update = Signal(np.ndarray, str)
-    napari_layers_update = Signal(np.ndarray, int, int, int, str)
     napari_layers_init = Signal(int, int, object)
+    napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
+    napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
     signal_z_piezo_um = Signal(float)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
@@ -2632,6 +2640,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
         self.multiPointWorker.napari_rtp_layers_update.connect(self.slot_napari_rtp_layers_update)
         self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
+        self.multiPointWorker.napari_mosaic_update.connect(self.slot_napari_mosaic_update)
         self.multiPointWorker.signal_z_piezo_um.connect(self.slot_z_piezo_um)
         # self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.thread.quit)
@@ -2700,11 +2709,14 @@ class MultiPointController(QObject):
     def slot_napari_rtp_layers_update(self, image, channel):
         self.napari_rtp_layers_update.emit(image, channel)
 
+    def slot_napari_layers_init(self, image_height, image_width, dtype):
+        self.napari_layers_init.emit(image_height, image_width, dtype)
+
     def slot_napari_layers_update(self, image, i, j, k, channel):
         self.napari_layers_update.emit(image, i, j, k, channel)
 
-    def slot_napari_layers_init(self, image_height, image_width, dtype):
-        self.napari_layers_init.emit(image_height, image_width, dtype)
+    def slot_napari_mosaic_update(self, image, x_mm, y_mm, k, channel):
+        self.napari_mosaic_update.emit(image, x_mm, y_mm, k, channel)
 
     def slot_z_piezo_um(self, displacement_um):
         self.signal_z_piezo_um.emit(displacement_um)
