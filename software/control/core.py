@@ -3696,9 +3696,12 @@ class ScanCoordinates(object):
     def _create_wellplate_grid(self, pixel_size_um, overlap_percent):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        print("fov_size_mm", fov_size_mm)
 
         # Calculate step size with exact overlap
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+        print("overlap %", overlap_percent)
+        print("step_size_mm", step_size_mm)
 
         # Calculate number of steps to cover the well
         steps = math.floor(self.well_size_mm / step_size_mm)
@@ -3712,9 +3715,12 @@ class ScanCoordinates(object):
     def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        print("fov_size_mm", fov_size_mm)
 
         # Calculate step size with exact overlap
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+        print("overlap %", overlap_percent)
+        print("step_size_mm", step_size_mm)
 
         # Calculate radius
         radius = self.well_size_mm / 2
@@ -3750,9 +3756,12 @@ class ScanCoordinates(object):
     def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent, navigationController):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        print("fov_size_mm", fov_size_mm)
 
         # Calculate step size with exact overlap
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+        print("overlap %", overlap_percent)
+        print("step_size_mm", step_size_mm)
 
         # Calculate number of steps to cover at least the minimum scan size
         steps = math.ceil(scan_size_mm / step_size_mm)

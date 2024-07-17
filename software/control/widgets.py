@@ -1888,19 +1888,9 @@ class MultiPointWidget(QFrame):
         if pressed:
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
-            self.multipointController.scanCoordinates.grid_skip_positions = []
             self.setEnabled_all(False)
-            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
-             # emit acquisition data
-            self.signal_acquisition_started.emit(True)
-            self.signal_acquisition_shape.emit(self.entry_NX.value(),
-                                               self.entry_NY.value(),
-                                               self.entry_NZ.value(),
-                                               self.entry_deltaX.value(),
-                                               self.entry_deltaY.value(),
-                                               self.entry_deltaZ.value())
             # set parameters
+            self.multipointController.scanCoordinates.grid_skip_positions = []
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
@@ -1912,6 +1902,17 @@ class MultiPointWidget(QFrame):
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
+            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+
+            # emit acquisition data
+            self.signal_acquisition_started.emit(True)
+            self.signal_acquisition_shape.emit(self.entry_NX.value(),
+                                               self.entry_NY.value(),
+                                               self.entry_NZ.value(),
+                                               self.entry_deltaX.value(),
+                                               self.entry_deltaY.value(),
+                                               self.entry_deltaZ.value())
             self.multipointController.run_acquisition()
         else:
             self.multipointController.request_abort_aquisition()
@@ -2238,15 +2239,6 @@ class MultiPointWidget2(QFrame):
                 self.multipointController.location_list = self.location_list
 
             self.setEnabled_all(False)
-            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
-            self.signal_acquisition_started.emit(True)
-            self.signal_acquisition_shape.emit(self.entry_NX.value(),
-                                               self.entry_NY.value(),
-                                               self.entry_NZ.value(),
-                                               self.entry_deltaX.value(),
-                                               self.entry_deltaY.value(),
-                                               self.entry_deltaZ.value())
             # set parameters
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -2259,6 +2251,18 @@ class MultiPointWidget2(QFrame):
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
+            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+
+            # emit signals
+            self.signal_acquisition_started.emit(True)
+            self.signal_acquisition_shape.emit(self.entry_NX.value(),
+                                               self.entry_NY.value(),
+                                               self.entry_NZ.value(),
+                                               self.entry_deltaX.value(),
+                                               self.entry_deltaY.value(),
+                                               self.entry_deltaZ.value())
+
             self.multipointController.run_acquisition(self.location_list)
         else:
             self.multipointController.request_abort_aquisition()
@@ -2700,7 +2704,6 @@ class MultiPointWidgetGrid(QFrame):
 
         if pressed:
             self.setEnabled_all(False)
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
 
             # Calculate grid based on overlap percentage and scan size
             steps, step_size_mm = self.scanCoordinates.create_scan_grid(
@@ -2713,7 +2716,6 @@ class MultiPointWidgetGrid(QFrame):
             dx_mm = dy_mm = step_size_mm
 
             # Set up multipoint controller
-            self.multipointController.set_selected_configurations([item.text() for item in self.list_configurations.selectedItems()])
             self.multipointController.set_NX(Nx)
             self.multipointController.set_NY(Ny)
             self.multipointController.set_deltaX(dx_mm)
@@ -2724,6 +2726,8 @@ class MultiPointWidgetGrid(QFrame):
             self.multipointController.set_Nt(self.entry_Nt.value())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
+            self.multipointController.set_selected_configurations([item.text() for item in self.list_configurations.selectedItems()])
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
 
             # Emit signals
             self.signal_acquisition_started.emit(True)
@@ -3328,8 +3332,8 @@ class NapariTiledDisplayWidget(QWidget):
             self.viewer_scale_initialized = True
         self.viewer.dims.set_point(0, k * self.dz_um)
         layer = self.viewer.layers[channel_name]
+        layer.contrast_limits = self.contrast_limits.get(layer.name, self.getContrastLimits(self.dtype))
         layer_data = layer.data
-
         y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
         x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
         if rgb:
@@ -3429,6 +3433,7 @@ class NapariMosaicDisplayWidget(QWidget):
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def updateMosaic(self, image, x_mm, y_mm, k, channel_name):
+        print("mosaic", (x_mm, y_mm))
         # Calculate the pixel size for this image
         image_pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
         image_pixel_size_mm = image_pixel_size_um / 1000
@@ -3438,11 +3443,14 @@ class NapariMosaicDisplayWidget(QWidget):
             image = cv2.resize(image, (image.shape[1] // self.downsample_factor, image.shape[0] // self.downsample_factor), interpolation=cv2.INTER_AREA)
 
         # Adjust x_mm and y_mm to be the center of the image
+        print("center:",(x_mm, y_mm))
         x_mm -= (image.shape[1] * image_pixel_size_mm) / 2
         y_mm -= (image.shape[0] * image_pixel_size_mm) / 2
+        print("top left:",(x_mm, y_mm))
 
         if not self.viewer.layers:
             # This is the first image, so set the viewer_pixel_size_mm
+            self.dtype = image.dtype
             self.viewer_pixel_size_mm = image_pixel_size_mm
             self.viewer_extents = [y_mm, y_mm + image.shape[0] * image_pixel_size_mm, 
                                    x_mm, x_mm + image.shape[1] * image_pixel_size_mm]
@@ -3463,10 +3471,12 @@ class NapariMosaicDisplayWidget(QWidget):
                 color = self.generateColormap(channel_info)
             
             # Use the viewer's pixel size for all layers
-            self.viewer.add_image(
+            layer = self.viewer.add_image(
                 np.zeros_like(image), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
                 visible=True, blending='additive', scale=(self.viewer_pixel_size_mm * 1000, self.viewer_pixel_size_mm * 1000)
             )
+            layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+            layer.events.contrast_limits.connect(self.signalContrastLimits)
 
         # Get the layer for the channel
         layer = self.viewer.layers[channel_name]
@@ -3486,11 +3496,12 @@ class NapariMosaicDisplayWidget(QWidget):
         self.updateLayer(layer, image, x_mm, y_mm, k, prev_top_left)
 
         # Update contrast limits if necessary
+        limits = self.getContrastLimits(self.dtype)
         if channel_name in self.contrast_limits:
-            layer.contrast_limits = self.contrast_limits[channel_name]
+            layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
 
         layer.refresh()
-        self.viewer.reset_view()
+    
 
     def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
         # Calculate new mosaic size and position
@@ -3516,6 +3527,7 @@ class NapariMosaicDisplayWidget(QWidget):
                 new_data[y_offset:y_offset + mosaic.data.shape[0], x_offset:x_offset + mosaic.data.shape[1]] = mosaic.data
                 mosaic.data = new_data
                 # mosaic.refresh()
+            self.resetView()
 
         # Insert new image
         y_pos = int(math.floor((y_mm - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
