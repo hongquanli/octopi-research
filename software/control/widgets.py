@@ -2263,7 +2263,7 @@ class MultiPointWidget2(QFrame):
                                                self.entry_deltaY.value(),
                                                self.entry_deltaZ.value())
 
-            self.multipointController.run_acquisition(self.location_list)
+            self.multipointController.run_acquisition(location_list=self.location_list)
         else:
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
@@ -3174,7 +3174,7 @@ class NapariMultiChannelWidget(QWidget):
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
                                           colormap=color, contrast_limits=limits, blending='additive',
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
-            print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
+            print(f"{channel_name} multi channel - dz_um:{self.dz_um}, pixel_size_um:{self.pixel_size_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
@@ -3320,7 +3320,7 @@ class NapariTiledDisplayWidget(QWidget):
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, 
                                           colormap=color, contrast_limits=limits, blending='additive', 
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
-            print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
+            print(f"{channel_name} tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
@@ -3380,19 +3380,19 @@ class NapariTiledDisplayWidget(QWidget):
 
 
 class NapariMosaicDisplayWidget(QWidget):
-    signal_coordinates_clicked = Signal(float, float, float)  # x, y, z in mm
+    signal_coordinates_clicked = Signal(float, float)  # x, y in mm
     signal_layer_contrast_limits = Signal(str, float, float)
 
     def __init__(self, objectiveStore, parent=None):
         super().__init__(parent)
         self.objectiveStore = objectiveStore
-        self.downsample_factor = 1  # Initialize with a default downsample factor
+        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR  # Initialize with a default downsample factor
         self.viewer = napari.Viewer(show=False)
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewer.window._qt_window)
         
         # Add button to clear all layers
-        self.clear_button = QPushButton("Clear All Layers")
+        self.clear_button = QPushButton("Clear Mosaic")
         self.clear_button.clicked.connect(self.clearAllLayers)
         self.layout.addWidget(self.clear_button)
         
@@ -3409,6 +3409,7 @@ class NapariMosaicDisplayWidget(QWidget):
         self.channels = set(channels)
 
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
+        # init if we need to expand extents...
         self.Nz = 1
         self.dz_um = dz
 
@@ -3433,7 +3434,6 @@ class NapariMosaicDisplayWidget(QWidget):
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def updateMosaic(self, image, x_mm, y_mm, k, channel_name):
-        print("mosaic", (x_mm, y_mm))
         # Calculate the pixel size for this image
         image_pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
         image_pixel_size_mm = image_pixel_size_um / 1000
@@ -3443,10 +3443,8 @@ class NapariMosaicDisplayWidget(QWidget):
             image = cv2.resize(image, (image.shape[1] // self.downsample_factor, image.shape[0] // self.downsample_factor), interpolation=cv2.INTER_AREA)
 
         # Adjust x_mm and y_mm to be the center of the image
-        print("center:",(x_mm, y_mm))
         x_mm -= (image.shape[1] * image_pixel_size_mm) / 2
         y_mm -= (image.shape[0] * image_pixel_size_mm) / 2
-        print("top left:",(x_mm, y_mm))
 
         if not self.viewer.layers:
             # This is the first image, so set the viewer_pixel_size_mm
@@ -3461,7 +3459,6 @@ class NapariMosaicDisplayWidget(QWidget):
                 scale_factor = image_pixel_size_mm / self.viewer_pixel_size_mm
                 image = cv2.resize(image, (int(image.shape[1] * scale_factor), int(image.shape[0] * scale_factor)), interpolation=cv2.INTER_LINEAR)
 
-
         if channel_name not in self.viewer.layers:
             # Create a new layer for this channel
             channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
@@ -3475,6 +3472,7 @@ class NapariMosaicDisplayWidget(QWidget):
                 np.zeros_like(image), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
                 visible=True, blending='additive', scale=(self.viewer_pixel_size_mm * 1000, self.viewer_pixel_size_mm * 1000)
             )
+            print(f"{channel_name} mosaic view - dz_um:{self.dz_um}, pixel_size_um:{self.viewer_pixel_size_mm}")
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
@@ -3508,25 +3506,31 @@ class NapariMosaicDisplayWidget(QWidget):
         mosaic_height = int(math.ceil((self.viewer_extents[1] - self.viewer_extents[0]) / self.viewer_pixel_size_mm))
         mosaic_width = int(math.ceil((self.viewer_extents[3] - self.viewer_extents[2]) / self.viewer_pixel_size_mm))
 
-        if layer.data.shape != (mosaic_height, mosaic_width):
+        is_rgb = len(image.shape) == 3 and image.shape[2] == 3
+
+        if layer.data.shape[:2] != (mosaic_height, mosaic_width):
             print("shifting mosaic...", layer.data.shape, (mosaic_height, mosaic_width))
             for mosaic in self.viewer.layers:
-                new_data = np.zeros((mosaic_height, mosaic_width), dtype=layer.data.dtype)
+                if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
+                    new_data = np.zeros((mosaic_height, mosaic_width, 3), dtype=mosaic.data.dtype)
+                else:
+                    new_data = np.zeros((mosaic_height, mosaic_width), dtype=mosaic.data.dtype)
 
                 # Calculate offsets for the existing data based on previous and new top-left coordinates
                 y_offset = int(math.floor((prev_top_left[0] - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
                 x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
 
                 # Ensure the offsets do not exceed the bounds of the new data shape
-                y_end = y_offset + mosaic.data.shape[0]
-                x_end = x_offset + mosaic.data.shape[1]
-                if y_end > new_data.shape[0] or x_end > new_data.shape[1]:
-                    raise ValueError("Offsets result in out of bounds dimensions for new data array")
+                y_end = min(y_offset + mosaic.data.shape[0], new_data.shape[0])
+                x_end = min(x_offset + mosaic.data.shape[1], new_data.shape[1])
 
                 # Shift existing data
-                new_data[y_offset:y_offset + mosaic.data.shape[0], x_offset:x_offset + mosaic.data.shape[1]] = mosaic.data
+                if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
+                    new_data[y_offset:y_end, x_offset:x_end, :] = mosaic.data[:y_end-y_offset, :x_end-x_offset, :]
+                else:
+                    new_data[y_offset:y_end, x_offset:x_end] = mosaic.data[:y_end-y_offset, :x_end-x_offset]
+
                 mosaic.data = new_data
-                # mosaic.refresh()
             self.resetView()
 
         # Insert new image
@@ -3538,7 +3542,11 @@ class NapariMosaicDisplayWidget(QWidget):
         x_end = min(x_pos + image.shape[1], layer.data.shape[1])
 
         # Insert the image data
-        layer.data[y_pos:y_end, x_pos:x_end] = image[:y_end - y_pos, :x_end - x_pos]
+        if is_rgb:
+            layer.data[y_pos:y_end, x_pos:x_end, :] = image[:y_end - y_pos, :x_end - x_pos, :]
+        else:
+            layer.data[y_pos:y_end, x_pos:x_end] = image[:y_end - y_pos, :x_end - x_pos]
+
         layer.refresh()
 
     def getContrastLimits(self, dtype):
@@ -3560,8 +3568,8 @@ class NapariMosaicDisplayWidget(QWidget):
     def onDoubleClick(self, layer, event):
         coords = layer.world_to_data(event.position)
         if coords is not None:
-            x_mm = self.top_left_coordinate[1] + coords[-1] * self.viewer_pixel_size_mm / 1000 * self.downsample_factor
-            y_mm = self.top_left_coordinate[0] + coords[-2] * self.objectiveStore.get_pixel_size() / 1000 * self.downsample_factor
+            x_mm = self.top_left_coordinate[1] + coords[-1] * self.viewer_pixel_size_mm
+            y_mm = self.top_left_coordinate[0] + coords[-2] * self.viewer_pixel_size_mm
             print("clicked x,y:", (x_mm, y_mm))
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
 
@@ -3577,7 +3585,6 @@ class NapariMosaicDisplayWidget(QWidget):
         self.channels = set()
         self.dz_um = None
         self.Nz = None
-        
 
 
 class TrackingControllerWidget(QFrame):

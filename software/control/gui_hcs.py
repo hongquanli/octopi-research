@@ -330,7 +330,7 @@ class OctopiGUI(QMainWindow):
 
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
             self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore)
-            self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic Preview")
+            self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
 
         # acquisition tabs
         self.recordTabWidget = QTabWidget()
@@ -531,6 +531,12 @@ class OctopiGUI(QMainWindow):
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+            if ENABLE_FLEXIBLE_MULTIPOINT:
+                self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+                self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+            if ENABLE_SCAN_GRID:
+                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+                self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_to)
             #self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
