@@ -1753,7 +1753,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_genFocusMap = QCheckBox('Generate focus map')
+        self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
@@ -1863,7 +1863,6 @@ class MultiPointWidget(QFrame):
 
     def emit_selected_channels(self):
         selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
-        print(selected_channels)
         self.signal_acquisition_channels.emit(selected_channels)
 
     def toggle_acquisition(self,pressed):
@@ -2422,10 +2421,6 @@ class MultiPointWidget2(QFrame):
         self.dropdown_location_list.clear()
         self.table_location_list.setRowCount(0)
 
-    # def clear_only_location_list(self):
-    #     self.location_list = np.empty((0,3),dtype=float)
-    #     self.dropdown_location_list.clear()
-
     def go_to(self,index):
         if index != -1:
             if index < len(self.location_list): # to avoid giving errors when adding new points
@@ -2525,6 +2520,7 @@ class MultiPointWidgetGrid(QFrame):
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
     signal_acquisition_shape = Signal(int, int, int, float, float, float)
+    signal_update_navigation_viewer = Signal()
 
     def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2536,9 +2532,12 @@ class MultiPointWidgetGrid(QFrame):
         self.configurationManager = configurationManager
         self.base_path_is_set = False
         self.well_selected = False
+        self.use_coordinate_acquisition = False
+        self.region_coordinates = []
+        self.region_coordinates_map = []
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        self.update_scan_size_availability()
+        self.update_scan_size()
 
     def add_components(self):
         self.btn_setSavingDir = QPushButton('Browse')
@@ -2554,6 +2553,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_scan_size.setRange(0.1, 100)
         self.entry_scan_size.setValue(1)
         self.entry_scan_size.setSuffix(" mm")
+        self.entry_scan_size.setEnabled(False)
 
         self.entry_overlap = QDoubleSpinBox()
         self.entry_overlap.setRange(0, 99)
@@ -2598,7 +2598,7 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_genFocusMap = QCheckBox('Generate focus map')
+        self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         self.btn_startAcquisition = QPushButton('Start Acquisition')
@@ -2610,37 +2610,94 @@ class MultiPointWidgetGrid(QFrame):
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
         self.btn_startAcquisition.setCheckable(True)
 
+        # Add a checkbox for coordinate-based acquisition
+        self.checkbox_useCoordinateAcquisition = QCheckBox('Coordinate Acquisition')
+        self.checkbox_useCoordinateAcquisition.setChecked(self.use_coordinate_acquisition)
+        self.checkbox_useCoordinateAcquisition.stateChanged.connect(self.toggle_region_buttons)
+
+        # Add a combo box for shape selection
+        self.shape_label = QLabel('Shape')
+        self.shape_label.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        self.combobox_shape = QComboBox()
+        self.combobox_shape.addItems(['Square', 'Circle'])
+
+        # Add components for coordinate-based acquisition
+        self.btn_add_region = QPushButton('Add')
+        self.btn_remove_region = QPushButton('Remove')
+        self.btn_clear_regions = QPushButton('Clear')
+        self.dropdown_region_list = QComboBox()
+
+        # Hide coordinate acquisition components initially
+        self.btn_add_region.setVisible(False)
+        self.btn_remove_region.setVisible(False)
+        self.btn_clear_regions.setVisible(False)
+        self.dropdown_region_list.setVisible(False)
+
+        # Connect coordinate buttons
+        self.btn_add_region.clicked.connect(self.add_region)
+        self.btn_remove_region.clicked.connect(self.remove_region)
+        self.btn_clear_regions.clicked.connect(self.clear_regions)
+        #self.dropdown_region_list.currentIndexChanged.connect(self.go_to_region)
+
         # Layout
         grid_line0 = QHBoxLayout()
-        grid_line0.addWidget(QLabel('Saving Path'))
+        label_saving_path = QLabel('Saving Path')
+        label_saving_path.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        grid_line0.addWidget(label_saving_path)
         grid_line0.addWidget(self.lineEdit_savingDir)
         grid_line0.addWidget(self.btn_setSavingDir)
 
         grid_line1 = QHBoxLayout()
-        grid_line1.addWidget(QLabel('Experiment ID'))
+        label_experiment_id = QLabel('Experiment ID')
+        label_experiment_id.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        grid_line1.addWidget(label_experiment_id)
         grid_line1.addWidget(self.lineEdit_experimentID)
 
         grid_line2 = QHBoxLayout()
-        grid_line2.addWidget(QLabel('Scan Size (mm)'))
+        label_scan_size = QLabel('Scan Size')
+        label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        label_overlap = QLabel('Overlap')
+        label_overlap.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        grid_line2.addWidget(label_scan_size)
         grid_line2.addWidget(self.entry_scan_size)
-        grid_line2.addWidget(QLabel('Overlap (%)'))
+        grid_line2.addWidget(label_overlap)
         grid_line2.addWidget(self.entry_overlap)
+        grid_line2.addWidget(self.shape_label)
+        grid_line2.addWidget(self.combobox_shape)
 
         grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(QLabel('dz (um)'))
+        label_dz = QLabel('dz (um)')
+        label_dz.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        label_nz = QLabel('Nz')
+        label_nz.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        label_dt = QLabel('dt (s)')
+        label_dt.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        label_nt = QLabel('Nt')
+        label_nt.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        grid_line3.addWidget(label_dz)
         grid_line3.addWidget(self.entry_deltaZ)
-        grid_line3.addWidget(QLabel('Nz'))
+        grid_line3.addWidget(label_nz)
         grid_line3.addWidget(self.entry_NZ)
-        grid_line3.addWidget(QLabel('dt (s)'))
+        grid_line3.addWidget(label_dt)
         grid_line3.addWidget(self.entry_dt)
-        grid_line3.addWidget(QLabel('Nt'))
+        grid_line3.addWidget(label_nt)
         grid_line3.addWidget(self.entry_Nt)
+
+        # Add coordinate acquisition components to the layout
+        grid_coordinate = QHBoxLayout()
+        grid_coordinate.addWidget(self.btn_add_region)
+        grid_coordinate.addWidget(self.btn_remove_region)
+        grid_coordinate.addWidget(self.btn_clear_regions)
+        grid_coordinate.addWidget(self.dropdown_region_list)
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
         grid_af.addWidget(self.checkbox_genFocusMap)
+
+        # Add these widgets to your layout
+        grid_af.addWidget(self.checkbox_useCoordinateAcquisition)
 
         grid_line4 = QHBoxLayout()
         grid_line4.addWidget(self.list_configurations)
@@ -2652,6 +2709,7 @@ class MultiPointWidgetGrid(QFrame):
         self.grid.addLayout(grid_line1)
         self.grid.addLayout(grid_line2)
         self.grid.addLayout(grid_line3)
+        self.grid.addLayout(grid_coordinate)
         self.grid.addLayout(grid_line4)
         self.setLayout(self.grid)
 
@@ -2669,20 +2727,140 @@ class MultiPointWidgetGrid(QFrame):
 
         # Additional connections
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
-        #self.navigationViewer.sample_changed.connect(self.update_scan_size_availability)
 
-    def update_scan_size_availability(self):
-        if self.navigationViewer.sample != 'glass slide':
-            self.entry_scan_size.setEnabled(False)
+    def update_scan_size(self):
+        if self.navigationViewer.sample == 'glass slide':
+            self.entry_scan_size.setEnabled(True)
+        else:
             if hasattr(self.scanCoordinates, 'well_size_mm'):
                 self.entry_scan_size.setValue(self.scanCoordinates.well_size_mm)
             elif hasattr(self.navigationViewer, 'well_size_mm'):
                 self.entry_scan_size.setValue(self.navigationViewer.well_size_mm)
-        else:
-            self.entry_scan_size.setEnabled(True)
+        self.set_default_shape()
 
+    def set_default_shape(self):
+        if self.scanCoordinates.format in [0, 384, 1536]:
+            self.combobox_shape.setCurrentText('Square')
+        else:
+            self.combobox_shape.setCurrentText('Circle')
+            
     def set_well_selected(self, selected):
         self.well_selected = selected
+
+    def toggle_region_buttons(self, state):
+        self.use_coordinate_acquisition = bool(state)
+        
+        self.entry_scan_size.setEnabled(self.use_coordinate_acquisition)
+        self.btn_add_region.setVisible(self.use_coordinate_acquisition)
+        self.btn_remove_region.setVisible(self.use_coordinate_acquisition)
+        self.btn_clear_regions.setVisible(self.use_coordinate_acquisition)
+        self.dropdown_region_list.setVisible(self.use_coordinate_acquisition)
+
+    def add_region(self):
+        x = self.navigationController.x_pos_mm
+        y = self.navigationController.y_pos_mm
+        z = self.navigationController.z_pos_mm
+
+        if not any(np.allclose([x, y], coord[:2]) for coord in self.region_coordinates):
+            location_str = f'Region {len(self.region_coordinates)}: x: {x:.3f} mm, y: {y:.3f} mm, z: {z*1000:.1f} um'
+            self.dropdown_region_list.addItem(location_str)
+            self.dropdown_region_list.setCurrentIndex(self.dropdown_region_list.count()-1)
+            self.region_coordinates.append([x, y, z])
+            # self.navigationViewer.register_fov_to_image(x, y) ### if show center 
+
+            # Create scan coordinates for this region
+            scan_coordinates = self.create_region_coordinates(
+                self.objectiveStore,
+                self.entry_scan_size.value(),
+                self.entry_overlap.value(),
+                x, y,
+                self.combobox_shape.currentText()
+            )
+            self.navigationViewer.update_current_location()
+            self.region_coordinates_map.append(scan_coordinates)
+            
+            print(f"Add Region: x={x:.3f}, y={y:.3f}, z={z:.3f}")
+            print("Size:", self.entry_scan_size.value())
+            print("Shape:", self.combobox_shape.currentText())
+            print("# fovs in region:", len(scan_coordinates))
+
+        else:
+            print("Duplicate region not added.")
+
+    def remove_region(self):
+        if self.dropdown_region_list.count() > 0:
+            index = self.dropdown_region_list.currentIndex()
+            self.dropdown_region_list.removeItem(index)
+            x, y, _ = self.region_coordinates[index]
+            self.region_coordinates.pop(index)
+            region_scan_coordinates = self.region_coordinates_map.pop(index)
+            for coord in region_scan_coordinates:
+                self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
+            self.navigationViewer.deregister_fov_to_image(x, y)
+            print(f"Removed region: {x:.3f}, {y:.3f}")
+        self.navigationViewer.update_current_location()
+
+    def clear_regions(self):
+        while self.dropdown_region_list.count() > 0:
+            self.remove_region()
+        print("Cleared all regions")
+
+    def clear_viewer(self):
+        self.navigationViewer.clear_slide()
+        self.navigationViewer.update_current_location()
+
+    def go_to_region(self, index):
+        if 0 <= index < len(self.region_coordinates):
+            x, y, z = self.region_coordinates[index]
+            self.navigationController.move_x_to(x)
+            self.navigationController.move_y_to(y)
+            self.navigationController.move_z_to(z)
+            print(f"Moved to region: {x:.3f}, {y:.3f}, {z:.3f}")
+
+    def create_region_coordinates(self, objectiveStore, scan_size_mm, overlap_percent, center_x, center_y, shape):
+        pixel_size_um = objectiveStore.get_pixel_size()
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+        if shape == 'Circle':
+            steps = math.ceil(scan_size_mm / step_size_mm)
+        else:
+            steps = math.floor(scan_size_mm / step_size_mm)
+        print("steps:", steps, "step_size_mm:", step_size_mm)
+        actual_scan_size_mm = steps * step_size_mm
+        print("scan size mm:", scan_size_mm)
+        print("actual scan size mm:", actual_scan_size_mm)
+        
+        scan_coordinates = []
+        for i in range(steps):
+            row = []
+            for j in range(steps):
+                x = center_x + (j - (steps - 1) / 2) * step_size_mm
+                y = center_y + (i - (steps - 1) / 2) * step_size_mm
+                if shape == 'Square':
+                    row.append((x, y))
+                    self.navigationViewer.register_fov_to_image(x,y)
+                elif shape == 'Circle':
+                    radius = scan_size_mm / 2
+                    x_rel = (j - (steps - 1) / 2) * step_size_mm
+                    y_rel = (i - (steps - 1) / 2) * step_size_mm
+                    corners = [
+                        (x_rel - fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-left
+                        (x_rel + fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-right
+                        (x_rel - fov_size_mm / 2, y_rel + fov_size_mm / 2),  # Bottom-left
+                        (x_rel + fov_size_mm / 2, y_rel + fov_size_mm / 2)   # Bottom-right
+                    ]
+                    if all(math.sqrt(cx**2 + cy**2) <= radius for cx, cy in corners):
+                        row.append((x, y))
+                        self.navigationViewer.register_fov_to_image(x,y) ### if show full grid 
+                else:
+                    raise ValueError(f"Unsupported shape: {shape}. Choose 'Square' or 'Circle'.")
+            
+            if i % 2 == 1:  # Reverse every other row
+                row.reverse()
+            
+            scan_coordinates.extend(row)
+        self.signal_update_navigation_viewer.emit()
+        return scan_coordinates
 
     def toggle_acquisition(self, pressed):
         if not self.base_path_is_set:
@@ -2690,7 +2868,7 @@ class MultiPointWidgetGrid(QFrame):
             QMessageBox.warning(self, "Warning", "Please choose base saving directory first")
             return
 
-        if self.navigationViewer.sample != 'glass slide' and self.well_selected == False:
+        if not self.use_coordinate_acquisition and self.navigationViewer.sample != 'glass slide' and self.well_selected == False:
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
             msg.setText("Please select a well to scan first")
@@ -2705,21 +2883,47 @@ class MultiPointWidgetGrid(QFrame):
         if pressed:
             self.setEnabled_all(False)
 
-            # Calculate grid based on overlap percentage and scan size
-            steps, step_size_mm = self.scanCoordinates.create_scan_grid(
-                self.objectiveStore,
-                scan_size_mm=self.entry_scan_size.value(),
-                overlap_percent=self.entry_overlap.value(),
-                navigationController=self.navigationController
-            )
-            Nx = Ny = steps
-            dx_mm = dy_mm = step_size_mm
+            scan_size_mm = self.entry_scan_size.value()
+            overlap_percent = self.entry_overlap.value()
 
-            # Set up multipoint controller
-            self.multipointController.set_NX(Nx)
-            self.multipointController.set_NY(Ny)
-            self.multipointController.set_deltaX(dx_mm)
-            self.multipointController.set_deltaY(dy_mm)
+            if self.use_coordinate_acquisition:
+                if len(self.region_coordinates) == 0:
+                    # Use current location if no regions added
+                    x = self.navigationController.x_pos_mm
+                    y = self.navigationController.y_pos_mm
+                    z = self.navigationController.z_pos_mm
+                    self.region_coordinates.append([x, y, z])
+                    scan_coordinates = self.create_region_coordinates(
+                        self.objectiveStore,
+                        scan_size_mm,
+                        overlap_percent,
+                        x, y,
+                        self.combobox_shape.currentText()
+                    )
+                    self.region_coordinates_map.append(scan_coordinates)
+
+                # Calculate total number of positions for signal emission
+                total_positions = sum(len(coords) for coords in self.region_coordinates_map)
+                Nx = Ny = int(math.sqrt(total_positions))
+                dx_mm = dy_mm = scan_size_mm / (Nx - 1) if Nx > 1 else scan_size_mm
+                
+            else:
+                # Use grid-based acquisition (existing code)
+                steps, step_size_mm = self.scanCoordinates.create_scan_grid(
+                    self.objectiveStore,
+                    scan_size_mm=scan_size_mm,
+                    overlap_percent=overlap_percent
+                )
+                Nx = Ny = steps
+                dx_mm = dy_mm = step_size_mm
+                coordinate_dict = None
+
+                # Set up multipoint controller
+                self.multipointController.set_NX(Nx)
+                self.multipointController.set_NY(Ny)
+                self.multipointController.set_deltaX(dx_mm)
+                self.multipointController.set_deltaY(dy_mm)
+
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_deltat(self.entry_dt.value())
@@ -2737,7 +2941,10 @@ class MultiPointWidgetGrid(QFrame):
             print("dx,dy,zd", dx_mm, dy_mm, self.entry_deltaZ.value())
 
             # Start acquisition
-            self.multipointController.run_acquisition() # enter current coordinates from navigationController?
+            if self.use_coordinate_acquisition:
+                self.multipointController.run_acquisition(location_list=self.region_coordinates, coordinate_dict=self.region_coordinates_map) 
+            else:
+                self.multipointController.run_acquisition() 
 
         else:
             self.multipointController.request_abort_aquisition()
@@ -2752,7 +2959,7 @@ class MultiPointWidgetGrid(QFrame):
         for widget in self.findChildren(QWidget):
             if widget != self.btn_startAcquisition:
                 widget.setEnabled(enabled)
-        self.update_scan_size_availability()  # Ensure scan size availability is correctly set
+        self.update_scan_size()  # Ensure scan size availability is correctly set
 
     def set_saving_dir(self):
         dialog = QFileDialog()
@@ -3153,6 +3360,7 @@ class NapariMultiChannelWidget(QWidget):
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
+        print("multichannel", i, j, k, channel_name)
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
  
@@ -3299,6 +3507,10 @@ class NapariTiledDisplayWidget(QWidget):
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
+        print("tiled", i, j, k, channel_name)
+        if i is None or j is None or k is None: # no tiled display for coordinate acquisition
+            return
+
         rgb = len(image.shape) == 3  # Check if image is RGB based on shape
         if not self.layers_initialized:
            self.initLayers(image.shape[0], image.shape[1], image.dtype)
@@ -3382,6 +3594,7 @@ class NapariTiledDisplayWidget(QWidget):
 class NapariMosaicDisplayWidget(QWidget):
     signal_coordinates_clicked = Signal(float, float)  # x, y in mm
     signal_layer_contrast_limits = Signal(str, float, float)
+    signal_clear_viewer = Signal()
 
     def __init__(self, objectiveStore, parent=None):
         super().__init__(parent)
@@ -3409,7 +3622,7 @@ class NapariMosaicDisplayWidget(QWidget):
         self.channels = set(channels)
 
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
-        # init if we need to expand extents...
+        # todo: init dimensions if we need to preallocate x,y extents...
         self.Nz = 1
         self.dz_um = dz
 
@@ -3585,6 +3798,7 @@ class NapariMosaicDisplayWidget(QWidget):
         self.channels = set()
         self.dz_um = None
         self.Nz = None
+        self.signal_clear_viewer.emit()
 
 
 class TrackingControllerWidget(QFrame):

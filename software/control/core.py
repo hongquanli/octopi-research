@@ -1629,7 +1629,7 @@ class MultiPointWorker(QObject):
         self.async_detection_stats = {}
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
-
+        self.FOV_counter = 0
         self.coordinate_dict = self.multiPointController.coordinate_dict
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
@@ -1640,6 +1640,9 @@ class MultiPointWorker(QObject):
         self.t_dpc = []
         self.t_inf = []
         self.t_over = []
+
+        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+            self.init_napari_layers = False
 
         self.tiled_preview = None
 
@@ -1722,6 +1725,21 @@ class MultiPointWorker(QObject):
         self.navigationController.enable_joystick_button_action = True
         print(time.time())
         print(time.time()-start)
+
+    def initialize_z_parameters(self):
+        # z stacking config
+        if Z_STACKING_CONFIG == 'FROM TOP':
+            self.deltaZ_usteps = -abs(self.deltaZ_usteps)
+
+        # reset piezo to home position
+        if self.use_piezo:
+            self.z_piezo_um = OBJECTIVE_PIEZO_HOME_UM
+            dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
+            self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+            if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
+                time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
+            if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
+                self.signal_z_piezo_um.emit(self.z_piezo_um)
 
     def initialize_coordinates_dataframe(self):
         base_columns = ['z_level', 'x (mm)', 'y (mm)', 'z (um)', 'time']
@@ -1817,23 +1835,6 @@ class MultiPointWorker(QObject):
         self.dz_usteps = 0 # accumulated z displacement
         self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
-        # z stacking config
-        if Z_STACKING_CONFIG == 'FROM TOP':
-            self.deltaZ_usteps = -abs(self.deltaZ_usteps)
-
-        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
-            self.init_napari_layers = False
-
-        # reset piezo to home position
-        if self.use_piezo:
-            self.z_piezo_um = OBJECTIVE_PIEZO_HOME_UM
-            dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
-            self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
-            if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
-                time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
-            if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
-                self.signal_z_piezo_um.emit(self.z_piezo_um)
-
     def run_grid_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
 
@@ -1881,7 +1882,7 @@ class MultiPointWorker(QObject):
             self.finish_grid_scan(n_regions, region_id)
 
     def run_coordinate_acquisition(self, current_path):
-        for region_id, coordinates in self.coordinate_dict.items():
+        for region_id, coordinates in enumerate(self.coordinate_dict):
             for coordinate_mm in coordinates:
 
                 self.move_to_coordinate(coordinate_mm)
@@ -1932,7 +1933,7 @@ class MultiPointWorker(QObject):
                     self.autofocusController.wait_till_autofocus_has_completed()
                 # update z location of scan_coordinates_mm after AF
                 if len(self.scan_coordinates_mm[region_id]) == 3:
-                    self.scan_coordinates_mm[region_id, 2] = self.navigationController.z_pos_mm
+                    self.scan_coordinates_mm[region_id][2] = self.navigationController.z_pos_mm
                     # update the coordinate in the widget
                     try:
                         self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
@@ -2144,12 +2145,12 @@ class MultiPointWorker(QObject):
         iio.imwrite(saving_path,image)
 
     def update_napari(self, image, config, i, j, k):
-        if self.coordinate_dict is None and (USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY):
+        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
             if not self.init_napari_layers:
                 print("init napari layers")
                 self.init_napari_layers = True
                 self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
-            self.napari_layers_update.emit(image, i, j, k, config.name)
+                self.napari_layers_update.emit(image, i, j, k, config.name)
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
             self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config.name)
 
@@ -2212,21 +2213,25 @@ class MultiPointWorker(QObject):
         iio.imwrite(os.path.join(current_path, file_name), rgb_image)
 
     def handle_acquisition_abort(self, current_path):
-        self.liveController.turn_off_illumination()
-        self.navigationController.move_x_usteps(-self.dx_usteps)
-        self.wait_till_operation_is_completed()
-        self.navigationController.move_y_usteps(-self.dy_usteps)
-        self.wait_till_operation_is_completed()
 
-        if self.navigationController.get_pid_control_flag(2) is False:
-            _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-            self.navigationController.move_z_usteps(-self.dz_usteps-_usteps_to_clear_backlash)
+        if self.coordinate_dict is None:
+            self.liveController.turn_off_illumination()
+            self.navigationController.move_x_usteps(-self.dx_usteps)
             self.wait_till_operation_is_completed()
-            self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+            self.navigationController.move_y_usteps(-self.dy_usteps)
             self.wait_till_operation_is_completed()
+
+            if self.navigationController.get_pid_control_flag(2) is False:
+                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                self.navigationController.move_z_usteps(-self.dz_usteps-_usteps_to_clear_backlash)
+                self.wait_till_operation_is_completed()
+                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+                self.wait_till_operation_is_completed()
+            else:
+                self.navigationController.move_z_usteps(-self.dz_usteps)
+                self.wait_till_operation_is_completed()
         else:
-            self.navigationController.move_z_usteps(-self.dz_usteps)
-            self.wait_till_operation_is_completed()
+            self.move_to_coordinate(self.scan_coordinates_mm[0])
 
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
@@ -2399,6 +2404,8 @@ class MultiPointController(QObject):
         self.selected_configurations = []
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
+        self.scan_coordinates_mm = []
+        self.scan_coordinates_name = []
         self.parent = parent
         self.old_images_per_page = 1
         try:
@@ -2489,15 +2496,19 @@ class MultiPointController(QObject):
         if coordinate_dict is not None:
             print('Using coordinate-based acquisition')
             print(f"Number of regions: {len(coordinate_dict)}")
-            total_points = sum(len(coords) for coords in coordinate_dict.values())
+            total_points = sum(len(coords) for coords in coordinate_dict)
             print(f"Total number of points: {total_points}")
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
+            print(location_list)
+            self.scan_coordinates_mm = location_list
+            self.scan_coordinates_name = [f"R{i}" for i in range(len(location_list))]
         elif location_list is not None:
             print('Using location list acquisition')
             print(f"Number of locations: {len(location_list)}")
             self.location_list = location_list
+            print(location_list)
             self.coordinate_dict = None
             self.use_scan_coordinates = True
             self.scan_coordinates_mm = location_list
@@ -2517,6 +2528,7 @@ class MultiPointController(QObject):
                 self.scan_coordinates_mm = [(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)]
                 self.scan_coordinates_name = ['ROI']
 
+        print("regions", self.scan_coordinates_mm)
         self.abort_acqusition_requested = False
 
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
@@ -2542,10 +2554,18 @@ class MultiPointController(QObject):
                 self.usb_spectrometer_was_streaming = False
 
         if self.parent is not None:
-            try:
+            if USE_NAPARI_FOR_MOSAIC_DISPLAY and self.coordinate_dict is not None:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMosaicDisplayWidget)
+
+            elif USE_NAPARI_FOR_TILED_DISPLAY:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariTiledDisplayWidget)
+
+            elif USE_NAPARI_FOR_MULTIPOINT:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMultiChannelWidget)
+                    
+            else: 
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
-            except:
-                pass
+
             try:
                 self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
             except:
@@ -3330,8 +3350,12 @@ class NavigationViewer(QFrame):
         self.draw_current_fov(self.x_mm,self.y_mm)
         self.update_display()
 
-    def update_current_location(self, x_mm, y_mm):
-        if self.x_mm is not None and self.y_mm is not None:
+    def update_current_location(self, x_mm=None, y_mm=None):
+        if x_mm is None and y_mm is None:
+            self.draw_current_fov(self.x_mm, self.y_mm)
+            self.update_display()
+
+        elif self.x_mm is not None and self.y_mm is not None:
             # update only when the displacement has exceeded certain value
             if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
                 self.draw_current_fov(x_mm, y_mm)
@@ -3397,11 +3421,18 @@ class NavigationViewer(QFrame):
         color = (252,174,30)
         current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+        self.update_display()
 
     def deregister_fov_to_image(self,x_mm,y_mm):
-        color = (255,255,255)
+        if self.sample == 'glass slide':
+            color = (186,186,186)
+        else:
+            color = (255,255,255)
         current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
         cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+        self.update_display()
 
 
 class ImageArrayDisplayWindow(QMainWindow):
@@ -3726,7 +3757,7 @@ class ScanCoordinates(object):
             _increasing = not _increasing
         return len(selected_wells) # if wells selected
 
-    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, navigationController=None):
+    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10):
         self.grid_skip_positions = []
         pixel_size_um = objectiveStore.get_pixel_size()
 
@@ -3738,7 +3769,7 @@ class ScanCoordinates(object):
                 return self._create_wellplate_grid(pixel_size_um, overlap_percent)
         else:
             # Case 2: No well selected or using glass slide
-            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent, navigationController)
+            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent)
 
     def _create_wellplate_grid(self, pixel_size_um, overlap_percent):
         # Calculate field of view size in mm
@@ -3756,7 +3787,7 @@ class ScanCoordinates(object):
         actual_scan_size_mm = steps * step_size_mm
         print("well size mm", self.well_size_mm)
         print("actual scan size mm", actual_scan_size_mm)
-
+        print("steps:", steps, "step_size_mm:", step_size_mm)
         return steps, step_size_mm
 
     def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
@@ -3773,7 +3804,9 @@ class ScanCoordinates(object):
         radius = self.well_size_mm / 2
 
         # Calculate number of steps to cover the diameter
+        # steps = math.ceil(self.well_size_mm / step_size_mm)
         steps = math.floor(self.well_size_mm / step_size_mm)
+        print("steps:", steps, "step_size_mm:", step_size_mm)
 
         if steps <= 1:
             return 1, step_size_mm
@@ -3805,52 +3838,7 @@ class ScanCoordinates(object):
 
         return steps, step_size_mm
 
-    def create_coordinate_dict(self, objectiveStore, scan_size_mm, overlap_percent, central_coordinates, shape='circle'):
-        pixel_size_um = objectiveStore.get_pixel_size()
-        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        steps = math.ceil(scan_size_mm / step_size_mm)
-
-        coordinate_dict = {}
-
-        for region_id, (center_x, center_y) in enumerate(central_coordinates):
-            region_coordinates = []
-            
-            if shape == 'square':
-                for i in range(steps):
-                    for j in range(steps):
-                        x = center_x + (j - (steps - 1) / 2) * step_size_mm
-                        y = center_y + (i - (steps - 1) / 2) * step_size_mm
-                        region_coordinates.append((x, y))
-            
-            elif shape == 'circle':
-                radius = scan_size_mm / 2
-                for i in range(steps):
-                    for j in range(steps):
-                        x = center_x + (j - (steps - 1) / 2) * step_size_mm
-                        y = center_y + (i - (steps - 1) / 2) * step_size_mm
-                        
-                        # Calculate distances to all four corners of the FOV
-                        corners = [
-                            (x - fov_size_mm / 2, y - fov_size_mm / 2),  # Top-left
-                            (x + fov_size_mm / 2, y - fov_size_mm / 2),  # Top-right
-                            (x - fov_size_mm / 2, y + fov_size_mm / 2),  # Bottom-left
-                            (x + fov_size_mm / 2, y + fov_size_mm / 2)   # Bottom-right
-                        ]
-
-                        # Check if any corner is inside the circular region
-                        if any(math.sqrt((cx - center_x)**2 + (cy - center_y)**2) <= radius for cx, cy in corners):
-                            region_coordinates.append((x, y))
-            
-            else:
-                raise ValueError(f"Unsupported shape: {shape}. Choose 'square' or 'circle'.")
-
-            coordinate_dict[region_id] = region_coordinates
-
-        return coordinate_dict
-
-
-    def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent, navigationController):
+    def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent):
         # Calculate field of view size in mm
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         print("fov_size_mm", fov_size_mm)
@@ -3865,9 +3853,9 @@ class ScanCoordinates(object):
 
         # Calculate actual scan size (which may be larger than the minimum)
         actual_scan_size_mm = steps * step_size_mm
+        print("steps:", steps, "step_size_mm:", step_size_mm)
         print("minimum scan size mm", scan_size_mm)
         print("actual scan size mm", actual_scan_size_mm)
-    
         return steps, step_size_mm
 
 

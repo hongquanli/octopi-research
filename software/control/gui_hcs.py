@@ -537,8 +537,11 @@ class OctopiGUI(QMainWindow):
             if ENABLE_SCAN_GRID:
                 self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
                 self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_to)
+            self.napariMosaicDisplayWidget.signal_clear_viewer.connect(self.navigationViewer.clear_slide)
+
             #self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
             #self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMosaicDisplayWidget.saveContrastLimits)
 
@@ -552,6 +555,7 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
         if ENABLE_SCAN_GRID:
             self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_selected)
+            self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_display)
 
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
@@ -689,6 +693,7 @@ class OctopiGUI(QMainWindow):
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
             self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
+
             if format_ == 1536:
                 self.wellSelectionWidget.setParent(None)
                 self.wellSelectionWidget.deleteLater()
@@ -709,7 +714,8 @@ class OctopiGUI(QMainWindow):
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.clear_only_location_list()
         if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.update_scan_size_availability()
+            self.multiPointWidgetGrid.update_scan_size()
+            self.multiPointWidgetGrid.clear_regions()
 
     def toggleWellSelector(self, show):
         self.dock_wellSelection.setVisible(show)
