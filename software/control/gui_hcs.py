@@ -554,8 +554,8 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
         if ENABLE_SCAN_GRID:
-            self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_selected)
-            self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_display)
+            self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
+            self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_current_location)
 
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)

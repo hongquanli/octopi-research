@@ -833,8 +833,19 @@ class NavigationController(QObject):
     def move_z(self,delta):
         self.microcontroller.move_z_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
 
-    def move_x_to(self,delta):
-        self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+    #def move_x_to(self,delta):
+    #    self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+    def move_x_to(self, delta):
+        try:
+            delta = float(delta)
+            usteps = STAGE_MOVEMENT_SIGN_X * int(delta / (SCREW_PITCH_X_MM / (self.x_microstepping * FULLSTEPS_PER_REV_X)))
+            self.microcontroller.move_x_to_usteps(usteps)
+        except ValueError as e:
+            print(f"Error in move_x_to: {e}")
+            print(f"delta: {delta}, type: {type(delta)}")
+            print(f"SCREW_PITCH_X_MM: {SCREW_PITCH_X_MM}, type: {type(SCREW_PITCH_X_MM)}")
+            print(f"self.x_microstepping: {self.x_microstepping}, type: {type(self.x_microstepping)}")
+            print(f"FULLSTEPS_PER_REV_X: {FULLSTEPS_PER_REV_X}, type: {type(FULLSTEPS_PER_REV_X)}")
 
     def move_y_to(self,delta):
         self.microcontroller.move_y_to_usteps(STAGE_MOVEMENT_SIGN_Y*int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
@@ -1713,6 +1724,8 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         self.initialize_coordinates_dataframe()
 
+        self.initialize_z_stack()
+
         if self.coordinate_dict is not None:
             print("coordinate acquisition")
             self.run_coordinate_acquisition(current_path)
@@ -1726,7 +1739,10 @@ class MultiPointWorker(QObject):
         print(time.time())
         print(time.time()-start)
 
-    def initialize_z_parameters(self):
+    def initialize_z_stack(self):
+        self.dz_usteps = 0 # accumulated z displacement
+        self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
+
         # z stacking config
         if Z_STACKING_CONFIG == 'FROM TOP':
             self.deltaZ_usteps = -abs(self.deltaZ_usteps)
@@ -1764,9 +1780,9 @@ class MultiPointWorker(QObject):
         piezo_data = {'z_piezo (um)': [self.z_piezo_um - OBJECTIVE_PIEZO_HOME_UM]} if self.use_piezo else {}
 
         if IS_HCS:
-            if self.coordinate_dict is not None:
+            if self.coordinate_dict:
                 new_row = pd.DataFrame({
-                    'region': [self.scan_coordinates_name[region_id]],
+                    'region': [region_id],
                     **base_data,
                     **piezo_data
                 })
@@ -1827,20 +1843,15 @@ class MultiPointWorker(QObject):
                     self.wait_till_operation_is_completed()
             time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-
-    def initialize_grid_parameters(self):
-        self.x_scan_direction = 1
-        self.dx_usteps = 0 # accumulated x displacement
-        self.dy_usteps = 0 # accumulated y displacement
-        self.dz_usteps = 0 # accumulated z displacement
-        self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
-
     def run_grid_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
 
         for region_id in range(n_regions):
             coordinate_mm = self.scan_coordinates_mm[region_id]
             print(coordinate_mm)
+            self.x_scan_direction = 1
+            self.dx_usteps = 0 # accumulated x displacement
+            self.dy_usteps = 0 # accumulated y displacement
 
             if self.use_scan_coordinates:
                 # Calculate grid size
@@ -1855,8 +1866,6 @@ class MultiPointWorker(QObject):
                 else:
                     self.move_to_coordinate([start_x, start_y])
                 self.wait_till_operation_is_completed()
-
-            self.initialize_grid_parameters()
 
             for i in range(self.NY):
                 self.FOV_counter = 0 # for AF, so that AF at the beginning of each new row
@@ -1882,7 +1891,7 @@ class MultiPointWorker(QObject):
             self.finish_grid_scan(n_regions, region_id)
 
     def run_coordinate_acquisition(self, current_path):
-        for region_id, coordinates in enumerate(self.coordinate_dict):
+        for region_id, coordinates in self.coordinate_dict.items():
             for coordinate_mm in coordinates:
 
                 self.move_to_coordinate(coordinate_mm)
@@ -1895,7 +1904,7 @@ class MultiPointWorker(QObject):
 
     def acquire_at_position(self, region_id, current_path, i=None, j=None):
         self.perform_autofocus(region_id)
-
+        print(region_id, "acquire position:", i, j)
         if self.NZ > 1:
             self.prepare_z_stack()
         
@@ -1912,8 +1921,40 @@ class MultiPointWorker(QObject):
             if i is not None and j is not None:
                 file_ID = f"{coordinate_name}_{i}_{j}_{z_level}"
             else:
-                file_ID = f"{coordinate_name}_x-{x_mm:.3f}_y-{y_mm:.3f}_z-{z_level}"
-            self.acquire_single_position(i, j, z_level, region_id, file_ID, current_path)
+                file_ID = f"{coordinate_name}_x{x_mm:.3f}_y{y_mm:.3f}_z{z_level}"
+
+            metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
+            print(file_ID, "scan coordinate:", metadata)
+            print("acquire z position ", i, j, z_level)
+            # laser af characterization mode
+            if LASER_AF_CHARACTERIZATION_MODE:
+                image = self.microscope.laserAutofocusController.get_image()
+                saving_path = os.path.join(current_path, file_ID + '_laser af camera' + '.bmp')
+                iio.imwrite(saving_path,image)
+
+            current_round_images = {}
+            # iterate through selected modes
+            for config in self.selected_configurations:
+                self.handle_z_offset(config)
+                # acquire image
+                if 'USB Spectrometer' not in config.name and 'RGB' not in config.name:
+                    self.acquire_camera_image(config, file_ID, current_path, current_round_images, i, j, z_level)
+                elif 'RGB' in config.name:
+                    self.acquire_rgb_image(config, file_ID, current_path, current_round_images, i, j, z_level)
+                else:
+                    self.acquire_spectrometer_data(config, file_ID, current_path, i, j, z_level)
+                self.undo_z_offset(config)
+
+            self.update_coordinates_dataframe(region_id, i, j, z_level)
+            self.signal_register_current_fov.emit(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
+            # check if the acquisition should be aborted
+            if self.multiPointController.abort_acqusition_requested:
+                self.handle_acquisition_abort(current_path)
+                return
+
+            # update FOV counter
+            self.FOV_counter = self.FOV_counter + 1
 
             if z_level < self.NZ - 1:
                 self.move_z_for_stack()
@@ -1979,40 +2020,6 @@ class MultiPointWorker(QObject):
         self.wait_till_operation_is_completed()
         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-    def acquire_single_position(self, i, j, z_level, region_id, file_ID, current_path):
-        metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
-        print("scan coordinate:", metadata)
-
-        # laser af characterization mode
-        if LASER_AF_CHARACTERIZATION_MODE:
-            image = self.microscope.laserAutofocusController.get_image()
-            saving_path = os.path.join(current_path, file_ID + '_laser af camera' + '.bmp')
-            iio.imwrite(saving_path,image)
-
-        current_round_images = {}
-        # iterate through selected modes
-        for config in self.selected_configurations:
-            self.handle_z_offset(config)
-            # acquire image
-            if 'USB Spectrometer' not in config.name and 'RGB' not in config.name:
-                self.acquire_camera_image(config, file_ID, current_path, current_round_images, i, j, z_level)
-            elif 'RGB' in config.name:
-                self.acquire_rgb_image(config, file_ID, current_path, current_round_images, i, j, z_level)
-            else:
-                self.acquire_spectrometer_data(config, file_ID, current_path, i, j, z_level)
-            self.undo_z_offset(config)
-
-        self.update_coordinates_dataframe(region_id, i, j, z_level)
-        self.signal_register_current_fov.emit(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-
-        # check if the acquisition should be aborted
-        if self.multiPointController.abort_acqusition_requested:
-            self.handle_acquisition_abort(current_path)
-            return
-
-        # update FOV counter
-        self.FOV_counter = self.FOV_counter + 1
-
     def handle_z_offset(self, config):
         if config.z_offset is not None:  # perform z offset for config, assume z_offset is in um
             if config.z_offset != 0.0:
@@ -2031,6 +2038,7 @@ class MultiPointWorker(QObject):
 
     def acquire_camera_image(self, config, file_ID, current_path, current_round_images, i, j, k):
         # update the current configuration
+        print("acquire camera image ", i, j, k, config)
         self.signal_current_configuration.emit(config)
         self.wait_till_operation_is_completed()
         # trigger acquisition (including turning on the illumination) and read frame
@@ -2064,7 +2072,7 @@ class MultiPointWorker(QObject):
         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
 
         self.save_image(image, file_ID, config, current_path)
-        self.update_napari(image, config, i, j, k)
+        self.update_napari(image, config.name, i, j, k)
 
         current_round_images[config.name] = np.copy(image)
 
@@ -2144,15 +2152,19 @@ class MultiPointWorker(QObject):
                     image = image[:,:,1]
         iio.imwrite(saving_path,image)
 
-    def update_napari(self, image, config, i, j, k):
+    def update_napari(self, image, config_name, i, j, k):
+        i = -1 if i is None else i
+        j = -1 if j is None else j
+        print("update napari:", i, j, k, config_name)
+
         if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
             if not self.init_napari_layers:
                 print("init napari layers")
                 self.init_napari_layers = True
                 self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
-                self.napari_layers_update.emit(image, i, j, k, config.name)
+            self.napari_layers_update.emit(image, i, j, k, config_name)
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-            self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config.name)
+            self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config_name)
 
     def handle_dpc_generation(self, current_round_images):
         keys_to_check = ['BF LED matrix left half', 'BF LED matrix right half', 'BF LED matrix top half', 'BF LED matrix bottom half']
@@ -2493,20 +2505,25 @@ class MultiPointController(QObject):
     def run_acquisition(self, location_list=None, coordinate_dict=None):
         print('start multipoint')
         
-        if coordinate_dict is not None:
+        if coordinate_dict:
             print('Using coordinate-based acquisition')
             print(f"Number of regions: {len(coordinate_dict)}")
             total_points = sum(len(coords) for coords in coordinate_dict)
             print(f"Total number of points: {total_points}")
+            print("Coordinate dict:")
+            for key, value in coordinate_dict.items():
+                print(f"  {key}: {value}")
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
-            print(location_list)
             self.scan_coordinates_mm = location_list
-            self.scan_coordinates_name = [f"R{i}" for i in range(len(location_list))]
-        elif location_list is not None:
+            self.scan_coordinates_name = None # list(coordinate_dict.keys()) if not wellplate
+        elif location_list:
             print('Using location list acquisition')
             print(f"Number of locations: {len(location_list)}")
+            print("Location list:")
+            for loc in location_list:
+                print(f"  {loc}")
             self.location_list = location_list
             print(location_list)
             self.coordinate_dict = None
@@ -3271,20 +3288,24 @@ class NavigationViewer(QFrame):
         print("navigation viewer:", sample)
         self.init_ui(invertX)
         self.load_background_image(sample)
+        self.create_layers()
         self.update_display_properties(sample)
-        self.update_display()
+        # self.update_display()
 
     def init_ui(self, invertX):
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.graphics_widget.setBackground("w")
-        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True)
-        ## lock the aspect ratio so pixels are always square
-        self.graphics_widget.view.setAspectLocked(True)
-        ## Create image item
-        self.graphics_widget.img = pg.ImageItem(border='w')
-        self.graphics_widget.view.addItem(self.graphics_widget.img)
+
+        self.view = self.graphics_widget.addViewBox(invertX=invertX, invertY=True)
+        self.view.setAspectLocked(True)
+         # self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True)
+        # ## lock the aspect ratio so pixels are always square
+        # self.graphics_widget.view.setAspectLocked(True)
+        # ## Create image item
+        # self.graphics_widget.img = pg.ImageItem(border='w')
+        # self.graphics_widget.view.addItem(self.graphics_widget.img)
 
         self.grid = QVBoxLayout()
         self.grid.addWidget(self.graphics_widget)
@@ -3301,10 +3322,25 @@ class NavigationViewer(QFrame):
             '1536 well plate': 'images/1536 well plate_1509x1010.png'
         }
         self.background_image = cv2.imread(image_paths.get(sample, 'images/slide carrier_828x662.png'))
-        self.current_image = np.copy(self.background_image)
-        self.current_image_display = np.copy(self.background_image)
-        self.image_height = self.background_image.shape[0]
-        self.image_width = self.background_image.shape[1]
+        if len(self.background_image.shape) == 2:  # Grayscale image
+            self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_GRAY2RGBA)
+        elif self.background_image.shape[2] == 3:  # BGR image
+            self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_BGR2RGBA)
+        elif self.background_image.shape[2] == 4:  # BGRA image
+            self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_BGRA2RGBA)
+        self.image_height, self.image_width = self.background_image.shape[:2]
+        self.background_item = pg.ImageItem(self.background_image)
+        self.view.addItem(self.background_item)
+
+    def create_layers(self):
+        self.scan_overlay = np.zeros((self.image_height, self.image_width, 4), dtype=np.uint8)
+        self.fov_overlay = np.zeros((self.image_height, self.image_width, 4), dtype=np.uint8)
+        
+        self.scan_overlay_item = pg.ImageItem()
+        self.fov_overlay_item = pg.ImageItem()
+        
+        self.view.addItem(self.scan_overlay_item)
+        self.view.addItem(self.fov_overlay_item)
 
     def update_display_properties(self, sample):
         if sample == 'glass slide':
@@ -3330,7 +3366,7 @@ class NavigationViewer(QFrame):
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
             self.draw_current_fov(self.x_mm, self.y_mm)
-            self.update_display()
+ #           self.update_display()
 
     def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
         if sample_format == 0:
@@ -3346,25 +3382,22 @@ class NavigationViewer(QFrame):
         self.well_spacing_mm = well_spacing_mm
         self.number_of_skip = number_of_skip
         self.load_background_image(sample)
+        self.create_layers()
         self.update_display_properties(sample)
         self.draw_current_fov(self.x_mm,self.y_mm)
-        self.update_display()
 
     def update_current_location(self, x_mm=None, y_mm=None):
         if x_mm is None and y_mm is None:
             self.draw_current_fov(self.x_mm, self.y_mm)
-            self.update_display()
 
         elif self.x_mm is not None and self.y_mm is not None:
             # update only when the displacement has exceeded certain value
             if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
                 self.draw_current_fov(x_mm, y_mm)
-                self.update_display()
                 self.x_mm = x_mm
                 self.y_mm = y_mm
         else:
             self.draw_current_fov(x_mm, y_mm)
-            self.update_display()
             self.x_mm = x_mm
             self.y_mm = y_mm
 
@@ -3399,40 +3432,72 @@ class NavigationViewer(QFrame):
             )
         return current_FOV_top_left, current_FOV_bottom_right
 
-    def draw_current_fov(self,x_mm,y_mm):
-        self.current_image_display = np.copy(self.current_image)
-        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
+    def draw_current_fov(self, x_mm, y_mm):
+        self.fov_overlay.fill(0)
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm, y_mm)
+        cv2.rectangle(self.fov_overlay, current_FOV_top_left, current_FOV_bottom_right, (255, 0, 0, 255), self.box_line_thickness)
+        self.fov_overlay_item.setImage(self.fov_overlay)
 
-    def update_display(self):
-        self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)
+    def register_fov(self, x_mm, y_mm):
+        color = (0, 0, 255, 255)  # Blue RGBA
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm, y_mm)
+        cv2.rectangle(self.background_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+        self.background_item.setImage(self.background_image)
+
+    def register_fov_to_image(self, x_mm, y_mm):
+        color = (252, 174, 30, 128)  # Yellow RGBA
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm, y_mm)
+        cv2.rectangle(self.scan_overlay, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+        self.scan_overlay_item.setImage(self.scan_overlay)
+
+    def deregister_fov_to_image(self, x_mm, y_mm):
+        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm, y_mm)
+        cv2.rectangle(self.scan_overlay, current_FOV_top_left, current_FOV_bottom_right, (0, 0, 0, 0), self.box_line_thickness)
+        self.scan_overlay_item.setImage(self.scan_overlay)
 
     def clear_slide(self):
-        self.current_image = np.copy(self.background_image)
-        self.current_image_display = np.copy(self.background_image)
-        self.update_display()
+        self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_RGBA2RGB)
+        self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_RGB2RGBA)
+        self.background_item.setImage(self.background_image)
+        self.scan_overlay.fill(0)
+        self.fov_overlay.fill(0)
+        self.scan_overlay_item.setImage(self.scan_overlay)
+        self.fov_overlay_item.setImage(self.fov_overlay)
 
-    def register_fov(self,x_mm,y_mm):
-        color = (0,0,255)
-        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+    # def draw_current_fov(self,x_mm,y_mm):
+    #     self.current_image_display = np.copy(self.current_image)
+    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
+    #     cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
 
-    def register_fov_to_image(self,x_mm,y_mm):
-        color = (252,174,30)
-        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-        self.update_display()
+    # def update_display(self):
+    #     self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)
 
-    def deregister_fov_to_image(self,x_mm,y_mm):
-        if self.sample == 'glass slide':
-            color = (186,186,186)
-        else:
-            color = (255,255,255)
-        current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-        self.update_display()
+    # def clear_slide(self):
+    #     self.current_image = np.copy(self.background_image)
+    #     self.current_image_display = np.copy(self.background_image)
+    #     self.update_display()
+
+    # def register_fov(self,x_mm,y_mm):
+    #     color = (0,0,255)
+    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
+    #     cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+
+    # def register_fov_to_image(self,x_mm,y_mm):
+    #     color = (252,174,30)
+    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
+    #     cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+    #     cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+    #     #self.update_display()
+
+    # def deregister_fov_to_image(self,x_mm,y_mm):
+    #     if self.sample == 'glass slide':
+    #         color = (186,186,186)
+    #     else:
+    #         color = (255,255,255)
+    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
+    #     cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+    #     cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
+    #     #self.update_display()
 
 
 class ImageArrayDisplayWindow(QMainWindow):
@@ -3730,6 +3795,7 @@ class ScanCoordinates(object):
 
     def get_selected_wells(self):
         # get selected wells from the widget
+        print("getting selected wells for acquisition")
         if not self.well_selector:
             return False
         selected_wells = self.well_selector.get_selected_cells()
