@@ -46,12 +46,13 @@ import subprocess
 
 
 class ObjectiveStore:
-    def __init__(self, objectives_dict=OBJECTIVES, default_objective=DEFAULT_OBJECTIVE):
+    def __init__(self, objectives_dict=OBJECTIVES, default_objective=DEFAULT_OBJECTIVE, parent=None):
         self.objectives_dict = objectives_dict
         self.default_objective = default_objective
         self.current_objective = default_objective
         self.tube_lens_mm = TUBE_LENS_MM
         self.sensor_pixel_size_um = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
+        self.pixel_binning = self.get_pixel_binning()
         self.pixel_size_um = self.calculate_pixel_size(self.current_objective)
 
     def get_pixel_size(self):
@@ -62,6 +63,7 @@ class ObjectiveStore:
         magnification = objective["magnification"]
         objective_tube_lens_mm = objective["tube_lens_f_mm"]
         pixel_size_um = self.sensor_pixel_size_um / (magnification / (objective_tube_lens_mm / self.tube_lens_mm)) 
+        pixel_size_um *= self.pixel_binning
         return pixel_size_um
 
     def set_current_objective(self, objective_name):
@@ -73,6 +75,17 @@ class ObjectiveStore:
 
     def get_current_objective_info(self):
         return self.objectives_dict[self.current_objective]
+
+    def get_pixel_binning(self):
+        try:
+            highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
+            resolution = self.parent.camera.resolution
+            pixel_binning = max(1, highest_res[0] / resolution[0])
+            # pixel_binning_x = max(1, highest_res[0] / resolution[0])
+            # pixel_binning_y = max(1, highest_res[1] / resolution[1])
+        except AttributeError:
+            pixel_binning = 1
+        return pixel_binning
 
 class StreamHandler(QObject):
 
@@ -777,38 +790,18 @@ class NavigationController(QObject):
 
     def move_from_click(self, click_x, click_y, image_width, image_height):
         if self.click_to_move:
-            pixel_size_um = self.objectiveStore.pixel_size_um
-            #pixel_binning_x, pixel_binning_y = self.get_pixel_binning()
-            #pixel_size_x = pixel_size_um * pixel_binning_x
-            #pixel_size_y = pixel_size_um * pixel_binning_y
+            pixel_size_um = self.objectiveStore.get_pixel_size()
 
             pixel_sign_x = 1
             pixel_sign_y = 1 if INVERTED_OBJECTIVE else -1
 
-            #delta_x = pixel_sign_x * pixel_size_x * click_x / 1000.0
-            #delta_y = pixel_sign_y * pixel_size_y * click_y / 1000.0
             delta_x = pixel_sign_x * pixel_size_um * click_x / 1000.0
             delta_y = pixel_sign_y * pixel_size_um * click_y / 1000.0
-
-            if not IS_HCS:
-                delta_x /= 2
-                delta_y /= 2
 
             self.move_x(delta_x)
             self.microcontroller.wait_till_operation_is_completed()
             self.move_y(delta_y)
             self.microcontroller.wait_till_operation_is_completed()
-
-    def get_pixel_binning(self):
-        try:
-            highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
-            resolution = self.parent.camera.resolution
-            pixel_binning_x = max(1, highest_res[0] / resolution[0])
-            pixel_binning_y = max(1, highest_res[1] / resolution[1])
-        except AttributeError:
-            pixel_binning_x = 1
-            pixel_binning_y = 1
-        return pixel_binning_x, pixel_binning_y
 
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
@@ -1310,6 +1303,7 @@ class AutofocusWorker(QObject):
             self.wait_till_operation_is_completed()
 
         steps_moved = 0
+        # start from bottom, current z is center
         for i in range(self.N):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
@@ -1637,7 +1631,7 @@ class MultiPointWorker(QObject):
 
         self.t_dpc = []
         self.t_inf = []
-        self.t_over=[]
+        self.t_over = []
 
         self.tiled_preview = None
         
@@ -1661,7 +1655,7 @@ class MultiPointWorker(QObject):
 
         if self.multiPointController.location_list is None:
             # use scanCoordinates for well plates or regular multipoint scan
-            if self.multiPointController.scanCoordinates!=None and self.multiPointController.scanCoordinates.get_selected_wells():
+            if self.multiPointController.scanCoordinates is not None and self.multiPointController.scanCoordinates.get_selected_wells():
                 # use scan coordinates for the scan
                 self.scan_coordinates_mm = self.multiPointController.scanCoordinates.coordinates_mm
                 self.scan_coordinates_name = self.multiPointController.scanCoordinates.name
@@ -1671,6 +1665,7 @@ class MultiPointWorker(QObject):
                 self.scan_coordinates_mm = [(self.navigationController.x_pos_mm,self.navigationController.y_pos_mm)]
                 self.scan_coordinates_name = ['']
                 self.use_scan_coordinates = False
+                # self.use_scan_coordinates = True
         else:
             # use location_list specified by the multipoint controlller
             self.scan_coordinates_mm = self.multiPointController.location_list
@@ -1743,26 +1738,36 @@ class MultiPointWorker(QObject):
 
         for coordinate_id in range(n_regions):
 
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            print(coordiante_mm)
+            coordinate_mm = self.scan_coordinates_mm[coordinate_id]
+            print(coordinate_mm)
 
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
                 coordiante_name = str(coordinate_id)
             else:
                 coordiante_name = self.scan_coordinates_name[coordinate_id]
-            
-            if self.use_scan_coordinates:
-                # move to the specified coordinate
-                self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
-                self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+
+            if self.use_scan_coordinates: # move to the specified coordinate (top left of grid)
+                # Calculate grid size
+                grid_size_x_mm = (self.NX - 1) * self.deltaX
+                grid_size_y_mm = (self.NY - 1) * self.deltaY
+
+                # Calculate top-left corner position
+                start_x = coordinate_mm[0] - grid_size_x_mm / 2
+                start_y = coordinate_mm[1] - grid_size_y_mm / 2
+
+                # Move to the top-left corner
+                self.navigationController.move_x_to(start_x)
+                self.navigationController.move_y_to(start_y)
+                # self.navigationController.move_x_to(coordinate_mm[0]-self.deltaX*(self.NX-1)/2)
+                # self.navigationController.move_y_to(coordinate_mm[1]-self.deltaY*(self.NY-1)/2)
                 # check if z is included in the coordinate
-                if len(coordiante_mm) == 3:
-                    if coordiante_mm[2] >= self.navigationController.z_pos_mm:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                if len(coordinate_mm) == 3:
+                    if coordinate_mm[2] >= self.navigationController.z_pos_mm:
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                     else:
-                        self.navigationController.move_z_to(coordiante_mm[2])
+                        self.navigationController.move_z_to(coordinate_mm[2])
                         self.wait_till_operation_is_completed()
                         # remove backlash
                         if self.navigationController.get_pid_control_flag(2) is False:
@@ -1774,7 +1779,7 @@ class MultiPointWorker(QObject):
                 else:
                     self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                if len(coordiante_mm) == 3:
+                if len(coordinate_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
                 coordiante_name = coordiante_name + '_'
@@ -1811,12 +1816,21 @@ class MultiPointWorker(QObject):
                 # along x
                 for j in range(self.NX):
 
+                    # Ensure that i/y-indexing is always top to bottom
+                    sgn_i = -1 if self.deltaY >= 0 else 1
+                    sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
+                    sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
+
+                    real_i = self.NY-1-i if sgn_i == -1 else i
+                    real_j = self.NX-1-j if sgn_j == -1 else j
+
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
                         multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
 
-                    else:
+                    # scan image if not skipped grid position
+                    elif self.multiPointController.scanCoordinates is not None and (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
 
                         # autofocus
                         if self.do_reflection_af == False:
@@ -1831,7 +1845,7 @@ class MultiPointWorker(QObject):
                                     self.autofocusController.autofocus()
                                     self.autofocusController.wait_till_autofocus_has_completed()
                                 # upate z location of scan_coordinates_mm after AF
-                                if len(coordiante_mm) == 3:
+                                if len(coordinate_mm) == 3:
                                     self.scan_coordinates_mm[coordinate_id,2] = self.navigationController.z_pos_mm
                                     # update the coordinate in the widget
                                     try:
@@ -1880,16 +1894,8 @@ class MultiPointWorker(QObject):
 
                         # z-stack
                         for k in range(self.NZ):
-                            
-                            # Ensure that i/y-indexing is always top to bottom
-                            sgn_i = -1 if self.deltaY >= 0 else 1
-                            sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
-                            sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
 
-                            real_i = self.NY-1-i if sgn_i == -1 else i
-                            real_j = self.NX-1-j if sgn_j == -1 else j
-
-                            file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
+                            file_ID = coordiante_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
                             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             print("scan coordinate:", metadata)
                             # metadata = json.dumps(metadata)
@@ -2125,7 +2131,7 @@ class MultiPointWorker(QObject):
                                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
                                 # populate the tiled_preview
-                                self.tiled_preview[(self.NY-real_i-1)*height:(self.NY-real_i)*height, real_j*width:(real_j+1)*width, ] = I
+                                self.tiled_preview[real_i*height:(real_i+1)*height, real_j*width:(real_j+1)*width, ] = I
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
@@ -2242,6 +2248,9 @@ class MultiPointWorker(QObject):
 
                         # update FOV counter
                         self.FOV_counter = self.FOV_counter + 1
+
+                    else: # skip current grid position for this acquisition
+                        print(f"skipping grid position ({real_i}, {real_j})")
 
                     if self.NX > 1:
                         # move x
@@ -2433,12 +2442,12 @@ class MultiPointController(QObject):
                 acquisition_parameters['objective']['name']=DEFAULT_OBJECTIVE
             except:
                 pass
+        # TODO: USE OBJECTIVE STORE DATA
         acquisition_parameters['sensor_pixel_size_um'] = CAMERA_PIXEL_SIZE_UM[CAMERA_SENSOR]
         acquisition_parameters['tube_lens_mm'] = TUBE_LENS_MM
         f = open(os.path.join(self.base_path,self.experiment_ID)+"/acquisition parameters.json","w")
         f.write(json.dumps(acquisition_parameters))
         f.close()
-
 
     def set_selected_configurations(self, selected_configurations_name):
         self.selected_configurations = []
@@ -3236,10 +3245,11 @@ class NavigationViewer(QFrame):
         self.update_fov_size()
 
     def update_fov_size(self):
-        self.fov_size_mm = self.acquisition_size * self.objectiveStore.get_pixel_size() / 1000
+        pixel_size_um = self.objectiveStore.get_pixel_size()
+        self.fov_size_mm = self.acquisition_size * pixel_size_um / 1000
 
     def on_objective_changed(self):
-        self.clear_slide()
+        # self.clear_slide()
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
             self.draw_current_fov(self.x_mm, self.y_mm)
@@ -3593,16 +3603,20 @@ class PlateReaderNavigationController(QObject):
     def home_y(self):
         self.microcontroller.home_y()
 
+
 class ScanCoordinates(object):
     def __init__(self):
         self.coordinates_mm = []
         self.name = []
         self.well_selector = None
+        self.format = WELLPLATE_FORMAT
         self.a1_x_mm = A1_X_MM
         self.a1_y_mm = A1_Y_MM
         self.wellplate_offset_x_mm = WELLPLATE_OFFSET_X_mm
         self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
         self.well_spacing_mm = WELL_SPACING_MM
+        self.well_size_mm = WELL_SIZE_MM
+        self.grid_skip_positions = []
 
     def _index_to_row(self,index):
         index += 1
@@ -3628,6 +3642,8 @@ class ScanCoordinates(object):
 
     def get_selected_wells(self):
         # get selected wells from the widget
+        if not self.well_selector:
+            return False
         selected_wells = self.well_selector.get_selected_cells()
         selected_wells = np.array(selected_wells)
         # clear the previous selection
@@ -3652,6 +3668,97 @@ class ScanCoordinates(object):
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
         return len(selected_wells) # if wells selected
+
+    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, navigationController=None):
+        self.grid_skip_positions = []
+        pixel_size_um = objectiveStore.get_pixel_size()
+
+        if self.format != 0 and self.well_selector:
+            # Case 1: Well plate selected
+            if self.format <= 96:
+                return self._create_wellplate_circle(pixel_size_um, overlap_percent)
+            else:
+                return self._create_wellplate_grid(pixel_size_um, overlap_percent)
+        else:
+            # Case 2: No well selected or using glass slide
+            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent, navigationController)
+
+    def _create_wellplate_grid(self, pixel_size_um, overlap_percent):
+        # Calculate field of view size in mm
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+
+        # Calculate step size with exact overlap
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
+        # Calculate number of steps to cover the well
+        steps = math.floor(self.well_size_mm / step_size_mm)
+
+        actual_scan_size_mm = steps * step_size_mm
+        print("well size mm", self.well_size_mm)
+        print("actual scan size mm", actual_scan_size_mm)
+
+        return steps, step_size_mm
+
+    def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
+        # Calculate field of view size in mm
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+
+        # Calculate step size with exact overlap
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
+        # Calculate radius
+        radius = self.well_size_mm / 2
+
+        # Calculate number of steps to cover the diameter
+        steps = math.floor(self.well_size_mm / step_size_mm)
+
+        if steps <= 1:
+            return 1, step_size_mm
+
+        actual_scan_size_mm = steps * step_size_mm
+        print("well size mm", self.well_size_mm)
+        print("actual scan size mm", actual_scan_size_mm)
+
+        self.grid_skip_positions = []
+
+        for i in range(steps):
+            for j in range(steps):
+                # Calculate the center position of the FOV relative to well center
+                center_y = (i - (steps - 1) / 2) * step_size_mm
+                center_x = (j - (steps - 1) / 2) * step_size_mm
+
+                # Calculate distances to all four corners of the FOV
+                corners = [
+                    (center_x - fov_size_mm / 2, center_y - fov_size_mm / 2),  # Top-left
+                    (center_x + fov_size_mm / 2, center_y - fov_size_mm / 2),  # Top-right
+                    (center_x - fov_size_mm / 2, center_y + fov_size_mm / 2),  # Bottom-left
+                    (center_x + fov_size_mm / 2, center_y + fov_size_mm / 2)   # Bottom-right
+                ]
+
+                # Check if any corner is outside the well
+                if any(math.sqrt(x*x + y*y) > radius for x, y in corners):
+                    self.grid_skip_positions.append((i, j))
+                    print(f"skipping {i}, {j}")
+
+        return steps, step_size_mm
+
+
+    def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent, navigationController):
+        # Calculate field of view size in mm
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+
+        # Calculate step size with exact overlap
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
+        # Calculate number of steps to cover at least the minimum scan size
+        steps = math.ceil(scan_size_mm / step_size_mm)
+
+        # Calculate actual scan size (which may be larger than the minimum)
+        actual_scan_size_mm = steps * step_size_mm
+        print("minimum scan size mm", scan_size_mm)
+        print("actual scan size mm", actual_scan_size_mm)
+    
+        return steps, step_size_mm
 
 
 class LaserAutofocusController(QObject):
