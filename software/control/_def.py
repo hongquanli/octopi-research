@@ -349,14 +349,14 @@ class PLATE_READER:
 DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
-OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180}, 
-                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180}, 
-                '10x':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':180}, 
+OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
+                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
+                '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
                 '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
-                '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
-                '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
-                '20x':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180}, 
-                '40x':{'magnification':40, 'NA':0.6, 'tube_lens_f_mm':180}}
+                '20x (Nikon)':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':200},
+                '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
+                '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
+                '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
 DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
@@ -434,17 +434,7 @@ Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
 WELLPLATE_FORMAT = 384
-
-# for 384 well plate
 DEFAULT_Z_POS_MM = 2
-NUMBER_OF_SKIP_384 = 1
-A1_X_MM_384_WELLPLATE = 12.05
-A1_Y_MM_384_WELLPLATE = 9.05
-WELL_SPACING_MM_384_WELLPLATE = 4.5
-WELL_SIZE_MM_384_WELLPLATE = 3.3
-# B1 upper left corner in piexel: x = 124, y = 141
-# B1 upper left corner in mm: x = 12.13 mm - 3.3 mm/2, y = 8.99 mm + 4.5 mm - 3.3 mm/2
-# B2 upper left corner in pixel: x = 177, y = 141
 
 WELLPLATE_OFFSET_X_mm = 0 # x offset adjustment for using different plates
 WELLPLATE_OFFSET_Y_mm = 0 # y offset adjustment for using different plates
