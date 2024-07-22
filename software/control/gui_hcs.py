@@ -691,6 +691,8 @@ class OctopiGUI(QMainWindow):
         is_multipoint = (index == self.recordTabWidget.indexOf(self.multiPointWidget))
         is_scan_grid = (index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
         self.toggleWellSelector((is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0)
+        if is_scan_grid:
+            self.wellSelectionWidget.onSelectionChanged()
         try:
             if ENABLE_STITCHER:
                 self.toggleStitcherWidget(acquisitionWidget.checkbox_stitchOutput.isChecked())

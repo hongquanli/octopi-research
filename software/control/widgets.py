@@ -2727,8 +2727,114 @@ class MultiPointWidgetGrid(QFrame):
         else:
             self.entry_scan_size.setEnabled(True)
 
-    def set_well_selected(self, selected):
+    def set_well_coordinates(self, selected):
         self.well_selected = selected
+
+        if self.multipointController.parent.recordTabWidget.currentWidget() == self and self.well_selected and self.scanCoordinates.get_selected_wells():
+            
+            # Store current regions to check for removals
+            current_regions = set(self.region_coordinates.keys())
+            
+            for well_id, (x, y) in zip(self.scanCoordinates.name, self.scanCoordinates.coordinates_mm):
+                if well_id not in self.region_coordinates:
+                    # Add new region
+                    self.add_region(well_id, x, y)
+                else:
+                    # Region already exists, remove from current_regions
+                    current_regions.remove(well_id)
+            
+            # Remove regions that are no longer selected
+            for well_id in current_regions:
+                self.remove_region(well_id)
+            
+            self.signal_update_navigation_viewer.emit()
+            self.navigationViewer.update_current_location()
+            print(f"Updated region coordinates: {len(self.region_coordinates)} wells")
+        else:
+            self.clear_regions()
+
+    def add_region(self, well_id, x, y):
+        z = self.navigationController.z_pos_mm  # Get current Z position
+        self.region_coordinates[well_id] = (float(x), float(y), float(z))
+        
+        scan_coordinates = self.create_region_coordinates(
+            self.objectiveStore,
+            self.entry_scan_size.value(),
+            self.entry_overlap.value(),
+            x, y,
+            self.combobox_shape.currentText()
+        )
+        self.region_coordinates_map[well_id] = scan_coordinates
+        
+        print(f"Added Region: {well_id} - x={x:.3f}, y={y:.3f}, z={z:.3f}")
+        print("Size:", self.entry_scan_size.value())
+        print("Shape:", self.combobox_shape.currentText())
+        print("# fovs in region:", len(scan_coordinates))
+
+    def remove_region(self, well_id):
+        if well_id in self.region_coordinates:
+            del self.region_coordinates[well_id]
+            
+            if well_id in self.region_coordinates_map:
+                region_scan_coordinates = self.region_coordinates_map.pop(well_id)
+                for coord in region_scan_coordinates:
+                    self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
+            
+            print(f"Removed region: {well_id}")
+
+    def clear_regions(self):
+        for well_id in list(self.region_coordinates.keys()):
+            self.remove_region(well_id)
+        self.region_coordinates.clear()
+        self.region_coordinates_map.clear()
+        self.navigationViewer.update_current_location()
+        print("Cleared all regions")
+
+    def create_region_coordinates(self, objectiveStore, scan_size_mm, overlap_percent, center_x, center_y, shape):
+        pixel_size_um = objectiveStore.get_pixel_size()
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+        # if shape == 'Circle':
+        #     steps = math.ceil(scan_size_mm / step_size_mm)
+        # else:
+        #     steps = math.floor(scan_size_mm / step_size_mm)
+        steps = math.floor(scan_size_mm / step_size_mm)
+        print("steps:", steps, "step_size_mm:", step_size_mm)
+        actual_scan_size_mm = steps * step_size_mm
+        print("scan size mm:", scan_size_mm)
+        print("actual scan size mm:", actual_scan_size_mm)
+        
+        scan_coordinates = []
+        for i in range(steps):
+            row = []
+            for j in range(steps):
+                x = center_x + (j - (steps - 1) / 2) * step_size_mm
+                y = center_y + (i - (steps - 1) / 2) * step_size_mm
+                if shape == 'Square':
+                    row.append((x, y))
+                    self.navigationViewer.register_fov_to_image(x,y)
+                elif shape == 'Circle':
+                    radius = scan_size_mm / 2
+                    x_rel = (j - (steps - 1) / 2) * step_size_mm
+                    y_rel = (i - (steps - 1) / 2) * step_size_mm
+                    corners = [
+                        (x_rel - fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-left
+                        (x_rel + fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-right
+                        (x_rel - fov_size_mm / 2, y_rel + fov_size_mm / 2),  # Bottom-left
+                        (x_rel + fov_size_mm / 2, y_rel + fov_size_mm / 2)   # Bottom-right
+                    ]
+                    if all(math.sqrt(cx**2 + cy**2) <= radius for cx, cy in corners):
+                        row.append((x, y))
+                        self.navigationViewer.register_fov_to_image(x,y) ### if show full grid 
+                else:
+                    raise ValueError(f"Unsupported shape: {shape}. Choose 'Square' or 'Circle'.")
+            
+            if i % 2 == 1:  # Reverse every other row
+                row.reverse()
+            
+            scan_coordinates.extend(row)
+        self.signal_update_navigation_viewer.emit()
+        return scan_coordinates
 
     def toggle_acquisition(self, pressed):
         if not self.base_path_is_set:
