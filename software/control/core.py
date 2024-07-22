@@ -3363,6 +3363,7 @@ class NavigationViewer(QFrame):
 
     def on_objective_changed(self):
         # self.clear_slide()
+        self.scan_overlay_item.setImage(self.scan_overlay)
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
             self.draw_current_fov(self.x_mm, self.y_mm)

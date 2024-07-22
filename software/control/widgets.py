@@ -2751,7 +2751,7 @@ class MultiPointWidgetGrid(QFrame):
             
     def set_well_coordinates(self, selected):
         self.well_selected = selected
-        if self.well_selected and self.scanCoordinates.get_selected_wells():
+        if self.multipointController.parent.recordTabWidget.currentWidget() == self and self.well_selected and self.scanCoordinates.get_selected_wells():
             
             # Store current regions to check for removals
             current_regions = set(self.region_coordinates.keys())
@@ -2815,10 +2815,11 @@ class MultiPointWidgetGrid(QFrame):
         pixel_size_um = objectiveStore.get_pixel_size()
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        if shape == 'Circle':
-            steps = math.ceil(scan_size_mm / step_size_mm)
-        else:
-            steps = math.floor(scan_size_mm / step_size_mm)
+        # if shape == 'Circle':
+        #     steps = math.ceil(scan_size_mm / step_size_mm)
+        # else:
+        #     steps = math.floor(scan_size_mm / step_size_mm)
+        steps = math.floor(scan_size_mm / step_size_mm)
         print("steps:", steps, "step_size_mm:", step_size_mm)
         actual_scan_size_mm = steps * step_size_mm
         print("scan size mm:", scan_size_mm)
