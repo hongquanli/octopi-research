@@ -1877,7 +1877,7 @@ class MultiPointWorker(QObject):
                         self.acquire_at_position(region_id, current_path, real_i, real_j)
 
                     if self.multiPointController.abort_acqusition_requested:
-                        self.handle_acquisition_abort(current_path)
+                        self.handle_acquisition_abort(current_path, region_id)
                         return
 
                     if j < self.NX - 1:
@@ -1899,7 +1899,7 @@ class MultiPointWorker(QObject):
                 self.acquire_at_position(region_id, current_path)
 
                 if self.multiPointController.abort_acqusition_requested:
-                    self.handle_acquisition_abort(current_path)
+                    self.handle_acquisition_abort(current_path, region_id)
                     return
 
     def acquire_at_position(self, region_id, current_path, i=None, j=None):
@@ -1950,7 +1950,7 @@ class MultiPointWorker(QObject):
 
             # check if the acquisition should be aborted
             if self.multiPointController.abort_acqusition_requested:
-                self.handle_acquisition_abort(current_path)
+                self.handle_acquisition_abort(current_path, region_id)
                 return
 
             # update FOV counter
@@ -2224,7 +2224,7 @@ class MultiPointWorker(QObject):
         file_name = file_ID + '_BF_LED_matrix_full_RGB' + ('.tiff' if rgb_image.dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
         iio.imwrite(os.path.join(current_path, file_name), rgb_image)
 
-    def handle_acquisition_abort(self, current_path):
+    def handle_acquisition_abort(self, current_path, region_id=0):
 
         if self.coordinate_dict is None:
             self.liveController.turn_off_illumination()
@@ -2243,7 +2243,7 @@ class MultiPointWorker(QObject):
                 self.navigationController.move_z_usteps(-self.dz_usteps)
                 self.wait_till_operation_is_completed()
         else:
-            self.move_to_coordinate(self.scan_coordinates_mm[0])
+            self.move_to_coordinate(self.scan_coordinates_mm[region_id])
 
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
@@ -2505,7 +2505,7 @@ class MultiPointController(QObject):
     def run_acquisition(self, location_list=None, coordinate_dict=None):
         print('start multipoint')
         
-        if coordinate_dict:
+        if coordinate_dict is not None:
             print('Using coordinate-based acquisition')
             print(f"Number of regions: {len(coordinate_dict)}")
             total_points = sum(len(coords) for coords in coordinate_dict)
@@ -2518,7 +2518,7 @@ class MultiPointController(QObject):
             self.use_scan_coordinates = False
             self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = None # list(coordinate_dict.keys()) if not wellplate
-        elif location_list:
+        elif location_list is not None:
             print('Using location list acquisition')
             print(f"Number of locations: {len(location_list)}")
             print("Location list:")
@@ -3266,6 +3266,8 @@ class ImageDisplayWindow(QMainWindow):
 
 class NavigationViewer(QFrame):
 
+    signal_draw_scan_grid = Signal(float, float)
+
     def __init__(self, objectivestore, sample = 'glass slide', invertX = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -3284,6 +3286,7 @@ class NavigationViewer(QFrame):
         self.acquisition_size = Acquisition.CROP_HEIGHT
         self.x_mm = None
         self.y_mm = None
+        self.acquisition_started = False
 
         print("navigation viewer:", sample)
         self.init_ui(invertX)
@@ -3300,12 +3303,6 @@ class NavigationViewer(QFrame):
 
         self.view = self.graphics_widget.addViewBox(invertX=invertX, invertY=True)
         self.view.setAspectLocked(True)
-         # self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True)
-        # ## lock the aspect ratio so pixels are always square
-        # self.graphics_widget.view.setAspectLocked(True)
-        # ## Create image item
-        # self.graphics_widget.img = pg.ImageItem(border='w')
-        # self.graphics_widget.view.addItem(self.graphics_widget.img)
 
         self.grid = QVBoxLayout()
         self.grid.addWidget(self.graphics_widget)
@@ -3321,6 +3318,7 @@ class NavigationViewer(QFrame):
             '384 well plate': 'images/384 well plate_1509x1010.png',
             '1536 well plate': 'images/1536 well plate_1509x1010.png'
         }
+        self.view.clear()
         self.background_image = cv2.imread(image_paths.get(sample, 'images/slide carrier_828x662.png'))
         if len(self.background_image.shape) == 2:  # Grayscale image
             self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_GRAY2RGBA)
@@ -3362,12 +3360,15 @@ class NavigationViewer(QFrame):
         self.fov_size_mm = self.acquisition_size * pixel_size_um / 1000
 
     def on_objective_changed(self):
-        # self.clear_slide()
-        self.scan_overlay_item.setImage(self.scan_overlay)
+        self.clear_overlay()
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
+            if self.sample == 'glass slide':
+                self.signal_draw_scan_grid.emit(self.x_mm, self.y_mm)
             self.draw_current_fov(self.x_mm, self.y_mm)
- #           self.update_display()
+
+    def on_acquisition_start(self, acquisition_started):
+        self.acquisition_started = acquisition_started
 
     def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
         if sample_format == 0:
@@ -3389,18 +3390,27 @@ class NavigationViewer(QFrame):
 
     def update_current_location(self, x_mm=None, y_mm=None):
         if x_mm is None and y_mm is None:
+            print("update old loc")
             self.draw_current_fov(self.x_mm, self.y_mm)
 
         elif self.x_mm is not None and self.y_mm is not None:
             # update only when the displacement has exceeded certain value
             if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
+                print("update new loc")
                 self.draw_current_fov(x_mm, y_mm)
                 self.x_mm = x_mm
                 self.y_mm = y_mm
+                # update_live_scan_grid
+                if self.sample == 'glass slide' and not self.acquisition_started:
+                    self.signal_draw_scan_grid.emit(x_mm, y_mm)
         else:
+            print("update first loc")
             self.draw_current_fov(x_mm, y_mm)
             self.x_mm = x_mm
             self.y_mm = y_mm
+            # update_live_scan_grid
+            if self.sample == 'glass slide' and not self.acquisition_started:
+                self.signal_draw_scan_grid.emit(x_mm, y_mm)
 
     def get_FOV_pixel_coordinates(self, x_mm, y_mm):
         if self.sample == 'glass slide':
@@ -3465,40 +3475,9 @@ class NavigationViewer(QFrame):
         self.scan_overlay_item.setImage(self.scan_overlay)
         self.fov_overlay_item.setImage(self.fov_overlay)
 
-    # def draw_current_fov(self,x_mm,y_mm):
-    #     self.current_image_display = np.copy(self.current_image)
-    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-    #     cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
-
-    # def update_display(self):
-    #     self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)
-
-    # def clear_slide(self):
-    #     self.current_image = np.copy(self.background_image)
-    #     self.current_image_display = np.copy(self.background_image)
-    #     self.update_display()
-
-    # def register_fov(self,x_mm,y_mm):
-    #     color = (0,0,255)
-    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-    #     cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-
-    # def register_fov_to_image(self,x_mm,y_mm):
-    #     color = (252,174,30)
-    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-    #     cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-    #     cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-    #     #self.update_display()
-
-    # def deregister_fov_to_image(self,x_mm,y_mm):
-    #     if self.sample == 'glass slide':
-    #         color = (186,186,186)
-    #     else:
-    #         color = (255,255,255)
-    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm,y_mm)
-    #     cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-    #     cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-    #     #self.update_display()
+    def clear_overlay(self):
+        self.scan_overlay.fill(0)
+        self.scan_overlay_item.setImage(self.scan_overlay)
 
 
 class ImageArrayDisplayWindow(QMainWindow):
@@ -3797,7 +3776,7 @@ class ScanCoordinates(object):
     def get_selected_wells(self):
         # get selected wells from the widget
         print("getting selected wells for acquisition")
-        if not self.well_selector:
+        if not self.well_selector or self.format == 0:
             return False
         selected_wells = self.well_selector.get_selected_cells()
         selected_wells = np.array(selected_wells)
@@ -3824,19 +3803,17 @@ class ScanCoordinates(object):
             _increasing = not _increasing
         return len(selected_wells) # if wells selected
 
-    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10):
+    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, shape='Square'):
         self.grid_skip_positions = []
         pixel_size_um = objectiveStore.get_pixel_size()
-
-        if self.format != 0 and self.well_selector:
-            # Case 1: Well plate selected
-            if self.format <= 96:
+        if not IS_HCS:
+            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent)
+        else:
+            if shape == 'Circle':
                 return self._create_wellplate_circle(pixel_size_um, overlap_percent)
             else:
                 return self._create_wellplate_grid(pixel_size_um, overlap_percent)
-        else:
-            # Case 2: No well selected or using glass slide
-            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent)
+
 
     def _create_wellplate_grid(self, pixel_size_um, overlap_percent):
         # Calculate field of view size in mm

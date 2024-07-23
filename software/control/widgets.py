@@ -2533,7 +2533,7 @@ class MultiPointWidgetGrid(QFrame):
         self.base_path_is_set = False
         self.well_selected = False
         self.use_coordinate_acquisition = False
-        self.region_coordinates = {}  # Changed to dictionary
+        self.region_coordinates = {}
         self.region_coordinates_map = {}
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -2553,6 +2553,11 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_scan_size.setRange(0.1, 100)
         self.entry_scan_size.setValue(1)
         self.entry_scan_size.setSuffix(" mm")
+
+        self.entry_well_coverage = QDoubleSpinBox()
+        self.entry_well_coverage.setRange(1, 1000)
+        self.entry_well_coverage.setValue(100)
+        self.entry_well_coverage.setSuffix("%")
 
         self.entry_overlap = QDoubleSpinBox()
         self.entry_overlap.setRange(0, 99)
@@ -2605,38 +2610,14 @@ class MultiPointWidgetGrid(QFrame):
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
-        self.btn_startAcquisition = QPushButton('Start Acquisition')
-        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
-        self.btn_startAcquisition.setCheckable(True)
-
         # Add a checkbox for coordinate-based acquisition
         self.checkbox_useCoordinateAcquisition = QCheckBox('Coordinate Acquisition')
         self.checkbox_useCoordinateAcquisition.setChecked(self.use_coordinate_acquisition)
-        self.checkbox_useCoordinateAcquisition.stateChanged.connect(self.toggle_region_buttons)
+        self.checkbox_useCoordinateAcquisition.stateChanged.connect(lambda state: setattr(self, 'use_coordinate_acquisition', bool(state)))
 
         # Add a combo box for shape selection
-        self.shape_label = QLabel('Shape')
-        self.shape_label.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.combobox_shape = QComboBox()
         self.combobox_shape.addItems(['Square', 'Circle'])
-
-        # # Add components for coordinate-based acquisition
-        # self.btn_add_region = QPushButton('Add')
-        # self.btn_remove_region = QPushButton('Remove')
-        # self.btn_clear_regions = QPushButton('Clear')
-        # self.dropdown_region_list = QComboBox()
-
-        # # Hide coordinate acquisition components initially
-        # self.btn_add_region.setVisible(False)
-        # self.btn_remove_region.setVisible(False)
-        # self.btn_clear_regions.setVisible(False)
-        # self.dropdown_region_list.setVisible(False)
-
-        # # Connect coordinate buttons
-        # self.btn_add_region.clicked.connect(self.add_region_button)
-        # self.btn_remove_region.clicked.connect(self.remove_region_button)
-        # self.btn_clear_regions.clicked.connect(self.clear_regions_button)
-        # # self.dropdown_region_list.currentIndexChanged.connect(self.go_to_region)
 
         # Layout
         grid_line0 = QHBoxLayout()
@@ -2651,18 +2632,31 @@ class MultiPointWidgetGrid(QFrame):
         label_experiment_id.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         grid_line1.addWidget(label_experiment_id)
         grid_line1.addWidget(self.lineEdit_experimentID)
-
-        grid_line2 = QHBoxLayout()
+        # grid_line1.addWidget(self.shape_label)
+        # grid_line1.addWidget(self.combobox_shape)
         label_scan_size = QLabel('Scan Size')
         label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        grid_line1.addWidget(label_scan_size)
+        grid_line1.addWidget(self.entry_scan_size)
+
+        grid_line2 = QHBoxLayout()
+        # label_scan_size = QLabel('Scan Size')
+        # label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        label_well_coverage = QLabel('Well Coverage')
+        label_well_coverage.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         label_overlap = QLabel('Overlap')
         label_overlap.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        grid_line2.addWidget(label_scan_size)
-        grid_line2.addWidget(self.entry_scan_size)
+        # grid_line2.addWidget(label_scan_size)
+        # grid_line2.addWidget(self.entry_scan_size)
+        shape_label = QLabel('Scan Shape')
+        shape_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+        grid_line2.addWidget(shape_label)
+        grid_line2.addWidget(self.combobox_shape)
+
         grid_line2.addWidget(label_overlap)
         grid_line2.addWidget(self.entry_overlap)
-        grid_line2.addWidget(self.shape_label)
-        grid_line2.addWidget(self.combobox_shape)
+        grid_line2.addWidget(label_well_coverage)
+        grid_line2.addWidget(self.entry_well_coverage)
 
         grid_line3 = QHBoxLayout()
         label_dz = QLabel('dz (um)')
@@ -2681,13 +2675,6 @@ class MultiPointWidgetGrid(QFrame):
         grid_line3.addWidget(self.entry_dt)
         grid_line3.addWidget(label_nt)
         grid_line3.addWidget(self.entry_Nt)
-
-        # # Add coordinate acquisition components to the layout
-        # grid_coordinate = QHBoxLayout()
-        # grid_coordinate.addWidget(self.btn_add_region)
-        # grid_coordinate.addWidget(self.btn_remove_region)
-        # grid_coordinate.addWidget(self.btn_clear_regions)
-        # grid_coordinate.addWidget(self.dropdown_region_list)
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
@@ -2717,66 +2704,117 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
+        self.entry_scan_size.valueChanged.connect(self.update_well_coverage)
+        self.entry_well_coverage.valueChanged.connect(self.update_scan_size_from_coverage)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
+        self.navigationViewer.signal_draw_scan_grid.connect(self.set_live_scan_coordinates)
+        self.combobox_shape.currentTextChanged.connect(self.update_well_coordinates)
+        self.entry_scan_size.valueChanged.connect(self.update_well_coordinates)
+        self.entry_overlap.valueChanged.connect(self.update_well_coordinates)
 
         # Additional connections
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
 
-    def toggle_region_buttons(self, state):
-        self.use_coordinate_acquisition = bool(state)
-        # self.entry_scan_size.setEnabled(self.use_coordinate_acquisition)
-        # self.btn_add_region.setVisible(self.use_coordinate_acquisition)
-        # self.btn_remove_region.setVisible(self.use_coordinate_acquisition)
-        # self.btn_clear_regions.setVisible(self.use_coordinate_acquisition)
-        # self.dropdown_region_list.setVisible(self.use_coordinate_acquisition)
-
     def update_scan_size(self):
         if self.navigationViewer.sample == 'glass slide':
             self.entry_scan_size.setEnabled(True)
+            self.entry_well_coverage.setEnabled(False)
         else:
+            self.entry_well_coverage.setEnabled(True)
             if hasattr(self.scanCoordinates, 'well_size_mm'):
-                self.entry_scan_size.setValue(self.scanCoordinates.well_size_mm)
+                well_size = self.scanCoordinates.well_size_mm
+                self.entry_scan_size.setValue(well_size)
+                self.entry_well_coverage.setValue(100)
             elif hasattr(self.navigationViewer, 'well_size_mm'):
-                self.entry_scan_size.setValue(self.navigationViewer.well_size_mm)
+                well_size = self.navigationViewer.well_size_mm
+                self.entry_scan_size.setValue(well_size)
+                self.entry_well_coverage.setValue(100)
         self.set_default_shape()
 
+    def update_well_coverage(self):
+        if self.scanCoordinates.format != 0 and hasattr(self.scanCoordinates, 'well_size_mm'):
+            well_size = self.scanCoordinates.well_size_mm
+            scan_size = self.entry_scan_size.value()
+            coverage = (scan_size / well_size) * 100
+            self.entry_well_coverage.setValue(coverage)
+
+    def update_scan_size_from_coverage(self):
+        if hasattr(self.scanCoordinates, 'well_size_mm'):
+            well_size = self.scanCoordinates.well_size_mm
+            coverage = self.entry_well_coverage.value()
+            scan_size = (coverage / 100) * well_size
+            self.entry_scan_size.setValue(scan_size)
+
     def set_default_shape(self):
-        if self.scanCoordinates.format in [0, 384, 1536]:
+        if self.scanCoordinates.format in [384, 1536]:
             self.combobox_shape.setCurrentText('Square')
-        else:
+        elif self.scanCoordinates.format != 0:
             self.combobox_shape.setCurrentText('Circle')
             
     def set_well_coordinates(self, selected):
-        self.well_selected = selected
-        if self.multipointController.parent.recordTabWidget.currentWidget() == self and self.well_selected and self.scanCoordinates.get_selected_wells():
-            
-            # Store current regions to check for removals
-            current_regions = set(self.region_coordinates.keys())
-            
-            for well_id, (x, y) in zip(self.scanCoordinates.name, self.scanCoordinates.coordinates_mm):
-                if well_id not in self.region_coordinates:
-                    # Add new region
-                    self.add_region(well_id, x, y)
-                else:
-                    # Region already exists, remove from current_regions
-                    current_regions.remove(well_id)
-            
-            # Remove regions that are no longer selected
-            for well_id in current_regions:
-                self.remove_region(well_id)
+        self.well_selected = selected and bool(self.scanCoordinates.get_selected_wells())
+        print("well selected?", self.well_selected)
+        if hasattr(self.multipointController.parent, 'recordTabWidget') and self.multipointController.parent.recordTabWidget.currentWidget() == self:
+            if self.scanCoordinates.format == 0:
+                x = self.navigationController.x_pos_mm
+                y = self.navigationController.y_pos_mm
+                self.set_live_scan_coordinates(x, y)
+
+            elif self.well_selected:
+                # Get the set of currently selected well IDs
+                selected_well_ids = set(self.scanCoordinates.name)
+                
+                # Remove regions that are no longer selected
+                for well_id in list(self.region_coordinates.keys()):
+                    if well_id not in selected_well_ids:
+                        self.remove_region(well_id)
+                
+                # Add regions for selected wells
+                for well_id, (x, y) in zip(self.scanCoordinates.name, self.scanCoordinates.coordinates_mm):
+                    if well_id not in self.region_coordinates:
+                        self.add_region(well_id, x, y)
+                
+                self.signal_update_navigation_viewer.emit()
+                print(f"Updated region coordinates: {len(self.region_coordinates)} wells")
+
+            else:
+                print("Clear well coordinates")
+                self.clear_regions()
+
+    def update_well_coordinates(self):
+        if self.well_selected and self.multipointController.parent.recordTabWidget.currentWidget() == self:
+            if len(self.region_coordinates) > 0:
+                self.navigationViewer.clear_overlay()
+            for well_id, well_coord in self.region_coordinates.items():
+                self.add_region(well_id, well_coord[0], well_coord[1])
             
             self.signal_update_navigation_viewer.emit()
-            self.navigationViewer.update_current_location()
-            print(f"Updated region coordinates: {len(self.region_coordinates)} wells")
-        else:
-            self.clear_regions()
+            print(f"Updated region coordinates: {len(self.region_coordinates)} regions")
+        elif self.scanCoordinates.format == 0:
+            if self.scanCoordinates.format == 0:
+                x = self.navigationController.x_pos_mm
+                y = self.navigationController.y_pos_mm
+                self.set_live_scan_coordinates(x, y)
+
+
+    def set_live_scan_coordinates(self, x_mm, y_mm):
+        if self.scanCoordinates.format == 0 and self.multipointController.parent.recordTabWidget.currentWidget() == self:
+            if self.region_coordinates:
+                print("Clear live coordinates")
+                self.clear_regions()
+            else:
+                print("No live coordinates")
+            print("Add current location")
+            self.add_region('current', x_mm, y_mm)
 
     def add_region(self, well_id, x, y):
-        z = self.navigationController.z_pos_mm  # Get current Z position
-        self.region_coordinates[well_id] = (float(x), float(y), float(z))
+        z = self.navigationController.z_pos_mm
+        action = "Updated" if well_id in self.region_coordinates else "Added"
+        
+        self.region_coordinates[well_id] = [float(x), float(y), float(z)]
         
         scan_coordinates = self.create_region_coordinates(
             self.objectiveStore,
@@ -2787,7 +2825,7 @@ class MultiPointWidgetGrid(QFrame):
         )
         self.region_coordinates_map[well_id] = scan_coordinates
         
-        print(f"Added Region: {well_id} - x={x:.3f}, y={y:.3f}, z={z:.3f}")
+        print(f"{action} Region: {well_id} - x={x:.3f}, y={y:.3f}, z={z:.3f}")
         print("Size:", self.entry_scan_size.value())
         print("Shape:", self.combobox_shape.currentText())
         print("# fovs in region:", len(scan_coordinates))
@@ -2804,11 +2842,9 @@ class MultiPointWidgetGrid(QFrame):
             print(f"Removed region: {well_id}")
 
     def clear_regions(self):
-        for well_id in list(self.region_coordinates.keys()):
-            self.remove_region(well_id)
+        self.navigationViewer.clear_overlay()
         self.region_coordinates.clear()
         self.region_coordinates_map.clear()
-        self.navigationViewer.update_current_location()
         print("Cleared all regions")
 
     def create_region_coordinates(self, objectiveStore, scan_size_mm, overlap_percent, center_x, center_y, shape):
@@ -2820,6 +2856,7 @@ class MultiPointWidgetGrid(QFrame):
         # else:
         #     steps = math.floor(scan_size_mm / step_size_mm)
         steps = math.floor(scan_size_mm / step_size_mm)
+        steps = 1 if steps == 0 else steps
         print("steps:", steps, "step_size_mm:", step_size_mm)
         actual_scan_size_mm = steps * step_size_mm
         print("scan size mm:", scan_size_mm)
@@ -2854,6 +2891,7 @@ class MultiPointWidgetGrid(QFrame):
                 row.reverse()
             
             scan_coordinates.extend(row)
+        ("update nav viewer")
         self.signal_update_navigation_viewer.emit()
         return scan_coordinates
 
@@ -2907,7 +2945,8 @@ class MultiPointWidgetGrid(QFrame):
                 steps, step_size_mm = self.scanCoordinates.create_scan_grid(
                     self.objectiveStore,
                     scan_size_mm=scan_size_mm,
-                    overlap_percent=overlap_percent
+                    overlap_percent=overlap_percent,
+                    shape=self.combobox_shape.currentText()
                 )
                 Nx = Ny = steps
                 dx_mm = dy_mm = step_size_mm
@@ -2941,7 +2980,7 @@ class MultiPointWidgetGrid(QFrame):
             # Start acquisition
             if self.use_coordinate_acquisition:
                 self.multipointController.run_acquisition(
-                    location_list=list(self.region_coordinates.values()),
+                    location_list=self.region_coordinates,
                     coordinate_dict=self.region_coordinates_map
                 )
             else:
@@ -2960,7 +2999,7 @@ class MultiPointWidgetGrid(QFrame):
         for widget in self.findChildren(QWidget):
             if widget != self.btn_startAcquisition:
                 widget.setEnabled(enabled)
-        self.update_scan_size()  # Ensure scan size availability is correctly set
+        # self.update_scan_size()  # Ensure scan size availability is correctly set
 
     def set_saving_dir(self):
         dialog = QFileDialog()
@@ -2979,91 +3018,12 @@ class MultiPointWidgetGrid(QFrame):
         selected_channels = [item.text() for item in self.list_configurations.selectedItems()]
         self.signal_acquisition_channels.emit(selected_channels)
 
-    # # custom buttons?
-    # def disable_the_start_aquisition_button(self):
-    #     self.btn_startAcquisition.setEnabled(False)
-
-    # def enable_the_start_aquisition_button(self):
-    #     self.btn_startAcquisition.setEnabled(True)
-
-    # def add_region_button(self):
-    #     x = self.navigationController.x_pos_mm
-    #     y = self.navigationController.y_pos_mm
-    #     z = self.navigationController.z_pos_mm
-
-    #     if not any(np.allclose([x, y], coord[:2]) for coord in self.region_coordinates):
-    #         location_str = f'Region {len(self.region_coordinates)}: x: {x:.3f} mm, y: {y:.3f} mm, z: {z*1000:.1f} um'
-    #         self.dropdown_region_list.addItem(location_str)
-    #         self.dropdown_region_list.setCurrentIndex(self.dropdown_region_list.count() - 1)
-    #         self.region_coordinates.append([x, y, z])
-    #         # self.navigationViewer.register_fov_to_image(x, y) ### if show center
-
-    #         # Create scan coordinates for this region
-    #         scan_coordinates = self.create_region_coordinates(
-    #             self.objectiveStore,
-    #             self.entry_scan_size.value(),
-    #             self.entry_overlap.value(),
-    #             x, y,
-    #             self.combobox_shape.currentText()
-    #         )
-    #         self.navigationViewer.update_current_location()
-    #         self.region_coordinates_map.append(scan_coordinates)
-
-    #         print(f"Add Region: x={x:.3f}, y={y:.3f}, z={z:.3f}")
-    #         print("Size:", self.entry_scan_size.value())
-    #         print("Shape:", self.combobox_shape.currentText())
-    #         print("# fovs in region:", len(scan_coordinates))
-
-    #     else:
-    #         print("Duplicate region not added.")
-
-    # def remove_region_button(self):
-    #     if self.dropdown_region_list.count() > 0:
-    #         index = self.dropdown_region_list.currentIndex()
-    #         self.dropdown_region_list.removeItem(index)
-    #         self.region_coordinates.pop(index)
-    #         region_scan_coordinates = self.region_coordinates_map.pop(index)
-            
-    #         for coord in region_scan_coordinates:
-    #             self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
-            
-    #         self.update_dropdown_list()
-    #         self.navigationViewer.update_current_location()
-    #         print(f"Removed region at index: {index}")
-
-    # def clear_regions_button(self):
-    #     self.region_coordinates.clear()
-    #     self.region_coordinates_map.clear()
-    #     self.dropdown_region_list.clear()
-    #     self.navigationViewer.update_current_location()
-    #     print("Cleared all regions")
-
-    # def update_dropdown_list(self):
-    #     self.dropdown_region_list.clear()
-    #     for idx, (x, y, z) in enumerate(self.region_coordinates):
-    #         location_str = f'Region {idx} - x:{x:.3f}mm, y:{y:.3f}mm, z:{z*1000:.1f}um'
-    #         self.dropdown_region_list.addItem(location_str)
-
-    # def clear_viewer(self):
-    #     self.navigationViewer.clear_slide()
-    #     self.navigationViewer.update_current_location()
-
-    # def go_to_region(self, index):
-    #     if 0 <= index < len(self.region_coordinates):
-    #         x, y, z = self.region_coordinates[index]
-    #         self.navigationController.move_x_to(x)
-    #         self.navigationController.move_y_to(y)
-    #         self.navigationController.move_z_to(z)
-    #         print(f"Moved to region: {x:.3f}, {y:.3f}, {z:.3f}")
-
 
 class StitcherWidget(QFrame):
 
-    def __init__(self, configurationManager, *args, **kwargs): #multiPointWidget, multiPointWidget2,*args, **kwargs):
+    def __init__(self, configurationManager, *args, **kwargs):
         super(StitcherWidget, self).__init__(*args, **kwargs)
         self.configurationManager = configurationManager
-        #self.multiPointWidget = multiPointWidget
-        #self.multiPointWidget2 = self.MultiPointWidget2
         self.output_path = ""
         self.contrast_limits = None
 
@@ -4790,7 +4750,7 @@ class WellSelectionWidget(QTableWidget):
         self.a1_x_pixel = A1_X_PIXEL
         self.a1_y_pixel = A1_Y_PIXEL
         self.cellDoubleClicked.connect(self.onDoubleClick)
-        self.cellClicked.connect(self.onSingleClick)
+        # self.cellClicked.connect(self.onSingleClick)
         self.itemSelectionChanged.connect(self.onSelectionChanged)
         self.setFormat(format_)
 
@@ -4885,22 +4845,21 @@ class WellSelectionWidget(QTableWidget):
         else:
             self.signal_wellSelected.emit(False)
  
-    def onSingleClick(self,row,col):
-        print("single click well", row, col)
-        if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
-            self.signal_wellSelected.emit(True)
-        else:
-            self.signal_wellSelected.emit(False)
+    # def onSingleClick(self,row,col):
+    #     print("single click well", row, col)
+    #     if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
+    #         self.signal_wellSelected.emit(True)
+    #     else:
+    #         self.signal_wellSelected.emit(False)
 
     def onSelectionChanged(self):
         selected_cells = self.get_selected_cells()
         self.signal_wellSelected.emit(bool(selected_cells))
             
     def get_selected_cells(self):
-        print("getting selected wells...")
         list_of_selected_cells = []
+        print("getting selected cells...")
         if self.format == 0:
-            self.signal_wellSelected.emit(True)
             return list_of_selected_cells
         for index in self.selectedIndexes():
             row, col = index.row(), index.column()

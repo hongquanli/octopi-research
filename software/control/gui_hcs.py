@@ -555,7 +555,9 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
         if ENABLE_SCAN_GRID:
             self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
+            self.objectivesWidget.signal_objective_changed.connect(self.multiPointWidgetGrid.update_well_coordinates)
             self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_current_location)
+
 
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
@@ -666,6 +668,8 @@ class OctopiGUI(QMainWindow):
         self.toggleWellSelector((is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0)
         if is_scan_grid:
             self.wellSelectionWidget.onSelectionChanged()
+        else:
+            self.multiPointWidgetGrid.clear_regions()
         try:
             acquisitionWidget.emit_selected_channels()
         except AttributeError:
@@ -718,6 +722,7 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SCAN_GRID:
             self.multiPointWidgetGrid.update_scan_size()
             self.multiPointWidgetGrid.clear_regions()
+        self.wellSelectionWidget.onSelectionChanged()
 
     def toggleWellSelector(self, show):
         self.dock_wellSelection.setVisible(show)
@@ -731,6 +736,8 @@ class OctopiGUI(QMainWindow):
         is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
         if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0:
             self.toggleWellSelector(not acquisition_started)
+        if is_scan_grid:
+            self.navigationViewer.on_acquisition_start(acquisition_started)
         
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
