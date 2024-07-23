@@ -2855,12 +2855,14 @@ class MultiPointWidgetGrid(QFrame):
         pixel_size_um = objectiveStore.get_pixel_size()
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        # if shape == 'Circle':
-        #     steps = math.ceil(scan_size_mm / step_size_mm)
-        # else:
-        #     steps = math.floor(scan_size_mm / step_size_mm)
-        steps = math.floor(scan_size_mm / step_size_mm)
-        steps = 1 if steps == 0 else steps
+        
+        if shape == 'Circle':
+            tile_diagonal = math.sqrt(2) * fov_size_mm
+            steps = math.floor((scan_size_mm - tile_diagonal) / step_size_mm) + 1
+        else:
+            steps = math.floor(scan_size_mm / step_size_mm)
+        
+        steps = max(1, steps)  # Ensure at least one step
         print("steps:", steps, "step_size_mm:", step_size_mm)
         actual_scan_size_mm = steps * step_size_mm
         print("scan size mm:", scan_size_mm)
@@ -2895,6 +2897,12 @@ class MultiPointWidgetGrid(QFrame):
                 row.reverse()
             
             scan_coordinates.extend(row)
+
+        # Check if scan_coordinates is empty, and if so, add the center coordinate
+        if not scan_coordinates and shape == 'Circle':
+            scan_coordinates.append((center_x, center_y))
+            self.navigationViewer.register_fov_to_image(center_x, center_y)
+
         ("update nav viewer")
         self.signal_update_navigation_viewer.emit()
         return scan_coordinates
@@ -2907,10 +2915,16 @@ class MultiPointWidgetGrid(QFrame):
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
         
-        steps = math.floor(scan_size_mm / step_size_mm)
-        steps = 1 if steps == 0 else steps
-        actual_scan_size_mm = steps * step_size_mm
+        if shape == 'Circle':
+            # ensure corner inclusion
+            tile_diagonal = math.sqrt(2) * fov_size_mm
+            steps = math.floor((scan_size_mm - tile_diagonal) / step_size_mm) + 1
+        else:
+            steps = math.floor(scan_size_mm / step_size_mm)
         
+        steps = max(1, steps)  # Ensure at least one step
+        actual_scan_size_mm = (steps - 1) * step_size_mm + tile_diagonal
+
         print("fov_size_mm:", fov_size_mm)
         print("step_size_mm:", step_size_mm)
         print("scan size mm:", scan_size_mm)
@@ -2934,6 +2948,12 @@ class MultiPointWidgetGrid(QFrame):
                     if any(math.sqrt(cx**2 + cy**2) > radius for cx, cy in corners):
                         region_skip_positions.append((i, j))
                         print(f"skipping {i}, {j}")
+
+            # If all positions were skipped, clear the list and set steps to 1
+            if len(region_skip_positions) == steps * steps:
+                region_skip_positions.clear()
+                steps = 1
+                print("All positions were outside the circle. Reverting to single central position.")
         
         self.scanCoordinates.grid_skip_positions = region_skip_positions
         return steps, step_size_mm
