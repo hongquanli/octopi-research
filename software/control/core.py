@@ -81,8 +81,6 @@ class ObjectiveStore:
             highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
             resolution = self.parent.camera.resolution
             pixel_binning = max(1, highest_res[0] / resolution[0])
-            # pixel_binning_x = max(1, highest_res[0] / resolution[0])
-            # pixel_binning_y = max(1, highest_res[1] / resolution[1])
         except AttributeError:
             pixel_binning = 1
         return pixel_binning
@@ -704,6 +702,7 @@ class NavigationController(QObject):
     xPos = Signal(float)
     yPos = Signal(float)
     zPos = Signal(float)
+    new_zPos_mm = Signal(float)
     thetaPos = Signal(float)
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
@@ -833,19 +832,8 @@ class NavigationController(QObject):
     def move_z(self,delta):
         self.microcontroller.move_z_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
 
-    #def move_x_to(self,delta):
-    #    self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
-    def move_x_to(self, delta):
-        try:
-            delta = float(delta)
-            usteps = STAGE_MOVEMENT_SIGN_X * int(delta / (SCREW_PITCH_X_MM / (self.x_microstepping * FULLSTEPS_PER_REV_X)))
-            self.microcontroller.move_x_to_usteps(usteps)
-        except ValueError as e:
-            print(f"Error in move_x_to: {e}")
-            print(f"delta: {delta}, type: {type(delta)}")
-            print(f"SCREW_PITCH_X_MM: {SCREW_PITCH_X_MM}, type: {type(SCREW_PITCH_X_MM)}")
-            print(f"self.x_microstepping: {self.x_microstepping}, type: {type(self.x_microstepping)}")
-            print(f"FULLSTEPS_PER_REV_X: {FULLSTEPS_PER_REV_X}, type: {type(FULLSTEPS_PER_REV_X)}")
+    def move_x_to(self,delta):
+        self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
 
     def move_y_to(self,delta):
         self.microcontroller.move_y_to_usteps(STAGE_MOVEMENT_SIGN_Y*int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
@@ -1316,7 +1304,6 @@ class AutofocusWorker(QObject):
             self.wait_till_operation_is_completed()
 
         steps_moved = 0
-        # start from bottom, current z is center
         for i in range(self.N):
             self.navigationController.move_z_usteps(self.deltaZ_usteps)
             self.wait_till_operation_is_completed()
@@ -1677,26 +1664,29 @@ class MultiPointWorker(QObject):
             # check if abort acquisition has been requested
             if self.multiPointController.abort_acqusition_requested:
                 break
-            # run single time point
+            
             self.run_single_time_point()
+
             self.time_point = self.time_point + 1
-            # continous acquisition
-            if self.dt == 0:
-                pass
-            # timed acquisition
-            else:
+            if self.dt == 0: # continous acquisition
+                pass 
+            else:  # timed acquisition
+
                 # check if the aquisition has taken longer than dt or integer multiples of dt, if so skip the next time point(s)
                 while time.time() > self.timestamp_acquisition_started + self.time_point*self.dt:
                     print('skip time point ' + str(self.time_point+1))
                     self.time_point = self.time_point+1
+                
                 # check if it has reached Nt
                 if self.time_point == self.Nt:
                     break # no waiting after taking the last time point
+                
                 # wait until it's time to do the next acquisition
                 while time.time() < self.timestamp_acquisition_started + self.time_point*self.dt:
                     if self.multiPointController.abort_acqusition_requested:
                         break
                     time.sleep(0.05)
+
         self.processingHandler.processing_queue.join()
         self.processingHandler.upload_queue.join()
         elapsed_time = time.perf_counter_ns()-self.start_time
@@ -1724,6 +1714,7 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         self.initialize_coordinates_dataframe()
 
+        # init z parameters
         self.initialize_z_stack()
 
         if self.coordinate_dict is not None:
@@ -1848,7 +1839,7 @@ class MultiPointWorker(QObject):
 
         for region_id in range(n_regions):
             coordinate_mm = self.scan_coordinates_mm[region_id]
-            print(coordinate_mm)
+
             self.x_scan_direction = 1
             self.dx_usteps = 0 # accumulated x displacement
             self.dy_usteps = 0 # accumulated y displacement
@@ -1865,6 +1856,7 @@ class MultiPointWorker(QObject):
                     self.move_to_coordinate([start_x, start_y, coordinate_mm[2]])
                 else:
                     self.move_to_coordinate([start_x, start_y])
+
                 self.wait_till_operation_is_completed()
 
             for i in range(self.NY):
@@ -1903,7 +1895,9 @@ class MultiPointWorker(QObject):
                     return
 
     def acquire_at_position(self, region_id, current_path, i=None, j=None):
+
         self.perform_autofocus(region_id)
+
         print(region_id, "acquire position:", i, j)
         if self.NZ > 1:
             self.prepare_z_stack()
@@ -1925,7 +1919,7 @@ class MultiPointWorker(QObject):
 
             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
             print(file_ID, "scan coordinate:", metadata)
-            print("acquire z position ", i, j, z_level)
+            
             # laser af characterization mode
             if LASER_AF_CHARACTERIZATION_MODE:
                 image = self.microscope.laserAutofocusController.get_image()
@@ -1935,7 +1929,9 @@ class MultiPointWorker(QObject):
             current_round_images = {}
             # iterate through selected modes
             for config in self.selected_configurations:
+
                 self.handle_z_offset(config)
+
                 # acquire image
                 if 'USB Spectrometer' not in config.name and 'RGB' not in config.name:
                     self.acquire_camera_image(config, file_ID, current_path, current_round_images, i, j, z_level)
@@ -1943,6 +1939,7 @@ class MultiPointWorker(QObject):
                     self.acquire_rgb_image(config, file_ID, current_path, current_round_images, i, j, z_level)
                 else:
                     self.acquire_spectrometer_data(config, file_ID, current_path, i, j, z_level)
+
                 self.undo_z_offset(config)
 
             self.update_coordinates_dataframe(region_id, i, j, z_level)
@@ -1976,10 +1973,10 @@ class MultiPointWorker(QObject):
                 if len(self.scan_coordinates_mm[region_id]) == 3:
                     self.scan_coordinates_mm[region_id][2] = self.navigationController.z_pos_mm
                     # update the coordinate in the widget
-                    try:
+                    if self.coordinate_dict is not None:
+                        self.microscope.multiPointWidgetGrid.update_z_level(region_id, self.navigationController.z_pos_mm)
+                    elif location_list is not None:
                         self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
-                    except:
-                        pass
         else:
             # initialize laser autofocus if it has not been done
             if self.microscope.laserAutofocusController.is_initialized==False:
@@ -2038,9 +2035,9 @@ class MultiPointWorker(QObject):
 
     def acquire_camera_image(self, config, file_ID, current_path, current_round_images, i, j, k):
         # update the current configuration
-        print("acquire camera image ", i, j, k, config)
         self.signal_current_configuration.emit(config)
         self.wait_till_operation_is_completed()
+
         # trigger acquisition (including turning on the illumination) and read frame
         if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
             self.liveController.turn_on_illumination()
@@ -2059,6 +2056,7 @@ class MultiPointWorker(QObject):
         if image is None:
             print('self.camera.read_frame() returned None')
             return
+
         # turn off the illumination if using software trigger
         if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
             self.liveController.turn_off_illumination()
@@ -2225,7 +2223,6 @@ class MultiPointWorker(QObject):
         iio.imwrite(os.path.join(current_path, file_name), rgb_image)
 
     def handle_acquisition_abort(self, current_path, region_id=0):
-
         if self.coordinate_dict is None:
             self.liveController.turn_off_illumination()
             self.navigationController.move_x_usteps(-self.dx_usteps)
@@ -3326,6 +3323,8 @@ class NavigationViewer(QFrame):
             self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_BGR2RGBA)
         elif self.background_image.shape[2] == 4:  # BGRA image
             self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_BGRA2RGBA)
+
+        self.background_image_copy = self.background_image.copy()
         self.image_height, self.image_width = self.background_image.shape[:2]
         self.background_item = pg.ImageItem(self.background_image)
         self.view.addItem(self.background_item)
@@ -3346,13 +3345,15 @@ class NavigationViewer(QFrame):
             self.mm_per_pixel = 0.1453
             self.origin_x_pixel = 200
             self.origin_y_pixel = 120
-            #self.graphics_widget.view.invertY(False)
+            self.view.invertX(True)
+            self.view.invertY(False)
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
             self.origin_x_pixel = self.a1_x_pixel - (self.a1_x_mm)/self.mm_per_pixel
             self.origin_y_pixel = self.a1_y_pixel - (self.a1_y_mm)/self.mm_per_pixel
-            #self.graphics_widget.view.invertY(True)
+            self.view.invertX(False)
+            self.view.invertY(True)
         self.update_fov_size()
 
     def update_fov_size(self):
@@ -3467,13 +3468,10 @@ class NavigationViewer(QFrame):
         self.scan_overlay_item.setImage(self.scan_overlay)
 
     def clear_slide(self):
-        self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_RGBA2RGB)
-        self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_RGB2RGBA)
+        self.background_image = self.background_image_copy.copy()
         self.background_item.setImage(self.background_image)
-        self.scan_overlay.fill(0)
-        self.fov_overlay.fill(0)
-        self.scan_overlay_item.setImage(self.scan_overlay)
-        self.fov_overlay_item.setImage(self.fov_overlay)
+        self.clear_overlay()
+        self.draw_current_fov(self.x_mm, self.y_mm)
 
     def clear_overlay(self):
         self.scan_overlay.fill(0)
@@ -3802,105 +3800,6 @@ class ScanCoordinates(object):
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
         return len(selected_wells) # if wells selected
-
-    def create_scan_grid(self, objectiveStore, scan_size_mm=1, overlap_percent=10, shape='Square'):
-        self.grid_skip_positions = []
-        pixel_size_um = objectiveStore.get_pixel_size()
-        if not IS_HCS:
-            return self._create_single_location_grid(pixel_size_um, scan_size_mm, overlap_percent)
-        else:
-            if shape == 'Circle':
-                return self._create_wellplate_circle(pixel_size_um, overlap_percent)
-            else:
-                return self._create_wellplate_grid(pixel_size_um, overlap_percent)
-
-
-    def _create_wellplate_grid(self, pixel_size_um, overlap_percent):
-        # Calculate field of view size in mm
-        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        print("fov_size_mm", fov_size_mm)
-
-        # Calculate step size with exact overlap
-        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        print("overlap %", overlap_percent)
-        print("step_size_mm", step_size_mm)
-
-        # Calculate number of steps to cover the well
-        steps = math.floor(self.well_size_mm / step_size_mm)
-
-        actual_scan_size_mm = steps * step_size_mm
-        print("well size mm", self.well_size_mm)
-        print("actual scan size mm", actual_scan_size_mm)
-        print("steps:", steps, "step_size_mm:", step_size_mm)
-        return steps, step_size_mm
-
-    def _create_wellplate_circle(self, pixel_size_um, overlap_percent):
-        # Calculate field of view size in mm
-        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        print("fov_size_mm", fov_size_mm)
-
-        # Calculate step size with exact overlap
-        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        print("overlap %", overlap_percent)
-        print("step_size_mm", step_size_mm)
-
-        # Calculate radius
-        radius = self.well_size_mm / 2
-
-        # Calculate number of steps to cover the diameter
-        # steps = math.ceil(self.well_size_mm / step_size_mm)
-        steps = math.floor(self.well_size_mm / step_size_mm)
-        print("steps:", steps, "step_size_mm:", step_size_mm)
-
-        if steps <= 1:
-            return 1, step_size_mm
-
-        actual_scan_size_mm = steps * step_size_mm
-        print("well size mm", self.well_size_mm)
-        print("actual scan size mm", actual_scan_size_mm)
-
-        self.grid_skip_positions = []
-
-        for i in range(steps):
-            for j in range(steps):
-                # Calculate the center position of the FOV relative to well center
-                center_y = (i - (steps - 1) / 2) * step_size_mm
-                center_x = (j - (steps - 1) / 2) * step_size_mm
-
-                # Calculate distances to all four corners of the FOV
-                corners = [
-                    (center_x - fov_size_mm / 2, center_y - fov_size_mm / 2),  # Top-left
-                    (center_x + fov_size_mm / 2, center_y - fov_size_mm / 2),  # Top-right
-                    (center_x - fov_size_mm / 2, center_y + fov_size_mm / 2),  # Bottom-left
-                    (center_x + fov_size_mm / 2, center_y + fov_size_mm / 2)   # Bottom-right
-                ]
-
-                # Check if any corner is outside the well
-                if any(math.sqrt(x*x + y*y) > radius for x, y in corners):
-                    self.grid_skip_positions.append((i, j))
-                    print(f"skipping {i}, {j}")
-
-        return steps, step_size_mm
-
-    def _create_single_location_grid(self, pixel_size_um, scan_size_mm, overlap_percent):
-        # Calculate field of view size in mm
-        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        print("fov_size_mm", fov_size_mm)
-
-        # Calculate step size with exact overlap
-        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        print("overlap %", overlap_percent)
-        print("step_size_mm", step_size_mm)
-
-        # Calculate number of steps to cover at least the minimum scan size
-        steps = math.ceil(scan_size_mm / step_size_mm)
-
-        # Calculate actual scan size (which may be larger than the minimum)
-        actual_scan_size_mm = steps * step_size_mm
-        print("steps:", steps, "step_size_mm:", step_size_mm)
-        print("minimum scan size mm", scan_size_mm)
-        print("actual scan size mm", actual_scan_size_mm)
-        return steps, step_size_mm
 
 
 class LaserAutofocusController(QObject):

@@ -2557,12 +2557,12 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_well_coverage = QDoubleSpinBox()
         self.entry_well_coverage.setRange(1, 1000)
         self.entry_well_coverage.setValue(100)
-        self.entry_well_coverage.setSuffix("%")
+        self.entry_well_coverage.setSuffix(" %")
 
         self.entry_overlap = QDoubleSpinBox()
         self.entry_overlap.setRange(0, 99)
         self.entry_overlap.setValue(10)
-        self.entry_overlap.setSuffix("%")
+        self.entry_overlap.setSuffix(" %")
 
         self.entry_deltaZ = QDoubleSpinBox()
         self.entry_deltaZ.setMinimum(0)
@@ -2570,6 +2570,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
+        self.entry_deltaZ.setSuffix(" um")
 
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
@@ -2582,6 +2583,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_dt.setMaximum(12*3600)
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(0)
+        self.entry_dt.setSuffix(" s")
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1)
@@ -2629,41 +2631,34 @@ class MultiPointWidgetGrid(QFrame):
 
         grid_line1 = QHBoxLayout()
         label_experiment_id = QLabel('Experiment ID')
-        label_experiment_id.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        label_experiment_id.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         grid_line1.addWidget(label_experiment_id)
         grid_line1.addWidget(self.lineEdit_experimentID)
-        # grid_line1.addWidget(self.shape_label)
-        # grid_line1.addWidget(self.combobox_shape)
-        label_scan_size = QLabel('Scan Size')
-        label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        grid_line1.addWidget(label_scan_size)
-        grid_line1.addWidget(self.entry_scan_size)
-
-        grid_line2 = QHBoxLayout()
-        # label_scan_size = QLabel('Scan Size')
-        # label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         label_well_coverage = QLabel('Well Coverage')
         label_well_coverage.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        label_overlap = QLabel('Overlap')
-        label_overlap.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        # grid_line2.addWidget(label_scan_size)
-        # grid_line2.addWidget(self.entry_scan_size)
+        grid_line1.addWidget(label_well_coverage)
+        grid_line1.addWidget(self.entry_well_coverage)
+
+        grid_line2 = QHBoxLayout()
         shape_label = QLabel('Scan Shape')
         shape_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         grid_line2.addWidget(shape_label)
         grid_line2.addWidget(self.combobox_shape)
-
+        label_overlap = QLabel('Overlap')
+        label_overlap.setAlignment(Qt.AlignVCenter | Qt.AlignCenter)
         grid_line2.addWidget(label_overlap)
         grid_line2.addWidget(self.entry_overlap)
-        grid_line2.addWidget(label_well_coverage)
-        grid_line2.addWidget(self.entry_well_coverage)
+        label_scan_size = QLabel('Scan Size')
+        label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignCenter)
+        grid_line2.addWidget(label_scan_size)
+        grid_line2.addWidget(self.entry_scan_size)
 
         grid_line3 = QHBoxLayout()
-        label_dz = QLabel('dz (um)')
+        label_dz = QLabel('dz')
         label_dz.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         label_nz = QLabel('Nz')
         label_nz.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        label_dt = QLabel('dt (s)')
+        label_dt = QLabel('dt')
         label_dt.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         label_nt = QLabel('Nt')
         label_nt.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
@@ -2693,7 +2688,6 @@ class MultiPointWidgetGrid(QFrame):
         self.grid.addLayout(grid_line1)
         self.grid.addLayout(grid_line2)
         self.grid.addLayout(grid_line3)
-        # self.grid.addLayout(grid_coordinate)
         self.grid.addLayout(grid_line4)
         self.setLayout(self.grid)
 
@@ -2753,6 +2747,16 @@ class MultiPointWidgetGrid(QFrame):
             self.combobox_shape.setCurrentText('Square')
         elif self.scanCoordinates.format != 0:
             self.combobox_shape.setCurrentText('Circle')
+
+    def set_live_scan_coordinates(self, x_mm, y_mm):
+        if self.scanCoordinates.format == 0 and self.multipointController.parent.recordTabWidget.currentWidget() == self:
+            if self.region_coordinates:
+                print("Clear live coordinates")
+                self.clear_regions()
+            else:
+                print("No live coordinates")
+            print("Add current location")
+            self.add_region('current', x_mm, y_mm)
             
     def set_well_coordinates(self, selected):
         self.well_selected = selected and bool(self.scanCoordinates.get_selected_wells())
@@ -2799,33 +2803,31 @@ class MultiPointWidgetGrid(QFrame):
                 y = self.navigationController.y_pos_mm
                 self.set_live_scan_coordinates(x, y)
 
-
-    def set_live_scan_coordinates(self, x_mm, y_mm):
-        if self.scanCoordinates.format == 0 and self.multipointController.parent.recordTabWidget.currentWidget() == self:
-            if self.region_coordinates:
-                print("Clear live coordinates")
-                self.clear_regions()
-            else:
-                print("No live coordinates")
-            print("Add current location")
-            self.add_region('current', x_mm, y_mm)
+    def update_z_level(self, well_id, new_z):
+        if len(region_coordinates[well_id]) == 3: 
+            # [x, y, z] -> [x, y, new_z]
+            self.region_coordinates[well_id][2] = new_z
+        else: 
+            # [x, y] -> [x, y, new_z]
+            self.region_coordinates[well_id].append[new_z]
+        print(f"Updated z-level to {new_z} for region {well_id}")
 
     def add_region(self, well_id, x, y):
         z = self.navigationController.z_pos_mm
         action = "Updated" if well_id in self.region_coordinates else "Added"
         
-        self.region_coordinates[well_id] = [float(x), float(y), float(z)]
+        self.region_coordinates[well_id] = [float(x), float(y)] #, float(z)]
         
         scan_coordinates = self.create_region_coordinates(
             self.objectiveStore,
-            self.entry_scan_size.value(),
-            self.entry_overlap.value(),
             x, y,
-            self.combobox_shape.currentText()
+            scan_size_mm=self.entry_scan_size.value(),
+            overlap_percent=self.entry_overlap.value(),
+            shape=self.combobox_shape.currentText()
         )
         self.region_coordinates_map[well_id] = scan_coordinates
         
-        print(f"{action} Region: {well_id} - x={x:.3f}, y={y:.3f}, z={z:.3f}")
+        print(f"{action} Region: {well_id} - x={x:.3f}, y={y:.3f}") #, z={z:.3f}")
         print("Size:", self.entry_scan_size.value())
         print("Shape:", self.combobox_shape.currentText())
         print("# fovs in region:", len(scan_coordinates))
@@ -2847,7 +2849,9 @@ class MultiPointWidgetGrid(QFrame):
         self.region_coordinates_map.clear()
         print("Cleared all regions")
 
-    def create_region_coordinates(self, objectiveStore, scan_size_mm, overlap_percent, center_x, center_y, shape):
+    def create_region_coordinates(self, objectiveStore, center_x, center_y, scan_size_mm=None, overlap_percent=10, shape='Square'):
+        if scan_size_mm is None:
+            scan_size_mm = self.scanCoordinates.well_size_mm
         pixel_size_um = objectiveStore.get_pixel_size()
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
@@ -2861,7 +2865,7 @@ class MultiPointWidgetGrid(QFrame):
         actual_scan_size_mm = steps * step_size_mm
         print("scan size mm:", scan_size_mm)
         print("actual scan size mm:", actual_scan_size_mm)
-        
+
         scan_coordinates = []
         for i in range(steps):
             row = []
@@ -2895,6 +2899,45 @@ class MultiPointWidgetGrid(QFrame):
         self.signal_update_navigation_viewer.emit()
         return scan_coordinates
 
+    def create_scan_grid(self, objectiveStore, scan_size_mm=None, overlap_percent=10, shape='Square'):
+        if scan_size_mm is None:
+            scan_size_mm = self.scanCoordinates.well_size_mm
+
+        pixel_size_um = objectiveStore.get_pixel_size()
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+        
+        steps = math.floor(scan_size_mm / step_size_mm)
+        steps = 1 if steps == 0 else steps
+        actual_scan_size_mm = steps * step_size_mm
+        
+        print("fov_size_mm:", fov_size_mm)
+        print("step_size_mm:", step_size_mm)
+        print("scan size mm:", scan_size_mm)
+        print("actual scan size mm:", actual_scan_size_mm)
+        print("steps:", steps)
+
+        region_skip_positions = []
+        
+        if shape == 'Circle':
+            radius = scan_size_mm / 2
+            for i in range(steps):
+                for j in range(steps):
+                    x_rel = (j - (steps - 1) / 2) * step_size_mm
+                    y_rel = (i - (steps - 1) / 2) * step_size_mm
+                    corners = [
+                        (x_rel - fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-left
+                        (x_rel + fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-right
+                        (x_rel - fov_size_mm / 2, y_rel + fov_size_mm / 2),  # Bottom-left
+                        (x_rel + fov_size_mm / 2, y_rel + fov_size_mm / 2)   # Bottom-right
+                    ]
+                    if any(math.sqrt(cx**2 + cy**2) > radius for cx, cy in corners):
+                        region_skip_positions.append((i, j))
+                        print(f"skipping {i}, {j}")
+        
+        self.scanCoordinates.grid_skip_positions = region_skip_positions
+        return steps, step_size_mm
+
     def toggle_acquisition(self, pressed):
         if not self.base_path_is_set:
             self.btn_startAcquisition.setChecked(False)
@@ -2918,6 +2961,7 @@ class MultiPointWidgetGrid(QFrame):
 
             scan_size_mm = self.entry_scan_size.value()
             overlap_percent = self.entry_overlap.value()
+            shape = self.combobox_shape.currentText()
 
             if self.use_coordinate_acquisition:
                 if len(self.region_coordinates) == 0:
@@ -2928,10 +2972,10 @@ class MultiPointWidgetGrid(QFrame):
                     self.region_coordinates['current'] = (x, y, z)
                     scan_coordinates = self.create_region_coordinates(
                         self.objectiveStore,
-                        scan_size_mm,
-                        overlap_percent,
                         x, y,
-                        self.combobox_shape.currentText()
+                        scan_size_mm=scan_size_mm,
+                        overlap_percent=overlap_percent,
+                        shape=shape
                     )
                     self.region_coordinates_map['current'] = scan_coordinates
 
@@ -2942,20 +2986,20 @@ class MultiPointWidgetGrid(QFrame):
                 
             else:
                 # Use grid-based acquisition
-                steps, step_size_mm = self.scanCoordinates.create_scan_grid(
+                steps, step_size_mm = self.create_scan_grid(
                     self.objectiveStore,
                     scan_size_mm=scan_size_mm,
                     overlap_percent=overlap_percent,
-                    shape=self.combobox_shape.currentText()
+                    shape=shape
                 )
                 Nx = Ny = steps
                 dx_mm = dy_mm = step_size_mm
 
-            # Set up multipoint controller
-            self.multipointController.set_NX(Nx)
-            self.multipointController.set_NY(Ny)
-            self.multipointController.set_deltaX(dx_mm)
-            self.multipointController.set_deltaY(dy_mm)
+                # Set up multipoint controller
+                self.multipointController.set_NX(Nx)
+                self.multipointController.set_NY(Ny)
+                self.multipointController.set_deltaX(dx_mm)
+                self.multipointController.set_deltaY(dy_mm)
 
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
