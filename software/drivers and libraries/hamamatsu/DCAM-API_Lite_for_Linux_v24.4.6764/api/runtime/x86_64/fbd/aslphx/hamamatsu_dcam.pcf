@@ -1,0 +1,29 @@
+# ==========================
+# Phoenix Configuration File
+# Hamamatsu ORCA
+# ==========================
+
+# Camera Specific Settings
+# ------------------------
+PHX_BOARD_TYPE,            PHX_DIGITAL
+PHX_CAM_TYPE,              PHX_CAM_AREASCAN_ROI
+PHX_CAM_SRC_DEPTH,         12
+PHX_CAM_SRC_BANDS,         1
+PHX_CAM_ACTIVE_XOFFSET,    0
+PHX_CAM_ACTIVE_YOFFSET,    0
+PHX_CAM_ACTIVE_XLENGTH,    512
+PHX_CAM_ACTIVE_YLENGTH,    512
+PHX_CAM_HTAP_DIR,          PHX_CAM_HTAP_LEFT
+PHX_CAM_HTAP_TYPE,         PHX_CAM_HTAP_LINEAR
+PHX_CAM_HTAP_NUM,          1
+PHX_CAM_VTAP_DIR,          PHX_CAM_VTAP_TOP
+PHX_CAM_VTAP_TYPE,         PHX_CAM_VTAP_LINEAR
+PHX_CAM_VTAP_NUM,          1
+PHX_COMMS_DATA,            PHX_COMMS_DATA_8
+PHX_COMMS_STOP,            PHX_COMMS_STOP_1
+PHX_COMMS_PARITY,          PHX_COMMS_PARITY_NONE
+PHX_COMMS_SPEED,           9600
+PHX_COMMS_FLOW,            PHX_COMMS_FLOW_NONE
+
+# Add Application Specific Settings
+# ---------------------------------

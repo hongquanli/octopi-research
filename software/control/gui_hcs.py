@@ -28,6 +28,12 @@ elif CAMERA_TYPE == "FLIR":
     except:
         print("Problem importing FLIR camera, defaulting to default camera")
         import control.camera as camera
+elif CAMERA_TYPE == "Hamamatsu":
+    try:
+        import control.camera_hamamatsu as camera
+    except:
+        print("Problem importing Hamamatsu camera, defaulting to default camera")
+        import control.camera as camera
 else:
     import control.camera as camera
 
