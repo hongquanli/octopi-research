@@ -349,14 +349,17 @@ class PLATE_READER:
 DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
-OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
-                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
-                '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
-                '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
-                '20x (Nikon)':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':200},
-                '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
-                '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
-                '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}}
+OBJECTIVES = {
+    '2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
+    '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
+    '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
+    '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
+    '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
+    '20x (Nikon)':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':200},
+    '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180},
+    '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
+    '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}
+}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
 DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
@@ -417,9 +420,9 @@ AUTOLEVEL_DEFAULT_SETTING = False
 MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
 # MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix left half'
 MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
-# MULTIPOINT_BF_SAVING_OPTION = 'Raw'
+MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
-MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
+# MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
 
 DEFAULT_MULTIPOINT_NX=1
 DEFAULT_MULTIPOINT_NY=1
@@ -552,7 +555,7 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 # Stitcher
 ENABLE_STITCHER = False
 IS_HCS = False
-FULL_REGISTRATION = False
+DYNAMIC_REGISTRATION = False
 STITCH_COMPLETE_ACQUISITION = False
 CHANNEL_COLORS_MAP = {
     "405": {"hex": 0x3300FF, "name": "blue"},
