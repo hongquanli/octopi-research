@@ -1760,7 +1760,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
@@ -2075,7 +2075,7 @@ class MultiPointWidget2(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
-        self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
@@ -2541,6 +2541,9 @@ class MultiPointWidgetGrid(QFrame):
 
     def add_components(self):
         self.btn_setSavingDir = QPushButton('Browse')
+        self.btn_setSavingDir.setDefault(False)
+        self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
+
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
@@ -2607,13 +2610,13 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
-        self.btn_startAcquisition = QPushButton('Start Acquisition')
+        self.btn_startAcquisition = QPushButton(' Start \n Acquisition ')
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
         # Add a checkbox for coordinate-based acquisition
-        self.checkbox_useCoordinateAcquisition = QCheckBox('Coordinate Acquisition')
+        self.checkbox_useCoordinateAcquisition = QCheckBox('Use Coordinates')
         self.checkbox_useCoordinateAcquisition.setChecked(self.use_coordinate_acquisition)
         self.checkbox_useCoordinateAcquisition.stateChanged.connect(lambda state: setattr(self, 'use_coordinate_acquisition', bool(state)))
 
@@ -2621,75 +2624,68 @@ class MultiPointWidgetGrid(QFrame):
         self.combobox_shape = QComboBox()
         self.combobox_shape.addItems(['Square', 'Circle'])
 
-        # Layout
-        grid_line0 = QHBoxLayout()
-        label_saving_path = QLabel('Saving Path')
-        label_saving_path.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        grid_line0.addWidget(label_saving_path)
-        grid_line0.addWidget(self.lineEdit_savingDir)
-        grid_line0.addWidget(self.btn_setSavingDir)
+        # Main layout
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
 
-        grid_line1 = QHBoxLayout()
-        label_experiment_id = QLabel('Experiment ID')
-        label_experiment_id.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
-        grid_line1.addWidget(label_experiment_id)
-        grid_line1.addWidget(self.lineEdit_experimentID)
-        label_well_coverage = QLabel('Well Coverage')
-        label_well_coverage.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        grid_line1.addWidget(label_well_coverage)
-        grid_line1.addWidget(self.entry_well_coverage)
+        # Row 0: Saving Path
+        saving_path_layout = QHBoxLayout()
+        saving_path_layout.addWidget(QLabel('Saving Path:'))
+        saving_path_layout.addWidget(self.lineEdit_savingDir)
+        saving_path_layout.addWidget(self.btn_setSavingDir)
+        main_layout.addLayout(saving_path_layout)
 
-        grid_line2 = QHBoxLayout()
-        shape_label = QLabel('Scan Shape')
-        shape_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
-        grid_line2.addWidget(shape_label)
-        grid_line2.addWidget(self.combobox_shape)
-        label_overlap = QLabel('Overlap')
-        label_overlap.setAlignment(Qt.AlignVCenter | Qt.AlignCenter)
-        grid_line2.addWidget(label_overlap)
-        grid_line2.addWidget(self.entry_overlap)
-        label_scan_size = QLabel('Scan Size')
-        label_scan_size.setAlignment(Qt.AlignVCenter | Qt.AlignCenter)
-        grid_line2.addWidget(label_scan_size)
-        grid_line2.addWidget(self.entry_scan_size)
+        # Row 1: Experiment ID and Shape
+        row1_layout = QHBoxLayout()
+        row1_layout.addWidget(QLabel('Experiment ID:'))
+        row1_layout.addWidget(self.lineEdit_experimentID)
+        row1_layout.addWidget(QLabel('Shape:'))
+        row1_layout.addWidget(self.combobox_shape)
+        main_layout.addLayout(row1_layout)
 
-        grid_line3 = QHBoxLayout()
-        label_dz = QLabel('dz')
-        label_dz.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        label_nz = QLabel('Nz')
-        label_nz.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        label_dt = QLabel('dt')
-        label_dt.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        label_nt = QLabel('Nt')
-        label_nt.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        grid_line3.addWidget(label_dz)
-        grid_line3.addWidget(self.entry_deltaZ)
-        grid_line3.addWidget(label_nz)
-        grid_line3.addWidget(self.entry_NZ)
-        grid_line3.addWidget(label_dt)
-        grid_line3.addWidget(self.entry_dt)
-        grid_line3.addWidget(label_nt)
-        grid_line3.addWidget(self.entry_Nt)
+        # Row 2: Well Coverage, Scan Size, and Overlap
+        row2_layout = QHBoxLayout()
+        row2_layout.addWidget(QLabel('Size:'))
+        row2_layout.addWidget(self.entry_scan_size)
+        row2_layout.addStretch(1)
+        row2_layout.addWidget(QLabel('Coverage:'))
+        row2_layout.addWidget(self.entry_well_coverage)
+        row2_layout.addStretch(1)
+        row2_layout.addWidget(QLabel('Overlap:'))
+        row2_layout.addWidget(self.entry_overlap)
+        main_layout.addLayout(row2_layout)
 
-        grid_af = QVBoxLayout()
-        grid_af.addWidget(self.checkbox_withAutofocus)
+        # Row 3: Z-stack and Time-lapse layout
+        z_t_layout = QHBoxLayout()
+        z_t_layout.addWidget(QLabel('dz:'))
+        z_t_layout.addWidget(self.entry_deltaZ)
+        z_t_layout.addStretch(1)
+        z_t_layout.addWidget(QLabel('Nz:'))
+        z_t_layout.addWidget(self.entry_NZ)
+        z_t_layout.addStretch(1)
+        z_t_layout.addWidget(QLabel('dt:'))
+        z_t_layout.addWidget(self.entry_dt)
+        z_t_layout.addStretch(1)
+        z_t_layout.addWidget(QLabel('Nt:'))
+        z_t_layout.addWidget(self.entry_Nt)
+        main_layout.addLayout(z_t_layout)
+
+        # Row 4-5: Configurations list and options
+        row4_layout = QHBoxLayout()
+        row4_layout.addWidget(self.list_configurations)
+
+        options_layout = QVBoxLayout()
+        options_layout.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
-            grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        grid_af.addWidget(self.checkbox_genFocusMap)
-        grid_af.addWidget(self.checkbox_useCoordinateAcquisition)
+            options_layout.addWidget(self.checkbox_withReflectionAutofocus)
+        options_layout.addWidget(self.checkbox_genFocusMap)
+        options_layout.addWidget(self.checkbox_useCoordinateAcquisition)
+        row4_layout.addLayout(options_layout)
 
-        grid_line4 = QHBoxLayout()
-        grid_line4.addWidget(self.list_configurations)
-        grid_line4.addLayout(grid_af)
-        grid_line4.addWidget(self.btn_startAcquisition)
+        # Row 4-5: Start Acquisition button
+        row4_layout.addWidget(self.btn_startAcquisition)
 
-        self.grid = QVBoxLayout()
-        self.grid.addLayout(grid_line0)
-        self.grid.addLayout(grid_line1)
-        self.grid.addLayout(grid_line2)
-        self.grid.addLayout(grid_line3)
-        self.grid.addLayout(grid_line4)
-        self.setLayout(self.grid)
+        main_layout.addLayout(row4_layout)
 
         # Connections
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
