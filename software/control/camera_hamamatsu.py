@@ -9,8 +9,11 @@ from control.dcamapi4 import *
 from control._def import *
 
 def get_sn_by_model(model_name):
-    success, count = Dcamapi.init()
-    #print(success, count)
+    try:
+        _, count = Dcamapi.init()
+    except TypeError:
+        print('Cannot init Hamamatsu Camera.')
+        sys.exit(1)
 
     for i in range(count):
         d = Dcam(i)
@@ -90,6 +93,7 @@ class Camera(object):
             print('Hamamatsu Camera open_by_sn: No camera is opened.')
 
     def close(self):
+        self.disable_callback()
         result = self.dcam.dev_close() and Dcamapi.uninit()
         print('Hamamatsu Camera closed: ' + str(result))
 
@@ -139,6 +143,9 @@ class Camera(object):
         self.new_image_callback_external(self)
         
     def disable_callback(self):
+        if not self.callback_is_enabled:
+            return
+
         was_streaming = self.is_streaming
         if self.is_streaming:
             self.stop_streaming()
@@ -155,14 +162,8 @@ class Camera(object):
         pass
 
     def set_exposure_time(self, exposure_time):
-        if self.is_streaming:
-            self.stop_streaming()
-            if self.dcam.prop_setvalue(DCAM_IDPROP.EXPOSURETIME, exposure_time / 1000):
-                self.exposure_time = exposure_time
-                self.start_streaming()
-        else:
-            if self.dcam.prop_setvalue(DCAM_IDPROP.EXPOSURETIME, exposure_time / 1000):
-                self.exposure_time = exposure_time
+        if self.dcam.prop_setvalue(DCAM_IDPROP.EXPOSURETIME, exposure_time / 1000):
+            self.exposure_time = exposure_time
 
     def set_continuous_acquisition(self):
         if self.dcam.prop_setvalue(DCAM_IDPROP.TRIGGERSOURCE, DCAMPROP.TRIGGERSOURCE.INTERNAL):

@@ -165,16 +165,17 @@ class OctopiGUI(QMainWindow):
         self.imageSaver = core.ImageSaver()
         self.imageDisplay = core.ImageDisplay()
         self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=str(WELLPLATE_FORMAT)+' well plate')
-        # retract the objective
-        self.navigationController.home_z()
-        # wait for the operation to finish
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('z homing timeout, the program will exit')
-                sys.exit(1)
-        print('objective retracted')
+        if HOMING_ENABLED_Z:
+            # retract the objective
+            self.navigationController.home_z()
+            # wait for the operation to finish
+            t0 = time.time()
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 10:
+                    print('z homing timeout, the program will exit')
+                    sys.exit(1)
+            print('objective retracted')
 
         # set encoder arguments
         # set axis pid control enable
@@ -197,31 +198,32 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
 
         # home XY, set zero and set software limit
-        print('home xy')
-        timestamp_start = time.time()
-        # x needs to be at > + 20 mm when homing y
-        self.navigationController.move_x(20) # to-do: add blocking code
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        # home y
-        self.navigationController.home_y()
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('y homing timeout, the program will exit')
-                sys.exit(1)
-        self.navigationController.zero_y()
-        # home x
-        self.navigationController.home_x()
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('x homing timeout, the program will exit')
-                sys.exit(1)
-        self.navigationController.zero_x()
-        self.slidePositionController.homing_done = True
+        if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+            print('home xy')
+            timestamp_start = time.time()
+            # x needs to be at > + 20 mm when homing y
+            self.navigationController.move_x(20) # to-do: add blocking code
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            # home y
+            self.navigationController.home_y()
+            t0 = time.time()
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 10:
+                    print('y homing timeout, the program will exit')
+                    sys.exit(1)
+            self.navigationController.zero_y()
+            # home x
+            self.navigationController.home_x()
+            t0 = time.time()
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 10:
+                    print('x homing timeout, the program will exit')
+                    sys.exit(1)
+            self.navigationController.zero_x()
+            self.slidePositionController.homing_done = True
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.wait_for_homing_complete()
@@ -233,12 +235,13 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
         # move to scanning position
-        self.navigationController.move_x(20)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y(20)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
+        if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+            self.navigationController.move_x(20)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_y(20)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
 
         # set piezo arguments
         if ENABLE_OBJECTIVE_PIEZO is True:
@@ -605,7 +608,8 @@ class OctopiGUI(QMainWindow):
         if ENABLE_NL5:
             self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
-        self.navigationController.move_to_cached_position()
+        if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
+            self.navigationController.move_to_cached_position()
 
         # Create the menu bar
         menubar = self.menuBar()
@@ -694,18 +698,19 @@ class OctopiGUI(QMainWindow):
             self.emission_filter_wheel.close()
 
         # move the objective to a defined position upon exit
-        self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_x_to(30)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y_to(30)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
+        if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+            self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_x_to(30)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_y_to(30)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
 
         self.navigationController.turnoff_axis_pid_control()
 
