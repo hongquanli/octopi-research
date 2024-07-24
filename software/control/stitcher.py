@@ -3,12 +3,12 @@ import os
 import sys
 from control._def import *
 from qtpy.QtCore import *
-from threading import Thread, Lock
 
 import psutil
 import shutil
 import random
 import json
+import time
 from lxml import etree
 import numpy as np
 import pandas as pd
@@ -32,8 +32,8 @@ class Stitcher(QThread, QObject):
     starting_saving = Signal(bool)
     finished_saving = Signal(str, object)
 
-    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel=''):
-        Thread.__init__(self)
+    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel='', registration_z_level=0):
+        QThread.__init__(self)
         QObject.__init__(self)
         self.input_folder = input_folder
         self.image_folder = None
@@ -49,6 +49,11 @@ class Stitcher(QThread, QObject):
         print("timepoints:", self.time_points)
         self.is_reversed = self.determine_directions(self.input_folder) # init: top to bottom, left to right
         print(self.is_reversed)
+        self.is_wellplate = IS_HCS
+        self.init_stitching_parameters()
+        # self.overlap_percent = Acquisition.OVERLAP_PERCENT
+
+    def init_stitching_parameters(self):
         self.is_rgb = {}
         self.wells = []
         self.channel_names = []
@@ -65,7 +70,6 @@ class Stitcher(QThread, QObject):
         self.stitched_images = None
         self.chunks = None
         self.dtype = np.uint16
-        # self.overlap_percent = Acquisition.OVERLAP_PERCENT
 
     def get_time_points(self, input_folder):
         try: # detects directories named as integers, representing time points.
@@ -119,22 +123,24 @@ class Stitcher(QThread, QObject):
         #         'cols': self.acquisition_params.get("col direction", False),
         #         'z-planes': False}
         coordinates = pd.read_csv(os.path.join(input_folder, self.time_points[0], 'coordinates.csv'))
-        if IS_HCS:
-            try:
-                first_well = coordinates['well'].unique()[0]
-                coordinates = coordinates[coordinates['well'] == first_well]
-            except Exception as e:
-                print("no coordinates.csv well data:", e)
-
+        try:
+            first_well = coordinates['well'].unique()[0]
+            coordinates = coordinates[coordinates['well'] == first_well]
+            self.is_wellplate = True
+        except Exception as e:
+            print("no coordinates.csv well data:", e)
+            self.is_wellplate = False
         i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
         j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
-        k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
+        k_rev = not coordinates.sort_values(by='z_level')['z (um)'].is_monotonic_increasing
         return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
 
     def parse_filenames(self, time_point):
         # Initialize directories and read files
         self.image_folder = os.path.join(self.input_folder, str(time_point))
-        # print("processing image folder:", self.image_folder)
+        print("stitching image folder:", self.image_folder)
+        self.init_stitching_parameters()
+
         all_files = os.listdir(self.image_folder)
         sorted_input_files = sorted(
             [filename for filename in all_files if filename.endswith((".bmp", ".tiff")) and 'focus_camera' not in filename]
@@ -142,12 +148,23 @@ class Stitcher(QThread, QObject):
         if not sorted_input_files:
             raise Exception("No valid files found in directory.")
 
+        first_filename = sorted_input_files[0]
+        try:
+            first_well, first_i, first_j, first_k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
+            first_k = int(first_k)
+            print("well_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            self.is_wellplate = True
+        except ValueError as ve:
+            first_i, first_j, first_k, channel_name = os.path.splitext(first_filename)[0].split('_', 3)
+            print("i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            self.is_wellplate = False
+
         input_extension = os.path.splitext(sorted_input_files[0])[1]
         max_i, max_j, max_k = 0, 0, 0
         wells, channel_names = set(), set()
 
         for filename in sorted_input_files:
-            if IS_HCS:
+            if self.is_wellplate:
                 well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4)
             else:
                 well = '0'
@@ -174,7 +191,7 @@ class Stitcher(QThread, QObject):
         self.channel_names = sorted(channel_names)
         self.num_z, self.num_cols, self.num_rows = max_k + 1, max_j + 1, max_i + 1
 
-        first_coord = f"{self.wells[0]}_0_0_0_" if IS_HCS else "0_0_0_"
+        first_coord = f"{self.wells[0]}_{first_i}_{first_j}_{first_k}_" if self.is_wellplate else f"{first_i}_{first_j}_{first_k}_"
         found_dims = False
         mono_channel_names = []
 
@@ -379,7 +396,7 @@ class Stitcher(QThread, QObject):
     def init_output(self, time_point, well):
         output_folder = os.path.join(self.input_folder, f"{time_point}_stitched")
         os.makedirs(output_folder, exist_ok=True)
-        self.output_path = os.path.join(output_folder, f"{well}_{self.output_name}" if IS_HCS else self.output_name)
+        self.output_path = os.path.join(output_folder, f"{well}_{self.output_name}" if self.is_wellplate else self.output_name)
 
         x_max = (self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + # horizontal width with overlap
                 abs((self.num_rows - 1) * self.v_shift[1])) # horizontal shift from vertical registration
@@ -632,12 +649,12 @@ class Stitcher(QThread, QObject):
         t_data = []
         t_shapes = []
         for t in self.time_points:
-            if IS_HCS:
+            if self.is_wellplate:
                 filepath = f"{well_id}_{self.output_name}"
             else:
                 filepath = f"{self.output_name}"
             zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
-            print("t:", t, "well:", well_id, "\t", zarr_path)
+            print(f"t:{t} well:{well_id}, \t{zarr_path}")
             z = zarr.open(zarr_path, mode='r')
             # Ensure that '0' contains the data and it matches expected dimensions
             x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
@@ -670,8 +687,10 @@ class Stitcher(QThread, QObject):
 
     def run(self):
         # Main stitching logic
+        stime = time.time()
         try:
             for time_point in self.time_points:
+                ttime = time.time()
                 print(f"starting t:{time_point}...")
                 self.parse_filenames(time_point)
 
@@ -679,15 +698,23 @@ class Stitcher(QThread, QObject):
                     print(f"getting flatfields...")
                     self.getting_flatfields.emit()
                     self.get_flatfields(progress_callback=self.update_progress.emit)
+                    print("time to apply flatfields", time.time() - ttime)
+
 
                 if self.use_registration:
+                    shtime = time.time()
                     print(f"calculating shifts...")
                     self.calculate_shifts()
+                    print("time to calculate shifts", time.time() - shtime)
 
                 for well in self.wells:
+                    wtime = time.time()
                     self.starting_stitching.emit()
                     print(f"stitching...")
                     self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
+
+                    sttime = time.time()
+                    print("time to stitch well", sttime - wtime)
 
                     self.starting_saving.emit(not STITCH_COMPLETE_ACQUISITION)
                     print(f"saving...")
@@ -695,20 +722,28 @@ class Stitcher(QThread, QObject):
                         self.save_as_ome_tiff()
                     else:
                         self.save_as_ome_zarr()
+
+                    print("time to save stitched well", time.time() - sttime)
+                    print("time per well", time.time() - wtime)
                     if well != '0':
                         print(f"...done saving well:{well}")
                 print(f"...finished t:{time_point}")
+                print("time per timepoint", time.time() - ttime)
 
             if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
                 self.starting_saving.emit(True)
-                if IS_HCS:
+                scatime = time.time()
+                if self.is_wellplate:
                     self.create_hcs_ome_zarr()
                     print(f"...done saving complete hcs successfully")
                 else:
                     self.create_complete_ome_zarr()
                     print(f"...done saving complete successfully")
+                print("time to save merged wells and timepoints", time.time() - scatime)
             else:
                 self.finished_saving.emit(self.output_path, self.dtype)
+            print("total time to stitch + save:", time.time() - stime)
 
         except Exception as e:
+            print("time before error", time.time() - stime)
             print(f"error While Stitching: {e}")

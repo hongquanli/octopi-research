@@ -451,24 +451,28 @@ class OctopiGUI(QMainWindow):
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
+        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+        self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
             self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
-            if ENABLE_FLEXIBLE_MULTIPOINT:
-                self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
-                self.multiPointWidget2.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
 
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
-        self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.recordTabWidget.currentChanged.connect(self.onTabChanged)
             self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidget2.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+            if ENABLE_STITCHER:
+                self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+                self.multiPointWidget2.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
+
         if ENABLE_SCAN_GRID:
             self.recordTabWidget.currentChanged.connect(self.onTabChanged)
             self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidgetGrid.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+            if ENABLE_STITCHER:
+                self.multiPointWidgetGrid.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -772,7 +776,6 @@ class OctopiGUI(QMainWindow):
             self.navigationViewer.on_acquisition_start(acquisition_started)
 
     def toggleStitcherWidget(self, checked):
-        central_layout = self.centralWidget.layout()
         if checked:
             self.stitcherWidget.show()
         else:
