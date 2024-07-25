@@ -519,6 +519,7 @@ class Stitcher(QThread, QObject):
             print(f"Channel {i}:", self.mono_channel_names[i], " \tColor:", self.channel_colors[i], " \tPixel Range:", channel_minmax[i])
 
         zarr_writer = OmeZarrWriter(self.output_path)
+        print("writing ome")
         zarr_writer.build_ome(
             size_z=self.num_z,
             image_name=os.path.basename(self.output_path),
@@ -526,6 +527,7 @@ class Stitcher(QThread, QObject):
             channel_colors=self.channel_colors,
             channel_minmax=channel_minmax
         )
+        print("writing image")
         zarr_writer.write_image(
             image_data=self.stitched_images,
             image_name=os.path.basename(self.output_path),
@@ -601,10 +603,10 @@ class Stitcher(QThread, QObject):
 
             print(f"All data saved in HCS OME-ZARR format at: {hcs_path}")
             # channel_info = [{
-            #     "label": self.mono_channel_names[c],
-            #     "color": f"{self.channel_colors[c]:06X}",
-            #     "window": {"start": intensity_min, "end": intensity_max},
-            #     "active": True
+            #      "label": self.mono_channel_names[c],
+            #      "color": f"{self.channel_colors[c]:06X}",
+            #      "window": {"start": np.iinfo(self.dtype).min, "end": np.iinfo(self.dtype).max},
+            #      "active": True
             # } for c in range(self.num_c)]
 
             # root_group.attrs["omero"] = {"channels": channel_info}

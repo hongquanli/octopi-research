@@ -177,7 +177,6 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates)
 
         # acquisition tabs
@@ -246,7 +245,7 @@ class OctopiGUI(QMainWindow):
 
         if DO_FLUORESCENCE_RTP:
             if USE_NAPARI_FOR_MULTIPOINT:
-                self.napariRTPWidget = widgets.NapariMultiChannelWidget(grid_enabled=True)
+                self.napariRTPWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, grid_enabled=True)
                 self.imageDisplayTabs.addTab(self.napariRTPWidget, "Segmentation")
             self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
 
@@ -602,7 +601,7 @@ class OctopiGUI(QMainWindow):
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
-            self.stitcherThread = core.Stitcher(input_folder=acquisition_path,
+            self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path,
                                                 output_name=output_name, output_format=output_format,
                                                 apply_flatfield=apply_flatfield,
                                                 use_registration=use_registration, registration_channel=registration_channel)

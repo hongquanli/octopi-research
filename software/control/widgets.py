@@ -1913,7 +1913,8 @@ class MultiPointWidget(QFrame):
             self.setEnabled_all(False)
 
             # set parameters
-            self.multipointController.scanCoordinates.grid_skip_positions = []
+            if hasattr(self.multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
+                self.multipointController.scanCoordinates.grid_skip_positions = []
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
@@ -2270,7 +2271,8 @@ class MultiPointWidget2(QFrame):
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             # clear skip positions
-            self.multipointController.scanCoordinates.grid_skip_positions = []
+            if hasattr(multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
+                self.multipointController.scanCoordinates.grid_skip_positions = []
 
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
@@ -3626,7 +3628,7 @@ class NapariMultiChannelWidget(QWidget):
 
         rgb = len(image.shape) == 3
         if channel_name not in self.viewer.layers:
-            self.channels.append(channel_name)
+            self.channels.add(channel_name)
             if rgb:
                 color = None  # RGB images do not need a colormap
                 canvas = np.zeros((self.image_height, self.image_width, 3), dtype=self.dtype)
@@ -3759,6 +3761,10 @@ class NapariTiledDisplayWidget(QWidget):
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
+
+        if i == -1 or j == -1:
+            print("no tiled preview for coordinate acquisition")
+            return 
         rgb = len(image.shape) == 3  # Check if image is RGB based on shape
         if not self.layers_initialized:
            self.initLayers(image.shape[0], image.shape[1], image.dtype)

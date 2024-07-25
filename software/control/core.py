@@ -1753,6 +1753,7 @@ class MultiPointWorker(QObject):
         print(time.time()-start)
 
     def initialize_z_stack(self):
+        self.count_rtp = 0
         self.dz_usteps = 0 # accumulated z displacement
         self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
@@ -1987,7 +1988,7 @@ class MultiPointWorker(QObject):
             acquired_image_configs = list(current_round_images.keys())
             if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
                 try:
-                    print("real time processing", count_rtp)
+                    print("real time processing", self.count_rtp)
                     if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
                         raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
                     I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
@@ -1997,11 +1998,11 @@ class MultiPointWorker(QObject):
                         I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
                     if len(I_right.shape) == 3:
                         I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
-                    malaria_rtp(I_fluorescence, I_left, I_right, real_i, real_j, k, self,
+                    malaria_rtp(I_fluorescence, I_left, I_right, i, j, z_level, self,
                                 classification_test_mode=self.microscope.classification_test_mode,
                                 sort_during_multipoint=SORT_DURING_MULTIPOINT,
                                 disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
-                    count_rtp += 1
+                    self.count_rtp += 1
                 except AttributeError as e:
                     print(repr(e))
 
@@ -3465,8 +3466,9 @@ class NavigationViewer(QFrame):
             self.mm_per_pixel = 0.1453
             self.origin_x_pixel = 200
             self.origin_y_pixel = 120
-            self.view.invertX(True)
-            self.view.invertY(False)
+            if IS_HCS:
+                self.view.invertX(True)
+                self.view.invertY(False)
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
@@ -3682,7 +3684,7 @@ class ConfigurationManager(QObject):
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations += 1
-            # print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
+            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),
