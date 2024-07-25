@@ -1,7 +1,11 @@
 import cv2
 from numpy import std, square, mean
-import numpy as np
 from scipy.ndimage import label
+import numpy as np
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
 
 def crop_image(image,crop_width,crop_height):
     image_height = image.shape[0]
@@ -64,20 +68,26 @@ def rotate_and_flip_image(image,rotate_image_angle,flip_image):
 
     return ret_image
 
-def generate_dpc(im_left, im_right):
-    # Normalize the images
-    im_left = im_left.astype(float)/255
-    im_right = im_right.astype(float)/255
-    # differential phase contrast calculation
-    im_dpc = 0.5 + np.divide(im_left-im_right, im_left+im_right)
-    # take care of errors
-    im_dpc[im_dpc < 0] = 0
-    im_dpc[im_dpc > 1] = 1
-    im_dpc[np.isnan(im_dpc)] = 0
+def generate_dpc(im_left, im_right, use_gpu=True):
+    if use_gpu:
+        if cp is None:
+            raise ImportError("CuPy is not installed. Install CuPy or set use_gpu to False.")
+        im_left_gpu = cp.asarray(im_left, dtype=cp.float32) / 255
+        im_right_gpu = cp.asarray(im_right, dtype=cp.float32) / 255
+        im_dpc_gpu = 0.5 + cp.divide(im_left_gpu - im_right_gpu, im_left_gpu + im_right_gpu)
+        im_dpc_gpu = cp.clip(im_dpc_gpu, 0, 1)
+        im_dpc_gpu[cp.isnan(im_dpc_gpu)] = 0
+        im_dpc = cp.asnumpy(im_dpc_gpu)
+    else:
+        im_left = im_left.astype(float) / 255
+        im_right = im_right.astype(float) / 255
+        im_dpc = 0.5 + np.divide(im_left - im_right, im_left + im_right)
+        im_dpc = np.clip(im_dpc, 0, 1)
+        im_dpc[np.isnan(im_dpc)] = 0
 
-    im_dpc = (im_dpc * 255).astype(np.uint8)
-
+    #im_dpc = (im_dpc * 255).astype(np.uint8)
     return im_dpc
+
 
 def colorize_mask(mask):
     # Label the detected objects

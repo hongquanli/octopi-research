@@ -349,14 +349,17 @@ class PLATE_READER:
 DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
-OBJECTIVES = {'2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
-                '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
-                '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
-                '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
-                '20x (Nikon)':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':200},
-                '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
-                '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
-                '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}}
+OBJECTIVES = {
+    '2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
+    '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
+    '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
+    '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
+    '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
+    '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
+    '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180},
+    '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
+    '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}
+}
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
 DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
@@ -408,7 +411,7 @@ class SOFTWARE_POS_LIMIT:
     X_NEGATIVE = -0.5
     Y_POSITIVE = 56
     Y_NEGATIVE = -0.5
-    Z_POSITIVE = 6
+    Z_POSITIVE = 7
     Z_NEGATIVE = 0.05
 
 SHOW_AUTOLEVEL_BTN = False
@@ -424,7 +427,9 @@ MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 DEFAULT_MULTIPOINT_NX=1
 DEFAULT_MULTIPOINT_NY=1
 
-ENABLE_FLEXIBLE_MULTIPOINT = False
+ENABLE_FLEXIBLE_MULTIPOINT = True
+ENABLE_SCAN_GRID = True
+ENABLE_RECORDING = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
 
@@ -452,7 +457,7 @@ CONTROLLER_VERSION = 'Arduino Due' # 'Teensy'
 CHOSEN_READ = 'INDIVIDUAL'
 
 # laser autofocus
-SUPPORT_LASER_AUTOFOCUS = False
+SUPPORT_LASER_AUTOFOCUS = True
 MAIN_CAMERA_MODEL = 'MER2-1220-32U3M'
 FOCUS_CAMERA_MODEL = 'MER2-630-60U3M'
 FOCUS_CAMERA_EXPOSURE_TIME_MS = 2
@@ -472,27 +477,30 @@ RUN_CUSTOM_MULTIPOINT = False
 RETRACT_OBJECTIVE_BEFORE_MOVING_TO_LOADING_POSITION = True
 OBJECTIVE_RETRACTED_POS_MM = 0.1
 
-CLASSIFICATION_MODEL_PATH ="/home/cephla/Documents/tmp/model_perf_r34_b32.pt"
-SEGMENTATION_MODEL_PATH = "/home/cephla/Documents/tmp/model_segmentation_1073_9.pth"
-CLASSIFICATION_TEST_MODE=False
+TWO_CLASSIFICATION_MODELS = False
+CLASSIFICATION_MODEL_PATH = "models/resnet18_en/version1/best.pt"
+CLASSIFICATION_MODEL_PATH2 = "models/resnet18_en/version2/best.pt"
+CLASSIFICATION_TEST_MODE = False
+CLASSIFICATION_TH = 0.3
 
-USE_TRT_SEGMENTATION=False
-SEGMENTATION_CROP=1500
+SEGMENTATION_MODEL_PATH = "models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth"
+ENABLE_SEGMENTATION = True
+USE_TRT_SEGMENTATION = False
+SEGMENTATION_CROP = 1500
 
-DISP_TH_DURING_MULTIPOINT=0.95
+DISP_TH_DURING_MULTIPOINT = 0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
 
-ENABLE_SPINNING_DISK_CONFOCAL=False
+ENABLE_SPINNING_DISK_CONFOCAL = False
 
 INVERTED_OBJECTIVE = False
 
 ILLUMINATION_INTENSITY_FACTOR = 0.6
 
-CAMERA_TYPE="Default"
-
-FOCUS_CAMERA_TYPE="Default"
+CAMERA_TYPE = "Default"
+FOCUS_CAMERA_TYPE = "Default"
 
 # Spinning disk confocal integration
 ENABLE_SPINNING_DISK_CONFOCAL = False
@@ -521,12 +529,13 @@ NL5_WAVENLENGTH_MAP = {
 }
 
 # Laser AF characterization mode
-LASER_AF_CHARACTERIZATION_MODE=False
+LASER_AF_CHARACTERIZATION_MODE = False
 
 # Napari integration
 USE_NAPARI_FOR_LIVE_VIEW = False
 USE_NAPARI_FOR_MULTIPOINT = True
-USE_NAPARI_FOR_TILED_DISPLAY = True
+USE_NAPARI_FOR_TILED_DISPLAY = False
+USE_NAPARI_FOR_MOSAIC_DISPLAY = True
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
@@ -545,18 +554,18 @@ PRVIEW_DOWNSAMPLE_FACTOR = 5
 
 # Stitcher
 ENABLE_STITCHER = False
-IS_HCS = True
-FULL_REGISTRATION = False
+IS_HCS = False
+DYNAMIC_REGISTRATION = False
 STITCH_COMPLETE_ACQUISITION = False
 CHANNEL_COLORS_MAP = {
-    '405':      {'hex': 0x3300FF, 'name': 'blue'},
-    '488':      {'hex': 0x1FFF00, 'name': 'green'},
-    '561':      {'hex': 0xFFCF00, 'name': 'yellow'},
-    '638':      {'hex': 0xFF0000, 'name': 'red'},
-    '730':      {'hex': 0x770000, 'name': 'dark red'},
-    'R':        {'hex': 0xFF0000, 'name': 'red'},
-    'G':        {'hex': 0x1FFF00, 'name': 'green'},
-    'B':        {'hex': 0x3300FF, 'name': 'blue'}
+    "405": {"hex": 0x3300FF, "name": "blue"},
+    "488": {"hex": 0x1FFF00, "name": "green"},
+    "561": {"hex": 0xFFCF00, "name": "yellow"},
+    "638": {"hex": 0xFF0000, "name": "red"},
+    "730": {"hex": 0x770000, "name": "dark red"},
+    "R": {"hex": 0xFF0000, "name": "red"},
+    "G": {"hex": 0x1FFF00, "name": "green"},
+    "B": {"hex": 0x3300FF, "name": "blue"}
 }
 
 # Emission filter wheel
