@@ -344,7 +344,6 @@ class Camera(object):
         self._toupcam_pullmode_started = False
 
     def set_pixel_format(self,pixel_format):
-
         was_streaming = False
         if self.is_streaming:
             was_streaming = True

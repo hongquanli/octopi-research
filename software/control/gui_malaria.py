@@ -10,16 +10,22 @@ from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
 # app specific libraries
+from control._def import *
+import control.core as core
 import control.widgets as widgets
 import control.camera as camera
-import control.core as core
 import control.microcontroller as microcontroller
-from control._def import *
+if ENABLE_STITCHER:
+    import control.stitcher as stitcher
 
 import pyqtgraph.dockarea as dock
 import time
 
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
+
+from control.spot_image_display import *
+
+from control.interactive_m2unet_inference import M2UnetInteractiveModel as m2u
 
 class OctopiGUI(QMainWindow):
 
@@ -31,15 +37,18 @@ class OctopiGUI(QMainWindow):
 
         # load objects
         if is_simulation:
+            self.classification_test_mode = True
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
+            self.classification_test_mode = False
             try:
                 self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.open()
             except:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.open()
+                self.classification_test_mode = True
                 print('! camera not detected, using simulated camera !')
             try:
                 self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
@@ -55,6 +64,8 @@ class OctopiGUI(QMainWindow):
 
         # configure the actuators
         self.microcontroller.configure_actuators()
+
+        # core
         self.objectiveStore = core.ObjectiveStore(parent=self)
         self.scanCoordinates = core.ScanCoordinates()
         self.configurationManager = core.ConfigurationManager()
@@ -63,7 +74,7 @@ class OctopiGUI(QMainWindow):
         self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-        self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
+        self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,parent=self)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         self.imageSaver = core.ImageSaver()
@@ -153,6 +164,7 @@ class OctopiGUI(QMainWindow):
         self.camera.enable_callback()
 
         # load widgets
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='malaria')
@@ -160,21 +172,50 @@ class OctopiGUI(QMainWindow):
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         self.focusMapWidget = widgets.FocusMapWidget(self.autofocusController)
+        if ENABLE_STITCHER:
+            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates)
 
+        # acquisition tabs
         self.recordTabWidget = QTabWidget()
         self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
         if ENABLE_SCAN_GRID:
-            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Auto-Grid Multipoint")
+            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Grid Multipoint")
         self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
         if ENABLE_TRACKING:
+            self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
+        if DO_FLUORESCENCE_RTP:
+            self.statsDisplayWidget = widgets.StatsDisplayWidget()
+            self.dataHandler = DataHandler()
+            self.dataHandler.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.dataHandler_similarity = DataHandler(is_for_similarity_search=True)
+            self.dataHandler_similarity.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.dataHandler_umap_selection = DataHandler(is_for_selected_images=True)
+            self.dataHandler_umap_selection.set_number_of_images_per_page(NUM_ROWS*num_cols)
+            self.recordTabWidget.addTab(self.statsDisplayWidget, "Detection Stats")
+            self.dataLoaderWidget = DataLoaderWidget(self.dataHandler)
+            self.gallery = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler,is_main_gallery=True)
+            self.gallery_similarity = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_similarity,dataHandler2=self.dataHandler,is_for_similarity_search=True)
+            self.gallery_umap_selection = GalleryViewWidget(NUM_ROWS,num_cols,self.dataHandler_umap_selection,dataHandler2=self.dataHandler)
+            self.gallerySettings = GalleryViewSettingsWidget()
+            self.trainingAndVisualizationWidget = TrainingAndVisualizationWidget(self.dataHandler)
+            '''
+            self.plots = {}
+            self.plots['Labels'] = PiePlotWidget()
+            self.plots['Annotation Progress'] = BarPlotWidget()
+            self.plots['Inference Result'] = HistogramPlotWidget()
+            self.plots['Similarity'] = StemPlotWidget()
+            self.plots[dimentionality_reduction] = ScatterPlotWidget()
+            '''
+        self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
+
+        # image display tabs
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.liveControlWidget)
@@ -202,6 +243,12 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
+        if DO_FLUORESCENCE_RTP:
+            if USE_NAPARI_FOR_MULTIPOINT:
+                self.napariRTPWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, grid_enabled=True)
+                self.imageDisplayTabs.addTab(self.napariRTPWidget, "Segmentation")
+            self.imageDisplayTabs.addTab(self.gallery, "Detection Result")
+
         # layout widgets
         frame = QFrame()
         frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -211,7 +258,13 @@ class OctopiGUI(QMainWindow):
         frame.setLayout(top_row_layout)  # Set the layout on the frame
         layout = QVBoxLayout() #layout = QStackedLayout()
         layout.addWidget(frame)
-        #layout.addWidget(self.cameraSettingWidget)
+        # layout.addWidget(self.cameraSettingWidget)
+        # layout.addWidget(self.dataLoaderWidget)
+        # layout.addWidget(self.gallerySettings)
+        # self.gallery_tab = QTabWidget()
+        # self.gallery_tab.addTab(self.gallery,'Full Dataset')
+        # layout.addWidget(self.gallery_tab)
+        # layout.addWidget(self.trainingAndVisualizationWidget)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
         if SHOW_DAC_CONTROL:
@@ -266,12 +319,25 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
+        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+        self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
+        self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
+        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
+        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+
+        if DO_FLUORESCENCE_RTP:
+            self.multipointController.detection_stats.connect(self.statsDisplayWidget.display_stats)
+
         if ENABLE_TRACKING:
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
-        self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+
+        if ENABLE_STITCHER:
+            self.multipointController.signal_stitcher.connect(self.startStitcher)
+            self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+            self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+
         if ENABLE_SCAN_GRID:
             self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
 
@@ -280,6 +346,8 @@ class OctopiGUI(QMainWindow):
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+            if ENABLE_STITCHER:
+                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
@@ -297,6 +365,12 @@ class OctopiGUI(QMainWindow):
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
 
+            if ENABLE_STITCHER:
+                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
+            
+            if DO_FLUORESCENCE_RTP:
+                self.multipointController.napari_rtp_layers_update.connect(self.napariRTPWidget.updateRTPLayers)
+
             if USE_NAPARI_FOR_LIVE_VIEW:
                 self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
@@ -307,6 +381,7 @@ class OctopiGUI(QMainWindow):
             if USE_NAPARI_FOR_TILED_DISPLAY:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+
                 if ENABLE_SCAN_GRID:
                     self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
                     self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
@@ -314,6 +389,9 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+
+                if ENABLE_STITCHER:
+                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
 
                 if USE_NAPARI_FOR_LIVE_VIEW:
                     self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
@@ -335,13 +413,157 @@ class OctopiGUI(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
-        self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
+
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
+        if DO_FLUORESCENCE_RTP:
+            # connect
+            self.dataHandler.signal_set_total_page_count.connect(self.gallery.set_total_pages)
+            self.dataHandler.signal_populate_page0.connect(self.gallery.populate_page0)
+
+            self.dataHandler_similarity.signal_set_total_page_count.connect(self.gallery_similarity.set_total_pages)
+            self.dataHandler_similarity.signal_populate_page0.connect(self.gallery_similarity.populate_page0)
+
+            self.dataHandler_umap_selection.signal_set_total_page_count.connect(self.gallery_umap_selection.set_total_pages)
+            self.dataHandler_umap_selection.signal_populate_page0.connect(self.gallery_umap_selection.populate_page0)
+
+            # similarity search
+            self.gallery.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
+            # signal_updatePage will only be emitted by non-main galleries - (annotating in other galleries will not change the displayed annotations in the current page of the main gallery)
+
+            self.gallery_similarity.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
+            self.gallery_similarity.signal_updatePage.connect(self.gallery.update_page)
+
+            self.gallery_umap_selection.signal_similaritySearch.connect(self.dataHandler_similarity.populate_similarity_search)
+            self.gallery_umap_selection.signal_updatePage.connect(self.gallery.update_page)
+
+            # get selected images in UMAP scatter plot
+            ##self.plots[dimentionality_reduction].signal_selected_points.connect(self.dataHandler.prepare_selected_images)
+            self.dataHandler.signal_selected_images.connect(self.dataHandler_umap_selection.populate_selected_images)
+
+            # show selected images in UMAP
+            self.gallery.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
+            self.gallery_similarity.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
+            self.gallery_umap_selection.signal_selected_images_idx_for_umap.connect(self.dataHandler.to_umap_embedding)
+
+            #self.dataHandler.signal_umap_embedding.connect(self.plots[dimentionality_reduction].show_points)
+
+            # clear the overlay when images are de-selected
+            #self.gallery.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+            #self.gallery_similarity.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+            #self.gallery_umap_selection.signal_selection_cleared.connect(self.plots[dimentionality_reduction].clear_overlay)
+
+            # gallery settings
+            self.gallerySettings.signal_numRowsPerPage.connect(self.gallery.set_number_of_rows)
+            self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler.set_number_of_images_per_page)
+            self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler.set_k_similar)
+
+            self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler_similarity.set_number_of_images_per_page)
+            self.gallerySettings.signal_numRowsPerPage.connect(self.gallery_similarity.set_number_of_rows)
+            self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_similarity.set_k_similar)
+
+            self.gallerySettings.signal_numImagesPerPage.connect(self.dataHandler_umap_selection.set_number_of_images_per_page)
+            self.gallerySettings.signal_numRowsPerPage.connect(self.gallery_umap_selection.set_number_of_rows)
+            self.gallerySettings.signal_k_similaritySearch.connect(self.dataHandler_umap_selection.set_k_similar)
+
+            # plots
+            '''
+            self.dataHandler.signal_annotation_stats.connect(self.plots['Labels'].update_plot)
+            self.dataHandler.signal_annotation_stats.connect(self.plots['Annotation Progress'].update_plot)
+            self.dataHandler.signal_predictions.connect(self.plots['Inference Result'].update_plot)
+            self.dataHandler.signal_distances.connect(self.plots['Similarity'].update_plot)
+            self.dataHandler.signal_UMAP_visualizations.connect(self.plots[dimentionality_reduction].update_plot)
+            '''
+
+            # dev mode
+            if False:
+                annotation_pd = pd.read_csv('tmp/score.csv',index_col='index')
+                images = np.load('tmp/test.npy')
+                self.dataHandler.load_images(images)
+                self.dataHandler.load_predictions(annotation_pd)
+                self.dataHandler.add_data(images,annotation_pd)
+
+            # deep learning classification
+            self.classification_th = CLASSIFICATION_TH
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+            # model
+            #model_path = 'tmp/model_perf_r34_b32.pt'
+            model_path = CLASSIFICATION_MODEL_PATH
+
+            self.model = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
+            state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
+            self.model.load_state_dict(state_dict)
+            self.model = self.model.to(self.device)
+
+            if TWO_CLASSIFICATION_MODELS:
+                model_path2 = CLASSIFICATION_MODEL_PATH2
+                self.model2 = models.ResNet(model='resnet18', n_channels=4, n_classes=2)  # Adjust parameters as needed
+                state_dict = torch.load(model_path, map_location=torch.device('cpu') if not torch.cuda.is_available() else None)
+                self.model2.load_state_dict(state_dict)
+                self.model2 = self.model2.to(self.device)
+            else:
+                self.model2 = None
+
+            dummy_input = torch.randn(256, 4, 31, 31)  # Adjust as per your input shape
+            if torch.cuda.is_available():
+                dummy_input = dummy_input.cuda()
+            dummy_model = self.model(dummy_input)
+            if TWO_CLASSIFICATION_MODELS:
+                dummy_model2 = self.model2(dummy_input)
+            #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
+            #segmentation_model_path=SEGMENTATION_MODEL_PATH
+            segmentation_model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/model_4000_11.pth'
+            assert os.path.exists(segmentation_model_path)
+            use_trt_segmentation=USE_TRT_SEGMENTATION
+            self.segmentation_model = m2u(pretrained_model=segmentation_model_path, use_trt=use_trt_segmentation)
+            # run some dummy data thru model - warm-up
+            dummy_data = (255 * np.random.rand(3000,3000)).astype(np.uint8)
+            self.segmentation_model.predict_on_images(dummy_data)
+            del dummy_input
+            del dummy_data
+            print('done')
+
         self.navigationController.move_to_cached_position()
 
+    def toggleStitcherWidget(self, checked):
+        central_layout = self.centralWidget.layout()
+        if checked:
+            central_layout.insertWidget(central_layout.count() - 2, self.stitcherWidget)
+            self.stitcherWidget.show()
+        else:
+            central_layout.removeWidget(self.stitcherWidget)
+            self.stitcherWidget.hide()
+            self.stitcherWidget.setParent(None)
+
+    def startStitcher(self, acquisition_path):
+        if self.multiPointWidget.checkbox_stitchOutput.isChecked():
+            # Fetch settings from StitcherWidget controls
+            apply_flatfield = self.stitcherWidget.applyFlatfieldCheck.isChecked()
+            use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
+            registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
+            output_name = self.multiPointWidget.lineEdit_experimentID.text()
+            if output_name == "":
+                output_name = "stitched"
+            output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
+
+            self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
+                                           apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
+
+            # Connect signals to slots
+            self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
+            self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
+            self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
+            self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
+            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
+            # Start the thread
+            self.stitcherThread.start()
+
     def closeEvent(self, event):
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         self.navigationController.cache_current_position()
         event.accept()
         # self.softwareTriggerGenerator.stop() @@@ => 
@@ -357,3 +579,38 @@ class OctopiGUI(QMainWindow):
             self.imageArrayDisplayWindow.close()
             self.tabbedImageDisplayWindow.close()
         self.microcontroller.close()
+
+    def toggleStitcherWidget(self, checked):
+        central_layout = self.centralWidget.layout()
+        if checked:
+            central_layout.insertWidget(central_layout.count() - 2, self.stitcherWidget)
+            self.stitcherWidget.show()
+        else:
+            central_layout.removeWidget(self.stitcherWidget)
+            self.stitcherWidget.hide()
+            self.stitcherWidget.setParent(None)
+
+    def startStitcher(self, acquisition_path):
+        if self.multiPointWidget.checkbox_stitchOutput.isChecked():
+            # Fetch settings from StitcherWidget controls
+            apply_flatfield = self.stitcherWidget.applyFlatfieldCheck.isChecked()
+            use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
+            registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
+            output_name = self.multiPointWidget.lineEdit_experimentID.text()
+            if output_name == "":
+                output_name = "stitched"
+            output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
+
+            self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path,
+                                                output_name=output_name, output_format=output_format,
+                                                apply_flatfield=apply_flatfield,
+                                                use_registration=use_registration, registration_channel=registration_channel)
+
+            # Connect signals to slots
+            self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
+            self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
+            self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
+            self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
+            self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
+            # Start the thread
+            self.stitcherThread.start()

@@ -69,7 +69,7 @@ class OctopiGUI(QMainWindow):
         self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-        self.navigationController = core.NavigationController(self.microcontroller)
+        self.navigationController = core.NavigationController(self.microcontroller,self.objectiveStore)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
         if ENABLE_TRACKING:
