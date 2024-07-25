@@ -55,7 +55,7 @@ class Stitcher(QThread, QObject):
 
     def init_stitching_parameters(self):
         self.is_rgb = {}
-        self.wells = []
+        self.regions = []
         self.channel_names = []
         self.mono_channel_names = []
         self.channel_colors = []
@@ -67,6 +67,7 @@ class Stitcher(QThread, QObject):
         self.max_x_overlap = self.max_y_overlap = 0
         self.flatfields = {}
         self.stitching_data = {}
+        self.tczyx_shape = (len(self.time_points),self.num_c,self.num_z,self.num_rows*self.input_height,self.num_cols*self.input_width)
         self.stitched_images = None
         self.chunks = None
         self.dtype = np.uint16
@@ -124,8 +125,8 @@ class Stitcher(QThread, QObject):
         #         'z-planes': False}
         coordinates = pd.read_csv(os.path.join(input_folder, self.time_points[0], 'coordinates.csv'))
         try:
-            first_well = coordinates['well'].unique()[0]
-            coordinates = coordinates[coordinates['well'] == first_well]
+            first_region = coordinates['region'].unique()[0]
+            coordinates = coordinates[coordinates['region'] == first_region]
             self.is_wellplate = True
         except Exception as e:
             print("no coordinates.csv well data:", e)
@@ -150,9 +151,9 @@ class Stitcher(QThread, QObject):
 
         first_filename = sorted_input_files[0]
         try:
-            first_well, first_i, first_j, first_k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
+            first_region, first_i, first_j, first_k, channel_name = os.path.splitext(first_filename)[0].split('_', 4)
             first_k = int(first_k)
-            print("well_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
+            print("region_i_j_k_channel_name: ", os.path.splitext(first_filename)[0])
             self.is_wellplate = True
         except ValueError as ve:
             first_i, first_j, first_k, channel_name = os.path.splitext(first_filename)[0].split('_', 3)
@@ -161,37 +162,37 @@ class Stitcher(QThread, QObject):
 
         input_extension = os.path.splitext(sorted_input_files[0])[1]
         max_i, max_j, max_k = 0, 0, 0
-        wells, channel_names = set(), set()
+        regions, channel_names = set(), set()
 
         for filename in sorted_input_files:
             if self.is_wellplate:
-                well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4)
+                region, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4)
             else:
-                well = '0'
+                region = '0'
                 i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 3)
 
             channel_name = channel_name.replace("_", " ").replace("full ", "full_")
             i, j, k = int(i), int(j), int(k)
 
-            wells.add(well)
+            regions.add(region)
             channel_names.add(channel_name)
             max_i, max_j, max_k = max(max_i, i), max(max_j, j), max(max_k, k)
 
             tile_info = {
                 'filepath': os.path.join(self.image_folder, filename),
-                'well': well,
+                'region': region,
                 'channel': channel_name,
                 'z_level': k,
                 'row': i,
                 'col': j
             }
-            self.stitching_data.setdefault(well, {}).setdefault(channel_name, {}).setdefault(k, {}).setdefault((i, j), tile_info)
+            self.stitching_data.setdefault(region, {}).setdefault(channel_name, {}).setdefault(k, {}).setdefault((i, j), tile_info)
 
-        self.wells = sorted(wells)
+        self.regions = sorted(regions)
         self.channel_names = sorted(channel_names)
         self.num_z, self.num_cols, self.num_rows = max_k + 1, max_j + 1, max_i + 1
 
-        first_coord = f"{self.wells[0]}_{first_i}_{first_j}_{first_k}_" if self.is_wellplate else f"{first_i}_{first_j}_{first_k}_"
+        first_coord = f"{self.regions[0]}_{first_i}_{first_j}_{first_k}_" if self.is_wellplate else f"{first_i}_{first_j}_{first_k}_"
         found_dims = False
         mono_channel_names = []
 
@@ -217,7 +218,7 @@ class Stitcher(QThread, QObject):
         self.num_c = len(mono_channel_names)
         self.channel_colors = [CHANNEL_COLORS_MAP.get(self.extract_wavelength(name), {'hex': 0xFFFFFF})['hex'] for name in self.mono_channel_names]
         print(self.mono_channel_names)
-        print(self.wells)
+        print(self.regions)
 
     def get_flatfields(self, progress_callback=None):
         def process_images(images, channel_name):
@@ -232,10 +233,10 @@ class Stitcher(QThread, QObject):
         # Iterate only over the channels you need to process
         for channel in self.channel_names:
             all_tiles = []
-            # Collect tiles from all wells and z-levels for the current channel
-            for well in self.wells:
-                for z_level in self.stitching_data[well][channel]:
-                    for row_col, tile_info in self.stitching_data[well][channel][z_level].items():
+            # Collect tiles from all roi and z-levels for the current channel
+            for roi in self.regions:
+                for z_level in self.stitching_data[roi][channel]:
+                    for row_col, tile_info in self.stitching_data[roi][channel][z_level].items():
                         all_tiles.append(tile_info)
 
             # Shuffle and select a subset of tiles for flatfield calculation
@@ -276,12 +277,12 @@ class Stitcher(QThread, QObject):
             img2 = self.normalize_image(img2)
 
             margin = int(self.input_height * margin_ratio)
-            img1_roi, img2_roi = img1[margin:-margin, -max_overlap:], img2[margin:-margin, :max_overlap]
-            img1_roi, img2_roi = img1_roi.astype(self.dtype), img2_roi.astype(self.dtype)
+            img1_overlap = (img1[margin:-margin, -max_overlap:]).astype(self.dtype)
+            img2_overlap = (img2[margin:-margin, :max_overlap]).astype(self.dtype)
 
-            self.visualize_image(img1_roi, img2_roi, "horizontal")
-            shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
-            return round(shift[0]), round(shift[1] - img1_roi.shape[1])
+            self.visualize_image(img1_overlap, img2_overlap, "horizontal")
+            shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
+            return round(shift[0]), round(shift[1] - img1_overlap.shape[1])
         except Exception as e:
             print(f"Error calculating horizontal shift: {e}")
             return (0, 0)
@@ -294,18 +295,18 @@ class Stitcher(QThread, QObject):
             img2 = self.normalize_image(img2)
 
             margin = int(self.input_width * margin_ratio)
-            img1_roi, img2_roi = img1[-max_overlap:, margin:-margin], img2[:max_overlap, margin:-margin]
-            img1_roi, img2_roi = img1_roi.astype(self.dtype), img2_roi.astype(self.dtype)
+            img1_overlap = (img1[-max_overlap:, margin:-margin]).astype(self.dtype)
+            img2_overlap = (img2[:max_overlap, margin:-margin]).astype(self.dtype)
 
-            self.visualize_image(img1_roi, img2_roi, "vertical")
-            shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
-            return round(shift[0] - img1_roi.shape[0]), round(shift[1])
+            self.visualize_image(img1_overlap, img2_overlap, "vertical")
+            shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
+            return round(shift[0] - img1_overlap.shape[0]), round(shift[1])
         except Exception as e:
             print(f"Error calculating vertical shift: {e}")
             return (0, 0)
 
-    def calculate_shifts(self, well="", z_level=0):
-        well = self.wells[0] if well not in self.wells else well
+    def calculate_shifts(self, roi="", z_level=0):
+        roi = self.regions[0] if roi not in self.regions else roi
         self.registration_channel = self.registration_channel if self.registration_channel in self.channel_names else self.channel_names[0]
 
         # Calculate estimated overlap from acquisition parameters
@@ -338,7 +339,7 @@ class Stitcher(QThread, QObject):
             row_top, row_bottom = row_bottom, row_top
 
         img1_path = img2_path_vertical = img2_path_horizontal = None
-        for (row, col), tile_info in self.stitching_data[well][self.registration_channel][z_level].items():
+        for (row, col), tile_info in self.stitching_data[roi][self.registration_channel][z_level].items():
             if col == col_left and row == row_top:
                 img1_path = tile_info['filepath']
             elif col == col_left and row == row_bottom:
@@ -362,13 +363,13 @@ class Stitcher(QThread, QObject):
         )
         print("vertical shift:", self.v_shift, ", horizontal shift:", self.h_shift)
 
-    def calculate_dynamic_shifts(self, well, channel, z_level, row, col):
+    def calculate_dynamic_shifts(self, roi, channel, z_level, row, col):
         h_shift, v_shift = self.h_shift, self.v_shift
 
         # Check for left neighbor
-        if (row, col - 1) in self.stitching_data[well][channel][z_level]:
-            left_tile_path = self.stitching_data[well][channel][z_level][row, col - 1]['filepath']
-            current_tile_path = self.stitching_data[well][channel][z_level][row, col]['filepath']
+        if (row, col - 1) in self.stitching_data[roi][channel][z_level]:
+            left_tile_path = self.stitching_data[roi][channel][z_level][row, col - 1]['filepath']
+            current_tile_path = self.stitching_data[roi][channel][z_level][row, col]['filepath']
             # Calculate horizontal shift
             new_h_shift = self.calculate_horizontal_shift(left_tile_path, current_tile_path, abs(self.h_shift[1]))
 
@@ -379,9 +380,9 @@ class Stitcher(QThread, QObject):
                 h_shift = new_h_shift
 
         # Check for top neighbor
-        if (row - 1, col) in self.stitching_data[well][channel][z_level]:
-            top_tile_path = self.stitching_data[well][channel][z_level][row - 1, col]['filepath']
-            current_tile_path = self.stitching_data[well][channel][z_level][row, col]['filepath']
+        if (row - 1, col) in self.stitching_data[roi][channel][z_level]:
+            top_tile_path = self.stitching_data[roi][channel][z_level][row - 1, col]['filepath']
+            current_tile_path = self.stitching_data[roi][channel][z_level][row, col]['filepath']
             # Calculate vertical shift
             new_v_shift = self.calculate_vertical_shift(top_tile_path, current_tile_path, abs(self.v_shift[0]))
 
@@ -393,16 +394,16 @@ class Stitcher(QThread, QObject):
 
         return h_shift, v_shift
 
-    def init_output(self, time_point, well):
+    def init_output(self, time_point, region_id):
         output_folder = os.path.join(self.input_folder, f"{time_point}_stitched")
         os.makedirs(output_folder, exist_ok=True)
-        self.output_path = os.path.join(output_folder, f"{well}_{self.output_name}" if self.is_wellplate else self.output_name)
+        self.output_path = os.path.join(output_folder, f"{region_id}_{self.output_name}" if self.is_wellplate else self.output_name)
 
         x_max = (self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + # horizontal width with overlap
                 abs((self.num_rows - 1) * self.v_shift[1])) # horizontal shift from vertical registration
         y_max = (self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + # vertical height with overlap
                 abs((self.num_cols - 1) * self.h_shift[0])) # vertical shift from horizontal registration
-        if self.use_registration and FULL_REGISTRATION:
+        if self.use_registration and DYNAMIC_REGISTRATION:
             y_max *= 1.05
             x_max *= 1.05
         size = max(y_max, x_max)
@@ -413,12 +414,13 @@ class Stitcher(QThread, QObject):
         self.num_pyramid_levels = num_levels
         print("num_pyramid_levels:", self.num_pyramid_levels)
         tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
-        print(f"(t:{time_point}, well:{well}) output shape: {tczyx_shape}")
+        self.tczyx_shape = tczyx_shape
+        print(f"(t:{time_point}, roi:{region_id}) output shape: {tczyx_shape}")
         return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
 
-    def stitch_images(self, time_point, well, progress_callback=None):
-        self.stitched_images = self.init_output(time_point, well)
-        total_tiles = sum(len(z_data) for channel_data in self.stitching_data[well].values() for z_data in channel_data.values())
+    def stitch_images(self, time_point, roi, progress_callback=None):
+        self.stitched_images = self.init_output(time_point, roi)
+        total_tiles = sum(len(z_data) for channel_data in self.stitching_data[roi].values() for z_data in channel_data.values())
         processed_tiles = 0
 
         for z_level in range(self.num_z):
@@ -429,15 +431,15 @@ class Stitcher(QThread, QObject):
                 for col in range(self.num_cols):
                     col = self.num_cols - 1 - col if self.is_reversed['cols'] else col
 
-                    if self.use_registration and FULL_REGISTRATION and z_level == 0:
-                        if (row, col) in self.stitching_data[well][self.registration_channel][z_level]:
-                            tile_info = self.stitching_data[well][self.registration_channel][z_level][(row, col)]
-                            self.h_shift, self.v_shift = self.calculate_dynamic_shifts(well, self.registration_channel, z_level, row, col)
+                    if self.use_registration and DYNAMIC_REGISTRATION and z_level == 0:
+                        if (row, col) in self.stitching_data[roi][self.registration_channel][z_level]:
+                            tile_info = self.stitching_data[roi][self.registration_channel][z_level][(row, col)]
+                            self.h_shift, self.v_shift = self.calculate_dynamic_shifts(roi, self.registration_channel, z_level, row, col)
 
                     # Now apply the same shifts to all channels
                     for channel in self.channel_names:
-                        if (row, col) in self.stitching_data[well][channel][z_level]:
-                            tile_info = self.stitching_data[well][channel][z_level][(row, col)]
+                        if (row, col) in self.stitching_data[roi][channel][z_level]:
+                            tile_info = self.stitching_data[roi][channel][z_level][(row, col)]
                             tile = dask_imread(tile_info['filepath'])[0]
                             #tile = tile[:, ::-1]
                             if self.is_rgb[channel]:
@@ -519,7 +521,6 @@ class Stitcher(QThread, QObject):
             print(f"Channel {i}:", self.mono_channel_names[i], " \tColor:", self.channel_colors[i], " \tPixel Range:", channel_minmax[i])
 
         zarr_writer = OmeZarrWriter(self.output_path)
-        print("writing ome")
         zarr_writer.build_ome(
             size_z=self.num_z,
             image_name=os.path.basename(self.output_path),
@@ -527,7 +528,6 @@ class Stitcher(QThread, QObject):
             channel_colors=self.channel_colors,
             channel_minmax=channel_minmax
         )
-        print("writing image")
         zarr_writer.write_image(
             image_data=self.stitched_images,
             image_name=os.path.basename(self.output_path),
@@ -538,6 +538,14 @@ class Stitcher(QThread, QObject):
             scale_num_levels=self.num_pyramid_levels,
             chunk_dims=self.chunks
         )
+        # # Print metadata after writing
+        # print("ome-zarr metadata...")
+        # zarr_root = zarr.open(self.output_path, mode='r')
+        
+        # print("root attributes:")
+        # print(dict(zarr_root.attrs))
+        # print("zarr structure:")
+        # print(zarr_root.tree())
         self.stitched_images = None
 
     def create_complete_ome_zarr(self):
@@ -572,16 +580,17 @@ class Stitcher(QThread, QObject):
             # Assign the channel metadata to the image group
             root_group.attrs["omero"] = {"channels": channel_info}
 
-            print(f"all data saved in HCS OME-ZARR format at: {final_path}")
+            print(f"Data saved in OME-ZARR format at: {final_path}")
             root = zarr.open(final_path, mode='r')
             print(root.tree())
+            print(dict(root.attrs))
         self.finished_saving.emit(final_path, self.dtype)
 
     def create_hcs_ome_zarr(self):
         """Creates a hierarchical Zarr file in the HCS OME-ZARR format for visualization in napari."""
         hcs_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
-        if len(self.time_points) == 1 and len(self.wells) == 1:
-            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_{self.output_name}")
+        if len(self.time_points) == 1 and len(self.regions) == 1:
+            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.regions[0]}_{self.output_name}")
             #hcs_path = stitched_zarr_path # replace next line with this if no copy wanted
             shutil.copytree(stitched_zarr_path, hcs_path)
         else:
@@ -590,28 +599,24 @@ class Stitcher(QThread, QObject):
 
             # Retrieve row and column information for plate metadata
             rows, columns = self.get_rows_and_columns()
-            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.wells)]
+            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.regions)]
             print(well_paths)
             ome_zarr.writer.write_plate_metadata(root_group, rows, [str(col) for col in columns], well_paths)
 
             # Loop over each well and save its data
-            for well_id in self.wells:
+            for well_id in self.regions:
                 row, col = well_id[0], well_id[1:]
                 row_group = root_group.require_group(row)
                 well_group = row_group.require_group(col)
                 self.write_well_and_metadata(well_id, well_group)
 
-            print(f"All data saved in HCS OME-ZARR format at: {hcs_path}")
-            # channel_info = [{
-            #      "label": self.mono_channel_names[c],
-            #      "color": f"{self.channel_colors[c]:06X}",
-            #      "window": {"start": np.iinfo(self.dtype).min, "end": np.iinfo(self.dtype).max},
-            #      "active": True
-            # } for c in range(self.num_c)]
-
-            # root_group.attrs["omero"] = {"channels": channel_info}
+            print(f"Data saved in HCS OME-ZARR format at: {hcs_path}")
+        
+            print("HCS root attributes:")
             root = zarr.open(hcs_path, mode='r')
             print(root.tree())
+            print(dict(root.attrs))
+
         self.finished_saving.emit(hcs_path, self.dtype)
 
     def write_well_and_metadata(self, well_id, well_group):
@@ -682,7 +687,7 @@ class Stitcher(QThread, QObject):
         """Utility to extract rows and columns from well identifiers."""
         rows = set()
         columns = set()
-        for well_id in self.wells:
+        for well_id in self.regions:
             rows.add(well_id[0])  # Assuming well_id like 'A1'
             columns.add(int(well_id[1:]))
         return sorted(rows), sorted(columns)
@@ -709,10 +714,10 @@ class Stitcher(QThread, QObject):
                     self.calculate_shifts()
                     print("time to calculate shifts", time.time() - shtime)
 
-                for well in self.wells:
+                for well in self.regions:
                     wtime = time.time()
                     self.starting_stitching.emit()
-                    print(f"stitching...")
+                    print(f"\nstarting stitching...")
                     self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
 
                     sttime = time.time()

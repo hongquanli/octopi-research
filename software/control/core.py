@@ -1921,7 +1921,6 @@ class MultiPointWorker(QObject):
 
         self.perform_autofocus(region_id)
 
-        print(region_id, "acquire position:", i, j)
         if self.NZ > 1:
             self.prepare_z_stack()
         
@@ -1941,7 +1940,7 @@ class MultiPointWorker(QObject):
                 file_ID = f"{coordinate_name}_x{x_mm:.3f}_y{y_mm:.3f}_z{z_level}"
 
             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
-            print(file_ID, "scan coordinate:", metadata)
+            print("ID:", file_ID, "\nScan Coordinate:", metadata)
             
             # laser af characterization mode
             if LASER_AF_CHARACTERIZATION_MODE:
@@ -2039,8 +2038,18 @@ class MultiPointWorker(QObject):
                     # update the coordinate in the widget
                     if self.coordinate_dict is not None:
                         self.microscope.multiPointWidgetGrid.update_z_level(region_id, self.navigationController.z_pos_mm)
-                    elif location_list is not None:
-                        self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                    elif self.multiPointController.location_list is not None:
+                        try:
+                            self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                        except:
+                            print("failed update flexible widget z")
+                            pass
+                        try:
+                            self.microscope.multiPointWidgetGrid.update_z_level(region_id, self.navigationController.z_pos_mm)
+                        except:
+                            print("failed update grid widget z")
+                            pass
+
         else:
             # initialize laser autofocus if it has not been done
             if self.microscope.laserAutofocusController.is_initialized==False:
@@ -2596,11 +2605,10 @@ class MultiPointController(QObject):
         if coordinate_dict is not None:
             print('Using coordinate-based acquisition')
             print(f"Number of regions: {len(coordinate_dict)}")
+            print("Regions", coordinate_dict.keys())
             total_points = sum(len(coords) for coords in coordinate_dict)
             print(f"Total number of points: {total_points}")
             print("Coordinate dict:")
-            for key, value in coordinate_dict.items():
-                print(f"  {key}: {value}")
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
@@ -2610,11 +2618,9 @@ class MultiPointController(QObject):
             print('Using location list acquisition')
             print(f"Number of locations: {len(location_list)}")
             print("Location list:")
-            for loc in location_list:
-                print(f"  {loc}")
-            self.location_list = location_list
             print(location_list)
             self.coordinate_dict = None
+            self.location_list = location_list
             self.use_scan_coordinates = True
             self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = [f'R{i}' for i in range(len(location_list))]
@@ -2784,7 +2790,7 @@ class MultiPointController(QObject):
                 self.parent.dataHandler.signal_populate_page0.emit()
             except:
                 pass
-        print("total time for acquisition + processing + reset:", time.time() - self.start_time)
+        print("total time for acquisition + processing + reset:", time.time() - self.recording_start_time)
         self.acquisitionFinished.emit()
         self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()

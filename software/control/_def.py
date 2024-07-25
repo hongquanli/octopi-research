@@ -355,7 +355,7 @@ OBJECTIVES = {
     '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
     '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
     '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
-    '20x (Nikon)':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':200},
+    '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
     '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180},
     '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
     '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}

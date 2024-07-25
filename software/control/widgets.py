@@ -1895,7 +1895,7 @@ class MultiPointWidget(QFrame):
             msg.setText("Please choose base saving directory first")
             msg.exec_()
             return
-        if IS_HCS and self.well_selected == False:
+        if self.well_selected == False and self.multipointController.scanCoordinates.format != 0:
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
             msg.setText("Please select a well to scan first")
@@ -1913,7 +1913,7 @@ class MultiPointWidget(QFrame):
             self.setEnabled_all(False)
 
             # set parameters
-            if hasattr(self.multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
+            if self.multipointController.scanCoordinates is not None:
                 self.multipointController.scanCoordinates.grid_skip_positions = []
             self.multipointController.set_deltaX(self.entry_deltaX.value())
             self.multipointController.set_deltaY(self.entry_deltaY.value())
@@ -2271,7 +2271,7 @@ class MultiPointWidget2(QFrame):
             # @@@ to do: add a widgetManger to enable and disable widget 
             # @@@ to do: emit signal to widgetManager to disable other widgets
             # clear skip positions
-            if hasattr(multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
+            if hasattr(self.multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
                 self.multipointController.scanCoordinates.grid_skip_positions = []
 
             # add the current location to the location list if the list is empty
@@ -2845,10 +2845,9 @@ class MultiPointWidgetGrid(QFrame):
             self.signal_update_navigation_viewer.emit()
             print(f"Updated region coordinates: {len(self.region_coordinates)} regions")
         elif self.scanCoordinates.format == 0:
-            if self.scanCoordinates.format == 0:
-                x = self.navigationController.x_pos_mm
-                y = self.navigationController.y_pos_mm
-                self.set_live_scan_coordinates(x, y)
+            x = self.navigationController.x_pos_mm
+            y = self.navigationController.y_pos_mm
+            self.set_live_scan_coordinates(x, y)
 
     def update_z_level(self, well_id, new_z):
         if len(region_coordinates[well_id]) == 3: 
@@ -3052,7 +3051,7 @@ class MultiPointWidgetGrid(QFrame):
                     x = self.navigationController.x_pos_mm
                     y = self.navigationController.y_pos_mm
                     z = self.navigationController.z_pos_mm
-                    self.region_coordinates['current'] = (x, y, z)
+                    self.region_coordinates['current'] = [x, y, z]
                     scan_coordinates = self.create_region_coordinates(
                         self.objectiveStore,
                         x, y,
@@ -3069,6 +3068,11 @@ class MultiPointWidgetGrid(QFrame):
                 
             else:
                 # Use grid-based acquisition
+                if self.scanCoordinates.format == 0 or len(self.region_coordinates) == 0:
+                    x = self.navigationController.x_pos_mm
+                    y = self.navigationController.y_pos_mm
+                    z = self.navigationController.z_pos_mm
+                    self.region_coordinates['current'] = [x, y, z]
                 steps, step_size_mm = self.create_scan_grid(
                     self.objectiveStore,
                     scan_size_mm=scan_size_mm,
@@ -3105,13 +3109,12 @@ class MultiPointWidgetGrid(QFrame):
 
             # Start acquisition
             if self.use_coordinate_acquisition:
-                self.multipointController.run_acquisition(
-                    location_list=self.region_coordinates,
-                    coordinate_dict=self.region_coordinates_map
-                )
+                self.multipointController.run_acquisition(location_list=self.region_coordinates, coordinate_dict=self.region_coordinates_map)
             else:
-                self.multipointController.run_acquisition()
-
+                if self.scanCoordinates.format == 0:
+                    self.multipointController.run_acquisition(location_list=list(self.region_coordinates.values())) # glass slide
+                else:
+                    self.multipointController.run_acquisition() # wellplate
         else:
             self.multipointController.request_abort_aquisition()
             self.setEnabled_all(True)
@@ -3119,6 +3122,7 @@ class MultiPointWidgetGrid(QFrame):
     def acquisition_is_finished(self):
         self.signal_acquisition_started.emit(False)
         self.btn_startAcquisition.setChecked(False)
+        self.set_well_coordinates(self.well_selected)
         self.setEnabled_all(True)
 
     def setEnabled_all(self, enabled):
@@ -3146,6 +3150,9 @@ class MultiPointWidgetGrid(QFrame):
 
     def display_stitcher_widget(self, checked):
         self.signal_stitcher_widget.emit(checked)
+        if checked:
+            self.checkbox_useCoordinateAcquisition.setChecked(not checked)
+        self.checkbox_useCoordinateAcquisition.setVisible(not checked)
 
 
 class StitcherWidget(QFrame):
