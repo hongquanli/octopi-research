@@ -56,6 +56,7 @@ sudo cp drivers\ and\ libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/ru
 
 <details>
 <summary>Installing drivers and libraries for Hamamatsu camera support</summary>
+
 Open the `software/drivers and libraries/hamamatsu` folder in terminal and run the following
 ```
 sh ./install_hamamatsu.sh
