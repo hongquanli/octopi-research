@@ -12,6 +12,7 @@ Reboot the computer to finish the installation.
 <details>
 <summary>image stitching dependencies (optional)</summary>
 For optional image stitching using ImageJ, additionally run the following:
+
 ```
 sudo apt-get update
 sudo apt-get install openjdk-11-jdk
@@ -38,7 +39,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 <summary>Installing drivers and libraries for FLIR camera support</summary>
 Go to FLIR's page for downloading their Spinnaker SDK (https://www.flir.com/support/products/spinnaker-sdk/) and register.
 
-Open the software/drivers and libraries/flir folder in terminal and run the following
+Open the `software/drivers and libraries/flir` folder in terminal and run the following
 ```
 sh ./install_spinnaker.sh
 sh ./install_PySpin.sh
@@ -50,6 +51,14 @@ sh ./install_PySpin.sh
 
 ```
 sudo cp drivers\ and\ libraries/toupcam/linux/udev/99-toupcam.rules /etc/udev/rules.d
+```
+</details>
+
+<details>
+<summary>Installing drivers and libraries for Hamamatsu camera support</summary>
+Open the `software/drivers and libraries/hamamatsu` folder in terminal and run the following
+```
+sh ./install_hamamatsu.sh
 ```
 </details>
 
