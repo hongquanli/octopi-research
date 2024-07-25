@@ -2850,7 +2850,7 @@ class MultiPointWidgetGrid(QFrame):
             self.set_live_scan_coordinates(x, y)
 
     def update_z_level(self, well_id, new_z):
-        if len(region_coordinates[well_id]) == 3: 
+        if len(self.region_coordinates[well_id]) == 3:
             # [x, y, z] -> [x, y, new_z]
             self.region_coordinates[well_id][2] = new_z
         else: 
