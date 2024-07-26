@@ -1,48 +1,49 @@
 # set QT_API environment variable
 import os 
 import sys
-os.environ["QT_API"] = "pyqt5"
-import qtpy
 
 # qt libraries
+os.environ["QT_API"] = "pyqt5"
+import qtpy
+import pyqtgraph as pg
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
-from control.processing_handler import ProcessingHandler
+# control 
+from control._def import *
+if DO_FLUORESCENCE_RTP:
+    from control.processing_handler import ProcessingHandler
+    from control.processing_pipeline import *
+    from control.multipoint_built_in_functionalities import malaria_rtp
 
 import control.utils as utils
-from control._def import *
-
+import control.utils_config as utils_config
 import control.tracking as tracking
+import control.serial_peripherals as serial_peripherals
+
 try:
     from control.multipoint_custom_script_entry import *
     print('custom multipoint script found')
 except:
     pass
-import control.serial_peripherals as serial_peripherals
 
 from queue import Queue
 from threading import Thread, Lock
+from pathlib import Path
+from datetime import datetime
 import time
+import subprocess
+import shutil
+from lxml import etree
+import json
+import math
+import random
 import numpy as np
-import pyqtgraph as pg
-import scipy
+import pandas as pd
 import scipy.signal
 import cv2
-from datetime import datetime
-
-from lxml import etree as ET
-from pathlib import Path
-import control.utils_config as utils_config
-
-import math
-import json
-import pandas as pd
-
 import imageio as iio
-
-import subprocess
 
 
 class ObjectiveStore:
@@ -768,7 +769,6 @@ class NavigationController(QObject):
         fov_col = Nx - (fov_col + 1) if end_position_x else fov_col
         fov_row = fov_row
         print("fov - (col, row):", fov_col, fov_row)
-
         pixel_sign_x = (-1)**end_position_x # inverted
         pixel_sign_y = -1 if INVERTED_OBJECTIVE else 1
         print("pixel_sign_x, pixel_sign_y", pixel_sign_x, pixel_sign_y)
@@ -778,6 +778,7 @@ class NavigationController(QObject):
         self.microcontroller.wait_till_operation_is_completed()
         self.move_y_to(self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
         self.microcontroller.wait_till_operation_is_completed()
+
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
         tile_height = (image_height / Ny) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -1327,9 +1328,12 @@ class AutofocusWorker(QObject):
             # tunr of the illumination if using software trigger
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
+
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
             self.image_to_display.emit(image)
+            #image_to_display = utils.crop_image(image,round(self.crop_width* self.liveController.display_resolution_scaling), round(self.crop_height* self.liveController.display_resolution_scaling))
+
             QApplication.processEvents()
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
@@ -1586,6 +1590,7 @@ class MultiPointWorker(QObject):
     napari_layers_init = Signal(int, int, object)
     napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
     napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
+    napari_rtp_layers_update = Signal(np.ndarray, str)
     
 
     def __init__(self,multiPointController):
@@ -1594,7 +1599,8 @@ class MultiPointWorker(QObject):
 
         self.signal_update_stats.connect(self.update_stats)
         self.start_time = 0
-        self.processingHandler = multiPointController.processingHandler
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1634,6 +1640,11 @@ class MultiPointWorker(QObject):
         self.scan_coordinates_name = self.multiPointController.scan_coordinates_name
 
         self.microscope = self.multiPointController.parent
+        try:
+            self.model = self.microscope.segmentation_model
+        except:
+            pass
+        self.crop = SEGMENTATION_CROP
 
         self.t_dpc = []
         self.t_inf = []
@@ -1643,8 +1654,12 @@ class MultiPointWorker(QObject):
             self.init_napari_layers = False
 
         self.tiled_preview = None
+        self.count = 0
+        
 
     def update_stats(self, new_stats):
+        self.count += 1
+        print("stats", self.count)
         for k in new_stats.keys():
             try:
                 self.detection_stats[k]+=new_stats[k]
@@ -1687,10 +1702,17 @@ class MultiPointWorker(QObject):
                         break
                     time.sleep(0.05)
 
-        self.processingHandler.processing_queue.join()
-        self.processingHandler.upload_queue.join()
-        elapsed_time = time.perf_counter_ns()-self.start_time
-        print("Time taken for acquisition/processing: "+str(elapsed_time/10**9))
+        elapsed_time = time.perf_counter_ns() - self.start_time
+        print("Time taken for acquisition: " + str(elapsed_time/10**9))
+
+        # End processing using the updated method
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.processing_queue.join()
+            self.processingHandler.upload_queue.join()
+            self.processingHandler.end_processing()
+        # time.sleep(0.2)
+        # wait for signal_update_stats in process_fn_with_count_and_display
+        print("Time taken for acquisition/processing: ", (time.perf_counter_ns() - self.start_time) / 1e9)
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -1731,6 +1753,7 @@ class MultiPointWorker(QObject):
         print(time.time()-start)
 
     def initialize_z_stack(self):
+        self.count_rtp = 0
         self.dz_usteps = 0 # accumulated z displacement
         self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
@@ -1898,7 +1921,6 @@ class MultiPointWorker(QObject):
 
         self.perform_autofocus(region_id)
 
-        print(region_id, "acquire position:", i, j)
         if self.NZ > 1:
             self.prepare_z_stack()
         
@@ -1918,7 +1940,7 @@ class MultiPointWorker(QObject):
                 file_ID = f"{coordinate_name}_x{x_mm:.3f}_y{y_mm:.3f}_z{z_level}"
 
             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
-            print(file_ID, "scan coordinate:", metadata)
+            print("ID:", file_ID, "\nScan Coordinate:", metadata)
             
             # laser af characterization mode
             if LASER_AF_CHARACTERIZATION_MODE:
@@ -1941,6 +1963,47 @@ class MultiPointWorker(QObject):
                     self.acquire_spectrometer_data(config, file_ID, current_path, i, j, z_level)
 
                 self.undo_z_offset(config)
+
+            # tiled preview
+            if not USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
+                # initialize the variable
+                if self.tiled_preview is None:
+                    size = current_round_images['BF LED matrix left half'].shape
+                    if len(size) == 2:
+                        self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR)),dtype=current_round_images['BF LED matrix full'].dtype)
+                    else:
+                        self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR),size[2]),dtype=current_round_images['BF LED matrix full'].dtype)
+                # downsample the image
+                I = current_round_images['BF LED matrix left half']
+                width = int(I.shape[1]/PRVIEW_DOWNSAMPLE_FACTOR)
+                height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
+                I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
+                # populate the tiled_preview
+                self.tiled_preview[real_i*height:(real_i+1)*height, real_j*width:(real_j+1)*width, ] = I
+                # emit the result
+                self.image_to_display_tiled_preview.emit(self.tiled_preview)
+
+            # real time processing 
+            acquired_image_configs = list(current_round_images.keys())
+            if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
+                try:
+                    print("real time processing", self.count_rtp)
+                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
+                        raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
+                    I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
+                    I_left = current_round_images['BF LED matrix left half']
+                    I_right = current_round_images['BF LED matrix right half']
+                    if len(I_left.shape) == 3:
+                        I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
+                    if len(I_right.shape) == 3:
+                        I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
+                    malaria_rtp(I_fluorescence, I_left, I_right, i, j, z_level, self,
+                                classification_test_mode=self.microscope.classification_test_mode,
+                                sort_during_multipoint=SORT_DURING_MULTIPOINT,
+                                disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
+                    self.count_rtp += 1
+                except AttributeError as e:
+                    print(repr(e))
 
             self.update_coordinates_dataframe(region_id, i, j, z_level)
             self.signal_register_current_fov.emit(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
@@ -1975,8 +2038,18 @@ class MultiPointWorker(QObject):
                     # update the coordinate in the widget
                     if self.coordinate_dict is not None:
                         self.microscope.multiPointWidgetGrid.update_z_level(region_id, self.navigationController.z_pos_mm)
-                    elif location_list is not None:
-                        self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                    elif self.multiPointController.location_list is not None:
+                        try:
+                            self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                        except:
+                            print("failed update flexible widget z")
+                            pass
+                        try:
+                            self.microscope.multiPointWidgetGrid.update_z_level(region_id, self.navigationController.z_pos_mm)
+                        except:
+                            print("failed update grid widget z")
+                            pass
+
         else:
             # initialize laser autofocus if it has not been done
             if self.microscope.laserAutofocusController.is_initialized==False:
@@ -2095,6 +2168,7 @@ class MultiPointWorker(QObject):
                     self.liveController.turn_on_illumination()
                     self.wait_till_operation_is_completed()
                     self.camera.send_trigger()
+
                 elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
                     self.microcontroller.send_hardware_trigger(control_illumination=True, illumination_on_time_us=self.camera.exposure_time * 1000)
 
@@ -2369,6 +2443,8 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    signal_stitcher = Signal(str)
+    napari_rtp_layers_update = Signal(np.ndarray, str)
     napari_layers_init = Signal(int, int, object)
     napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
     napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
@@ -2378,7 +2454,8 @@ class MultiPointController(QObject):
         QObject.__init__(self)
 
         self.camera = camera
-        self.processingHandler = ProcessingHandler()
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
@@ -2403,6 +2480,8 @@ class MultiPointController(QObject):
         self.gen_focus_map = False
         self.focus_map_storage = []
         self.already_using_fmap = False
+        self.do_segmentation = False
+        self.do_fluorescence_rtp = DO_FLUORESCENCE_RTP
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -2416,6 +2495,7 @@ class MultiPointController(QObject):
         self.scan_coordinates_mm = []
         self.scan_coordinates_name = []
         self.parent = parent
+        self.start_time = 0
         self.old_images_per_page = 1
         try:
             if self.parent is not None:
@@ -2427,34 +2507,54 @@ class MultiPointController(QObject):
 
     def set_NX(self,N):
         self.NX = N
+
     def set_NY(self,N):
         self.NY = N
+
     def set_NZ(self,N):
         self.NZ = N
+
     def set_Nt(self,N):
         self.Nt = N
+
     def set_deltaX(self,delta):
         mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
         self.deltaX = delta
         self.deltaX_usteps = round(delta/mm_per_ustep_X)
+
     def set_deltaY(self,delta):
         mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
         self.deltaY = delta
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
+
     def set_deltaZ(self,delta_um):
         mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
+
     def set_deltat(self,delta):
         self.deltat = delta
+
     def set_af_flag(self,flag):
         self.do_autofocus = flag
+
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
+
     def set_gen_focus_map_flag(self, flag):
         self.gen_focus_map = flag
         if not flag:
             self.autofocusController.set_focus_map_use(False)
+
+    def set_stitch_tiles_flag(self, flag):
+        self.do_stitch_tiles = flag
+
+    def set_segmentation_flag(self, flag):
+        self.do_segmentation = flag
+
+    def set_fluorescence_rtp_flag(self, flag):
+        self.do_fluorescence_rtp = flag
+
     def set_crop(self,crop_width, crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
@@ -2498,18 +2598,17 @@ class MultiPointController(QObject):
         self.selected_configurations = []
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
-
+        
     def run_acquisition(self, location_list=None, coordinate_dict=None):
         print('start multipoint')
         
         if coordinate_dict is not None:
             print('Using coordinate-based acquisition')
             print(f"Number of regions: {len(coordinate_dict)}")
+            print("Regions", coordinate_dict.keys())
             total_points = sum(len(coords) for coords in coordinate_dict)
             print(f"Total number of points: {total_points}")
             print("Coordinate dict:")
-            for key, value in coordinate_dict.items():
-                print(f"  {key}: {value}")
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
@@ -2519,16 +2618,14 @@ class MultiPointController(QObject):
             print('Using location list acquisition')
             print(f"Number of locations: {len(location_list)}")
             print("Location list:")
-            for loc in location_list:
-                print(f"  {loc}")
-            self.location_list = location_list
             print(location_list)
             self.coordinate_dict = None
+            self.location_list = location_list
             self.use_scan_coordinates = True
             self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = [f'R{i}' for i in range(len(location_list))]
         else:
-            print(f"{self.Nt}_{self.NX}_{self.NY}_{self.NZ}")
+            print(f"t_c_z_y_x: {self.Nt}_{len(self.selected_configurations)}_{self.NZ}_{self.NY}_{self.NX}")
             self.coordinate_dict = None
             self.location_list = None
             if self.scanCoordinates is not None and self.scanCoordinates.get_selected_wells():
@@ -2567,24 +2664,29 @@ class MultiPointController(QObject):
             else:
                 self.usb_spectrometer_was_streaming = False
 
+        # set current tabs
         if self.parent is not None:
-            if USE_NAPARI_FOR_MOSAIC_DISPLAY and self.coordinate_dict is not None:
+            configs = [config.name for config in self.selected_configurations]
+            print(configs)
+            if DO_FLUORESCENCE_RTP and 'BF LED matrix left half' in configs and 'BF LED matrix right half' in configs and 'Fluorescence 405 nm Ex' in configs:
+                self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
+                if USE_NAPARI_FOR_MULTIPOINT:
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariRTPWidget)
+                else:
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            
+            elif USE_NAPARI_FOR_MOSAIC_DISPLAY and self.coordinate_dict is not None:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMosaicDisplayWidget)
+                # self.parent.imageDisplayTabs. # disable naparitileddisplaywidget tab
 
             elif USE_NAPARI_FOR_TILED_DISPLAY:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariTiledDisplayWidget)
-
+            
             elif USE_NAPARI_FOR_MULTIPOINT:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMultiChannelWidget)
-                    
-            else: 
-                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            else:
+                self.parent.imageDisplayTabs.setCurrentIndex(0)
 
-            try:
-                self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
-            except:
-                pass
-        
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
 
@@ -2626,8 +2728,9 @@ class MultiPointController(QObject):
 
         self.thread = QThread()
         # create a worker object
-        self.processingHandler.start_processing()
-        self.processingHandler.start_uploading()
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.start_processing()
+            self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
         # move the worker to the thread
         self.multiPointWorker.moveToThread(self.thread)
@@ -2635,8 +2738,12 @@ class MultiPointController(QObject):
         self.thread.started.connect(self.multiPointWorker.run)
         self.multiPointWorker.signal_detection_stats.connect(self.slot_detection_stats)
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
-        self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
-        self.multiPointWorker.finished.connect(self.thread.quit)
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.finished.connect(self.multiPointWorker.deleteLater)
+            self.processingHandler.finished.connect(self.thread.quit)
+        else:
+            self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
+            self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
@@ -2644,6 +2751,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
         self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
+        self.multiPointWorker.napari_rtp_layers_update.connect(self.slot_napari_rtp_layers_update)
         self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
         self.multiPointWorker.napari_mosaic_update.connect(self.slot_napari_mosaic_update)
         self.multiPointWorker.signal_z_piezo_um.connect(self.slot_z_piezo_um)
@@ -2675,15 +2783,16 @@ class MultiPointController(QObject):
                 self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
-        self.processingHandler.end_processing()
         if self.parent is not None:
             try:
-                self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+                # self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
                 self.parent.dataHandler.sort('Sort by prediction score')
                 self.parent.dataHandler.signal_populate_page0.emit()
             except:
                 pass
+        print("total time for acquisition + processing + reset:", time.time() - self.recording_start_time)
         self.acquisitionFinished.emit()
+        self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
     def request_abort_aquisition(self):
@@ -2709,6 +2818,9 @@ class MultiPointController(QObject):
 
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
+
+    def slot_napari_rtp_layers_update(self, image, channel):
+        self.napari_rtp_layers_update.emit(image, channel)
 
     def slot_napari_layers_init(self, image_height, image_width, dtype):
         self.napari_layers_init.emit(image_height, image_width, dtype)
@@ -3067,7 +3179,7 @@ class TrackingWorker(QObject):
             # track
             objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
             if objectFound == False:
-                print('')
+                print('tracker: object not found')
                 break
             in_plane_position_error_pixel = image_center - centroid 
             in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
@@ -3174,6 +3286,9 @@ class ImageDisplayWindow(QMainWindow):
         self.DrawCrossHairs = False
         self.image_offset = np.array([0, 0])
 
+        # ## flag of setting scaling level 
+        # self.flag_image_scaling_level_init = False
+
         ## Layout
         layout = QGridLayout()
         if self.show_LUT:
@@ -3219,6 +3334,16 @@ class ImageDisplayWindow(QMainWindow):
             self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height()) 
 
     def display_image(self,image):
+        # def set_autoLevels_value():
+        #     if self.autoLevels is True:
+        #         self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+        #     else:
+        #         if self.flag_image_scaling_level_init is False:
+        #             self.graphics_widget.img.setImage(image, autoLevels = True)
+        #             self.flag_image_scaling_level_init = True
+        #         else:
+        #             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+
         if ENABLE_TRACKING:
             image = np.copy(image)
             self.image_height = image.shape[0],
@@ -3227,8 +3352,10 @@ class ImageDisplayWindow(QMainWindow):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
                 self.draw_rectangle = False
             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            # set_autoLevels_value()
         else:
             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            # set_autoLevels_value()
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
@@ -3345,8 +3472,9 @@ class NavigationViewer(QFrame):
             self.mm_per_pixel = 0.1453
             self.origin_x_pixel = 200
             self.origin_y_pixel = 120
-            self.view.invertX(True)
-            self.view.invertY(False)
+            if IS_HCS:
+                self.view.invertX(True)
+                self.view.invertY(False)
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
@@ -3391,13 +3519,11 @@ class NavigationViewer(QFrame):
 
     def update_current_location(self, x_mm=None, y_mm=None):
         if x_mm is None and y_mm is None:
-            print("update old loc")
             self.draw_current_fov(self.x_mm, self.y_mm)
 
         elif self.x_mm is not None and self.y_mm is not None:
             # update only when the displacement has exceeded certain value
             if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
-                print("update new loc")
                 self.draw_current_fov(x_mm, y_mm)
                 self.x_mm = x_mm
                 self.y_mm = y_mm
@@ -3405,7 +3531,6 @@ class NavigationViewer(QFrame):
                 if self.sample == 'glass slide' and not self.acquisition_started:
                     self.signal_draw_scan_grid.emit(x_mm, y_mm)
         else:
-            print("update first loc")
             self.draw_current_fov(x_mm, y_mm)
             self.x_mm = x_mm
             self.y_mm = y_mm
@@ -3560,7 +3685,7 @@ class ConfigurationManager(QObject):
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
             print('genenrate default config files')
-        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree = etree.parse(self.config_filename)
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
@@ -3923,7 +4048,7 @@ class LaserAutofocusController(QObject):
 
         if x1-x0 == 0:
             # for simulation
-             self.pixel_to_um = 0.4
+            self.pixel_to_um = 0.4
         else:
             # calculate the conversion factor
             self.pixel_to_um = 6.0/(x1-x0)
