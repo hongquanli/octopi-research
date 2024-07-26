@@ -408,7 +408,7 @@ class SOFTWARE_POS_LIMIT:
     X_NEGATIVE = -0.5
     Y_POSITIVE = 56
     Y_NEGATIVE = -0.5
-    Z_POSITIVE = 6
+    Z_POSITIVE = 7
     Z_NEGATIVE = 0.05
 
 SHOW_AUTOLEVEL_BTN = False
@@ -424,7 +424,9 @@ MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 DEFAULT_MULTIPOINT_NX=1
 DEFAULT_MULTIPOINT_NY=1
 
-ENABLE_FLEXIBLE_MULTIPOINT = False
+ENABLE_FLEXIBLE_MULTIPOINT = True
+ENABLE_SCAN_GRID = True
+ENABLE_RECORDING = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
 
@@ -526,7 +528,8 @@ LASER_AF_CHARACTERIZATION_MODE=False
 # Napari integration
 USE_NAPARI_FOR_LIVE_VIEW = False
 USE_NAPARI_FOR_MULTIPOINT = True
-USE_NAPARI_FOR_TILED_DISPLAY = True
+USE_NAPARI_FOR_TILED_DISPLAY = False
+USE_NAPARI_FOR_MOSAIC_DISPLAY = True
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
