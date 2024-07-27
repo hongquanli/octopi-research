@@ -1591,7 +1591,8 @@ class MultiPointWorker(QObject):
     napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
     napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
     napari_rtp_layers_update = Signal(np.ndarray, str)
-    
+    signal_acquisition_progress = Signal(int, int)
+    signal_region_progress = Signal(int, int)
 
     def __init__(self,multiPointController):
         QObject.__init__(self)
@@ -1633,7 +1634,7 @@ class MultiPointWorker(QObject):
         self.async_detection_stats = {}
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
-        self.FOV_counter = 0
+        self.af_fov_count = 0
         self.coordinate_dict = self.multiPointController.coordinate_dict
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
@@ -1794,7 +1795,7 @@ class MultiPointWorker(QObject):
         piezo_data = {'z_piezo (um)': [self.z_piezo_um - OBJECTIVE_PIEZO_HOME_UM]} if self.use_piezo else {}
 
         if IS_HCS:
-            if self.coordinate_dict:
+            if self.coordinate_dict is not None:
                 new_row = pd.DataFrame({
                     'region': [region_id],
                     **base_data,
@@ -1861,6 +1862,7 @@ class MultiPointWorker(QObject):
         n_regions = len(self.scan_coordinates_mm)
 
         for region_id in range(n_regions):
+            self.signal_acquisition_progress.emit(region_id + 1, n_regions)
             coordinate_mm = self.scan_coordinates_mm[region_id]
 
             self.x_scan_direction = 1
@@ -1882,14 +1884,20 @@ class MultiPointWorker(QObject):
 
                 self.wait_till_operation_is_completed()
 
+            num_fovs = self.NX * self.NY - len(self.multiPointController.scanCoordinates.grid_skip_positions)
+            fov_count = 0 # count fovs for progress
+
             for i in range(self.NY):
-                self.FOV_counter = 0 # for AF, so that AF at the beginning of each new row
+                self.af_fov_count = 0 # for AF, so that AF at the beginning of each new row
 
                 for j in range(self.NX):
                     sgn_i, sgn_j, real_i, real_j = self.calculate_grid_indices(i, j)
 
                     if not self.multiPointController.scanCoordinates or (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
                         self.acquire_at_position(region_id, current_path, real_i, real_j)
+
+                        fov_count += 1
+                        self.signal_region_progress.emit(fov_count, num_fovs)
 
                     if self.multiPointController.abort_acqusition_requested:
                         self.handle_acquisition_abort(current_path, region_id)
@@ -1906,12 +1914,21 @@ class MultiPointWorker(QObject):
             self.finish_grid_scan(n_regions, region_id)
 
     def run_coordinate_acquisition(self, current_path):
-        for region_id, coordinates in self.coordinate_dict.items():
-            for coordinate_mm in coordinates:
+        n_regions = len(self.scan_coordinates_mm)
+
+        for region_index, (region_id, coordinates) in enumerate(self.coordinate_dict.items()):
+
+            self.signal_acquisition_progress.emit(region_index + 1, n_regions)
+
+            num_fovs = len(coordinates)
+
+            for fov_count, coordinate_mm in enumerate(coordinates):
 
                 self.move_to_coordinate(coordinate_mm)
 
                 self.acquire_at_position(region_id, current_path)
+
+                self.signal_region_progress.emit(fov_count, num_fovs)
 
                 if self.multiPointController.abort_acqusition_requested:
                     self.handle_acquisition_abort(current_path, region_id)
@@ -1924,9 +1941,8 @@ class MultiPointWorker(QObject):
         if self.NZ > 1:
             self.prepare_z_stack()
         
-        if self.scan_coordinates_name is None:
-            # flexible scan, use a sequencial ID
-            coordinate_name = str(region_id)
+        if self.coordinate_dict is not None:
+            coordinate_name = region_id
         else:
             coordinate_name = self.scan_coordinates_name[region_id]
 
@@ -2014,7 +2030,7 @@ class MultiPointWorker(QObject):
                 return
 
             # update FOV counter
-            self.FOV_counter = self.FOV_counter + 1
+            self.af_fov_count = self.af_fov_count + 1
 
             if z_level < self.NZ - 1:
                 self.move_z_for_stack()
@@ -2025,11 +2041,11 @@ class MultiPointWorker(QObject):
     def perform_autofocus(self, region_id):
         if self.do_reflection_af == False:
             # contrast-based AF; perform AF only if when not taking z stack or doing z stack from center
-            if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+            if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.af_fov_count%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                 configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                 config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                 self.signal_current_configuration.emit(config_AF)
-                if (self.FOV_counter%Acquisition.NUMBER_OF_FOVS_PER_AF==0) or self.autofocusController.use_focus_map:
+                if (self.af_fov_count%Acquisition.NUMBER_OF_FOVS_PER_AF==0) or self.autofocusController.use_focus_map:
                     self.autofocusController.autofocus()
                     self.autofocusController.wait_till_autofocus_has_completed()
                 # update z location of scan_coordinates_mm after AF
@@ -2449,6 +2465,8 @@ class MultiPointController(QObject):
     napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
     napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
     signal_z_piezo_um = Signal(float)
+    signal_acquisition_progress = Signal(int, int)
+    signal_region_progress = Signal(int, int)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
@@ -2604,21 +2622,14 @@ class MultiPointController(QObject):
         
         if coordinate_dict is not None:
             print('Using coordinate-based acquisition')
-            print(f"Number of regions: {len(coordinate_dict)}")
-            print("Regions", coordinate_dict.keys())
             total_points = sum(len(coords) for coords in coordinate_dict)
-            print(f"Total number of points: {total_points}")
-            print("Coordinate dict:")
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
             self.scan_coordinates_mm = location_list
-            self.scan_coordinates_name = None # list(coordinate_dict.keys()) if not wellplate
+            self.scan_coordinates_name = list(coordinate_dict.keys()) # list(coordinate_dict.keys()) if not wellplate
         elif location_list is not None:
             print('Using location list acquisition')
-            print(f"Number of locations: {len(location_list)}")
-            print("Location list:")
-            print(location_list)
             self.coordinate_dict = None
             self.location_list = location_list
             self.use_scan_coordinates = True
@@ -2639,7 +2650,10 @@ class MultiPointController(QObject):
                 self.scan_coordinates_mm = [(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)]
                 self.scan_coordinates_name = ['ROI']
 
-        print("regions", self.scan_coordinates_mm)
+        print("num regions:",len(self.scan_coordinates_mm))
+        print("region ids:", self.scan_coordinates_name)
+        print("region coordinates:", self.scan_coordinates_mm)
+
         self.abort_acqusition_requested = False
 
         self.configuration_before_running_multipoint = self.liveController.currentConfiguration
@@ -2755,6 +2769,9 @@ class MultiPointController(QObject):
         self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
         self.multiPointWorker.napari_mosaic_update.connect(self.slot_napari_mosaic_update)
         self.multiPointWorker.signal_z_piezo_um.connect(self.slot_z_piezo_um)
+        self.multiPointWorker.signal_acquisition_progress.connect(self.slot_acquisition_progress)
+        self.multiPointWorker.signal_region_progress.connect(self.slot_region_progress)
+
         # self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.thread.quit)
         # start the thread
@@ -2833,6 +2850,12 @@ class MultiPointController(QObject):
 
     def slot_z_piezo_um(self, displacement_um):
         self.signal_z_piezo_um.emit(displacement_um)
+
+    def slot_acquisition_progress(self, current_region, total_regions):
+        self.signal_acquisition_progress.emit(current_region, total_regions)
+
+    def slot_region_progress(self, current_fov, total_fovs):
+        self.signal_region_progress.emit(current_fov, total_fovs)
 
 
 class TrackingController(QObject):

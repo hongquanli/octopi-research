@@ -765,15 +765,13 @@ class OctopiGUI(QMainWindow):
         for index in range(self.recordTabWidget.count()):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
 
-        if current_index == 0 and self.wellSelectionWidget.format != 0:
-            self.dock_wellSelection.setVisible(not acquisition_started)
-
         is_multipoint = (current_index == self.recordTabWidget.indexOf(self.multiPointWidget))
         is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
         if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0:
             self.toggleWellSelector(not acquisition_started)
         if is_scan_grid:
             self.navigationViewer.on_acquisition_start(acquisition_started)
+            self.multiPointWidgetGrid.display_progress_bar(acquisition_started)
 
     def toggleStitcherWidget(self, checked):
         if checked:

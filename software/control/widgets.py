@@ -18,6 +18,7 @@ import re
 import cv2
 import math
 import locale
+import time
 from datetime import datetime
 
 from control._def import *
@@ -2578,8 +2579,11 @@ class MultiPointWidgetGrid(QFrame):
         self.base_path_is_set = False
         self.well_selected = False
         self.use_coordinate_acquisition = True
+        self.num_regions = 0
         self.region_coordinates = {}
         self.region_coordinates_map = {}
+        self.acquisition_start_time = None
+        self.eta_seconds = 0
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_scan_size()
@@ -2672,6 +2676,14 @@ class MultiPointWidgetGrid(QFrame):
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
+        self.progress_label = QLabel('Region -/-')
+        self.progress_bar = QProgressBar()
+        self.eta_label = QLabel('--:--:--')
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
+        self.eta_label.setVisible(False)
+        self.eta_timer = QTimer()
+
         # Main layout
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
@@ -2718,7 +2730,7 @@ class MultiPointWidgetGrid(QFrame):
         z_t_layout.addWidget(self.entry_Nt)
         main_layout.addLayout(z_t_layout)
 
-        # Row 4-5: Configurations list and options
+        # Row 4: Configurations list, AF options, Start Acquisition button
         row4_layout = QHBoxLayout()
         row4_layout.addWidget(self.list_configurations)
 
@@ -2733,10 +2745,15 @@ class MultiPointWidgetGrid(QFrame):
 
         row4_layout.addLayout(options_layout)
 
-        # Row 4-5: Start Acquisition button
         row4_layout.addWidget(self.btn_startAcquisition)
-
         main_layout.addLayout(row4_layout)
+
+        # Row 5: Progress Bar
+        row5_layout = QHBoxLayout()
+        row5_layout.addWidget(self.progress_label)
+        row5_layout.addWidget(self.progress_bar)
+        row5_layout.addWidget(self.eta_label)
+        main_layout.addLayout(row5_layout)
 
         # Connections
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
@@ -2756,8 +2773,71 @@ class MultiPointWidgetGrid(QFrame):
         self.combobox_shape.currentTextChanged.connect(self.update_well_coordinates)
         self.entry_scan_size.valueChanged.connect(self.update_well_coordinates)
         self.entry_overlap.valueChanged.connect(self.update_well_coordinates)
-
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
+        self.multipointController.signal_acquisition_progress.connect(self.update_acquisition_progress)
+        self.multipointController.signal_region_progress.connect(self.update_region_progress)
+        self.signal_acquisition_started.connect(self.display_progress_bar)
+        self.eta_timer.timeout.connect(self.update_eta_display)
+
+    def update_region_progress(self, current_fov, num_fovs):
+        self.progress_bar.setMaximum(num_fovs)
+        self.progress_bar.setValue(current_fov)
+
+        if self.acquisition_start_time is not None and current_fov > 0:
+            elapsed_time = time.time() - self.acquisition_start_time
+
+            # Calculate total processed FOVs and total FOVs
+            if self.num_regions > 1:
+                current_region = int(self.progress_label.text().split('/')[0].split(' ')[1])
+            else:
+                current_region = 1
+            processed_fovs = (current_region - 1) * num_fovs + current_fov
+            total_fovs = self.num_regions * num_fovs
+            remaining_fovs = total_fovs - processed_fovs
+
+            # Calculate ETA
+            fov_per_second = processed_fovs / elapsed_time
+            self.eta_seconds = remaining_fovs / fov_per_second if fov_per_second > 0 else 0
+            self.update_eta_display()
+
+            # Start or restart the timer
+            self.eta_timer.start(1000)  # Update every 1000 ms (1 second)
+
+    def update_acquisition_progress(self, current_region, num_regions):
+        if current_region == 1:  # First region
+            self.acquisition_start_time = time.time()
+            self.num_regions = num_regions
+        if num_regions <= 1:
+            self.progress_label.setText("Progress")
+        else:
+            self.progress_label.setText(f"Region {current_region}/{num_regions}")
+
+    def update_eta_display(self):
+        if self.eta_seconds > 0:
+            self.eta_seconds -= 1  # Decrease by 1 second
+            hours, remainder = divmod(int(self.eta_seconds), 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            if hours > 0:
+                eta_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            else:
+                eta_str = f"{minutes:02d}:{seconds:02d}"
+            self.eta_label.setText(f"{eta_str}")
+        else:
+            self.eta_timer.stop()
+            self.eta_label.setText("00:00")
+
+    def display_progress_bar(self, show):
+        self.progress_label.setVisible(show)
+        self.progress_bar.setVisible(show)
+        self.eta_label.setVisible(show)
+        if show:
+            self.progress_bar.setValue(0)
+            self.progress_label.setText("Region 0/0")
+            self.eta_label.setText("--:--")
+            self.acquisition_start_time = None
+        else:
+            self.eta_timer.stop()
 
     def update_scan_size(self):
         if self.navigationViewer.sample == 'glass slide':
@@ -3127,7 +3207,10 @@ class MultiPointWidgetGrid(QFrame):
 
     def setEnabled_all(self, enabled):
         for widget in self.findChildren(QWidget):
-            if widget != self.btn_startAcquisition:
+            if (widget != self.btn_startAcquisition and
+                widget != self.progress_bar and
+                widget != self.progress_label and
+                widget != self.eta_label):
                 widget.setEnabled(enabled)
         # self.update_scan_size()  # Ensure scan size availability is correctly set
 
