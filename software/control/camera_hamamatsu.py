@@ -218,10 +218,13 @@ class Camera(object):
             print('-NG: Dcam.wait_event() fails with error {}'.format(dcamerr))
         
     def start_streaming(self, buffer_frame_num=1):
+        if self.is_streaming:
+            return
         if self.dcam.buf_alloc(buffer_frame_num):
             if self.dcam.cap_start(True):
                 self.is_streaming = True
                 print('Hamamatsu Camera starts streaming')
+                return
             else:
                 self.dcam.buf_release()
         print('Hamamatsu Camera cannot start streaming')
