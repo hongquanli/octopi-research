@@ -310,7 +310,7 @@ class OctopiGUI(QMainWindow):
         # image display tabs
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.liveControlWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.configurationManager, well_selector=self.wellSelectionWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -491,10 +491,16 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
 
         if USE_NAPARI_FOR_LIVE_VIEW:
+            self.multipointController.signal_current_configuration.connect(self.napariLiveWidget.set_microscope_mode)
             self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+            # new live connections ??? fix
+            self.napariLiveWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
+            self.napariLiveWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+            # self.napariLiveWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+
             if ENABLE_STITCHER:
                 self.napariLiveWidget.signal_layer_contrast_limits.connect(self.stitcherWidget.saveContrastLimits)
         else:

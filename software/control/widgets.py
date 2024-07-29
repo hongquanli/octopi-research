@@ -792,9 +792,11 @@ class CameraSettingsWidget(QFrame):
 
 
 class LiveControlWidget(QFrame):
+
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
+
     def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=True, show_autolevel = False, autolevel=False, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.liveController = liveController
@@ -1681,7 +1683,6 @@ class MultiPointWidget(QFrame):
         self.configurationManager = configurationManager
         self.well_selected = False
         self.base_path_is_set = False
-        self.well_selected = False
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -3440,19 +3441,21 @@ class StitcherWidget(QFrame):
 
 
 class NapariLiveWidget(QWidget):
-
     signal_coordinates_clicked = Signal(int, int, int, int)
     signal_layer_contrast_limits = Signal(str, float, float)
+    signal_newExposureTime = Signal(float)
+    signal_newAnalogGain = Signal(float)
+    signal_autoLevelSetting = Signal(bool)
 
-    def __init__(self, liveControlWidget, parent=None):
+    def __init__(self, streamHandler, liveController, configurationManager, show_trigger_options=True, show_display_options=True, show_autolevel=False, autolevel=False, parent=None, well_selector=None):
         super().__init__(parent)
-        # Initialize placeholders for the acquisition parameters
-        # self.objectiveStore = objectiveStore
-        self.liveControlWidget = liveControlWidget
+        self.streamHandler = streamHandler
+        self.liveController = liveController
+        self.configurationManager = configurationManager
         self.live_layer_name = ""
         self.image_width = 0
         self.image_height = 0
-        self.dtype = np.uint8 
+        self.dtype = np.uint8
         self.channels = []
         self.init_live = False
         self.init_live_rgb = False
@@ -3461,10 +3464,164 @@ class NapariLiveWidget(QWidget):
         self.previous_scale = None
         self.previous_center = None
         self.last_was_autofocus = False
+        self.fps_trigger = 10
+        self.fps_display = 10
+        self.currentConfiguration = self.configurationManager.configurations[0]
+        self.well_selector = WellSelectionWidget(WELLPLATE_FORMAT)
 
-        # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
         self.addNapariGrayclipColormap()
+        self.initControlWidgets(show_trigger_options, show_display_options, show_autolevel, autolevel)
+        self.update_microscope_mode_by_name(self.currentConfiguration.name)
+
+    def initControlWidgets(self, show_trigger_options, show_display_options, show_autolevel, autolevel):
+        control_layout = QVBoxLayout()
+
+        # Trigger mode
+        self.dropdown_triggerMode = QComboBox()
+        self.dropdown_triggerMode.addItems([TriggerMode.SOFTWARE, TriggerMode.HARDWARE, TriggerMode.CONTINUOUS])
+        self.dropdown_triggerMode.currentTextChanged.connect(self.liveController.set_trigger_mode)
+
+        # Trigger FPS
+        self.entry_triggerFPS = QDoubleSpinBox()
+        self.entry_triggerFPS.setRange(0.02, 1000)
+        self.entry_triggerFPS.setValue(self.fps_trigger)
+        self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
+
+        # Microscope Configuration
+        self.dropdown_modeSelection = QComboBox()
+        for config in self.configurationManager.configurations:
+            self.dropdown_modeSelection.addItem(config.name)
+        self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
+        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
+
+        # Live button
+        self.btn_live = QPushButton("Live")
+        self.btn_live.setCheckable(True)
+        self.btn_live.clicked.connect(self.toggle_live)
+
+        # Exposure Time
+        self.entry_exposureTime = QDoubleSpinBox()
+        self.entry_exposureTime.setRange(self.liveController.camera.EXPOSURE_TIME_MS_MIN, self.liveController.camera.EXPOSURE_TIME_MS_MAX)
+        self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
+        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
+
+        # Analog Gain
+        self.entry_analogGain = QDoubleSpinBox()
+        self.entry_analogGain.setRange(0, 24)
+        self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
+        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
+
+        # Illumination Intensity
+        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
+        self.slider_illuminationIntensity.setRange(0, 100)
+        self.slider_illuminationIntensity.setValue(int(self.currentConfiguration.illumination_intensity))
+        self.slider_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
+
+        # Display FPS
+        self.entry_displayFPS = QDoubleSpinBox()
+        self.entry_displayFPS.setRange(1, 240)
+        self.entry_displayFPS.setValue(self.fps_display)
+        self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
+
+        # Resolution Scaling
+        self.slider_resolutionScaling = QSlider(Qt.Horizontal)
+        self.slider_resolutionScaling.setRange(10, 100)
+        self.slider_resolutionScaling.setValue(DEFAULT_DISPLAY_CROP)
+        self.slider_resolutionScaling.valueChanged.connect(self.update_resolution_scaling)
+
+        # Autolevel
+        self.btn_autolevel = QPushButton('Autolevel')
+        self.btn_autolevel.setCheckable(True)
+        self.btn_autolevel.setChecked(autolevel)
+        self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
+
+        # Add widgets to layout
+        control_layout.addWidget(QLabel('Microscope Configuration'))
+        control_layout.addWidget(self.dropdown_modeSelection)
+        control_layout.addWidget(self.btn_live)
+        control_layout.addStretch(1)
+
+
+        def make_row(label_widget, entry_widget):
+            row = QHBoxLayout()
+            row.addWidget(label_widget)
+            row.addWidget(entry_widget)
+            return row
+
+        if show_trigger_options:
+            row0 = make_row(QLabel('Trigger Mode'), self.dropdown_triggerMode)
+            row05 = make_row(QLabel('Trigger FPS'), self.entry_triggerFPS)
+            control_layout.addLayout(row0)
+            control_layout.addLayout(row05)
+            control_layout.addStretch(1)
+
+
+        row1 = make_row(QLabel('Exposure Time (ms)'), self.entry_exposureTime)
+        control_layout.addLayout(row1)
+
+        row2 = make_row((QLabel('Analog Gain')), self.entry_analogGain)
+        control_layout.addLayout(row2)
+
+
+        row3 = make_row((QLabel('Illumination')), self.slider_illuminationIntensity)
+        control_layout.addLayout(row3)
+        control_layout.addStretch(1)
+
+        if show_display_options:
+            row4 = make_row((QLabel('Display FPS')), self.entry_displayFPS)
+            control_layout.addLayout(row4)
+            row5 = make_row((QLabel('Display Resolution')), self.slider_resolutionScaling) 
+            control_layout.addLayout(row5)
+            control_layout.addStretch(1)
+
+        if show_autolevel:
+            control_layout.addWidget(self.btn_autolevel)
+            control_layout.addStretch(1)
+
+        container = QFrame()
+        container.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        container.setLayout(control_layout)
+
+        # Add control widgets to the layer controls
+        self.viewer.window.add_dock_widget(container, area='right', name='live controls')
+        self.viewer.window.add_dock_widget(self.well_selector, area='bottom', name='well selector')
+
+    def toggle_live(self, pressed):
+        if pressed:
+            self.liveController.start_live()
+        else:
+            self.liveController.stop_live()
+
+    def set_microscope_mode(self,config):
+        self.dropdown_modeSelection.setCurrentText(config.name)
+
+    def update_microscope_mode_by_name(self, current_microscope_mode_name):
+        self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
+        if self.currentConfiguration:
+            self.liveController.set_microscope_mode(self.currentConfiguration)
+            self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
+            self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
+            self.slider_illuminationIntensity.setValue(int(self.currentConfiguration.illumination_intensity))
+
+    def update_config_exposure_time(self, new_value):
+        self.currentConfiguration.exposure_time = new_value
+        self.configurationManager.update_configuration(self.currentConfiguration.id, 'ExposureTime', new_value)
+        self.signal_newExposureTime.emit(new_value)
+
+    def update_config_analog_gain(self, new_value):
+        self.currentConfiguration.analog_gain = new_value
+        self.configurationManager.update_configuration(self.currentConfiguration.id, 'AnalogGain', new_value)
+        self.signal_newAnalogGain.emit(new_value)
+
+    def update_config_illumination_intensity(self, new_value):
+        self.currentConfiguration.illumination_intensity = new_value
+        self.configurationManager.update_configuration(self.currentConfiguration.id, 'IlluminationIntensity', new_value)
+        self.liveController.set_illumination(self.currentConfiguration.illumination_source, new_value)
+
+    def update_resolution_scaling(self, value):
+        self.streamHandler.set_display_resolution_scaling(value)
+        self.liveController.set_display_resolution_scaling(value)
 
     def addNapariGrayclipColormap(self):
         if hasattr(napari.utils.colormaps.AVAILABLE_COLORMAPS, 'grayclip'):
@@ -3549,7 +3706,7 @@ class NapariLiveWidget(QWidget):
             self.previous_center = self.viewer.camera.center
             self.last_was_autofocus = False
 
-        curr_layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
+        curr_layer_name = self.dropdown_modeSelection.currentText()
         if self.live_layer_name != curr_layer_name:
             self.live_layer_name = curr_layer_name
             layer.contrast_limits = self.contrast_limits.get(self.live_layer_name, self.getContrastLimits())
@@ -3568,7 +3725,7 @@ class NapariLiveWidget(QWidget):
 
     def signalContrastLimits(self, event):
         layer = event.source
-        layer_name = self.liveControlWidget.dropdown_modeSelection.currentText()
+        layer_name = self.dropdown_modeSelection.currentText()
         min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
         self.signal_layer_contrast_limits.emit(layer_name, min_val, max_val)
         self.contrast_limits[layer_name] = min_val, max_val
