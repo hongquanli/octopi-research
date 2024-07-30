@@ -697,6 +697,7 @@ class LiveController(QObject):
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
+        
 
 class NavigationController(QObject):
 

@@ -1348,7 +1348,7 @@ class NavigationWidget(QFrame):
         self.checkbox_clickToMove.stateChanged.connect(self.navigationController.set_flag_click_to_move)
 
         self.btn_load_slide.clicked.connect(self.switch_position)
-        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
+        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
 
     def toggle_navigation_controls(self, started):
         if started:
@@ -1448,7 +1448,7 @@ class NavigationWidget(QFrame):
 
     def slot_slide_loading_position_reached(self):
         self.slide_position = 'loading'
-        self.btn_load_slide.setStyleSheet("background-color: #C2FFC2");
+        self.btn_load_slide.setStyleSheet("background-color: #C2FFC2")
         self.btn_load_slide.setText('To Scanning Position')
         self.btn_moveX_forward.setEnabled(False)
         self.btn_moveX_backward.setEnabled(False)
@@ -1460,7 +1460,7 @@ class NavigationWidget(QFrame):
 
     def slot_slide_scanning_position_reached(self):
         self.slide_position = 'scanning'
-        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF");
+        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
         self.btn_load_slide.setText('To Loading Position')
         self.btn_moveX_forward.setEnabled(True)
         self.btn_moveX_backward.setEnabled(True)
@@ -1782,7 +1782,7 @@ class MultiPointWidget(QFrame):
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
         self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
-        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
+        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -2114,7 +2114,7 @@ class MultiPointWidget2(QFrame):
         self.checkbox_stitchOutput.setChecked(False)
 
         self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
-        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
+        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -2673,7 +2673,7 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_stitchOutput.setChecked(False)
 
         self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
-        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF");
+        self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
@@ -3447,11 +3447,13 @@ class NapariLiveWidget(QWidget):
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
 
-    def __init__(self, streamHandler, liveController, configurationManager, show_trigger_options=True, show_display_options=True, show_autolevel=False, autolevel=False, parent=None, well_selector=None):
+    def __init__(self, streamHandler, liveController, configurationManager, wellSelectionWidget, show_trigger_options=True, show_display_options=True, show_autolevel=False, autolevel=False, parent=None):
         super().__init__(parent)
         self.streamHandler = streamHandler
         self.liveController = liveController
         self.configurationManager = configurationManager
+        self.wellSelectionWidget = wellSelectionWidget
+        self.style_well_selector()
         self.live_layer_name = ""
         self.image_width = 0
         self.image_height = 0
@@ -3467,20 +3469,42 @@ class NapariLiveWidget(QWidget):
         self.fps_trigger = 10
         self.fps_display = 10
         self.currentConfiguration = self.configurationManager.configurations[0]
-        self.well_selector = WellSelectionWidget(WELLPLATE_FORMAT)
 
         self.initNapariViewer()
         self.addNapariGrayclipColormap()
         self.initControlWidgets(show_trigger_options, show_display_options, show_autolevel, autolevel)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
+    def style_well_selector(self):
+        style = """
+        QTableWidget {
+            gridline-color: white;
+            border: 1px solid white;
+        }
+        QTableWidget::item {
+            border: 1px solid white;
+        }
+        """
+        self.wellSelectionWidget.setStyleSheet(style)
+
     def initControlWidgets(self, show_trigger_options, show_display_options, show_autolevel, autolevel):
         control_layout = QVBoxLayout()
 
         # Trigger mode
         self.dropdown_triggerMode = QComboBox()
-        self.dropdown_triggerMode.addItems([TriggerMode.SOFTWARE, TriggerMode.HARDWARE, TriggerMode.CONTINUOUS])
-        self.dropdown_triggerMode.currentTextChanged.connect(self.liveController.set_trigger_mode)
+        trigger_modes = [
+            ('Software', TriggerMode.SOFTWARE),
+            ('Hardware', TriggerMode.HARDWARE),
+            ('Continuous', TriggerMode.CONTINUOUS)
+        ]
+        for display_name, mode in trigger_modes:
+            self.dropdown_triggerMode.addItem(display_name, mode)
+        self.dropdown_triggerMode.currentIndexChanged.connect(self.on_trigger_mode_changed)
+
+        # 
+        self.dropdown_triggerMode = QComboBox()
+        # self.dropdown_triggerMode.addItems([TriggerMode.SOFTWARE, TriggerMode.HARDWARE, TriggerMode.CONTINUOUS])
+        # self.dropdown_triggerMode.currentTextChanged.connect(self.liveController.set_trigger_mode)
 
         # Trigger FPS
         self.entry_triggerFPS = QDoubleSpinBox()
@@ -3579,19 +3603,70 @@ class NapariLiveWidget(QWidget):
             control_layout.addWidget(self.btn_autolevel)
             control_layout.addStretch(1)
 
-        container = QFrame()
-        container.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        container.setLayout(control_layout)
+        dock_live_controls = QWidget()
+        dock_live_controls.setLayout(control_layout)
 
-        # Add control widgets to the layer controls
-        self.viewer.window.add_dock_widget(container, area='right', name='live controls')
-        self.viewer.window.add_dock_widget(self.well_selector, area='bottom', name='well selector')
+        #     # Combine dockLayerControls and dockLayerList into a single widget
+        combined_widget = QWidget()
+        combined_layout = QVBoxLayout()
+        combined_layout.addWidget(self.viewer.window._qt_viewer.dockLayerControls.widget())
+        combined_layout.addWidget(self.viewer.window._qt_viewer.dockLayerList.widget())
+        combined_widget.setLayout(combined_layout)
+
+        self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerControls)
+        self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerList)
+
+        # temp = QWidget()
+        # self.dock_layer_controls = self.viewer.window.add_dock_widget(temp, name='temp', area='left', tabify=True)
+        # temp2 = QWidget()
+        # self.dock_layer_controls = self.viewer.window.add_dock_widget(temp, name='temp2', area='left', tabify=True)
+        # self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
+        # self.viewer.window.remove_dock_widget(temp)
+        # self.viewer.window.remove_dock_widget(temp2)
+
+        # Add dummy layers temporarily
+        # Add the actual dock widgets
+        self.dock_combined = self.viewer.window.add_dock_widget(combined_widget, area='left', name='layer controls', tabify=True)
+        self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
+
+        # # Remove the dummy layers
+        # self.viewer.window.remove_dock_widget(temp_dock_widget1)
+        # self.viewer.window.remove_dock_widget(temp_dock_widget2)
+
+        self.viewer.window.window_menu.addAction(self.dock_live_controls.toggleViewAction())
+
+        well_selector_layout = QHBoxLayout()
+        well_selector_layout.addStretch(1)  # Add stretch on the left
+        well_selector_layout.addWidget(self.wellSelectionWidget)
+        well_selector_layout.addStretch(1)  # Add stretch on the right
+        dock_well_selector = QWidget()
+        dock_well_selector.setLayout(well_selector_layout)
+        self.dock_well_selector = self.viewer.window.add_dock_widget(dock_well_selector, area='bottom', name='well selector', tabify=True)
+
+        self.print_window_menu_items()
+
+    def print_window_menu_items(self):
+        print("Items in window_menu:")
+        for action in self.viewer.window.window_menu.actions():
+            print(action.text())
 
     def toggle_live(self, pressed):
         if pressed:
             self.liveController.start_live()
         else:
             self.liveController.stop_live()
+
+    def toggle_live_controls(self, show):
+        if show:
+            self.dock_live_controls.show()
+        else:
+            self.dock_live_controls.hide()
+
+    def toggle_well_selector(self, show):
+        if show:
+            self.dock_well_selector.show()
+        else:
+            self.dock_well_selector.hide()
 
     def set_microscope_mode(self,config):
         self.dropdown_modeSelection.setCurrentText(config.name)
@@ -3622,6 +3697,11 @@ class NapariLiveWidget(QWidget):
     def update_resolution_scaling(self, value):
         self.streamHandler.set_display_resolution_scaling(value)
         self.liveController.set_display_resolution_scaling(value)
+
+    def on_trigger_mode_changed(self, index):
+        # Get the actual value using user data
+        actual_value = self.dropdown_triggerMode.itemData(index)
+        print(f"Selected: {self.dropdown_triggerMode.currentText()} (actual value: {actual_value})")
 
     def addNapariGrayclipColormap(self):
         if hasattr(napari.utils.colormaps.AVAILABLE_COLORMAPS, 'grayclip'):

@@ -310,7 +310,7 @@ class OctopiGUI(QMainWindow):
         # image display tabs
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.configurationManager, well_selector=self.wellSelectionWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.configurationManager, self.wellSelectionWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -396,7 +396,7 @@ class OctopiGUI(QMainWindow):
             dock_display.setStretch(x=100,y=100)
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
-            self.dock_wellSelection.addWidget(self.wellSelectionWidget)
+            #self.dock_wellSelection.addWidget(self.wellSelectionWidget)
             #self.dock_wellSelection.addWidget(self.wellplateFormatWidget) # todo: add widget to select wellplate format
             self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
@@ -763,7 +763,8 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.onSelectionChanged()
 
     def toggleWellSelector(self, show):
-        self.dock_wellSelection.setVisible(show)
+        self.napariLiveWidget.toggle_well_selector(show)
+        self.wellSelectionWidget.setVisible(show)
 
     def toggleAcquisitionStart(self, acquisition_started):
         current_index = self.recordTabWidget.currentIndex()
