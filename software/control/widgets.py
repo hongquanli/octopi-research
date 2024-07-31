@@ -450,7 +450,7 @@ class ObjectivesWidget(QWidget):
         self.dropdown.currentTextChanged.connect(self.on_objective_changed)
 
         layout = QHBoxLayout()
-        layout.addWidget(QLabel("Objective:"))
+        layout.addWidget(QLabel("Objective"))
         layout.addWidget(self.dropdown)
         self.setLayout(layout)
 
@@ -636,14 +636,20 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_width.valueChanged.connect(self.set_Width)
 
         # layout
-        grid_ctrl = QGridLayout()
+        self.camera_layout = QVBoxLayout()
         if include_gain_exposure_time:
-            grid_ctrl.addWidget(QLabel('Exposure Time (ms)'), 0,0)
-            grid_ctrl.addWidget(self.entry_exposureTime, 0,1)
-            grid_ctrl.addWidget(QLabel('Analog Gain'), 1,0)
-            grid_ctrl.addWidget(self.entry_analogGain, 1,1)
-        grid_ctrl.addWidget(QLabel('Pixel Format'), 2,0)
-        grid_ctrl.addWidget(self.dropdown_pixelFormat, 2,1)
+            exposure_line = QHBoxLayout()
+            exposure_line.addWidget(QLabel('Exposure Time (ms)'))
+            exposure_line.addWidget(self.entry_exposureTime)
+            self.camera_layout.addLayout(exposure_line)
+            gain_line = QHBoxLayout()
+            gain_line.addWidget(QLabel('Analog Gain'))
+            gain_line.addWidget(self.entry_analogGain)
+            self.camera_layout.addLayout(gain_line)
+
+        format_line = QHBoxLayout()
+        format_line.addWidget(QLabel('Pixel Format'))
+        format_line.addWidget(self.dropdown_pixelFormat)
         try:
             current_res = self.camera.resolution
             current_res_string = "x".join([str(current_res[0]),str(current_res[1])])
@@ -653,33 +659,36 @@ class CameraSettingsWidget(QFrame):
             self.dropdown_res.setCurrentText(current_res_string)
 
             self.dropdown_res.currentTextChanged.connect(self.change_full_res)
-            grid_ctrl.addWidget(QLabel("Full Resolution"), 2,2)
-            grid_ctrl.addWidget(self.dropdown_res, 2,3)
+            format_line.addWidget(QLabel("Full Resolution"))
+            format_line.addWidget(self.dropdown_res)
         except AttributeError:
             pass
+        self.camera_layout.addLayout(format_line)
+
+
         if include_camera_temperature_setting:
-            grid_ctrl.addWidget(QLabel('Set Temperature (C)'),3,0)
-            grid_ctrl.addWidget(self.entry_temperature,3,1)
-            grid_ctrl.addWidget(QLabel('Actual Temperature (C)'),3,2)
-            grid_ctrl.addWidget(self.label_temperature_measured,3,3)
+            temp_line = QHBoxLayout()
+            temp_line.addWidget(QLabel('Set Temperature (C)'))
+            temp_line.addWidget(self.entry_temperature)
+            temp_line.addWidget(QLabel('Actual Temperature (C)'))
+            temp_line.addWidget(self.label_temperature_measured)
             try:
                 self.entry_temperature.valueChanged.connect(self.set_temperature)
                 self.camera.set_temperature_reading_callback(self.update_measured_temperature)
             except AttributeError:
                 pass
+            self.camera_layout.addLayout(temp_line)
 
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(QLabel('ROI'))
-        hbox1.addStretch()
-        hbox1.addWidget(QLabel('height'))
-        hbox1.addWidget(self.entry_ROI_height)
-        hbox1.addWidget(QLabel('width'))
-        hbox1.addWidget(self.entry_ROI_width)
-        
-        hbox1.addWidget(QLabel('offset y'))
-        hbox1.addWidget(self.entry_ROI_offset_y)
-        hbox1.addWidget(QLabel('offset x'))
-        hbox1.addWidget(self.entry_ROI_offset_x)
+        roi_line = QHBoxLayout()
+        roi_line.addWidget(QLabel('height'))
+        roi_line.addWidget(self.entry_ROI_height)
+        roi_line.addWidget(QLabel('width'))
+        roi_line.addWidget(self.entry_ROI_width)
+        roi_line.addWidget(QLabel('offset y'))
+        roi_line.addWidget(self.entry_ROI_offset_y)
+        roi_line.addWidget(QLabel('offset x'))
+        roi_line.addWidget(self.entry_ROI_offset_x)
+        self.camera_layout.addLayout(roi_line)
 
         if include_camera_auto_wb_setting:
             is_color = False
@@ -689,31 +698,16 @@ class CameraSettingsWidget(QFrame):
                 pass
 
             if is_color is True:
-                grid_camera_setting_wb = QGridLayout()
-
                 # auto white balance 
                 self.btn_auto_wb = QPushButton('Auto White Balance')
                 self.btn_auto_wb.setCheckable(True)
                 self.btn_auto_wb.setChecked(False)
                 self.btn_auto_wb.clicked.connect(self.toggle_auto_wb)
                 print(self.camera.get_balance_white_auto())
-                grid_camera_setting_wb.addWidget(self.btn_auto_wb,0,0)
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_ctrl,0,0)
-        self.grid.addLayout(hbox1,1,0)
+                self.camera_layout.addLayout(grid_camera_setting_wb)
 
-        if include_camera_auto_wb_setting:
-            is_color = False
-            try:
-                is_color = self.camera.get_is_color()
-            except AttributeError:
-                pass
-            if is_color is True:
-                self.grid.addLayout(grid_camera_setting_wb,2,0)
-
-        self.grid.setRowStretch(self.grid.rowCount(), 1)
-        self.setLayout(self.grid)
+        self.setLayout(self.camera_layout)
 
     def toggle_auto_wb(self,pressed):
         # 0: OFF  1:CONTINUOUS  2:ONCE
@@ -1576,9 +1570,9 @@ class AutoFocusWidget(QFrame):
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('delta Z (um)'), 0,0)
         grid_line0.addWidget(self.entry_delta, 0,1)
-        grid_line0.addWidget(QLabel('N Z planes'), 0,2)
-        grid_line0.addWidget(self.entry_N, 0,3)
-        grid_line0.addWidget(self.btn_autofocus, 0,4)
+        grid_line0.addWidget(QLabel('N Z planes'), 1,0)
+        grid_line0.addWidget(self.entry_N, 1,1)
+        grid_line0.addWidget(self.btn_autofocus, 2,0,1,2)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -2812,6 +2806,7 @@ class MultiPointWidgetGrid(QFrame):
             self.progress_label.setText("Progress")
         else:
             self.progress_label.setText(f"Region {current_region}/{num_regions}")
+        self.progress_bar.setValue(0)
 
     def update_eta_display(self):
         if self.eta_seconds > 0:
@@ -3453,7 +3448,6 @@ class NapariLiveWidget(QWidget):
         self.liveController = liveController
         self.configurationManager = configurationManager
         self.wellSelectionWidget = wellSelectionWidget
-        self.style_well_selector()
         self.live_layer_name = ""
         self.image_width = 0
         self.image_height = 0
@@ -3475,20 +3469,72 @@ class NapariLiveWidget(QWidget):
         self.initControlWidgets(show_trigger_options, show_display_options, show_autolevel, autolevel)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
-    def style_well_selector(self):
-        style = """
-        QTableWidget {
-            gridline-color: white;
-            border: 1px solid white;
-        }
-        QTableWidget::item {
-            border: 1px solid white;
-        }
-        """
-        self.wellSelectionWidget.setStyleSheet(style)
+    def initNapariViewer(self):
+        self.viewer = napari.Viewer(show=False)
+        self.viewerWidget = self.viewer.window._qt_window
+        self.viewer.dims.axis_labels = ['Y-axis', 'X-axis']
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.viewerWidget)
+        self.setLayout(self.layout)
+        self.customize_napari_viewer()
+
+    def customize_napari_viewer(self):
+        # Hide the status bar (which includes the activity button)
+        if hasattr(self.viewer.window, '_status_bar'):
+            self.viewer.window._status_bar.hide()
+        
+        # Hide the layer buttons
+        if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
+            self.viewer.window._qt_viewer.layerButtons.hide()
+
+        # Hide or remove the layer control buttons
+        if hasattr(self.viewer.window._qt_viewer, 'dockLayerControls'):
+            layer_controls = self.viewer.window._qt_viewer.dockLayerControls.widget()
+            if layer_controls is not None:
+                # Look for a container of buttons within the layer controls
+                button_container = layer_controls.findChild(QWidget, "button_container")
+                if button_container:
+                    button_container.hide()
 
     def initControlWidgets(self, show_trigger_options, show_display_options, show_autolevel, autolevel):
-        control_layout = QVBoxLayout()
+
+        # Microscope Configuration
+        self.dropdown_modeSelection = QComboBox()
+        for config in self.configurationManager.configurations:
+            self.dropdown_modeSelection.addItem(config.name)
+        self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
+        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
+
+        # Live button
+        self.btn_live = QPushButton("Start Live")
+        self.btn_live.setCheckable(True)
+        self.btn_live.setStyleSheet("font-weight: bold; background-color: #A0A0F0")
+        self.btn_live.clicked.connect(self.toggle_live)
+
+        # Exposure Time
+        self.entry_exposureTime = QDoubleSpinBox()
+        self.entry_exposureTime.setRange(self.liveController.camera.EXPOSURE_TIME_MS_MIN, self.liveController.camera.EXPOSURE_TIME_MS_MAX)
+        self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
+        self.entry_exposureTime.setSuffix(" ms")
+        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
+
+        # Analog Gain
+        self.entry_analogGain = QDoubleSpinBox()
+        self.entry_analogGain.setRange(0, 24)
+        self.entry_analogGain.setSingleStep(0.1)
+        self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
+        self.entry_analogGain.setSuffix("x")
+        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
+
+        # Illumination Intensity
+        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
+        self.slider_illuminationIntensity.setRange(0, 100)
+        self.slider_illuminationIntensity.setValue(int(self.currentConfiguration.illumination_intensity))
+        self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
+        self.slider_illuminationIntensity.setTickInterval(10)
+        self.slider_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
+        self.label_illuminationIntensity = QLabel(str(self.slider_illuminationIntensity.value()) + "%")
+        self.slider_illuminationIntensity.valueChanged.connect(lambda v: self.label_illuminationIntensity.setText(str(v) + "%"))
 
         # Trigger mode
         self.dropdown_triggerMode = QComboBox()
@@ -3500,9 +3546,7 @@ class NapariLiveWidget(QWidget):
         for display_name, mode in trigger_modes:
             self.dropdown_triggerMode.addItem(display_name, mode)
         self.dropdown_triggerMode.currentIndexChanged.connect(self.on_trigger_mode_changed)
-
-        # 
-        self.dropdown_triggerMode = QComboBox()
+        # self.dropdown_triggerMode = QComboBox()
         # self.dropdown_triggerMode.addItems([TriggerMode.SOFTWARE, TriggerMode.HARDWARE, TriggerMode.CONTINUOUS])
         # self.dropdown_triggerMode.currentTextChanged.connect(self.liveController.set_trigger_mode)
 
@@ -3510,49 +3554,26 @@ class NapariLiveWidget(QWidget):
         self.entry_triggerFPS = QDoubleSpinBox()
         self.entry_triggerFPS.setRange(0.02, 1000)
         self.entry_triggerFPS.setValue(self.fps_trigger)
+        #self.entry_triggerFPS.setSuffix(" fps")
         self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
 
-        # Microscope Configuration
-        self.dropdown_modeSelection = QComboBox()
-        for config in self.configurationManager.configurations:
-            self.dropdown_modeSelection.addItem(config.name)
-        self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
-        self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
-
-        # Live button
-        self.btn_live = QPushButton("Live")
-        self.btn_live.setCheckable(True)
-        self.btn_live.clicked.connect(self.toggle_live)
-
-        # Exposure Time
-        self.entry_exposureTime = QDoubleSpinBox()
-        self.entry_exposureTime.setRange(self.liveController.camera.EXPOSURE_TIME_MS_MIN, self.liveController.camera.EXPOSURE_TIME_MS_MAX)
-        self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
-        self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
-
-        # Analog Gain
-        self.entry_analogGain = QDoubleSpinBox()
-        self.entry_analogGain.setRange(0, 24)
-        self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
-        self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
-
-        # Illumination Intensity
-        self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
-        self.slider_illuminationIntensity.setRange(0, 100)
-        self.slider_illuminationIntensity.setValue(int(self.currentConfiguration.illumination_intensity))
-        self.slider_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
 
         # Display FPS
         self.entry_displayFPS = QDoubleSpinBox()
         self.entry_displayFPS.setRange(1, 240)
         self.entry_displayFPS.setValue(self.fps_display)
+        #self.entry_displayFPS.setSuffix(" fps")
         self.entry_displayFPS.valueChanged.connect(self.streamHandler.set_display_fps)
 
         # Resolution Scaling
         self.slider_resolutionScaling = QSlider(Qt.Horizontal)
         self.slider_resolutionScaling.setRange(10, 100)
-        self.slider_resolutionScaling.setValue(DEFAULT_DISPLAY_CROP)
+        self.slider_resolutionScaling.setValue(int(DEFAULT_DISPLAY_CROP))
+        self.slider_resolutionScaling.setTickPosition(QSlider.TicksBelow)
+        self.slider_resolutionScaling.setTickInterval(10)
         self.slider_resolutionScaling.valueChanged.connect(self.update_resolution_scaling)
+        self.label_resolutionScaling = QLabel(str(self.slider_resolutionScaling.value()) + "%")
+        self.slider_resolutionScaling.valueChanged.connect(lambda v: self.label_resolutionScaling.setText(str(v) + "%"))
 
         # Autolevel
         self.btn_autolevel = QPushButton('Autolevel')
@@ -3560,88 +3581,88 @@ class NapariLiveWidget(QWidget):
         self.btn_autolevel.setChecked(autolevel)
         self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
-        # Add widgets to layout
-        control_layout.addWidget(QLabel('Microscope Configuration'))
-        control_layout.addWidget(self.dropdown_modeSelection)
-        control_layout.addWidget(self.btn_live)
-        control_layout.addStretch(1)
 
-
-        def make_row(label_widget, entry_widget):
+        def make_row(label_widget, entry_widget, value_label=None):
             row = QHBoxLayout()
             row.addWidget(label_widget)
             row.addWidget(entry_widget)
+            if value_label:
+                row.addWidget(value_label)
             return row
+
+        control_layout = QVBoxLayout()
+
+        # Add widgets to layout
+        config_label = QLabel('Configuration')
+        top_row = make_row(config_label, self.dropdown_modeSelection)
+        control_layout.addLayout(top_row)
+        control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addWidget(self.btn_live)
+        control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        row1 = make_row(QLabel('Exposure Time'), self.entry_exposureTime)
+        control_layout.addLayout(row1)
+
+        row2 = make_row(QLabel('Illumination'), self.slider_illuminationIntensity, self.label_illuminationIntensity)
+        control_layout.addLayout(row2)
+
+        row3 = make_row((QLabel('Analog Gain')), self.entry_analogGain)
+        control_layout.addLayout(row3)
+        control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         if show_trigger_options:
             row0 = make_row(QLabel('Trigger Mode'), self.dropdown_triggerMode)
-            row05 = make_row(QLabel('Trigger FPS'), self.entry_triggerFPS)
             control_layout.addLayout(row0)
-            control_layout.addLayout(row05)
-            control_layout.addStretch(1)
-
-
-        row1 = make_row(QLabel('Exposure Time (ms)'), self.entry_exposureTime)
-        control_layout.addLayout(row1)
-
-        row2 = make_row((QLabel('Analog Gain')), self.entry_analogGain)
-        control_layout.addLayout(row2)
-
-
-        row3 = make_row((QLabel('Illumination')), self.slider_illuminationIntensity)
-        control_layout.addLayout(row3)
-        control_layout.addStretch(1)
+            row00 = make_row(QLabel('Trigger FPS'), self.entry_triggerFPS)
+            control_layout.addLayout(row00)
+            control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         if show_display_options:
             row4 = make_row((QLabel('Display FPS')), self.entry_displayFPS)
             control_layout.addLayout(row4)
-            row5 = make_row((QLabel('Display Resolution')), self.slider_resolutionScaling) 
+            row5 = make_row(QLabel('Display Resolution'), self.slider_resolutionScaling, self.label_resolutionScaling)
             control_layout.addLayout(row5)
-            control_layout.addStretch(1)
+            control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         if show_autolevel:
             control_layout.addWidget(self.btn_autolevel)
-            control_layout.addStretch(1)
+            control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        dock_live_controls = QWidget()
-        dock_live_controls.setLayout(control_layout)
+        control_layout.addStretch(1)
 
-        #     # Combine dockLayerControls and dockLayerList into a single widget
-        combined_widget = QWidget()
-        combined_layout = QVBoxLayout()
-        combined_layout.addWidget(self.viewer.window._qt_viewer.dockLayerControls.widget())
-        combined_layout.addWidget(self.viewer.window._qt_viewer.dockLayerList.widget())
-        combined_widget.setLayout(combined_layout)
+        live_controls_widget = QWidget()
+        live_controls_widget.setLayout(control_layout)
+
+        layer_controls_widget = self.viewer.window._qt_viewer.dockLayerControls.widget()
+        layer_list_widget = self.viewer.window._qt_viewer.dockLayerList.widget()
+        self.viewer.window._qt_viewer.layerButtons.hide()
 
         self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerControls)
         self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerList)
-
-        # temp = QWidget()
-        # self.dock_layer_controls = self.viewer.window.add_dock_widget(temp, name='temp', area='left', tabify=True)
-        # temp2 = QWidget()
-        # self.dock_layer_controls = self.viewer.window.add_dock_widget(temp, name='temp2', area='left', tabify=True)
         # self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
-        # self.viewer.window.remove_dock_widget(temp)
-        # self.viewer.window.remove_dock_widget(temp2)
 
-        # Add dummy layers temporarily
         # Add the actual dock widgets
-        self.dock_combined = self.viewer.window.add_dock_widget(combined_widget, area='left', name='layer controls', tabify=True)
-        self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
-
-        # # Remove the dummy layers
-        # self.viewer.window.remove_dock_widget(temp_dock_widget1)
-        # self.viewer.window.remove_dock_widget(temp_dock_widget2)
+        self.dock_layer_controls = self.viewer.window.add_dock_widget(layer_controls_widget, area='left', name='layer controls', tabify=True)
+        self.dock_layer_list = self.viewer.window.add_dock_widget(layer_list_widget, area='left', name='layer list', tabify=True)
+        self.dock_live_controls = self.viewer.window.add_dock_widget(live_controls_widget, area='left', name='live controls', tabify=True)
 
         self.viewer.window.window_menu.addAction(self.dock_live_controls.toggleViewAction())
+        
+        well_selector_layout = QVBoxLayout() 
+        title_label = QLabel("Well Selector")  
+        title_label.setAlignment(Qt.AlignCenter)  # Center the title
+        #title_label.setStyleSheet("font-weight: bold;")  # Optional: style the title
+        well_selector_layout.addWidget(title_label) 
 
-        well_selector_layout = QHBoxLayout()
-        well_selector_layout.addStretch(1)  # Add stretch on the left
-        well_selector_layout.addWidget(self.wellSelectionWidget)
-        well_selector_layout.addStretch(1)  # Add stretch on the right
-        dock_well_selector = QWidget()
-        dock_well_selector.setLayout(well_selector_layout)
-        self.dock_well_selector = self.viewer.window.add_dock_widget(dock_well_selector, area='bottom', name='well selector', tabify=True)
+        well_selector_row = QHBoxLayout()
+        well_selector_row.addStretch(1)
+        well_selector_row.addWidget(self.wellSelectionWidget)
+        well_selector_row.addStretch(1)
+        well_selector_layout.addLayout(well_selector_row)
+        
+        well_selector_dock_widget = QWidget()
+        well_selector_dock_widget.setLayout(well_selector_layout)
+        self.dock_well_selector = self.viewer.window.add_dock_widget(well_selector_dock_widget, area='bottom', name='well selector', tabify=True)
 
         self.print_window_menu_items()
 
@@ -3653,8 +3674,10 @@ class NapariLiveWidget(QWidget):
     def toggle_live(self, pressed):
         if pressed:
             self.liveController.start_live()
+            self.btn_live.setText("Stop Live")
         else:
             self.liveController.stop_live()
+            self.btn_live.setText("Start Live")
 
     def toggle_live_controls(self, show):
         if show:
@@ -3667,6 +3690,17 @@ class NapariLiveWidget(QWidget):
             self.dock_well_selector.show()
         else:
             self.dock_well_selector.hide()
+
+    def replace_well_selector(self, wellSelector):
+        self.viewer.window.remove_dock_widget(self.dock_well_selector)
+        self.wellSelectionWidget = wellSelector
+        well_selector_layout = QHBoxLayout()
+        well_selector_layout.addStretch(1)  # Add stretch on the left
+        well_selector_layout.addWidget(self.wellSelectionWidget)
+        well_selector_layout.addStretch(1)  # Add stretch on the right
+        well_selector_dock_widget = QWidget()
+        well_selector_dock_widget.setLayout(well_selector_layout)
+        self.dock_well_selector = self.viewer.window.add_dock_widget(well_selector_dock_widget, area='bottom', name='well selector', tabify=True)
 
     def set_microscope_mode(self,config):
         self.dropdown_modeSelection.setCurrentText(config.name)
@@ -3711,14 +3745,6 @@ class NapariLiveWidget(QWidget):
             grayclip.append([i / 255, i / 255, i / 255])
         grayclip.append([1, 0, 0])
         napari.utils.colormaps.AVAILABLE_COLORMAPS['grayclip'] = napari.utils.Colormap(name='grayclip', colors=grayclip)
-
-    def initNapariViewer(self):
-        self.viewer = napari.Viewer(show=False)
-        self.viewerWidget = self.viewer.window._qt_window
-        self.viewer.dims.axis_labels = ['Y-axis', 'X-axis']
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.viewerWidget)
-        self.setLayout(self.layout)
 
     def initLiveLayer(self, channel, image_height, image_width, image_dtype, rgb=False):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
@@ -3821,7 +3847,12 @@ class NapariLiveWidget(QWidget):
         return None
 
     def resetView(self):
-         self.viewer.reset_view()
+        self.viewer.reset_view()
+
+    def activate(self):
+        print("ACTIVATING NAPARI LIVE WIDGET")
+        self.viewer.window.activate()
+
 
 
 class NapariMultiChannelWidget(QWidget):
@@ -4001,6 +4032,10 @@ class NapariMultiChannelWidget(QWidget):
         for layer in self.viewer.layers:
             layer.refresh()
 
+    def activate(self):
+        print("ACTIVATING NAPARI MULTICHANNEL WIDGET")
+        self.viewer.window.activate()
+
 
 class NapariTiledDisplayWidget(QWidget):
 
@@ -4170,6 +4205,10 @@ class NapariTiledDisplayWidget(QWidget):
         self.viewer.reset_view()
         for layer in self.viewer.layers:
             layer.refresh()
+
+    def activate(self):
+        print("ACTIVATING NAPARI TILED DISPLAY WIDGET")
+        self.viewer.window.activate()
 
 
 class NapariMosaicDisplayWidget(QWidget):
@@ -4378,6 +4417,10 @@ class NapariMosaicDisplayWidget(QWidget):
         self.dz_um = None
         self.Nz = None
         self.signal_clear_viewer.emit()
+
+    def activate(self):
+        print("ACTIVATING NAPARI MOSAIC WIDGET")
+        self.viewer.window.activate()
 
 
 class TrackingControllerWidget(QFrame):
@@ -5210,16 +5253,24 @@ class LaserAutofocusControlWidget(QFrame):
         if not self.laserAutofocusController.is_initialized:
             self.btn_move_to_target.setEnabled(False)
         
-        self.grid = QGridLayout()
-        self.grid.addWidget(self.btn_initialize,0,0,1,3)
-        self.grid.addWidget(self.btn_set_reference,1,0,1,3)
-        self.grid.addWidget(QLabel('Displacement (um)'),2,0)
-        self.grid.addWidget(self.label_displacement,2,1)
-        self.grid.addWidget(self.btn_measure_displacement,2,2)
-        self.grid.addWidget(QLabel('Target (um)'),3,0)
-        self.grid.addWidget(self.entry_target,3,1)
-        self.grid.addWidget(self.btn_move_to_target,3,2)
-        self.grid.setRowStretch(self.grid.rowCount(), 1)
+        self.grid = QVBoxLayout()
+
+        line0 = QHBoxLayout()
+        line0.addWidget(self.btn_initialize)
+        line0.addWidget(self.btn_set_reference)
+        self.grid.addLayout(line0)
+
+        line1 = QHBoxLayout()
+        line1.addWidget(QLabel('Displacement (um)'))
+        line1.addWidget(self.label_displacement)
+        line1.addWidget(self.btn_measure_displacement)
+        self.grid.addLayout(line1)
+
+        line2 = QHBoxLayout()
+        line2.addWidget(QLabel('Target (um)'))
+        line2.addWidget(self.entry_target)
+        line2.addWidget(self.btn_move_to_target)
+        self.grid.addLayout(line2)
 
         self.setLayout(self.grid)
 
@@ -5253,7 +5304,7 @@ class WellplateFormatWidget(QWidget):
 
     def initUI(self):
         layout = QHBoxLayout(self)
-        self.label = QLabel("Wellplate Format:", self)
+        self.label = QLabel("Wellplate Format", self)
         self.comboBox = QComboBox(self)
         self.comboBox.addItem("glass slide", 0)
         self.comboBox.addItem("6 wells", 6)
@@ -5332,20 +5383,53 @@ class WellSelectionWidget(QTableWidget):
             self.signal_wellSelected.emit(True)
 
     def initUI(self):
+        # Set fixed size for rows and columns
+        cell_size = int(5 * self.spacing_mm)
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(int(5 * self.spacing_mm))
+        self.verticalHeader().setDefaultSectionSize(cell_size)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.horizontalHeader().setMinimumSectionSize(int(5 * self.spacing_mm))
+        self.horizontalHeader().setDefaultSectionSize(cell_size)
+
+        # Disable editing, scrollbars, and other interactions
         self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.resizeColumnsToContents()
-        self.setFixedSize(self.horizontalHeader().length() +
-                          self.verticalHeader().width(),
-                          self.verticalHeader().length() +
-                          self.horizontalHeader().height())
+        self.setFocusPolicy(Qt.NoFocus)
+        self.setTabKeyNavigation(False)
+        self.setDragEnabled(False)
+        self.setAcceptDrops(False)
+        self.setDragDropOverwriteMode(False)
+        self.setMouseTracking(False)
 
+        # Calculate and set the fixed size
+        margin = 4  # Add a small margin to account for borders
+        width = (self.columnCount() * cell_size) + self.verticalHeader().width() + margin
+        height = (self.rowCount() * cell_size) + self.horizontalHeader().height() + margin
+        self.setFixedSize(width, height)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        
+        if USE_NAPARI_FOR_LIVE_VIEW:
+             self.set_white_boundaries_style()
+
+
+    def wheelEvent(self, event):
+        # Ignore wheel events to prevent scrolling
+        event.ignore()
+
+    def set_white_boundaries_style(self):
+        style = """
+        QTableWidget {
+            gridline-color: white;
+            border: 1px solid white;
+        }
+        QTableWidget::item {
+            border: 1px solid white;
+        }
+        QHeaderView::section {
+            color: white;
+        }
+        """
+        self.setStyleSheet(style)
 
     def setData(self):
         for i in range(self.rowCount()):
@@ -5538,6 +5622,9 @@ class Well1536SelectionWidget(QWidget):
         for char in row:
             index = index * 26 + (ord(char.upper()) - ord('A') + 1)
         return index - 1
+
+    def onSelectionChanged(self):
+        selected_cells = self.get_selected_cells()
 
     def get_selected_cells(self):
         list_of_selected_cells = list(self.selected_cells.keys())
