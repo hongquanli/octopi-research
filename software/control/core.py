@@ -1640,6 +1640,7 @@ class MultiPointWorker(QObject):
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
         self.scan_coordinates_name = self.multiPointController.scan_coordinates_name
+        self.z_stacking_config = self.multiPointController.z_stacking_config
 
         self.microscope = self.multiPointController.parent
         try:
@@ -1760,7 +1761,7 @@ class MultiPointWorker(QObject):
         self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
         # z stacking config
-        if Z_STACKING_CONFIG == 'FROM TOP':
+        if self.z_stacking_config == 'FROM TOP':
             self.deltaZ_usteps = -abs(self.deltaZ_usteps)
 
         # reset piezo to home position
@@ -2042,7 +2043,7 @@ class MultiPointWorker(QObject):
     def perform_autofocus(self, region_id):
         if self.do_reflection_af == False:
             # contrast-based AF; perform AF only if when not taking z stack or doing z stack from center
-            if ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) and (self.do_autofocus) and (self.af_fov_count%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
+            if ( (self.NZ == 1) or self.z_stacking_config == 'FROM CENTER' ) and (self.do_autofocus) and (self.af_fov_count%Acquisition.NUMBER_OF_FOVS_PER_AF==0):
                 configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                 config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                 self.signal_current_configuration.emit(config_AF)
@@ -2073,7 +2074,7 @@ class MultiPointWorker(QObject):
                 # initialize the reflection AF
                 self.microscope.laserAutofocusController.initialize_auto()
                 # do contrast AF for the first FOV (if contrast AF box is checked)
-                if self.do_autofocus and ( (self.NZ == 1) or Z_STACKING_CONFIG == 'FROM CENTER' ) :
+                if self.do_autofocus and ( (self.NZ == 1) or self.z_stacking_config == 'FROM CENTER' ) :
                     configuration_name_AF = MULTIPOINT_AUTOFOCUS_CHANNEL
                     config_AF = next((config for config in self.configurationManager.configurations if config.name == configuration_name_AF))
                     self.signal_current_configuration.emit(config_AF)
@@ -2096,7 +2097,7 @@ class MultiPointWorker(QObject):
 
     def prepare_z_stack(self):
         # move to bottom of the z stack
-        if Z_STACKING_CONFIG == 'FROM CENTER':
+        if self.z_stacking_config == 'FROM CENTER':
             self.navigationController.move_z_usteps(-self.deltaZ_usteps*round((self.NZ-1)/2))
             self.wait_till_operation_is_completed()
             time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
@@ -2374,7 +2375,7 @@ class MultiPointWorker(QObject):
                 self.signal_z_piezo_um.emit(self.z_piezo_um)
         else:
             _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-            if Z_STACKING_CONFIG == 'FROM CENTER':
+            if self.z_stacking_config == 'FROM CENTER':
                 if self.navigationController.get_pid_control_flag(2) is False:
                     _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
                     self.navigationController.move_z_usteps( -self.deltaZ_usteps*(self.NZ-1) + self.deltaZ_usteps*round((self.NZ-1)/2) - _usteps_to_clear_backlash)
@@ -2516,6 +2517,7 @@ class MultiPointController(QObject):
         self.parent = parent
         self.start_time = 0
         self.old_images_per_page = 1
+
         try:
             if self.parent is not None:
                 self.old_images_per_page = self.parent.dataHandler.n_images_per_page
@@ -2523,6 +2525,12 @@ class MultiPointController(QObject):
             pass
         self.location_list = None # for flexible multipoint
         self.coordinate_dict = None # for coordinate grid vs postion grid
+        self.z_stacking_config = Z_STACKING_CONFIG
+
+    def set_z_stacking_config(self, z_stacking_config_index):
+        if z_stacking_config_index in Z_STACKING_CONFIG_MAP:
+            self.z_stacking_config = Z_STACKING_CONFIG_MAP[z_stacking_config_index]
+        print(f"z-stacking configuration set to: {self.z_stacking_config}")
 
     def set_NX(self,N):
         self.NX = N

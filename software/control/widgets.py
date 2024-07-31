@@ -2611,6 +2611,9 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_overlap.setValue(10)
         self.entry_overlap.setSuffix(" %")
 
+        self.combobox_z_stack = QComboBox()
+        self.combobox_z_stack.addItems(['Above', 'Center', 'Below'])
+
         self.entry_deltaZ = QDoubleSpinBox()
         self.entry_deltaZ.setMinimum(0)
         self.entry_deltaZ.setMaximum(1000)
@@ -2690,15 +2693,32 @@ class MultiPointWidgetGrid(QFrame):
         saving_path_layout.addWidget(self.btn_setSavingDir)
         main_layout.addLayout(saving_path_layout)
 
-        # Row 1: Experiment ID and Shape
-        row1_layout = QHBoxLayout()
-        row1_layout.addWidget(QLabel('Experiment ID'))
-        row1_layout.addWidget(self.lineEdit_experimentID)
-        row1_layout.addWidget(QLabel('Shape'))
-        row1_layout.addWidget(self.combobox_shape)
-        main_layout.addLayout(row1_layout)
+        # Row 1: Experiment ID and and Time-lapse layout
+        row_1_2_layout = QGridLayout()
+        row_1_2_layout.addWidget(QLabel('Experiment ID'),0,0)
+        row_1_2_layout.addWidget(self.lineEdit_experimentID,0,1,1,3)
+        row_1_2_layout.addWidget(QLabel('dt'),0,4)
+        row_1_2_layout.addWidget(self.entry_dt,0,5)
+        row_1_2_layout.addWidget(QLabel('Nt'),0,6)
+        row_1_2_layout.addWidget(self.entry_Nt,0,7)
 
-        # Row 2: Well Coverage, Scan Size, and Overlap
+         # Row 2: Z-stack 
+        row_2_half = QHBoxLayout()
+        row_2_half.addWidget(QLabel('Shape'))
+        row_2_half.addWidget(self.combobox_shape)
+        row_2_half.addStretch()
+        row_2_half.addWidget(QLabel('Z-Stack'))
+        row_2_half.addWidget(self.combobox_z_stack)
+        row_1_2_layout.addLayout(row_2_half,1,0,1,4)
+
+        row_1_2_layout.addWidget(QLabel('dz'),1,4)
+        row_1_2_layout.addWidget(self.entry_deltaZ,1,5)
+        row_1_2_layout.addWidget(QLabel('Nz'),1,6)
+        row_1_2_layout.addWidget(self.entry_NZ,1,7)
+        main_layout.addLayout(row_1_2_layout)
+
+
+        # Row 3: Well Coverage, Scan Size, and Overlap
         row2_layout = QHBoxLayout()
         row2_layout.addWidget(QLabel('Size'))
         row2_layout.addWidget(self.entry_scan_size)
@@ -2710,20 +2730,7 @@ class MultiPointWidgetGrid(QFrame):
         row2_layout.addWidget(self.entry_overlap)
         main_layout.addLayout(row2_layout)
 
-        # Row 3: Z-stack and Time-lapse layout
-        z_t_layout = QHBoxLayout()
-        z_t_layout.addWidget(QLabel('dz'))
-        z_t_layout.addWidget(self.entry_deltaZ)
-        z_t_layout.addStretch(1)
-        z_t_layout.addWidget(QLabel('Nz'))
-        z_t_layout.addWidget(self.entry_NZ)
-        z_t_layout.addStretch(1)
-        z_t_layout.addWidget(QLabel('dt'))
-        z_t_layout.addWidget(self.entry_dt)
-        z_t_layout.addStretch(1)
-        z_t_layout.addWidget(QLabel('Nt'))
-        z_t_layout.addWidget(self.entry_Nt)
-        main_layout.addLayout(z_t_layout)
+       
 
         # Row 4: Configurations list, AF options, Start Acquisition button
         row4_layout = QHBoxLayout()
@@ -2836,33 +2843,35 @@ class MultiPointWidgetGrid(QFrame):
             self.eta_timer.stop()
 
     def update_scan_size(self):
+        self.set_default_shape()
         if self.navigationViewer.sample == 'glass slide':
             self.entry_scan_size.setEnabled(True)
             self.entry_well_coverage.setEnabled(False)
         else:
             self.entry_well_coverage.setEnabled(True)
-            if hasattr(self.scanCoordinates, 'well_size_mm'):
-                well_size = self.scanCoordinates.well_size_mm
-                self.entry_scan_size.setValue(well_size)
-                self.entry_well_coverage.setValue(100)
-            elif hasattr(self.navigationViewer, 'well_size_mm'):
-                well_size = self.navigationViewer.well_size_mm
-                self.entry_scan_size.setValue(well_size)
-                self.entry_well_coverage.setValue(100)
-        self.set_default_shape()
+            self.entry_well_coverage.setValue(100)
+            self.update_scan_size_from_coverage()
 
     def update_well_coverage(self):
         if self.scanCoordinates.format != 0 and hasattr(self.scanCoordinates, 'well_size_mm'):
             well_size = self.scanCoordinates.well_size_mm
+            if self.combobox_shape.currentText() == 'Circle':
+                fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
+                well_size += fov_size_mm * (1 + math.sqrt(2))
             scan_size = self.entry_scan_size.value()
             coverage = (scan_size / well_size) * 100
+            print('COVERAGE', coverage)
             self.entry_well_coverage.setValue(coverage)
 
     def update_scan_size_from_coverage(self):
         if hasattr(self.scanCoordinates, 'well_size_mm'):
             well_size = self.scanCoordinates.well_size_mm
+            if self.combobox_shape.currentText() == 'Circle':
+                fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
+                well_size += fov_size_mm * (1 + math.sqrt(2))
             coverage = self.entry_well_coverage.value()
             scan_size = (coverage / 100) * well_size
+            print('SIZE', scan_size)
             self.entry_scan_size.setValue(scan_size)
 
     def set_default_shape(self):
@@ -3120,6 +3129,7 @@ class MultiPointWidgetGrid(QFrame):
             scan_size_mm = self.entry_scan_size.value()
             overlap_percent = self.entry_overlap.value()
             shape = self.combobox_shape.currentText()
+            self.multipointController.set_z_stacking_config(self.combobox_z_stack.currentIndex())
 
             if self.use_coordinate_acquisition:
                 if len(self.region_coordinates) == 0:
@@ -3208,7 +3218,6 @@ class MultiPointWidgetGrid(QFrame):
                 widget != self.progress_label and
                 widget != self.eta_label):
                 widget.setEnabled(enabled)
-        # self.update_scan_size()  # Ensure scan size availability is correctly set
 
     def set_saving_dir(self):
         dialog = QFileDialog()
