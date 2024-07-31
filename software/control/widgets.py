@@ -2702,7 +2702,7 @@ class MultiPointWidgetGrid(QFrame):
         row_1_2_layout.addWidget(QLabel('Nt'),0,6)
         row_1_2_layout.addWidget(self.entry_Nt,0,7)
 
-         # Row 2: Z-stack 
+        # Row 2: Z-stack
         row_2_half = QHBoxLayout()
         row_2_half.addWidget(QLabel('Shape'))
         row_2_half.addWidget(self.combobox_shape)
@@ -2710,13 +2710,11 @@ class MultiPointWidgetGrid(QFrame):
         row_2_half.addWidget(QLabel('Z-Stack'))
         row_2_half.addWidget(self.combobox_z_stack)
         row_1_2_layout.addLayout(row_2_half,1,0,1,4)
-
         row_1_2_layout.addWidget(QLabel('dz'),1,4)
         row_1_2_layout.addWidget(self.entry_deltaZ,1,5)
         row_1_2_layout.addWidget(QLabel('Nz'),1,6)
         row_1_2_layout.addWidget(self.entry_NZ,1,7)
         main_layout.addLayout(row_1_2_layout)
-
 
         # Row 3: Well Coverage, Scan Size, and Overlap
         row2_layout = QHBoxLayout()
@@ -2729,8 +2727,6 @@ class MultiPointWidgetGrid(QFrame):
         row2_layout.addWidget(QLabel('FOV Overlap'))
         row2_layout.addWidget(self.entry_overlap)
         main_layout.addLayout(row2_layout)
-
-       
 
         # Row 4: Configurations list, AF options, Start Acquisition button
         row4_layout = QHBoxLayout()
