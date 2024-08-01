@@ -661,7 +661,8 @@ class CameraSettingsWidget(QFrame):
             self.dropdown_res.currentTextChanged.connect(self.change_full_res)
             format_line.addWidget(QLabel("Full Resolution"))
             format_line.addWidget(self.dropdown_res)
-        except AttributeError:
+        except AttributeError as ae:
+            print(ae)
             pass
         self.camera_layout.addLayout(format_line)
 
@@ -1749,7 +1750,7 @@ class MultiPointWidget(QFrame):
         self.entry_dt.setMaximum(12*3600) 
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(0)
-        self.entry_deltaZ.setSuffix(' s')
+        self.entry_dt.setSuffix(' s')
         self.entry_dt.setKeyboardTracking(False)
 
         self.entry_Nt = QSpinBox()
@@ -2825,10 +2826,15 @@ class MultiPointWidgetGrid(QFrame):
         self.multipointController.signal_region_progress.connect(self.update_region_progress)
         self.signal_acquisition_started.connect(self.display_progress_bar)
         self.eta_timer.timeout.connect(self.update_eta_display)
-        self.entry_minZ.valueChanged.connect(self.check_z_max)
-        self.entry_maxZ.valueChanged.connect(self.check_z_min)
+
+        self.navigationController.zPos.connect(self.update_z_min)
+        self.navigationController.zPos.connect(self.update_z_max)
+        self.entry_minZ.valueChanged.connect(self.update_z_max)
+        self.entry_maxZ.valueChanged.connect(self.update_z_min)
+        self.entry_minZ.valueChanged.connect(self.update_dz)
+        self.entry_maxZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.update_dz)
-        self.navigationController.zPos.connect(self.update_current_z)
+
 
     def update_region_progress(self, current_fov, num_fovs):
         self.progress_bar.setMaximum(num_fovs)
@@ -2932,33 +2938,26 @@ class MultiPointWidgetGrid(QFrame):
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
-        self.navigationController.zPos.disconnect(self.update_current_z)
-        self.update_dz()
+        try:
+            self.navigationController.zPos.disconnect(self.update_z_min)
+        except TypeError:
+            pass # signal was not connected, so there's nothing to disconnect
 
     def set_z_max(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_maxZ.setValue(z_value)
-        self.navigationController.zPos.disconnect(self.update_current_z)
-        self.update_dz()
+        try:
+            self.navigationController.zPos.disconnect(self.update_z_max)
+        except TypeError:
+            pass
 
-    def check_z_max(self, z_value):
-        if self.entry_maxZ.value() < self.entry_minZ.value():
-            self.entry_maxZ.setValue(self.entry_minZ.value())
-        print("update min z:", self.entry_minZ.value())
-        self.update_dz()
-
-    def check_z_min(self, z_value):
-        if self.entry_maxZ.value() < self.entry_minZ.value():
-            self.entry_minZ.setValue(self.entry_maxZ.value())
-        print("update max z:", self.entry_maxZ.value())
-        self.update_dz()
-
-    def update_current_z(self, z_pos_um):
+    def update_z_min(self, z_pos_um):
         if z_pos_um < self.entry_minZ.value():
             self.entry_minZ.setValue(z_pos_um)
-        elif z_pos_um > self.entry_maxZ.value():
+
+    def update_z_max(self, z_pos_um):
+        if z_pos_um > self.entry_maxZ.value():
             self.entry_maxZ.setValue(z_pos_um)
-        self.update_dz()
 
     def init_z(self, z_pos_mm=None):
         if z_pos_mm is None:
@@ -2966,14 +2965,16 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        self.navigationController.zPos.disconnect(self.update_current_z)
+        self.navigationController.zPos.disconnect(self.update_z_min)
+        self.navigationController.zPos.disconnect(self.update_z_max)
 
         self.entry_minZ.setValue(z_pos_mm*1000)
         print("init min z:", self.entry_minZ.value())
         self.entry_maxZ.setValue(z_pos_mm*1000)
         print("init max z:", self.entry_maxZ.value())
 
-        self.navigationController.zPos.connect(self.update_current_z)
+        self.navigationController.zPos.connect(self.update_z_min)
+        self.navigationController.zPos.connect(self.update_z_max)
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
 
@@ -3764,21 +3765,22 @@ class NapariLiveWidget(QWidget):
 
         self.viewer.window.window_menu.addAction(self.dock_live_controls.toggleViewAction())
         
-        well_selector_layout = QVBoxLayout() 
-        title_label = QLabel("Well Selector")  
-        title_label.setAlignment(Qt.AlignCenter)  # Center the title
-        #title_label.setStyleSheet("font-weight: bold;")  # Optional: style the title
-        well_selector_layout.addWidget(title_label) 
+        if USE_NAPARI_WELL_SELECTION:
+            well_selector_layout = QVBoxLayout() 
+            title_label = QLabel("Well Selector")  
+            title_label.setAlignment(Qt.AlignCenter)  # Center the title
+            #title_label.setStyleSheet("font-weight: bold;")  # Optional: style the title
+            well_selector_layout.addWidget(title_label) 
 
-        well_selector_row = QHBoxLayout()
-        well_selector_row.addStretch(1)
-        well_selector_row.addWidget(self.wellSelectionWidget)
-        well_selector_row.addStretch(1)
-        well_selector_layout.addLayout(well_selector_row)
-        
-        well_selector_dock_widget = QWidget()
-        well_selector_dock_widget.setLayout(well_selector_layout)
-        self.dock_well_selector = self.viewer.window.add_dock_widget(well_selector_dock_widget, area='bottom', name='well selector', tabify=True)
+            well_selector_row = QHBoxLayout()
+            well_selector_row.addStretch(1)
+            well_selector_row.addWidget(self.wellSelectionWidget)
+            well_selector_row.addStretch(1)
+            well_selector_layout.addLayout(well_selector_row)
+            
+            well_selector_dock_widget = QWidget()
+            well_selector_dock_widget.setLayout(well_selector_layout)
+            self.dock_well_selector = self.viewer.window.add_dock_widget(well_selector_dock_widget, area='bottom', name='well selector', tabify=True)
 
         self.print_window_menu_items()
 
@@ -5524,7 +5526,7 @@ class WellSelectionWidget(QTableWidget):
         self.setFixedSize(width, height)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         
-        if USE_NAPARI_FOR_LIVE_VIEW:
+        if USE_NAPARI_WELL_SELECTION:
              self.set_white_boundaries_style()
 
 
