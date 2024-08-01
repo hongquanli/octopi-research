@@ -481,8 +481,8 @@ class Camera_Simulation(object):
 
         self.Width = Acquisition.CROP_WIDTH
         self.Height = Acquisition.CROP_HEIGHT
-        self.resolution=(self.Width,self.Height)
-        self.res_list = [(1000,1000), (2000,2000), (3000,3000), (4000,3000)]
+        # self.resolution=(self.Width,self.Height)
+        # self.res_list = [(1000,1000), (2000,2000), (3000,3000), (4000,3000)]
         self.WidthMax = 4000
         self.HeightMax = 3000
         self.OffsetX = 0

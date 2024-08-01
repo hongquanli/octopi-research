@@ -650,20 +650,23 @@ class CameraSettingsWidget(QFrame):
         format_line = QHBoxLayout()
         format_line.addWidget(QLabel('Pixel Format'))
         format_line.addWidget(self.dropdown_pixelFormat)
+        #format_line.addStretch()
         try:
             current_res = self.camera.resolution
             current_res_string = "x".join([str(current_res[0]),str(current_res[1])])
-            res_options = [f"{res[0]}x{res[1]}" for res in self.camera.res_list]
+            res_options = [f"{res[0]} x {res[1]}" for res in self.camera.res_list]
             self.dropdown_res = QComboBox()
             self.dropdown_res.addItems(res_options)
             self.dropdown_res.setCurrentText(current_res_string)
 
             self.dropdown_res.currentTextChanged.connect(self.change_full_res)
-            format_line.addWidget(QLabel("Full Resolution"))
-            format_line.addWidget(self.dropdown_res)
         except AttributeError as ae:
             print(ae)
+            self.dropdown_res = QComboBox()
+            self.dropdown_res.setEnabled(False)
             pass
+        format_line.addWidget(QLabel("FOV Resolution"))
+        format_line.addWidget(self.dropdown_res)
         self.camera_layout.addLayout(format_line)
 
 
@@ -683,10 +686,13 @@ class CameraSettingsWidget(QFrame):
         roi_line = QHBoxLayout()
         roi_line.addWidget(QLabel('height'))
         roi_line.addWidget(self.entry_ROI_height)
+        roi_line.addStretch()
         roi_line.addWidget(QLabel('width'))
         roi_line.addWidget(self.entry_ROI_width)
+        roi_line.addStretch()
         roi_line.addWidget(QLabel('offset y'))
         roi_line.addWidget(self.entry_ROI_offset_y)
+        roi_line.addStretch()
         roi_line.addWidget(QLabel('offset x'))
         roi_line.addWidget(self.entry_ROI_offset_x)
         self.camera_layout.addLayout(roi_line)
@@ -1568,16 +1574,18 @@ class AutoFocusWidget(QFrame):
         self.btn_autofocus.setChecked(False)
 
         # layout
-        grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('delta Z (um)'), 0,0)
-        grid_line0.addWidget(self.entry_delta, 0,1)
-        grid_line0.addWidget(QLabel('N Z planes'), 1,0)
-        grid_line0.addWidget(self.entry_N, 1,1)
-        grid_line0.addWidget(self.btn_autofocus, 2,0,1,2)
+        self.grid = QVBoxLayout()
+        grid_line0 = QHBoxLayout()
+        grid_line0.addStretch(1)
+        grid_line0.addWidget(QLabel('delta Z (um)'))
+        grid_line0.addWidget(self.entry_delta)
+        grid_line0.addStretch(1)
+        grid_line0.addWidget(QLabel('N Z planes'))
+        grid_line0.addWidget(self.entry_N)
+        grid_line0.addStretch(1)
+        self.grid.addLayout(grid_line0)
+        self.grid.addWidget(self.btn_autofocus)
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.grid.setRowStretch(self.grid.rowCount(), 1)
         self.setLayout(self.grid)
         
         # connections
@@ -5339,7 +5347,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.btn_initialize.setChecked(False)
         self.btn_initialize.setDefault(False)
 
-        self.btn_set_reference = QPushButton("Set as reference plane")
+        self.btn_set_reference = QPushButton("Set Reference")
         self.btn_set_reference.setCheckable(False)
         self.btn_set_reference.setChecked(False)
         self.btn_set_reference.setDefault(False)
@@ -5349,7 +5357,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.label_displacement = QLabel()
         self.label_displacement.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
-        self.btn_measure_displacement = QPushButton("Measure displacement")
+        self.btn_measure_displacement = QPushButton("Measure Displacement")
         self.btn_measure_displacement.setCheckable(False)
         self.btn_measure_displacement.setChecked(False)
         self.btn_measure_displacement.setDefault(False)
@@ -5364,31 +5372,24 @@ class LaserAutofocusControlWidget(QFrame):
         self.entry_target.setValue(0)
         self.entry_target.setKeyboardTracking(False)
 
-        self.btn_move_to_target = QPushButton("Move to target")
+        self.btn_move_to_target = QPushButton("Move to Target")
         self.btn_move_to_target.setCheckable(False)
         self.btn_move_to_target.setChecked(False)
         self.btn_move_to_target.setDefault(False)
         if not self.laserAutofocusController.is_initialized:
             self.btn_move_to_target.setEnabled(False)
         
-        self.grid = QVBoxLayout()
+        self.grid = QGridLayout()
 
-        line0 = QHBoxLayout()
-        line0.addWidget(self.btn_initialize)
-        line0.addWidget(self.btn_set_reference)
-        self.grid.addLayout(line0)
+        self.grid.addWidget(self.btn_set_reference,0,0)
+        self.grid.addWidget(self.btn_measure_displacement,0,1,1,2)
+        self.grid.addWidget(self.btn_move_to_target,0,3,1,2)
 
-        line1 = QHBoxLayout()
-        line1.addWidget(QLabel('Displacement (um)'))
-        line1.addWidget(self.label_displacement)
-        line1.addWidget(self.btn_measure_displacement)
-        self.grid.addLayout(line1)
-
-        line2 = QHBoxLayout()
-        line2.addWidget(QLabel('Target (um)'))
-        line2.addWidget(self.entry_target)
-        line2.addWidget(self.btn_move_to_target)
-        self.grid.addLayout(line2)
+        self.grid.addWidget(self.btn_initialize,1,0)
+        self.grid.addWidget(QLabel('Displacement (um)'),1,1)
+        self.grid.addWidget(self.label_displacement,1,2)
+        self.grid.addWidget(QLabel('Target (um)'),1,3)
+        self.grid.addWidget(self.entry_target,1,4)
 
         self.setLayout(self.grid)
 
