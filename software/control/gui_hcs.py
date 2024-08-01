@@ -356,8 +356,8 @@ class OctopiGUI(QMainWindow):
         # self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
         if ENABLE_OBJECTIVE_PIEZO:
             self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
-        self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
         self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+        self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.microscopeControlTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
@@ -652,7 +652,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.microscopeControlTabWidget.addTab(self.laserAutofocusControlWidget, "Laser AF")
+            self.microscopeControlTabWidget.insertTab(1, self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
@@ -710,12 +710,7 @@ class OctopiGUI(QMainWindow):
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
             self.navigationController.move_to_cached_position()
             while self.microcontroller.is_busy():
-<<<<<<< HEAD
                 time.sleep(0.005)
-=======
-                time.sleep(0.1)
-            print("new pos", self.navigationController.z_pos_mm)
->>>>>>> df4a1cd (final z-min, z-max menu)
             if ENABLE_SCAN_GRID:
                 self.multiPointWidgetGrid.init_z()
 
