@@ -700,6 +700,7 @@ class LiveController(QObject):
         
 
 
+
 class NavigationController(QObject):
 
     xPos = Signal(float)

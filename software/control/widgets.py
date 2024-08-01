@@ -2834,6 +2834,10 @@ class MultiPointWidgetGrid(QFrame):
         self.multipointController.signal_region_progress.connect(self.update_region_progress)
         self.signal_acquisition_started.connect(self.display_progress_bar)
         self.eta_timer.timeout.connect(self.update_eta_display)
+        self.entry_minZ.valueChanged.connect(self.check_z_max)
+        self.entry_maxZ.valueChanged.connect(self.check_z_min)
+        self.entry_NZ.valueChanged.connect(self.update_dz)
+        self.navigationController.zPos.connect(self.update_current_z)
 
         self.navigationController.zPos.connect(self.update_z_min)
         self.navigationController.zPos.connect(self.update_z_max)
