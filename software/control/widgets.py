@@ -1702,6 +1702,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaX.setSingleStep(0.1)
         self.entry_deltaX.setValue(Acquisition.DX)
         self.entry_deltaX.setDecimals(3)
+        self.entry_deltaX.setSuffix(' mm')
         self.entry_deltaX.setKeyboardTracking(False)
 
         self.entry_NX = QSpinBox()
@@ -1717,6 +1718,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaY.setSingleStep(0.1)
         self.entry_deltaY.setValue(Acquisition.DX)
         self.entry_deltaY.setDecimals(3)
+        self.entry_deltaY.setSuffix(' mm')
         self.entry_deltaY.setKeyboardTracking(False)
         
         self.entry_NY = QSpinBox()
@@ -1732,6 +1734,7 @@ class MultiPointWidget(QFrame):
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
+        self.entry_deltaZ.setSuffix(' μm')
         self.entry_deltaZ.setKeyboardTracking(False)
         
         self.entry_NZ = QSpinBox()
@@ -1746,6 +1749,7 @@ class MultiPointWidget(QFrame):
         self.entry_dt.setMaximum(12*3600) 
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(0)
+        self.entry_deltaZ.setSuffix(' s')
         self.entry_dt.setKeyboardTracking(False)
 
         self.entry_Nt = QSpinBox()
@@ -1791,23 +1795,27 @@ class MultiPointWidget(QFrame):
         grid_line1.addWidget(self.lineEdit_experimentID,0,1)
 
         grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('dx (mm)'), 0,0)
+        grid_line2.addWidget(QLabel('dx'), 0,0)
         grid_line2.addWidget(self.entry_deltaX, 0,1)
-        grid_line2.addWidget(QLabel('Nx'), 0,2)
-        grid_line2.addWidget(self.entry_NX, 0,3)
-        grid_line2.addWidget(QLabel('dy (mm)'), 0,4)
-        grid_line2.addWidget(self.entry_deltaY, 0,5)
-        grid_line2.addWidget(QLabel('Ny'), 0,6)
-        grid_line2.addWidget(self.entry_NY, 0,7)
+        grid_line2.addWidget(QLabel('Nx'), 0,3)
+        grid_line2.addWidget(self.entry_NX, 0,4)
+        grid_line2.addWidget(QLabel('dy'), 0,6)
+        grid_line2.addWidget(self.entry_deltaY, 0,7)
+        grid_line2.addWidget(QLabel('Ny'), 0,9)
+        grid_line2.addWidget(self.entry_NY, 0,10)
 
-        grid_line2.addWidget(QLabel('dz (um)'), 1,0)
+        grid_line2.addWidget(QLabel('dz'), 1,0)
         grid_line2.addWidget(self.entry_deltaZ, 1,1)
-        grid_line2.addWidget(QLabel('Nz'), 1,2)
-        grid_line2.addWidget(self.entry_NZ, 1,3)
-        grid_line2.addWidget(QLabel('dt (s)'), 1,4)
-        grid_line2.addWidget(self.entry_dt, 1,5)
-        grid_line2.addWidget(QLabel('Nt'), 1,6)
-        grid_line2.addWidget(self.entry_Nt, 1,7)
+        grid_line2.addWidget(QLabel('Nz'), 1,3)
+        grid_line2.addWidget(self.entry_NZ, 1,4)
+        grid_line2.addWidget(QLabel('dt'), 1,6)
+        grid_line2.addWidget(self.entry_dt, 1,7)
+        grid_line2.addWidget(QLabel('Nt'), 1,9)
+        grid_line2.addWidget(self.entry_Nt, 1,10)
+
+        grid_line2.setColumnStretch(2, 1)
+        grid_line2.setColumnStretch(5, 1)
+        grid_line2.setColumnStretch(8, 1)
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
@@ -2018,7 +2026,7 @@ class MultiPointWidget2(QFrame):
         self.btn_remove = QPushButton('Remove')
         self.btn_previous = QPushButton('Previous')
         self.btn_next = QPushButton('Next')
-        self.btn_clear = QPushButton('Clear all')
+        self.btn_clear = QPushButton('Clear')
 
         self.btn_load_last_executed = QPushButton('Prev Used Locations')
 
@@ -2030,7 +2038,7 @@ class MultiPointWidget2(QFrame):
         self.table_location_list.setColumnCount(4)
         header_labels = ['x', 'y', 'z', 'ID']
         self.table_location_list.setHorizontalHeaderLabels(header_labels)
-        self.btn_show_table_location_list = QPushButton('Show Location List')
+        self.btn_show_table_location_list = QPushButton('Open/Edit')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -2038,6 +2046,7 @@ class MultiPointWidget2(QFrame):
         self.entry_deltaX.setSingleStep(0.1)
         self.entry_deltaX.setValue(Acquisition.DX)
         self.entry_deltaX.setDecimals(3)
+        self.entry_deltaX.setSuffix(' mm')
         self.entry_deltaX.setKeyboardTracking(False)
 
         self.entry_NX = QSpinBox()
@@ -2053,6 +2062,7 @@ class MultiPointWidget2(QFrame):
         self.entry_deltaY.setSingleStep(0.1)
         self.entry_deltaY.setValue(Acquisition.DX)
         self.entry_deltaY.setDecimals(3)
+        self.entry_deltaY.setSuffix(' mm')
         self.entry_deltaY.setKeyboardTracking(False)
 
         self.entry_NY = QSpinBox()
@@ -2068,6 +2078,7 @@ class MultiPointWidget2(QFrame):
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
+        self.entry_deltaZ.setSuffix(' μm')
         self.entry_deltaZ.setKeyboardTracking(False)
         
         self.entry_NZ = QSpinBox()
@@ -2082,6 +2093,7 @@ class MultiPointWidget2(QFrame):
         self.entry_dt.setMaximum(12*3600)
         self.entry_dt.setSingleStep(1)
         self.entry_dt.setValue(0)
+        self.entry_dt.setSuffix(' s')
         self.entry_dt.setKeyboardTracking(False)
 
         self.entry_Nt = QSpinBox()
@@ -2138,23 +2150,27 @@ class MultiPointWidget2(QFrame):
         grid_line3point75.addWidget(self.btn_export_locations,0,1)
 
         grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('dx (mm)'), 0,0)
+        grid_line2.addWidget(QLabel('dx'), 0,0)
         grid_line2.addWidget(self.entry_deltaX, 0,1)
-        grid_line2.addWidget(QLabel('Nx'), 0,2)
-        grid_line2.addWidget(self.entry_NX, 0,3)
-        grid_line2.addWidget(QLabel('dy (mm)'), 0,4)
-        grid_line2.addWidget(self.entry_deltaY, 0,5)
-        grid_line2.addWidget(QLabel('Ny'), 0,6)
-        grid_line2.addWidget(self.entry_NY, 0,7)
+        grid_line2.addWidget(QLabel('Nx'), 0,3)
+        grid_line2.addWidget(self.entry_NX, 0,4)
+        grid_line2.addWidget(QLabel('dy'), 0,6)
+        grid_line2.addWidget(self.entry_deltaY, 0,7)
+        grid_line2.addWidget(QLabel('Ny'), 0,9)
+        grid_line2.addWidget(self.entry_NY, 0,10)
 
-        grid_line2.addWidget(QLabel('dz (um)'), 1,0)
+        grid_line2.addWidget(QLabel('dz'), 1,0)
         grid_line2.addWidget(self.entry_deltaZ, 1,1)
-        grid_line2.addWidget(QLabel('Nz'), 1,2)
-        grid_line2.addWidget(self.entry_NZ, 1,3)
-        grid_line2.addWidget(QLabel('dt (s)'), 1,4)
-        grid_line2.addWidget(self.entry_dt, 1,5)
-        grid_line2.addWidget(QLabel('Nt'), 1,6)
-        grid_line2.addWidget(self.entry_Nt, 1,7)
+        grid_line2.addWidget(QLabel('Nz'), 1,3)
+        grid_line2.addWidget(self.entry_NZ, 1,4)
+        grid_line2.addWidget(QLabel('dt'), 1,6)
+        grid_line2.addWidget(self.entry_dt, 1,7)
+        grid_line2.addWidget(QLabel('Nt'), 1,9)
+        grid_line2.addWidget(self.entry_Nt, 1,10)
+
+        grid_line2.setColumnStretch(2, 1)
+        grid_line2.setColumnStretch(5, 1)
+        grid_line2.setColumnStretch(8, 1)
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
@@ -2581,7 +2597,7 @@ class MultiPointWidgetGrid(QFrame):
         self.eta_seconds = 0
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        self.update_scan_size()
+        self.set_default_scan_size()
 
     def add_components(self):
         self.btn_setSavingDir = QPushButton('Browse')
@@ -2613,6 +2629,27 @@ class MultiPointWidgetGrid(QFrame):
 
         self.combobox_z_stack = QComboBox()
         self.combobox_z_stack.addItems(['Above', 'Center', 'Below'])
+        
+        # Add z-min and z-max entries
+        self.entry_minZ = QDoubleSpinBox()
+        self.entry_minZ.setMinimum(SOFTWARE_POS_LIMIT.Z_NEGATIVE * 1000)  # Convert to μm
+        self.entry_minZ.setMaximum(SOFTWARE_POS_LIMIT.Z_POSITIVE * 1000)  # Convert to μm
+        self.entry_minZ.setSingleStep(1)  # Step by 1 μm
+        self.entry_minZ.setValue(self.navigationController.z_pos_mm * 1000)  # Set to minimum
+        self.entry_minZ.setSuffix(" μm")
+
+        self.set_minZ_button = QPushButton('Set')
+        self.set_minZ_button.clicked.connect(self.set_z_min)
+
+        self.entry_maxZ = QDoubleSpinBox()
+        self.entry_maxZ.setMinimum(SOFTWARE_POS_LIMIT.Z_NEGATIVE * 1000)  # Convert to μm
+        self.entry_maxZ.setMaximum(SOFTWARE_POS_LIMIT.Z_POSITIVE * 1000)  # Convert to μm
+        self.entry_maxZ.setSingleStep(1)  # Step by 1 μm
+        self.entry_maxZ.setValue(self.navigationController.z_pos_mm * 1000)  # Set to maximum
+        self.entry_maxZ.setSuffix(" μm")
+
+        self.set_maxZ_button = QPushButton('Set')
+        self.set_maxZ_button.clicked.connect(self.set_z_max)
 
         self.entry_deltaZ = QDoubleSpinBox()
         self.entry_deltaZ.setMinimum(0)
@@ -2620,7 +2657,8 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
-        self.entry_deltaZ.setSuffix(" um")
+        self.entry_deltaZ.setEnabled(False)
+        self.entry_deltaZ.setSuffix(" μm")
 
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1) 
@@ -2686,51 +2724,62 @@ class MultiPointWidgetGrid(QFrame):
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
-        # Row 0: Saving Path
+        #  Saving Path
         saving_path_layout = QHBoxLayout()
         saving_path_layout.addWidget(QLabel('Saving Path'))
         saving_path_layout.addWidget(self.lineEdit_savingDir)
         saving_path_layout.addWidget(self.btn_setSavingDir)
         main_layout.addLayout(saving_path_layout)
 
-        # Row 1: Experiment ID and and Time-lapse layout
-        row_1_2_layout = QGridLayout()
-        row_1_2_layout.addWidget(QLabel('Experiment ID'),0,0)
-        row_1_2_layout.addWidget(self.lineEdit_experimentID,0,1,1,3)
-        row_1_2_layout.addWidget(QLabel('dt'),0,4)
-        row_1_2_layout.addWidget(self.entry_dt,0,5)
-        row_1_2_layout.addWidget(QLabel('Nt'),0,6)
-        row_1_2_layout.addWidget(self.entry_Nt,0,7)
+        # Experiment ID and Scan Shape
+        
+        row_1_layout = QHBoxLayout() 
+        row_1_layout.addWidget(QLabel('Experiment ID'))
+        row_1_layout.addWidget(self.lineEdit_experimentID)
+        row_1_layout.addWidget(QLabel('Shape'))
+        row_1_layout.addWidget(self.combobox_shape)
+        # row_1_layout.addWidget(QLabel('Z-Stack'))
+        # row_1_layout.addWidget(self.combobox_z_stack)
+        main_layout.addLayout(row_1_layout)
 
-        # Row 2: Z-stack
-        row_2_half = QHBoxLayout()
-        row_2_half.addWidget(QLabel('Shape'))
-        row_2_half.addWidget(self.combobox_shape)
-        row_2_half.addStretch()
-        row_2_half.addWidget(QLabel('Z-Stack'))
-        row_2_half.addWidget(self.combobox_z_stack)
-        row_1_2_layout.addLayout(row_2_half,1,0,1,4)
-        row_1_2_layout.addWidget(QLabel('dz'),1,4)
-        row_1_2_layout.addWidget(self.entry_deltaZ,1,5)
-        row_1_2_layout.addWidget(QLabel('Nz'),1,6)
-        row_1_2_layout.addWidget(self.entry_NZ,1,7)
-        main_layout.addLayout(row_1_2_layout)
+        # Well Coverage, Scan Size, and Overlap
+        row_4_layout = QHBoxLayout()
+        row_4_layout.addWidget(QLabel('Size'))
+        row_4_layout.addWidget(self.entry_scan_size)
+        row_4_layout.addStretch(1)
+        row_4_layout.addWidget(QLabel('Well Coverage'))
+        row_4_layout.addWidget(self.entry_well_coverage)
+        row_4_layout.addStretch(1)
+        row_4_layout.addWidget(QLabel('FOV Overlap'))
+        row_4_layout.addWidget(self.entry_overlap)
+        main_layout.addLayout(row_4_layout)
 
-        # Row 3: Well Coverage, Scan Size, and Overlap
-        row2_layout = QHBoxLayout()
-        row2_layout.addWidget(QLabel('Size'))
-        row2_layout.addWidget(self.entry_scan_size)
-        row2_layout.addStretch(1)
-        row2_layout.addWidget(QLabel('Well Coverage'))
-        row2_layout.addWidget(self.entry_well_coverage)
-        row2_layout.addStretch(1)
-        row2_layout.addWidget(QLabel('FOV Overlap'))
-        row2_layout.addWidget(self.entry_overlap)
-        main_layout.addLayout(row2_layout)
+        # Z and T
+        row_2_3_layout = QGridLayout()
+        row_2_3_layout.addWidget(self.set_minZ_button, 0, 0)
+        row_2_3_layout.addWidget(QLabel('Z-min'), 0, 1)
+        row_2_3_layout.addWidget(self.entry_minZ, 0, 2)
+        row_2_3_layout.addWidget(QLabel('dz'), 0, 4)
+        row_2_3_layout.addWidget(self.entry_deltaZ, 0, 5)
+        row_2_3_layout.addWidget(QLabel('Nz'), 0, 7)
+        row_2_3_layout.addWidget(self.entry_NZ, 0, 8)
+        
+        row_2_3_layout.addWidget(self.set_maxZ_button, 1, 0)
+        row_2_3_layout.addWidget(QLabel('Z-max'), 1, 1)
+        row_2_3_layout.addWidget(self.entry_maxZ, 1, 2)
+        row_2_3_layout.addWidget(QLabel('dt'), 1, 4)
+        row_2_3_layout.addWidget(self.entry_dt, 1, 5)
+        row_2_3_layout.addWidget(QLabel('Nt'), 1, 7)
+        row_2_3_layout.addWidget(self.entry_Nt, 1, 8)
+        row_2_3_layout.setColumnStretch(3, 1)
+        row_2_3_layout.setColumnStretch(6, 1)
 
-        # Row 4: Configurations list, AF options, Start Acquisition button
-        row4_layout = QHBoxLayout()
-        row4_layout.addWidget(self.list_configurations)
+
+        main_layout.addLayout(row_2_3_layout)
+
+        # Configurations list, AF options, Start Acquisition button
+        row_bottom_layout = QHBoxLayout()
+        row_bottom_layout.addWidget(self.list_configurations)
 
         options_layout = QVBoxLayout()
         options_layout.addWidget(self.checkbox_genFocusMap)
@@ -2741,17 +2790,17 @@ class MultiPointWidgetGrid(QFrame):
         if ENABLE_STITCHER:
             options_layout.addWidget(self.checkbox_stitchOutput)
 
-        row4_layout.addLayout(options_layout)
+        row_bottom_layout.addLayout(options_layout)
 
-        row4_layout.addWidget(self.btn_startAcquisition)
-        main_layout.addLayout(row4_layout)
+        row_bottom_layout.addWidget(self.btn_startAcquisition)
+        main_layout.addLayout(row_bottom_layout)
 
         # Row 5: Progress Bar
-        row5_layout = QHBoxLayout()
-        row5_layout.addWidget(self.progress_label)
-        row5_layout.addWidget(self.progress_bar)
-        row5_layout.addWidget(self.eta_label)
-        main_layout.addLayout(row5_layout)
+        row_progress_layout = QHBoxLayout()
+        row_progress_layout.addWidget(self.progress_label)
+        row_progress_layout.addWidget(self.progress_bar)
+        row_progress_layout.addWidget(self.eta_label)
+        main_layout.addLayout(row_progress_layout)
 
         # Connections
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
@@ -2760,7 +2809,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         self.entry_dt.valueChanged.connect(self.multipointController.set_deltat)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
-        self.entry_scan_size.valueChanged.connect(self.update_well_coverage)
+        self.entry_scan_size.valueChanged.connect(self.update_coverage_from_scan_size)
         self.entry_well_coverage.valueChanged.connect(self.update_scan_size_from_coverage)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
@@ -2776,6 +2825,10 @@ class MultiPointWidgetGrid(QFrame):
         self.multipointController.signal_region_progress.connect(self.update_region_progress)
         self.signal_acquisition_started.connect(self.display_progress_bar)
         self.eta_timer.timeout.connect(self.update_eta_display)
+        self.entry_minZ.valueChanged.connect(self.check_z_max)
+        self.entry_maxZ.valueChanged.connect(self.check_z_min)
+        self.entry_NZ.valueChanged.connect(self.update_dz)
+        self.navigationController.zPos.connect(self.update_current_z)
 
     def update_region_progress(self, current_fov, num_fovs):
         self.progress_bar.setMaximum(num_fovs)
@@ -2816,7 +2869,6 @@ class MultiPointWidgetGrid(QFrame):
             self.eta_seconds -= 1  # Decrease by 1 second
             hours, remainder = divmod(int(self.eta_seconds), 3600)
             minutes, seconds = divmod(remainder, 60)
-
             if hours > 0:
                 eta_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             else:
@@ -2838,7 +2890,7 @@ class MultiPointWidgetGrid(QFrame):
         else:
             self.eta_timer.stop()
 
-    def update_scan_size(self):
+    def set_default_scan_size(self):
         self.set_default_shape()
         if self.navigationViewer.sample == 'glass slide':
             self.entry_scan_size.setEnabled(True)
@@ -2848,7 +2900,7 @@ class MultiPointWidgetGrid(QFrame):
             self.entry_well_coverage.setValue(100)
             self.update_scan_size_from_coverage()
 
-    def update_well_coverage(self):
+    def update_coverage_from_scan_size(self):
         if self.scanCoordinates.format != 0 and hasattr(self.scanCoordinates, 'well_size_mm'):
             well_size = self.scanCoordinates.well_size_mm
             if self.combobox_shape.currentText() == 'Circle':
@@ -2869,6 +2921,61 @@ class MultiPointWidgetGrid(QFrame):
             scan_size = (coverage / 100) * well_size
             print('SIZE', scan_size)
             self.entry_scan_size.setValue(scan_size)
+
+    def update_dz(self):
+        z_min = self.entry_minZ.value()
+        z_max = self.entry_maxZ.value()
+        nz = self.entry_NZ.value()
+        dz = (z_max - z_min) / (nz - 1) if nz > 1 else 0
+        self.entry_deltaZ.setValue(dz)
+
+    def set_z_min(self):
+        z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        self.entry_minZ.setValue(z_value)
+        self.navigationController.zPos.disconnect(self.update_current_z)
+        self.update_dz()
+
+    def set_z_max(self):
+        z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        self.entry_maxZ.setValue(z_value)
+        self.navigationController.zPos.disconnect(self.update_current_z)
+        self.update_dz()
+
+    def check_z_max(self, z_value):
+        if self.entry_maxZ.value() < self.entry_minZ.value():
+            self.entry_maxZ.setValue(self.entry_minZ.value())
+        print("update min z:", self.entry_minZ.value())
+        self.update_dz()
+
+    def check_z_min(self, z_value):
+        if self.entry_maxZ.value() < self.entry_minZ.value():
+            self.entry_minZ.setValue(self.entry_maxZ.value())
+        print("update max z:", self.entry_maxZ.value())
+        self.update_dz()
+
+    def update_current_z(self, z_pos_um):
+        if z_pos_um < self.entry_minZ.value():
+            self.entry_minZ.setValue(z_pos_um)
+        elif z_pos_um > self.entry_maxZ.value():
+            self.entry_maxZ.setValue(z_pos_um)
+        self.update_dz()
+
+    def init_z(self, z_pos_mm=None):
+        if z_pos_mm is None:
+            z_pos_mm = self.navigationController.z_pos_mm 
+
+        self.entry_minZ.blockSignals(True)
+        self.entry_maxZ.blockSignals(True)
+        self.navigationController.zPos.disconnect(self.update_current_z)
+
+        self.entry_minZ.setValue(z_pos_mm*1000)
+        print("init min z:", self.entry_minZ.value())
+        self.entry_maxZ.setValue(z_pos_mm*1000)
+        print("init max z:", self.entry_maxZ.value())
+
+        self.navigationController.zPos.connect(self.update_current_z)
+        self.entry_minZ.blockSignals(False)
+        self.entry_maxZ.blockSignals(False)
 
     def set_default_shape(self):
         if self.scanCoordinates.format in [384, 1536]:
@@ -2930,7 +3037,7 @@ class MultiPointWidgetGrid(QFrame):
             y = self.navigationController.y_pos_mm
             self.set_live_scan_coordinates(x, y)
 
-    def update_z_level(self, well_id, new_z):
+    def update_region_z_level(self, well_id, new_z):
         if len(self.region_coordinates[well_id]) == 3:
             # [x, y, z] -> [x, y, new_z]
             self.region_coordinates[well_id][2] = new_z
@@ -3214,6 +3321,10 @@ class MultiPointWidgetGrid(QFrame):
                 widget != self.progress_label and
                 widget != self.eta_label):
                 widget.setEnabled(enabled)
+            
+            if self.scanCoordinates.format == 0:
+                self.entry_well_coverage.setEnabled(False)
+            self.entry_deltaZ.setEnabled(False)
 
     def set_saving_dir(self):
         dialog = QFileDialog()

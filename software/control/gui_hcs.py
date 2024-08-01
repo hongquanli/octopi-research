@@ -716,8 +716,14 @@ class OctopiGUI(QMainWindow):
         if ENABLE_NL5:
             self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
+        print("old pos", self.navigationController.z_pos_mm)
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
             self.navigationController.move_to_cached_position()
+            while self.microcontroller.is_busy():
+                time.sleep(0.1)
+            print("new pos", self.navigationController.z_pos_mm)
+            if ENABLE_SCAN_GRID:
+                self.multiPointWidgetGrid.init_z()
 
         # Create the menu bar
         menubar = self.menuBar()
@@ -807,7 +813,7 @@ class OctopiGUI(QMainWindow):
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.clear_only_location_list()
         if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.update_scan_size()
+            self.multiPointWidgetGrid.set_default_scan_size()
             self.multiPointWidgetGrid.clear_regions()
         self.wellSelectionWidget.onSelectionChanged()
 
