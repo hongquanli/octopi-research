@@ -52,7 +52,6 @@ static const int ACK_JOYSTICK_BUTTON_PRESSED = 14;
 static const int ANALOG_WRITE_ONBOARD_DAC = 15;
 static const int SET_DAC80508_REFDIV_GAIN = 16;
 static const int SET_ILLUMINATION_INTENSITY_FACTOR = 17;
-static const int SET_TRIGGER_DELAY_TIME = 18;
 static const int SET_LIM_SWITCH_POLARITY = 20;
 static const int CONFIGURE_STEPPER_DRIVER = 21;
 static const int SET_MAX_VELOCITY_ACCELERATION = 22;
@@ -1455,11 +1454,6 @@ void loop() {
             digitalWrite(camera_trigger_pins[camera_channel], LOW);
             timestamp_trigger_rising_edge[camera_channel] = micros();
             trigger_output_level[camera_channel] = LOW;
-            break;
-          }
-        case SET_TRIGGER_DELAY_TIME:
-          {
-            trigger_delay_pulse_length_us = uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]);
             break;
           }
         case SET_PIN_LEVEL:

@@ -609,12 +609,6 @@ class LiveController(QObject):
                 self.microscope.nl5.start_acquisition()
             else:
                 self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
-                try:
-                    self.camera.calculate_hardware_trigger_arguments(self.fps_trigger)
-                except AttributeError:
-                    pass
-                self.microcontroller.set_trigger_delay_time_us(int(self.camera.hardware_trigger_delay))
-
 
     def _start_triggerred_acquisition(self):
         self.timer_trigger.start()

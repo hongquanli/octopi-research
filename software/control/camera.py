@@ -74,9 +74,6 @@ class Camera(object):
         self.is_live = False # this determines whether a new frame received will be handled in the streamHandler
         # mainly for discarding the last frame received after stop_live() is called, where illumination is being turned off during exposure
 
-        # hardware trigger delay (us)
-        self.hardware_trigger_delay = 50
-
     def open(self,index=0):
         (device_num, self.device_info_list) = self.device_manager.update_device_list()
         if device_num == 0:
@@ -490,9 +487,6 @@ class Camera_Simulation(object):
         self.OffsetY = 0
 
         self.new_image_callback_external = None
-
-        # hardware trigger delay (us)
-        self.hardware_trigger_delay = 50
 
     def open(self,index=0):
         pass

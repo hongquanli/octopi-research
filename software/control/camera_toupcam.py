@@ -131,6 +131,9 @@ class Camera(object):
         self.row_numbers = 3036
         self.exposure_delay_us_8bit = 650
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
+
+        # just setting a default value
+        # it would be re-calculate with function calculate_hardware_trigger_arguments
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         self.pixel_format = None # use the default pixel format
@@ -170,9 +173,6 @@ class Camera(object):
         if resolution is not None:
             self.Width = resolution[0]
             self.Height = resolution[1]
-
-        # hardware trigger delay (us)
-        self.hardware_trigger_delay = 50
 
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
@@ -718,6 +718,10 @@ class Camera(object):
         pass
     
     def calculate_hardware_trigger_arguments(self, real_framerate):
+        if real_framerate == 0:
+            print('calculate hardware trigger arguments fail, real framerate is 0')
+            return
+
         # use camera arguments such as resolutuon, ROI, exposure time, FPS, bandwidth to calculate the trigger delay time
         resolution_width = 0
         resolution_height = 0
@@ -812,7 +816,7 @@ class Camera(object):
         TRG_DELAY = int((SHR * line_length) / 72)
         #print(f'TRG_DELAY = {TRG_DELAY}')
         
-        self.hardware_trigger_delay = TRG_DELAY
+        self.strobe_delay_us = TRG_DELAY
 
 
 class Camera_Simulation(object):
@@ -859,6 +863,9 @@ class Camera_Simulation(object):
         self.row_numbers = 3036
         self.exposure_delay_us_8bit = 650
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
+
+        # just setting a default value
+        # it would be re-calculate with function calculate_hardware_trigger_arguments
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         self.pixel_format = 'MONO16'
@@ -871,9 +878,6 @@ class Camera_Simulation(object):
         self.OffsetY = 0
 
         self.brand = 'ToupTek'
-
-        # hardware trigger delay (us)
-        self.hardware_trigger_delay = 50
 
     def open(self,index=0):
         pass

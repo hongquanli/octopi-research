@@ -494,9 +494,6 @@ class Camera(object):
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
-        # hardware trigger delay (us)
-        self.hardware_trigger_delay = 50
-
         self.pixel_format = None # use the default pixel format
 
         self.is_live = False # this determines whether a new frame received will be handled in the streamHandler
