@@ -2,6 +2,7 @@ import argparse
 import cv2
 import time
 import numpy as np
+
 try:
     import control.gxipy as gx
 except:
@@ -429,8 +430,8 @@ class Camera(object):
         self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
 
+
 class Camera_Simulation(object):
-    
     def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
         # many to be purged
         self.sn = sn

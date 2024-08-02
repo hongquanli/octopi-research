@@ -174,6 +174,9 @@ class Camera(object):
             self.Width = resolution[0]
             self.Height = resolution[1]
 
+        # when camera arguments changed, call it to update strobe_delay
+        self.callback_reset_strobe_delay_function = None
+
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
             time.sleep(2)
@@ -288,6 +291,7 @@ class Camera(object):
         #     camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
         #     self.camera.ExposureTime.set(camera_exposure_time)
         self.exposure_time = exposure_time
+        self.callback_reset_strobe_delay_function()
 
     def update_camera_exposure_time(self):
         pass
@@ -401,6 +405,9 @@ class Camera(object):
 
         self._update_buffer_settings()
 
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
+
         if was_streaming:
             self.start_streaming()
         #     if pixel_format == 'BAYER_RG8':
@@ -452,6 +459,9 @@ class Camera(object):
         self._update_buffer_settings()
         if was_streaming:
             self.start_streaming()
+
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
 
     def _update_buffer_settings(self):
         # resize the buffer
@@ -691,6 +701,9 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
+
     def reset_camera_acquisition_counter(self):
         # if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
         #     self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2)
@@ -777,12 +790,12 @@ class Camera(object):
                     line_length = 5000
                 elif low_noise == 0:
                     line_length = 2500
-        elif resolution_width == 3104 and resolution_height == 2084: 
+        elif resolution_width == 3104 and resolution_height == 2084:
             if pixel_bits == 8:
                 line_length = 906
             elif pixel_bits == 16:
                 line_length = 1200
-        elif resolution_width == 2064 and resolution_height == 1368: 
+        elif resolution_width == 2064 and resolution_height == 1386:
             if pixel_bits == 8:
                 line_length = 454
             elif pixel_bits == 16:
@@ -818,6 +831,8 @@ class Camera(object):
         
         self.strobe_delay_us = TRG_DELAY
 
+    def set_callback_reset_strobe_delay_function(self, callback_fun):
+        self.callback_reset_strobe_delay_function = callback_fun 
 
 class Camera_Simulation(object):
     
@@ -878,6 +893,9 @@ class Camera_Simulation(object):
         self.OffsetY = 0
 
         self.brand = 'ToupTek'
+
+        # when camera arguments changed, call it to update strobe_delay
+        self.callback_reset_strobe_delay_function = None
 
     def open(self,index=0):
         pass
@@ -993,4 +1011,7 @@ class Camera_Simulation(object):
         pass
 
     def calculate_hardware_trigger_arguments(self, real_framerate):
+        pass
+
+    def set_callback_reset_strobe_delay_function(self, callback_fun):
         pass

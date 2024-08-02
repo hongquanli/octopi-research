@@ -415,7 +415,6 @@ class Configuration:
         self.emission_filter_position = emission_filter_position
 
 class LiveController(QObject):
-    
     def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.microscope = parent
@@ -617,6 +616,7 @@ class LiveController(QObject):
         self.fps_trigger = fps_trigger
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
         self.timer_trigger.setInterval(int(self.timer_trigger_interval))
+        self.reset_strobe_arugment()
 
     def _stop_triggerred_acquisition(self):
         self.timer_trigger.stop()
@@ -634,7 +634,7 @@ class LiveController(QObject):
                 self._stop_triggerred_acquisition()
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
-            self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
+            self.reset_strobe_arugment()
 
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
                 self._start_triggerred_acquisition()
@@ -686,6 +686,14 @@ class LiveController(QObject):
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
+
+    def reset_strobe_arugment(self):
+        # re-calculate the strobe_delay_us value
+        try:
+            self.camera.calculate_hardware_trigger_arguments(self.fps_trigger)
+        except AttributeError:
+            pass
+        self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
 
 class NavigationController(QObject):
 
