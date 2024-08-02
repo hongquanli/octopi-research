@@ -349,6 +349,8 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         if ENABLE_RECORDING:
             self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        if ENABLE_SPINNING_DISK_CONFOCAL:
+            self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
 
         self.microscopeControlTabWidget = QTabWidget()
         if not USE_NAPARI_FOR_LIVE_VIEW:
@@ -514,6 +516,7 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
+        self.autofocusWidget.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
 
         self.recordTabWidget.currentChanged.connect(self.onTabChanged)
         self.imageDisplayTabs.currentChanged.connect(self.onDisplayTabChanged)
@@ -706,7 +709,6 @@ class OctopiGUI(QMainWindow):
         if ENABLE_NL5:
             self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
-        print("old pos", self.navigationController.z_pos_mm)
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
             self.navigationController.move_to_cached_position()
             while self.microcontroller.is_busy():

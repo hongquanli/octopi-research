@@ -1544,6 +1544,8 @@ class DACControWidget(QFrame):
 
 
 class AutoFocusWidget(QFrame):
+    signal_z_stacking = Signal(int)
+
     def __init__(self, autofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.autofocusController = autofocusController
@@ -1556,6 +1558,7 @@ class AutoFocusWidget(QFrame):
         self.entry_delta.setMaximum(20) 
         self.entry_delta.setSingleStep(0.2)
         self.entry_delta.setDecimals(3)
+        self.entry_delta.setSuffix(' ')
         self.entry_delta.setValue(1.524)
         self.entry_delta.setKeyboardTracking(False)
         self.autofocusController.set_deltaZ(1.524)
@@ -1568,6 +1571,9 @@ class AutoFocusWidget(QFrame):
         self.entry_N.setKeyboardTracking(False)
         self.autofocusController.set_N(10)
 
+        self.combobox_z_stack = QComboBox()
+        self.combobox_z_stack.addItems(['Above', 'Center', 'Below'])
+
         self.btn_autofocus = QPushButton('Autofocus')
         self.btn_autofocus.setDefault(False)
         self.btn_autofocus.setCheckable(True)
@@ -1577,11 +1583,14 @@ class AutoFocusWidget(QFrame):
         self.grid = QVBoxLayout()
         grid_line0 = QHBoxLayout()
         grid_line0.addStretch(1)
-        grid_line0.addWidget(QLabel('\u0394 Z (um)'))
+        grid_line0.addWidget(QLabel('\u0394 Z'))
         grid_line0.addWidget(self.entry_delta)
         grid_line0.addStretch(1)
-        grid_line0.addWidget(QLabel('# Z planes'))
+        grid_line0.addWidget(QLabel('# of Z-Planes'))
         grid_line0.addWidget(self.entry_N)
+        grid_line0.addStretch(1)
+        grid_line0.addWidget(QLabel('Z-Stack'))
+        grid_line0.addWidget(self.combobox_z_stack)
         grid_line0.addStretch(1)
         self.grid.addLayout(grid_line0)
         self.grid.addWidget(self.btn_autofocus)
@@ -1593,6 +1602,10 @@ class AutoFocusWidget(QFrame):
         self.entry_delta.valueChanged.connect(self.set_deltaZ)
         self.entry_N.valueChanged.connect(self.autofocusController.set_N)
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
+        self.combobox_z_stack.currentIndexChanged.connect(self.emit_z_stack_config)
+
+    def emit_z_stack_config(self, index):
+        self.signal_z_stacking.emit(index)
 
     def set_deltaZ(self,value):
         mm_per_ustep = SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
@@ -2635,9 +2648,6 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_overlap.setRange(0, 99)
         self.entry_overlap.setValue(10)
         self.entry_overlap.setSuffix(" %")
-
-        self.combobox_z_stack = QComboBox()
-        self.combobox_z_stack.addItems(['Above', 'Center', 'Below'])
         
         # Add z-min and z-max entries
         self.entry_minZ = QDoubleSpinBox()
@@ -2747,8 +2757,6 @@ class MultiPointWidgetGrid(QFrame):
         row_1_layout.addWidget(self.lineEdit_experimentID)
         row_1_layout.addWidget(QLabel('Shape'))
         row_1_layout.addWidget(self.combobox_shape)
-        # row_1_layout.addWidget(QLabel('Z-Stack'))
-        # row_1_layout.addWidget(self.combobox_z_stack)
         main_layout.addLayout(row_1_layout)
 
         # Well Coverage, Scan Size, and Overlap
@@ -3241,7 +3249,6 @@ class MultiPointWidgetGrid(QFrame):
             scan_size_mm = self.entry_scan_size.value()
             overlap_percent = self.entry_overlap.value()
             shape = self.combobox_shape.currentText()
-            self.multipointController.set_z_stacking_config(self.combobox_z_stack.currentIndex())
 
             if self.use_coordinate_acquisition:
                 if len(self.region_coordinates) == 0:
