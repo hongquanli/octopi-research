@@ -131,6 +131,9 @@ class Camera(object):
         self.row_numbers = 3036
         self.exposure_delay_us_8bit = 650
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
+
+        # just setting a default value
+        # it would be re-calculate with function calculate_hardware_trigger_arguments
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         self.pixel_format = None # use the default pixel format
@@ -170,6 +173,9 @@ class Camera(object):
         if resolution is not None:
             self.Width = resolution[0]
             self.Height = resolution[1]
+
+        # when camera arguments changed, call it to update strobe_delay
+        self.callback_reset_strobe_delay_function = None
 
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
@@ -285,6 +291,7 @@ class Camera(object):
         #     camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
         #     self.camera.ExposureTime.set(camera_exposure_time)
         self.exposure_time = exposure_time
+        self.callback_reset_strobe_delay_function()
 
     def update_camera_exposure_time(self):
         pass
@@ -398,6 +405,9 @@ class Camera(object):
 
         self._update_buffer_settings()
 
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
+
         if was_streaming:
             self.start_streaming()
         #     if pixel_format == 'BAYER_RG8':
@@ -449,6 +459,9 @@ class Camera(object):
         self._update_buffer_settings()
         if was_streaming:
             self.start_streaming()
+
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
 
     def _update_buffer_settings(self):
         # resize the buffer
@@ -688,6 +701,9 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
+
     def reset_camera_acquisition_counter(self):
         # if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
         #     self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2)
@@ -713,6 +729,110 @@ class Camera(object):
         # self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         # self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
         pass
+    
+    def calculate_hardware_trigger_arguments(self, real_framerate):
+        if real_framerate == 0:
+            print('calculate hardware trigger arguments fail, real framerate is 0')
+            return
+
+        # use camera arguments such as resolutuon, ROI, exposure time, FPS, bandwidth to calculate the trigger delay time
+        resolution_width = 0
+        resolution_height = 0
+
+        roi_width = 0
+        roi_height = 0
+
+        pixel_bits = self.pixel_size_byte * 8
+        #print(f'pixel_bits = {pixel_bits}')
+
+        line_length = 0
+        low_noise = 0
+
+        row_time = 0
+
+        vheight = 0
+
+        exp_length = 0
+
+        SHR = 0
+
+        TRG_DELAY = 0
+
+        try:
+            resolution_width, resolution_height = self.camera.get_Size()
+            #print(f'res width = {resolution_width} res height = {resolution_height}')
+        except toupcam.HRESULTException as ex:
+            print('get resolution fail, hr=0x{:x}'.format(ex.hr))
+
+        xoffset, yoffset, roi_width, roi_height = self.camera.get_Roi()
+        #print(f'roi_width = {roi_width} roi_height = {roi_height}')
+
+        try:
+            bandwidth = self.camera.get_Option(toupcam.TOUPCAM_OPTION_BANDWIDTH) 
+        except toupcam.HRESULTException as ex:
+            print('get badwidth fail, hr=0x{:x}'.format(ex.hr))
+        #print(f'bandwidth = {bandwidth}')
+
+        if self.has_low_noise_mode:
+            try:
+                low_noise = self.camera.get_Option(toupcam.TOUPCAM_OPTION_LOW_NOISE)
+            except toupcam.HRESULTException as ex:
+                print('get low_noise fail, hr=0x{:x}'.format(ex.hr))
+        #print(f'low_noise = {low_noise}')
+
+        if resolution_width == 6224 and resolution_height == 4168:
+            if pixel_bits == 8:
+                line_length = 1200 * (roi_width / 6224)
+                if line_length < 450:
+                    line_length = 450
+            elif pixel_bits == 16:
+                if low_noise == 1:
+                    line_length = 5000
+                elif low_noise == 0:
+                    line_length = 2500
+        elif resolution_width == 3104 and resolution_height == 2084:
+            if pixel_bits == 8:
+                line_length = 906
+            elif pixel_bits == 16:
+                line_length = 1200
+        elif resolution_width == 2064 and resolution_height == 1386:
+            if pixel_bits == 8:
+                line_length = 454
+            elif pixel_bits == 16:
+                line_length = 790
+
+        line_length = int(line_length / (bandwidth / 100.0))
+        #print(f'line_length = {line_length}')
+
+        row_time = line_length / 72
+        #print(f'row_time = {row_time}')
+
+        #print(f'real_framerate = {real_framerate}')
+
+        vheight = 72000000 / (real_framerate * line_length)
+        if vheight < roi_height + 56:
+            vheight = roi_height + 56
+        #print(f'vheight = {vheight}')
+        
+        #print(f'exposure_time = {self.exposure_time}')
+        exp_length = 72 * self.exposure_time * 1000 / line_length
+
+        #print(f'exp_length = {exp_length}')
+
+        if vheight >= exp_length - 1:
+            SHR = vheight - exp_length
+        else:
+            SHR = 1
+
+        #print(f'SHR = {SHR}')
+
+        TRG_DELAY = int((SHR * line_length) / 72)
+        #print(f'TRG_DELAY = {TRG_DELAY}')
+        
+        self.strobe_delay_us = TRG_DELAY
+
+    def set_callback_reset_strobe_delay_function(self, callback_fun):
+        self.callback_reset_strobe_delay_function = callback_fun 
 
 class Camera_Simulation(object):
     
@@ -758,6 +878,9 @@ class Camera_Simulation(object):
         self.row_numbers = 3036
         self.exposure_delay_us_8bit = 650
         self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
+
+        # just setting a default value
+        # it would be re-calculate with function calculate_hardware_trigger_arguments
         self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         self.pixel_format = 'MONO16'
@@ -770,6 +893,9 @@ class Camera_Simulation(object):
         self.OffsetY = 0
 
         self.brand = 'ToupTek'
+
+        # when camera arguments changed, call it to update strobe_delay
+        self.callback_reset_strobe_delay_function = None
 
     def open(self,index=0):
         pass
@@ -882,4 +1008,10 @@ class Camera_Simulation(object):
         pass
 
     def set_line3_to_exposure_active(self):
+        pass
+
+    def calculate_hardware_trigger_arguments(self, real_framerate):
+        pass
+
+    def set_callback_reset_strobe_delay_function(self, callback_fun):
         pass
