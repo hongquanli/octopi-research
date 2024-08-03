@@ -648,9 +648,10 @@ class CameraSettingsWidget(QFrame):
             self.camera_layout.addLayout(gain_line)
 
         format_line = QHBoxLayout()
+        format_line.addStretch()
         format_line.addWidget(QLabel('Pixel Format'))
         format_line.addWidget(self.dropdown_pixelFormat)
-        #format_line.addStretch()
+        format_line.addStretch()
         try:
             current_res = self.camera.resolution
             current_res_string = "x".join([str(current_res[0]),str(current_res[1])])
@@ -667,6 +668,7 @@ class CameraSettingsWidget(QFrame):
             pass
         format_line.addWidget(QLabel("FOV Resolution"))
         format_line.addWidget(self.dropdown_res)
+        format_line.addStretch()
         self.camera_layout.addLayout(format_line)
 
 
@@ -684,16 +686,16 @@ class CameraSettingsWidget(QFrame):
             self.camera_layout.addLayout(temp_line)
 
         roi_line = QHBoxLayout()
-        roi_line.addWidget(QLabel('height'))
+        roi_line.addWidget(QLabel('Height'))
         roi_line.addWidget(self.entry_ROI_height)
         roi_line.addStretch()
-        roi_line.addWidget(QLabel('width'))
-        roi_line.addWidget(self.entry_ROI_width)
-        roi_line.addStretch()
-        roi_line.addWidget(QLabel('offset y'))
+        roi_line.addWidget(QLabel('Y-offset'))
         roi_line.addWidget(self.entry_ROI_offset_y)
         roi_line.addStretch()
-        roi_line.addWidget(QLabel('offset x'))
+        roi_line.addWidget(QLabel('Width'))
+        roi_line.addWidget(self.entry_ROI_width)
+        roi_line.addStretch()
+        roi_line.addWidget(QLabel('X-offset'))
         roi_line.addWidget(self.entry_ROI_offset_x)
         self.camera_layout.addLayout(roi_line)
 
@@ -1200,6 +1202,8 @@ class NavigationWidget(QFrame):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
     def add_components(self):
+        x_label = QLabel('X :')
+        x_label.setFixedWidth(20)
         self.label_Xpos = QLabel()
         self.label_Xpos.setNum(0)
         self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -1209,6 +1213,7 @@ class NavigationWidget(QFrame):
         self.entry_dX.setSingleStep(0.2)
         self.entry_dX.setValue(0)
         self.entry_dX.setDecimals(3)
+        self.entry_dX.setSuffix(' mm')
         self.entry_dX.setKeyboardTracking(False)
         self.btn_moveX_forward = QPushButton('Forward')
         self.btn_moveX_forward.setDefault(False)
@@ -1221,9 +1226,12 @@ class NavigationWidget(QFrame):
         self.btn_zero_X = QPushButton('Zero X')
         self.btn_zero_X.setDefault(False)
      
-        self.checkbox_clickToMove = QCheckBox('Click to move')
+        self.checkbox_clickToMove = QCheckBox('Click to Move')
         self.checkbox_clickToMove.setChecked(False)
 
+
+        y_label = QLabel('Y :')
+        y_label.setFixedWidth(20)
         self.label_Ypos = QLabel()
         self.label_Ypos.setNum(0)
         self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -1233,6 +1241,8 @@ class NavigationWidget(QFrame):
         self.entry_dY.setSingleStep(0.2)
         self.entry_dY.setValue(0)
         self.entry_dY.setDecimals(3)
+        self.entry_dY.setSuffix(' mm')
+
         self.entry_dY.setKeyboardTracking(False)
         self.btn_moveY_forward = QPushButton('Forward')
         self.btn_moveY_forward.setDefault(False)
@@ -1245,6 +1255,8 @@ class NavigationWidget(QFrame):
         self.btn_zero_Y = QPushButton('Zero Y')
         self.btn_zero_Y.setDefault(False)
 
+        z_label = QLabel('Z :')
+        z_label.setFixedWidth(20)
         self.label_Zpos = QLabel()
         self.label_Zpos.setNum(0)
         self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -1254,6 +1266,7 @@ class NavigationWidget(QFrame):
         self.entry_dZ.setSingleStep(0.2)
         self.entry_dZ.setValue(0)
         self.entry_dZ.setDecimals(3)
+        self.entry_dZ.setSuffix(' μm')
         self.entry_dZ.setKeyboardTracking(False)
         self.btn_moveZ_forward = QPushButton('Forward')
         self.btn_moveZ_forward.setDefault(False)
@@ -1269,63 +1282,47 @@ class NavigationWidget(QFrame):
         self.btn_load_slide = QPushButton('To Slide Loading Position')
         
         grid_line0 = QGridLayout()
-        grid_line0.addWidget(QLabel('X (mm)'), 0,0)
+        grid_line0.addWidget(x_label, 0,0)
         grid_line0.addWidget(self.label_Xpos, 0,1)
         grid_line0.addWidget(self.entry_dX, 0,2)
         grid_line0.addWidget(self.btn_moveX_forward, 0,3)
         grid_line0.addWidget(self.btn_moveX_backward, 0,4)
         
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('Y (mm)'), 0,0)
-        grid_line1.addWidget(self.label_Ypos, 0,1)
-        grid_line1.addWidget(self.entry_dY, 0,2)
-        grid_line1.addWidget(self.btn_moveY_forward, 0,3)
-        grid_line1.addWidget(self.btn_moveY_backward, 0,4)
+        grid_line0.addWidget(y_label, 1,0)
+        grid_line0.addWidget(self.label_Ypos, 1,1)
+        grid_line0.addWidget(self.entry_dY, 1,2)
+        grid_line0.addWidget(self.btn_moveY_forward, 1,3)
+        grid_line0.addWidget(self.btn_moveY_backward, 1,4)
 
-        grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('Z (um)'), 0,0)
-        grid_line2.addWidget(self.label_Zpos, 0,1)
-        grid_line2.addWidget(self.entry_dZ, 0,2)
-        grid_line2.addWidget(self.btn_moveZ_forward, 0,3)
-        grid_line2.addWidget(self.btn_moveZ_backward, 0,4)
+        grid_line0.addWidget(z_label, 2,0)
+        grid_line0.addWidget(self.label_Zpos, 2,1)
+        grid_line0.addWidget(self.entry_dZ, 2,2)
+        grid_line0.addWidget(self.btn_moveZ_forward, 2,3)
+        grid_line0.addWidget(self.btn_moveZ_backward, 2,4)
         
         grid_line3 = QHBoxLayout()
 
-        grid_line3_buttons = QGridLayout()
+        grid_line3_buttons = QHBoxLayout()
         if self.widget_configuration == 'full':
-            grid_line3_buttons.addWidget(self.btn_zero_X, 0,3)
-            grid_line3_buttons.addWidget(self.btn_zero_Y, 0,4)
-            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,5)
-            grid_line3_buttons.addWidget(self.btn_home_X, 0,0)
-            grid_line3_buttons.addWidget(self.btn_home_Y, 0,1)
-            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2)
-        elif self.widget_configuration == 'malaria':
-            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
-        elif self.widget_configuration == '384 well plate':
-            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
-        elif self.widget_configuration == '96 well plate':
-            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
+            grid_line3_buttons.addWidget(self.btn_home_X)
+            grid_line3_buttons.addWidget(self.btn_home_Y)
+            grid_line3_buttons.addWidget(self.btn_home_Z)
+            grid_line3_buttons.addWidget(self.btn_zero_X)
+            grid_line3_buttons.addWidget(self.btn_zero_Y)
+            grid_line3_buttons.addWidget(self.btn_zero_Z)
         else:
-            grid_line3_buttons.addWidget(self.btn_load_slide, 0,0,1,2)
-            grid_line3_buttons.addWidget(self.btn_home_Z, 0,2,1,1)
-            grid_line3_buttons.addWidget(self.btn_zero_Z, 0,3,1,1)
+            grid_line3_buttons.addWidget(self.btn_load_slide)
+            grid_line3_buttons.addWidget(self.btn_home_Z)
+            grid_line3_buttons.addWidget(self.btn_zero_Z)
 
         grid_line3.addLayout(grid_line3_buttons)
 
         grid_line3.addWidget(self.checkbox_clickToMove)
         
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line0,0,0)
-        self.grid.addLayout(grid_line1,1,0)
-        self.grid.addLayout(grid_line2,2,0)
-        self.grid.addLayout(grid_line3,3,0)
+        self.grid = QVBoxLayout()
+        self.grid.addLayout(grid_line0)
+        self.grid.addLayout(grid_line3)
         self.setLayout(self.grid)
 
         self.entry_dX.valueChanged.connect(self.set_deltaX)
@@ -2060,7 +2057,7 @@ class MultiPointWidget2(QFrame):
         self.table_location_list.setColumnCount(4)
         header_labels = ['x', 'y', 'z', 'ID']
         self.table_location_list.setHorizontalHeaderLabels(header_labels)
-        self.btn_show_table_location_list = QPushButton('Open/Edit')
+        self.btn_show_table_location_list = QPushButton('Open / Edit')
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0) 
@@ -3762,23 +3759,24 @@ class NapariLiveWidget(QWidget):
 
         control_layout.addStretch(1)
 
-        live_controls_widget = QWidget()
-        live_controls_widget.setLayout(control_layout)
+        if USE_NAPARI_FOR_LIVE_CONTROL:
+            live_controls_widget = QWidget()
+            live_controls_widget.setLayout(control_layout)
 
-        layer_controls_widget = self.viewer.window._qt_viewer.dockLayerControls.widget()
-        layer_list_widget = self.viewer.window._qt_viewer.dockLayerList.widget()
-        self.viewer.window._qt_viewer.layerButtons.hide()
+            layer_controls_widget = self.viewer.window._qt_viewer.dockLayerControls.widget()
+            layer_list_widget = self.viewer.window._qt_viewer.dockLayerList.widget()
+            self.viewer.window._qt_viewer.layerButtons.hide()
 
-        self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerControls)
-        self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerList)
-        # self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
+            self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerControls)
+            self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerList)
+            # self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
 
-        # Add the actual dock widgets
-        self.dock_layer_controls = self.viewer.window.add_dock_widget(layer_controls_widget, area='left', name='layer controls', tabify=True)
-        self.dock_layer_list = self.viewer.window.add_dock_widget(layer_list_widget, area='left', name='layer list', tabify=True)
-        self.dock_live_controls = self.viewer.window.add_dock_widget(live_controls_widget, area='left', name='live controls', tabify=True)
+            # Add the actual dock widgets
+            self.dock_layer_controls = self.viewer.window.add_dock_widget(layer_controls_widget, area='left', name='layer controls', tabify=True)
+            self.dock_layer_list = self.viewer.window.add_dock_widget(layer_list_widget, area='left', name='layer list', tabify=True)
+            self.dock_live_controls = self.viewer.window.add_dock_widget(live_controls_widget, area='left', name='live controls', tabify=True)
 
-        self.viewer.window.window_menu.addAction(self.dock_live_controls.toggleViewAction())
+            self.viewer.window.window_menu.addAction(self.dock_live_controls.toggleViewAction())
         
         if USE_NAPARI_WELL_SELECTION:
             well_selector_layout = QVBoxLayout() 
@@ -5528,7 +5526,7 @@ class WellSelectionWidget(QTableWidget):
         self.setMouseTracking(False)
 
         # Calculate and set the fixed size
-        margin = 4  # Add a small margin to account for borders
+        margin = 2  # Add a small margin to account for borders
         width = (self.columnCount() * cell_size) + self.verticalHeader().width() + margin
         height = (self.rowCount() * cell_size) + self.horizontalHeader().height() + margin
         self.setFixedSize(width, height)
@@ -5548,13 +5546,13 @@ class WellSelectionWidget(QTableWidget):
             gridline-color: white;
             border: 1px solid white;
         }
-        QTableWidget::item {
-            border: 1px solid white;
-        }
         QHeaderView::section {
             color: white;
         }
         """
+        # QTableWidget::item {
+        #     border: 1px solid white;
+        # }
         self.setStyleSheet(style)
 
     def setData(self):

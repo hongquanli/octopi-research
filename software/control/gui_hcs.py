@@ -352,16 +352,20 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
 
-        self.microscopeControlTabWidget = QTabWidget()
-        if not USE_NAPARI_FOR_LIVE_VIEW:
-            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
-        # self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
+        
+        if not USE_NAPARI_FOR_LIVE_CONTROL:
+            self.microscopeControlTabWidget = QTabWidget()
+            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Live Positions")
+            self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
+        # self.cameraTabWidget.addTab(self.navigationWidget,"Stages")
+
+        self.cameraTabWidget = QTabWidget()
         if ENABLE_OBJECTIVE_PIEZO:
-            self.microscopeControlTabWidget.addTab(self.piezoWidget,"Piezo")
-        self.microscopeControlTabWidget.addTab(self.autofocusWidget,"Contrast AF")
-        self.microscopeControlTabWidget.addTab(self.cameraSettingWidget,'Camera')
+            self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
+        self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+        self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera Settings')
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
-            self.microscopeControlTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
+            self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
         # Objective and Wellplate Format Selection
         layout = QVBoxLayout()  #layout = QStackedLayout()
@@ -391,11 +395,11 @@ class OctopiGUI(QMainWindow):
         # top_row_layout.addWidget(frame2)
         # layout.addLayout(top_row_layout)
 
-        if USE_NAPARI_FOR_LIVE_VIEW:
-            layout.addWidget(self.microscopeControlTabWidget)
+        if USE_NAPARI_FOR_LIVE_CONTROL:
+            layout.addWidget(self.cameraTabWidget)
             layout.addWidget(self.navigationWidget)
         else:
-            layout.addWidget(self.liveControlWidget)
+            layout.addWidget(self.cameraTabWidget)
             layout.addWidget(self.microscopeControlTabWidget)
 
         if SHOW_DAC_CONTROL:
@@ -470,9 +474,9 @@ class OctopiGUI(QMainWindow):
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
         # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
-        self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x)))
-        self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x)))
-        self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x)))
+        self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x) + " mm"))
+        self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x) + " mm"))
+        self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x) + " μm"))
         if ENABLE_TRACKING:
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
@@ -655,7 +659,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.microscopeControlTabWidget.insertTab(1, self.laserAutofocusControlWidget, "Laser AF")
+            self.cameraTabWidget.insertTab(1, self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
@@ -705,9 +709,9 @@ class OctopiGUI(QMainWindow):
 
         # widget for confocal
         if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.microscopeControlTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
+                self.cameraTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
         if ENABLE_NL5:
-            self.microscopeControlTabWidget.addTab(self.nl5Wdiget,"Confocal")
+            self.cameraTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
             self.navigationController.move_to_cached_position()
@@ -788,6 +792,8 @@ class OctopiGUI(QMainWindow):
                 else:
                     self.dock_wellSelection.addWidget(self.wellSelectionWidget)
                 self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+                # if ENABLE_SCAN_GRID:
+                #     self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
             elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
                 self.wellSelectionWidget.setParent(None)
                 self.wellSelectionWidget.deleteLater()
@@ -798,14 +804,17 @@ class OctopiGUI(QMainWindow):
                 else:
                     self.dock_wellSelection.addWidget(self.wellSelectionWidget)
                 self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
-                self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
                 self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
-
+                self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+                if ENABLE_SCAN_GRID:
+                    self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
+            
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.clear_only_location_list()
         if ENABLE_SCAN_GRID:
             self.multiPointWidgetGrid.set_default_scan_size()
             self.multiPointWidgetGrid.clear_regions()
+
         self.wellSelectionWidget.onSelectionChanged()
 
     def toggleWellSelector(self, show):
