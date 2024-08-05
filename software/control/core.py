@@ -1931,7 +1931,7 @@ class MultiPointWorker(QObject):
 
                 self.move_to_coordinate(coordinate_mm)
 
-                self.acquire_at_position(region_id, current_path)
+                self.acquire_at_position(region_id, current_path, fov_count)
 
                 self.signal_region_progress.emit(fov_count, num_fovs)
 
@@ -1957,6 +1957,9 @@ class MultiPointWorker(QObject):
         for z_level in range(self.NZ):
             if i is not None and j is not None:
                 file_ID = f"{coordinate_name}_{i}_{j}_{z_level}"
+            elif i is not None:
+                coordinate_ID = i * self.NZ + z_level
+                file_ID = f"{coordinate_name}_{coordinate_ID}"
             else:
                 file_ID = f"{coordinate_name}_x{x_mm:.3f}_y{y_mm:.3f}_z{z_level}"
 
@@ -3630,7 +3633,7 @@ class NavigationViewer(QFrame):
     def clear_slide(self):
         self.background_image = self.background_image_copy.copy()
         self.background_item.setImage(self.background_image)
-        self.clear_overlay()
+        # self.clear_overlay()
         self.draw_current_fov(self.x_mm, self.y_mm)
 
     def clear_overlay(self):

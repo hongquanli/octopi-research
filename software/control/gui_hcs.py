@@ -355,7 +355,7 @@ class OctopiGUI(QMainWindow):
         
         if not USE_NAPARI_FOR_LIVE_CONTROL:
             self.microscopeControlTabWidget = QTabWidget()
-            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Live Positions")
+            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
             self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
         # self.cameraTabWidget.addTab(self.navigationWidget,"Stages")
 
