@@ -5478,6 +5478,7 @@ class WellSelectionWidget(QTableWidget):
         self.a1_y_mm = A1_Y_MM
         self.a1_x_pixel = A1_X_PIXEL
         self.a1_y_pixel = A1_Y_PIXEL
+        self.fixed_height = 360
         self.cellDoubleClicked.connect(self.onDoubleClick)
         # self.cellClicked.connect(self.onSingleClick)
         self.itemSelectionChanged.connect(self.onSelectionChanged)
@@ -5508,7 +5509,8 @@ class WellSelectionWidget(QTableWidget):
 
     def initUI(self):
         # Set fixed size for rows and columns
-        cell_size = int(5 * self.spacing_mm)
+        #cell_size = int(5 * self.spacing_mm)
+        cell_size = (self.fixed_height - self.horizontalHeader().height()) // self.rowCount()
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.verticalHeader().setDefaultSectionSize(cell_size)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -5525,12 +5527,10 @@ class WellSelectionWidget(QTableWidget):
         self.setDragDropOverwriteMode(False)
         self.setMouseTracking(False)
 
-        # Calculate and set the fixed size
-        margin = 2  # Add a small margin to account for borders
-        width = (self.columnCount() * cell_size) + self.verticalHeader().sizeHint().width() + margin
-        height = (self.rowCount() * cell_size) + self.horizontalHeader().sizeHint().height() + margin
-        self.setFixedSize(width, height)
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        # Set the widget's fixed height and minimum width
+        self.setFixedHeight(self.fixed_height)
+        min_width = (self.columnCount() * cell_size) + self.verticalHeader().width()
+        self.setFixedWidth(min_width)
         
         if USE_NAPARI_WELL_SELECTION:
              self.set_white_boundaries_style()
