@@ -730,12 +730,8 @@ class Camera(object):
         # self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
         pass
     
-    def calculate_hardware_trigger_arguments(self, real_framerate):
-        if real_framerate == 0:
-            print('calculate hardware trigger arguments fail, real framerate is 0')
-            return
-
-        # use camera arguments such as resolutuon, ROI, exposure time, FPS, bandwidth to calculate the trigger delay time
+    def calculate_hardware_trigger_arguments(self):
+        # use camera arguments such as resolutuon, ROI, exposure time, set max FPS, bandwidth to calculate the trigger delay time
         resolution_width = 0
         resolution_height = 0
 
@@ -807,9 +803,21 @@ class Camera(object):
         row_time = line_length / 72
         #print(f'row_time = {row_time}')
 
-        #print(f'real_framerate = {real_framerate}')
+        try:
+            max_framerate = self.camera.get_Option(toupcam.TOUPCAM_OPTION_MAX_PRECISE_FRAMERATE)
+        except toupcam.HRESULTException as ex:
+            print('get max_framerate fail, hr=0x{:x}'.format(ex.hr))
 
-        vheight = 72000000 / (real_framerate * line_length)
+        # need reset value, because the default value is only 90% of setting value
+        try:
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_PRECISE_FRAMERATE, max_framerate )
+        except toupcam.HRESULTException as ex:
+            print('put max_framerate fail, hr=0x{:x}'.format(ex.hr))
+
+        max_framerate = max_framerate / 10.0
+        #print(f'max_framerate = {max_framerate}')
+
+        vheight = 72000000 / (max_framerate * line_length)
         if vheight < roi_height + 56:
             vheight = roi_height + 56
         #print(f'vheight = {vheight}')
@@ -819,17 +827,20 @@ class Camera(object):
 
         #print(f'exp_length = {exp_length}')
 
-        if vheight >= exp_length - 1:
-            SHR = vheight - exp_length
-        else:
-            SHR = 1
+        #if vheight >= exp_length - 1:
+        #    SHR = vheight - exp_length
+        #else:
+        #    SHR = 1
 
         #print(f'SHR = {SHR}')
 
-        TRG_DELAY = int((SHR * line_length) / 72)
+        #TRG_DELAY = int((SHR * line_length) / 72)
         #print(f'TRG_DELAY = {TRG_DELAY}')
+
+        frame_time = int(vheight * row_time)
+        #print(f'frame_time = {frame_time}')
         
-        self.strobe_delay_us = TRG_DELAY
+        self.strobe_delay_us = frame_time
 
     def set_callback_reset_strobe_delay_function(self, callback_fun):
         self.callback_reset_strobe_delay_function = callback_fun 
@@ -1010,7 +1021,7 @@ class Camera_Simulation(object):
     def set_line3_to_exposure_active(self):
         pass
 
-    def calculate_hardware_trigger_arguments(self, real_framerate):
+    def calculate_hardware_trigger_arguments(self):
         pass
 
     def set_callback_reset_strobe_delay_function(self, callback_fun):

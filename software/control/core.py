@@ -690,7 +690,7 @@ class LiveController(QObject):
     def reset_strobe_arugment(self):
         # re-calculate the strobe_delay_us value
         try:
-            self.camera.calculate_hardware_trigger_arguments(self.fps_trigger)
+            self.camera.calculate_hardware_trigger_arguments()
         except AttributeError:
             pass
         self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
