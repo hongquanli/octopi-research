@@ -5527,8 +5527,8 @@ class WellSelectionWidget(QTableWidget):
 
         # Calculate and set the fixed size
         margin = 2  # Add a small margin to account for borders
-        width = (self.columnCount() * cell_size) + self.verticalHeader().width() + margin
-        height = (self.rowCount() * cell_size) + self.horizontalHeader().height() + margin
+        width = (self.columnCount() * cell_size) + self.verticalHeader().sizeHint().width() + margin
+        height = (self.rowCount() * cell_size) + self.horizontalHeader().sizeHint().height() + margin
         self.setFixedSize(width, height)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         
