@@ -3376,39 +3376,52 @@ class StitcherWidget(QFrame):
     def initUI(self):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)  # Set frame style
         self.layout = QVBoxLayout(self)
-        self.topLayout = QHBoxLayout()
-        self.colLayout1 = QVBoxLayout()
-        self.colLayout2 = QVBoxLayout()
+        self.rowLayout1 = QHBoxLayout()
+        self.rowLayout2 = QHBoxLayout()
 
         # Apply flatfield correction checkbox
-        self.applyFlatfieldCheck = QCheckBox("Apply Flatfield Correction")
-        self.colLayout2.addWidget(self.applyFlatfieldCheck)
+        self.applyFlatfieldCheck = QCheckBox("Flatfield Correction")
+        self.rowLayout1.addWidget(self.applyFlatfieldCheck)
+        self.rowLayout1.addStretch()
 
         # Output format dropdown
-        self.outputFormatLabel = QLabel('Select Output Format:', self)
+        self.outputFormatLabel = QLabel('Output Format:', self)
         self.outputFormatCombo = QComboBox(self)
         self.outputFormatCombo.addItem("OME-ZARR")
         self.outputFormatCombo.addItem("OME-TIFF")
-        self.colLayout1.addWidget(self.outputFormatLabel)
-        self.colLayout1.addWidget(self.outputFormatCombo)
+        self.rowLayout1.addWidget(self.outputFormatLabel)
+        self.rowLayout1.addWidget(self.outputFormatCombo)
+       
 
         # Use registration checkbox
-        self.useRegistrationCheck = QCheckBox("Use Registration")
+        self.useRegistrationCheck = QCheckBox("Registration")
         self.useRegistrationCheck.toggled.connect(self.onRegistrationCheck)
-        self.colLayout2.addWidget(self.useRegistrationCheck)
+        self.rowLayout2.addWidget(self.useRegistrationCheck)
+        self.rowLayout2.addStretch()
+
 
         # Select registration channel
-        self.registrationChannelLabel = QLabel("Select Registration Channel:", self)
+        self.registrationChannelLabel = QLabel("Channel:", self)
         self.registrationChannelLabel.setVisible(False)
-        self.colLayout2.addWidget(self.registrationChannelLabel)
+        self.rowLayout2.addWidget(self.registrationChannelLabel)
         self.registrationChannelCombo = QComboBox(self)
         self.registrationChannelLabel.setVisible(False)
         self.registrationChannelCombo.setVisible(False)
-        self.colLayout2.addWidget(self.registrationChannelCombo)
+        self.rowLayout2.addWidget(self.registrationChannelCombo)
+        self.rowLayout2.addStretch()
+
+         # Select registration cz-level
+        self.registrationZLabel = QLabel("Z-Level:", self)
+        self.registrationZLabel.setVisible(False)
+        self.rowLayout2.addWidget(self.registrationZLabel)
+        self.registrationZCombo = QComboBox(self)
+        self.registrationZLabel.setVisible(False)
+        self.registrationZCombo.setVisible(False)
+        self.rowLayout2.addWidget(self.registrationZCombo)
         
-        self.topLayout.addLayout(self.colLayout1)
-        self.topLayout.addLayout(self.colLayout2)
-        self.layout.addLayout(self.topLayout)
+        self.layout.addLayout(self.rowLayout2)
+        self.layout.addLayout(self.rowLayout1)
+        self.setLayout(self.layout)
 
         # Button to view output in Napari
         self.viewOutputButton = QPushButton("View Output in Napari")
@@ -3430,12 +3443,14 @@ class StitcherWidget(QFrame):
     def onRegistrationCheck(self, checked):
         self.registrationChannelLabel.setVisible(checked)
         self.registrationChannelCombo.setVisible(checked)
-        if checked:
-            self.colLayout2.removeWidget(self.applyFlatfieldCheck)
-            self.colLayout1.insertWidget(0, self.applyFlatfieldCheck)
-        else:
-            self.colLayout1.removeWidget(self.applyFlatfieldCheck)
-            self.colLayout2.insertWidget(0, self.applyFlatfieldCheck)
+        self.registrationZLabel.setVisible(checked)
+        self.registrationZCombo.setVisible(checked)
+        # if checked:
+        #     self.rowLayout2.removeWidget(self.applyFlatfieldCheck)
+        #     self.rowLayout1.insertWidget(0, self.applyFlatfieldCheck)
+        # else:
+        #     self.rowLayout1.removeWidget(self.applyFlatfieldCheck)
+        #     self.rowLayout2.insertWidget(0, self.applyFlatfieldCheck)
 
     def updateRegistrationChannels(self, selected_channels):
         self.registrationChannelCombo.clear()  # Clear existing items
@@ -5478,7 +5493,7 @@ class WellSelectionWidget(QTableWidget):
         self.a1_y_mm = A1_Y_MM
         self.a1_x_pixel = A1_X_PIXEL
         self.a1_y_pixel = A1_Y_PIXEL
-        self.fixed_height = 360
+        self.fixed_height = 400
         self.cellDoubleClicked.connect(self.onDoubleClick)
         # self.cellClicked.connect(self.onSingleClick)
         self.itemSelectionChanged.connect(self.onSelectionChanged)
@@ -5508,14 +5523,6 @@ class WellSelectionWidget(QTableWidget):
             self.signal_wellSelected.emit(True)
 
     def initUI(self):
-        # Set fixed size for rows and columns
-        #cell_size = int(5 * self.spacing_mm)
-        cell_size = (self.fixed_height - self.horizontalHeader().height()) // self.rowCount()
-        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(cell_size)
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.horizontalHeader().setDefaultSectionSize(cell_size)
-
         # Disable editing, scrollbars, and other interactions
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -5527,14 +5534,57 @@ class WellSelectionWidget(QTableWidget):
         self.setDragDropOverwriteMode(False)
         self.setMouseTracking(False)
 
-        # Set the widget's fixed height and minimum width
-        self.setFixedHeight(self.fixed_height)
-        min_width = (self.columnCount() * cell_size) + self.verticalHeader().width()
-        self.setFixedWidth(min_width)
-        
-        if USE_NAPARI_WELL_SELECTION:
-             self.set_white_boundaries_style()
+        # Calculate available space and cell size
+        header_height = self.horizontalHeader().height()
+        row_header_width = self.verticalHeader().width()
+        available_height = self.fixed_height - header_height
 
+        # Debugging prints for sizes
+        print(f"Initial widget width: {self.width()}, height: {self.height()}")
+
+        # Calculate cell size based on the minimum of available height and width
+        cell_size = available_height // self.rowCount()
+
+        # Calculate total width based on cell size
+        total_width = (self.columnCount() * cell_size) + row_header_width
+
+        # Set the widget's fixed size
+        self.setFixedHeight(self.fixed_height)
+        self.setFixedWidth(total_width)
+
+        # Set section resize mode and default section size
+        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.verticalHeader().setDefaultSectionSize(cell_size)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.horizontalHeader().setDefaultSectionSize(cell_size)
+
+        # Ensure sections do not resize
+        self.verticalHeader().setMinimumSectionSize(cell_size)
+        self.verticalHeader().setMaximumSectionSize(cell_size)
+        self.horizontalHeader().setMinimumSectionSize(cell_size)
+        self.horizontalHeader().setMaximumSectionSize(cell_size)
+
+        if USE_NAPARI_WELL_SELECTION:
+            self.set_white_boundaries_style()
+
+        # Force the widget to update its layout
+        self.updateGeometry()
+        self.viewport().update()
+
+        # Debugging prints
+        print(f"Rows: {self.rowCount()}, Columns: {self.columnCount()}")
+        print(f"Row header width: {row_header_width}, Header height: {header_height}")
+        print(f"Total width: {total_width}, Total height: {self.fixed_height}")
+
+        # Print actual row heights and column widths for debugging
+        actual_row_height = self.rowHeight(0) if self.rowCount() > 0 else 0
+        actual_column_width = self.columnWidth(0) if self.columnCount() > 0 else 0
+        print(f"Calculated cell size: {cell_size}")
+        print(f"Actual cell size: height={actual_row_height}, width={actual_column_width}")
+
+    def resizeEvent(self, event):
+        self.initUI()
+        super().resizeEvent(event)
 
     def wheelEvent(self, event):
         # Ignore wheel events to prevent scrolling
