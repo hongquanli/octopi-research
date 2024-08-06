@@ -59,7 +59,7 @@ def populate_class_from_dict(myclass, options):
 class TriggerMode:
     SOFTWARE = 'Software Trigger'
     HARDWARE = 'Hardware Trigger'
-    CONTINUOUS = 'Continuous Acqusition'
+    CONTINUOUS = 'Continuous Acquisition'
 
 class Acquisition:
     CROP_WIDTH = 3000

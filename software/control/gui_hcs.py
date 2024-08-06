@@ -1,5 +1,5 @@
 # set QT_API environment variable
-import os 
+import os
 import sys
 import time
 os.environ["QT_API"] = "pyqt5"
@@ -251,14 +251,14 @@ class OctopiGUI(QMainWindow):
 
         # set output's gains
         div = 1 if OUTPUT_GAINS.REFDIV is True else 0
-        gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0 
-        gains += OUTPUT_GAINS.CHANNEL1_GAIN << 1 
-        gains += OUTPUT_GAINS.CHANNEL2_GAIN << 2 
-        gains += OUTPUT_GAINS.CHANNEL3_GAIN << 3 
-        gains += OUTPUT_GAINS.CHANNEL4_GAIN << 4 
-        gains += OUTPUT_GAINS.CHANNEL5_GAIN << 5 
-        gains += OUTPUT_GAINS.CHANNEL6_GAIN << 6 
-        gains += OUTPUT_GAINS.CHANNEL7_GAIN << 7 
+        gains  = OUTPUT_GAINS.CHANNEL0_GAIN << 0
+        gains += OUTPUT_GAINS.CHANNEL1_GAIN << 1
+        gains += OUTPUT_GAINS.CHANNEL2_GAIN << 2
+        gains += OUTPUT_GAINS.CHANNEL3_GAIN << 3
+        gains += OUTPUT_GAINS.CHANNEL4_GAIN << 4
+        gains += OUTPUT_GAINS.CHANNEL5_GAIN << 5
+        gains += OUTPUT_GAINS.CHANNEL6_GAIN << 6
+        gains += OUTPUT_GAINS.CHANNEL7_GAIN << 7
         self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
 
         # set illumination intensity factor
@@ -320,7 +320,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
         if USE_NAPARI_FOR_MULTIPOINT:
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore)
-            # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)  
+            # self.napariMultiChannelWidget.set_pixel_size_um(3.76*2/60)
             # ^ for 60x, IMX571, 2x2 binning, to change to using objective and camera config
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
@@ -352,23 +352,10 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
 
-        
         if not USE_NAPARI_FOR_LIVE_CONTROL:
             self.microscopeControlTabWidget = QTabWidget()
             self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
             self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
-        # self.cameraTabWidget.addTab(self.navigationWidget,"Stages")
-
-        self.cameraTabWidget = QTabWidget()
-        if ENABLE_OBJECTIVE_PIEZO:
-            self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
-        self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
-        self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera Settings')
-        if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
-            self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
-
-        # Objective and Wellplate Format Selection
-        layout = QVBoxLayout()  #layout = QStackedLayout()
 
         frame = QFrame()
         frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -376,31 +363,24 @@ class OctopiGUI(QMainWindow):
         top_row_layout.addWidget(self.objectivesWidget)
         top_row_layout.addWidget(self.wellplateFormatWidget)
         frame.setLayout(top_row_layout)  # Set the layout on the frame
-        layout.addWidget(frame)
 
-        # frame1 = QFrame()
-        # frame1.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        # frame2 = QFrame()
-        # frame2.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.cameraTabWidget = QTabWidget()
+        if ENABLE_OBJECTIVE_PIEZO:
+            self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
+        self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
+        self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
+        self.cameraTabWidget.addTab(frame, "Microscope")
+        if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
+            self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
-        # layout1 = QVBoxLayout()
-        # layout1.addWidget(self.objectivesWidget)
-        # frame1.setLayout(layout1)
-        # layout2 = QVBoxLayout()
-        # layout2.addWidget(self.wellplateFormatWidget)
-        # frame2.setLayout(layout2)
-
-        # top_row_layout = QHBoxLayout()
-        # top_row_layout.addWidget(frame1)
-        # top_row_layout.addWidget(frame2)
-        # layout.addLayout(top_row_layout)
+        layout = QVBoxLayout()  #layout = QStackedLayout()
 
         if USE_NAPARI_FOR_LIVE_CONTROL:
             layout.addWidget(self.cameraTabWidget)
             layout.addWidget(self.navigationWidget)
         else:
-            layout.addWidget(self.cameraTabWidget)
             layout.addWidget(self.microscopeControlTabWidget)
+            layout.addWidget(self.cameraTabWidget)
 
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
@@ -545,8 +525,8 @@ class OctopiGUI(QMainWindow):
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel) # todo: replicate for napari (autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
-        
-        if USE_NAPARI_FOR_MULTIPOINT:    
+
+        if USE_NAPARI_FOR_MULTIPOINT:
             self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
             self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
             if ENABLE_FLEXIBLE_MULTIPOINT:
@@ -659,7 +639,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.cameraTabWidget.insertTab(1, self.laserAutofocusControlWidget, "Laser AF")
+            self.cameraTabWidget.insertTab(0, self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
@@ -808,7 +788,7 @@ class OctopiGUI(QMainWindow):
                 self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
                 if ENABLE_SCAN_GRID:
                     self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
-            
+
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.clear_only_location_list()
         if ENABLE_SCAN_GRID:
@@ -855,7 +835,11 @@ class OctopiGUI(QMainWindow):
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
-            self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
+            if self.recordTabWidget.currentIndex() == self.recordTabWidget.indexOf(self.multiPointWidgetGrid):
+                self.stitcherThread = stitcher.CoordinateStitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
+                                           apply_flatfield=apply_flatfield, use_registration=use_registration)#, registration_channel=registration_channel)
+            else:
+                self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
                                            apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
 
             # Connect signals to slots
@@ -866,7 +850,7 @@ class OctopiGUI(QMainWindow):
             self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
             # Start the thread
             self.stitcherThread.start()
-        
+
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
 
