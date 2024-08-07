@@ -1899,14 +1899,8 @@ void loop() {
     focusPosition = Z_POS_LIMIT;
   if (focusPosition < Z_NEG_LIMIT)
     focusPosition = Z_NEG_LIMIT;
-	if (is_homing_Z == false && is_preparing_for_homing_Z == false) {
-    if (Z_commanded_movement_in_progress == true) {
-      Z_commanded_movement_in_progress = false;
-      if (X_commanded_movement_in_progress == false && Y_commanded_movement_in_progress == false)
-        mcu_cmd_execution_in_progress = false;
-    }
+  if (is_homing_Z == false && is_preparing_for_homing_Z == false)
     tmc4361A_moveTo(&tmc4361[z], focusPosition);
-	}
 
   // send position update to computer
   if (us_since_last_pos_update > interval_send_pos_update)
