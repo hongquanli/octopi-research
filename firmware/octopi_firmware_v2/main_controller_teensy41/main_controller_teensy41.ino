@@ -585,6 +585,14 @@ void ISR_strobeTimer()
   }
 }
 
+int32_t get_realPosition(TMC4361ATypeDef *tmc4361A, bool has_encoder)
+{
+  if (has_encoder == false)
+    return tmc4361A_currentPosition(tmc4361A);
+  else
+    return tmc4361A_read_encoder(tmc4361A, 1);
+}
+
 /***************************************************************************************************/
 /********************************************* setup ***********************************************/
 /***************************************************************************************************/
@@ -818,11 +826,13 @@ void loop() {
         case MOVE_X:
           {
             long relative_position = int32_t(uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]));
-            long current_position = tmc4361A_currentPosition(&tmc4361[x]);
+            long current_position = get_realPosition(&tmc4361[x], X_use_encoder);
             X_direction = sgn(relative_position);
             X_commanded_target_position = ( relative_position > 0 ? min(current_position + relative_position, X_POS_LIMIT) : max(current_position + relative_position, X_NEG_LIMIT) );
             if ( tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
             {
+              if (stage_PID_enabled[AXIS_X])
+                tmc4361A_set_PID(&tmc4361[AXIS_X], PID_BPG0);
               X_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -831,11 +841,13 @@ void loop() {
         case MOVE_Y:
           {
             long relative_position = int32_t(uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]));
-            long current_position = tmc4361A_currentPosition(&tmc4361[y]);
+            long current_position = get_realPosition(&tmc4361[y], Y_use_encoder);
             Y_direction = sgn(relative_position);
             Y_commanded_target_position = ( relative_position > 0 ? min(current_position + relative_position, Y_POS_LIMIT) : max(current_position + relative_position, Y_NEG_LIMIT) );
             if ( tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position) == 0)
             {
+              if (stage_PID_enabled[AXIS_Y])
+                tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_BPG0);
               Y_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -844,12 +856,14 @@ void loop() {
         case MOVE_Z:
           {
             long relative_position = int32_t(uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]));
-            long current_position = tmc4361A_currentPosition(&tmc4361[z]);
+            long current_position = get_realPosition(&tmc4361[z], Z_use_encoder);
             Z_direction = sgn(relative_position);
             Z_commanded_target_position = ( relative_position > 0 ? min(current_position + relative_position, Z_POS_LIMIT) : max(current_position + relative_position, Z_NEG_LIMIT) );
             focusPosition = Z_commanded_target_position;
             if ( tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position) == 0)
             {
+              if (stage_PID_enabled[AXIS_Z])
+                tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_BPG0);
               Z_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -858,10 +872,16 @@ void loop() {
         case MOVETO_X:
           {
             long absolute_position = int32_t(uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]));
-            X_direction = sgn(absolute_position - tmc4361A_currentPosition(&tmc4361[x]));
+						if (absolute_position > X_POS_LIMIT)
+							absolute_position = X_POS_LIMIT;
+						if (absolute_position < X_NEG_LIMIT)
+							absolute_position = X_NEG_LIMIT;
             X_commanded_target_position = absolute_position;
+            X_direction = sgn(absolute_position - get_realPosition(&tmc4361[x], X_use_encoder));
             if (tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
             {
+              if (stage_PID_enabled[AXIS_X])
+                tmc4361A_set_PID(&tmc4361[AXIS_X], PID_BPG0);
               X_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -870,10 +890,16 @@ void loop() {
         case MOVETO_Y:
           {
             long absolute_position = int32_t(uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]));
-            Y_direction = sgn(absolute_position - tmc4361A_currentPosition(&tmc4361[y]));
+						if (absolute_position > Y_POS_LIMIT)
+							absolute_position = Y_POS_LIMIT;
+						if (absolute_position < Y_NEG_LIMIT)
+							absolute_position = Y_NEG_LIMIT;
             Y_commanded_target_position = absolute_position;
+            Y_direction = sgn(absolute_position - get_realPosition(&tmc4361[y], Y_use_encoder));
             if (tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position) == 0)
             {
+              if (stage_PID_enabled[AXIS_Y])
+                tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_BPG0);
               Y_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -882,10 +908,16 @@ void loop() {
         case MOVETO_Z:
           {
             long absolute_position = int32_t(uint32_t(buffer_rx[2]) * 16777216 + uint32_t(buffer_rx[3]) * 65536 + uint32_t(buffer_rx[4]) * 256 + uint32_t(buffer_rx[5]));
-            Z_direction = sgn(absolute_position - tmc4361A_currentPosition(&tmc4361[z]));
+						if (absolute_position > Z_POS_LIMIT)
+							absolute_position = Z_POS_LIMIT;
+						if (absolute_position < Z_NEG_LIMIT)
+							absolute_position = Z_NEG_LIMIT;
             Z_commanded_target_position = absolute_position;
+            Z_direction = sgn(absolute_position - get_realPosition(&tmc4361[z], Z_use_encoder));
             if (tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position) == 0)
             {
+              if (stage_PID_enabled[AXIS_Z])
+                tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_BPG0);
               focusPosition = absolute_position;
               Z_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
@@ -1282,7 +1314,6 @@ void loop() {
                       is_homing_Z = true;
                       tmc4361A_readInt(&tmc4361[z], TMC4361A_EVENTS);
                       tmc4361A_setSpeed(&tmc4361[z], tmc4361A_vmmToMicrosteps( &tmc4361[z], RGHT_DIR * HOMING_VELOCITY_Z * MAX_VELOCITY_Z_mm ));
-                      // tmc4361A_moveTo(&tmc4361[y], tmc4361A_currentPosition(&tmc4361[y])+51200); // for debugging
                     }
                   }
                   break;
@@ -1482,6 +1513,12 @@ void loop() {
             int axis = buffer_rx[2];
             tmc4361A_set_PID(&tmc4361[axis], PID_BPG0);
             stage_PID_enabled[axis] = 1;
+            if (axis == x)
+              X_use_encoder = true;
+            if (axis == y)
+              Y_use_encoder = true;
+            if (axis == z)
+              Z_use_encoder = true; 
             break;
           }
         case DISABLE_STAGE_PID:
@@ -1489,6 +1526,12 @@ void loop() {
             int axis = buffer_rx[2];
             tmc4361A_set_PID(&tmc4361[axis], PID_DISABLE);
             stage_PID_enabled[axis] = 0;
+            if (axis == x)
+              X_use_encoder = false;
+            if (axis == y)
+              Y_use_encoder = false;
+            if (axis == z)
+              Z_use_encoder = false; 
             break;
           }
         case INITIALIZE:
@@ -1863,26 +1906,6 @@ void loop() {
     flag_read_joystick = false;
   }
 
-  /*
-    // handle limits (moption from joystick control or offset velocity)
-    if( tmc4361A_currentPosition(&tmc4361[x])>=X_POS_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm )>0 && !X_commanded_movement_in_progress )
-    {
-    tmc4361A_stop(&tmc4361[x]);
-    }
-    if( tmc4361A_currentPosition(&tmc4361[x])<=X_NEG_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[x], offset_velocity_x + (joystick_delta_x/32768.0)*MAX_VELOCITY_X_mm )<0 && !X_commanded_movement_in_progress )
-    {
-    tmc4361A_stop(&tmc4361[x]);
-    }
-    if( tmc4361A_currentPosition(&tmc4361[y])>=Y_POS_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y/32768.0)*MAX_VELOCITY_Y_mm )>0 && !Y_commanded_movement_in_progress )
-    {
-    tmc4361A_stop(&tmc4361[y]);
-    }
-    if( tmc4361A_currentPosition(&tmc4361[y])<=Y_NEG_LIMIT && tmc4361A_vmmToMicrosteps( &tmc4361[y], offset_velocity_y + (joystick_delta_y/32768.0)*MAX_VELOCITY_Y_mm )<0 && !Y_commanded_movement_in_progress )
-    {
-    tmc4361A_stop(&tmc4361[y]);
-    }
-  */
-
   // focus control
   if (focusPosition > Z_POS_LIMIT)
     focusPosition = Z_POS_LIMIT;
@@ -1902,19 +1925,19 @@ void loop() {
     else
       buffer_tx[1] = mcu_cmd_execution_in_progress ? IN_PROGRESS : COMPLETED_WITHOUT_ERRORS; // cmd_execution_status
 
-    uint32_t X_pos_int32t = uint32_t( X_use_encoder ? X_pos : int32_t(tmc4361A_currentPosition(&tmc4361[x])) );
+    uint32_t X_pos_int32t = uint32_t(get_realPosition(&tmc4361[x], X_use_encoder));
     buffer_tx[2] = byte(X_pos_int32t >> 24);
     buffer_tx[3] = byte((X_pos_int32t >> 16) % 256);
     buffer_tx[4] = byte((X_pos_int32t >> 8) % 256);
     buffer_tx[5] = byte((X_pos_int32t) % 256);
 
-    uint32_t Y_pos_int32t = uint32_t( Y_use_encoder ? Y_pos : int32_t(tmc4361A_currentPosition(&tmc4361[y])) );
+    uint32_t Y_pos_int32t = uint32_t(get_realPosition(&tmc4361[y], Y_use_encoder));
     buffer_tx[6] = byte(Y_pos_int32t >> 24);
     buffer_tx[7] = byte((Y_pos_int32t >> 16) % 256);
     buffer_tx[8] = byte((Y_pos_int32t >> 8) % 256);
     buffer_tx[9] = byte((Y_pos_int32t) % 256);
-
-    uint32_t Z_pos_int32t = uint32_t( Z_use_encoder ? Z_pos : int32_t(tmc4361A_currentPosition(&tmc4361[z])) );
+										
+    uint32_t Z_pos_int32t = uint32_t(get_realPosition(&tmc4361[z], Z_use_encoder));
     buffer_tx[10] = byte(Z_pos_int32t >> 24);
     buffer_tx[11] = byte((Z_pos_int32t >> 16) % 256);
     buffer_tx[12] = byte((Z_pos_int32t >> 8) % 256);
@@ -1951,26 +1974,27 @@ void loop() {
   if(us_since_last_check_position > interval_check_position) {
 	  us_since_last_check_position = 0;
 
-	  // check if commanded position has been reached
-  	  if (X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x]) == X_commanded_target_position && !is_homing_X && !tmc4361A_isRunning(&tmc4361[x], stage_PID_enabled[x])) // homing is handled separately
+	  // check if commanded position has been reached 
+		// homing is handled separately
+ 	  if (X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x]) == X_commanded_target_position && !is_homing_X && !tmc4361A_isRunning(&tmc4361[x], stage_PID_enabled[x]))
 	  {
-		X_commanded_movement_in_progress = false;
-		mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+      X_commanded_movement_in_progress = false;
+      mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
 	  }
-  	  if (Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y]) == Y_commanded_target_position && !is_homing_Y && !tmc4361A_isRunning(&tmc4361[y], stage_PID_enabled[y]))
+ 	  if (Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y]) == Y_commanded_target_position && !is_homing_Y && !tmc4361A_isRunning(&tmc4361[y], stage_PID_enabled[y]))
 	  {
-		Y_commanded_movement_in_progress = false;
-		mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+      Y_commanded_movement_in_progress = false;
+      mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
 	  }
-      if (Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z]) == Z_commanded_target_position && !is_homing_Z && !tmc4361A_isRunning(&tmc4361[z], stage_PID_enabled[z]))
+    if (Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z]) == Z_commanded_target_position && !is_homing_Z && !tmc4361A_isRunning(&tmc4361[z], stage_PID_enabled[z]))
 	  {
-		Z_commanded_movement_in_progress = false;
-		mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+      Z_commanded_movement_in_progress = false;
+      mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
 	  }
   }
 
   if (us_since_last_check_limit > interval_check_limit) {
-	us_since_last_check_limit = 0;
+	  us_since_last_check_limit = 0;
 
   	// at limit
     if (X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
@@ -2001,6 +2025,40 @@ void loop() {
       {
         Z_commanded_movement_in_progress = false;
         mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+      }
+    }
+    // protect code for PID control 
+    if (!is_homing_Z)
+    {
+      if (stage_PID_enabled[AXIS_X] == 1) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[x], abs(tmc4361A_readInt(&tmc4361[x], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
+          // stop X axis
+          tmc4361A_set_PID(&tmc4361[x], PID_DISABLE);
+          tmc4361A_stop(&tmc4361[x]);
+          // set flag
+          X_commanded_movement_in_progress = false;
+          mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+        }
+      }
+      if (stage_PID_enabled[AXIS_Y] == 1) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[y], abs(tmc4361A_readInt(&tmc4361[y], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
+          // stop Y axis
+          tmc4361A_set_PID(&tmc4361[y], PID_DISABLE);
+          tmc4361A_stop(&tmc4361[y]);
+          // set flag
+          Y_commanded_movement_in_progress = false;
+          mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+        }
+      }
+      if (stage_PID_enabled[AXIS_Z] == 1) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[z], abs(tmc4361A_readInt(&tmc4361[z], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
+          // stop Z axis
+          tmc4361A_set_PID(&tmc4361[z], PID_DISABLE);
+          tmc4361A_stop(&tmc4361[z]);
+          // set flag
+          Z_commanded_movement_in_progress = false;
+          mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+        }
       }
     }
   }
