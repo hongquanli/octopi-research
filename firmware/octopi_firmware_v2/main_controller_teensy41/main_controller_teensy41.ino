@@ -1978,22 +1978,16 @@ void loop() {
 		// homing is handled separately
  	  if (X_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[x]) == X_commanded_target_position && !is_homing_X && !tmc4361A_isRunning(&tmc4361[x], stage_PID_enabled[x]))
 	  {
-      if (stage_PID_enabled[AXIS_X])
-        tmc4361A_set_PID(&tmc4361[AXIS_X], PID_DISABLE);
       X_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
 	  }
  	  if (Y_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[y]) == Y_commanded_target_position && !is_homing_Y && !tmc4361A_isRunning(&tmc4361[y], stage_PID_enabled[y]))
 	  {
-      if (stage_PID_enabled[AXIS_Y])
-        tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_DISABLE);
       Y_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
 	  }
     if (Z_commanded_movement_in_progress && tmc4361A_currentPosition(&tmc4361[z]) == Z_commanded_target_position && !is_homing_Z && !tmc4361A_isRunning(&tmc4361[z], stage_PID_enabled[z]))
 	  {
-      if (stage_PID_enabled[AXIS_Z])
-        tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_DISABLE);
       Z_commanded_movement_in_progress = false;
       mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
 	  }
@@ -2031,6 +2025,40 @@ void loop() {
       {
         Z_commanded_movement_in_progress = false;
         mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+      }
+    }
+    // protect code for PID control 
+    if (!is_homing_Z)
+    {
+      if (stage_PID_enabled[AXIS_X] == 1) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[x], abs(tmc4361A_readInt(&tmc4361[x], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
+          // stop X axis
+          tmc4361A_set_PID(&tmc4361[x], PID_DISABLE);
+          tmc4361A_stop(&tmc4361[x]);
+          // set flag
+          X_commanded_movement_in_progress = false;
+          mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+        }
+      }
+      if (stage_PID_enabled[AXIS_Y] == 1) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[y], abs(tmc4361A_readInt(&tmc4361[y], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
+          // stop Y axis
+          tmc4361A_set_PID(&tmc4361[y], PID_DISABLE);
+          tmc4361A_stop(&tmc4361[y]);
+          // set flag
+          Y_commanded_movement_in_progress = false;
+          mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
+        }
+      }
+      if (stage_PID_enabled[AXIS_Z] == 1) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[z], abs(tmc4361A_readInt(&tmc4361[z], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
+          // stop Z axis
+          tmc4361A_set_PID(&tmc4361[z], PID_DISABLE);
+          tmc4361A_stop(&tmc4361[z]);
+          // set flag
+          Z_commanded_movement_in_progress = false;
+          mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
+        }
       }
     }
   }
