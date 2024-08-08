@@ -263,6 +263,10 @@ long Z_NEG_LIMIT = Z_NEG_LIMIT_MM * steps_per_mm_Z;
 
 // PID
 bool stage_PID_enabled[N_MOTOR];
+// In the PID control mode, if some error happend,
+// the firmware would disable PID control, then
+// set the flag to True, when new movement start, the flag would be set to False
+bool disable_PID_control_flag[N_MOTOR];
 
 // PID arguments
 typedef struct pid_arguments {
@@ -677,10 +681,10 @@ void setup() {
   // PID
   for (int i = 0; i < N_MOTOR; i++) {
     stage_PID_enabled[i] = 0;
-
-	axis_pid_arg[i].p = (1<<12);
-	axis_pid_arg[i].i = 0;
-	axis_pid_arg[i].d = 0;
+    axis_pid_arg[i].p = (1<<12);
+	  axis_pid_arg[i].i = 0;
+	  axis_pid_arg[i].d = 0;
+	  disable_PID_control_flag[i] = false;
   }
 
   // clock
@@ -831,8 +835,10 @@ void loop() {
             X_commanded_target_position = ( relative_position > 0 ? min(current_position + relative_position, X_POS_LIMIT) : max(current_position + relative_position, X_NEG_LIMIT) );
             if ( tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
             {
-              if (stage_PID_enabled[AXIS_X])
+              if (stage_PID_enabled[AXIS_X] && disable_PID_control_flag[AXIS_X]) {
                 tmc4361A_set_PID(&tmc4361[AXIS_X], PID_BPG0);
+                disable_PID_control_flag[AXIS_X] = false;
+              }
               X_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -846,8 +852,10 @@ void loop() {
             Y_commanded_target_position = ( relative_position > 0 ? min(current_position + relative_position, Y_POS_LIMIT) : max(current_position + relative_position, Y_NEG_LIMIT) );
             if ( tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position) == 0)
             {
-              if (stage_PID_enabled[AXIS_Y])
+              if (stage_PID_enabled[AXIS_Y] && disable_PID_control_flag[AXIS_Y]) {
                 tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_BPG0);
+                disable_PID_control_flag[AXIS_Y] = false;
+              }
               Y_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -862,8 +870,10 @@ void loop() {
             focusPosition = Z_commanded_target_position;
             if ( tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position) == 0)
             {
-              if (stage_PID_enabled[AXIS_Z])
+              if (stage_PID_enabled[AXIS_Z] && disable_PID_control_flag[AXIS_Z]) {
                 tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_BPG0);
+                disable_PID_control_flag[AXIS_Z] = false;
+              }
               Z_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -880,8 +890,10 @@ void loop() {
             X_direction = sgn(absolute_position - get_realPosition(&tmc4361[x], X_use_encoder));
             if (tmc4361A_moveTo(&tmc4361[x], X_commanded_target_position) == 0)
             {
-              if (stage_PID_enabled[AXIS_X])
+							if (stage_PID_enabled[AXIS_X] && disable_PID_control_flag[AXIS_X]) {
                 tmc4361A_set_PID(&tmc4361[AXIS_X], PID_BPG0);
+								disable_PID_control_flag[AXIS_X] = false;
+							}
               X_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -898,8 +910,10 @@ void loop() {
             Y_direction = sgn(absolute_position - get_realPosition(&tmc4361[y], Y_use_encoder));
             if (tmc4361A_moveTo(&tmc4361[y], Y_commanded_target_position) == 0)
             {
-              if (stage_PID_enabled[AXIS_Y])
+							if (stage_PID_enabled[AXIS_Y] && disable_PID_control_flag[AXIS_Y]) {
                 tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_BPG0);
+								disable_PID_control_flag[AXIS_Y] = false;
+							}
               Y_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
             }
@@ -916,8 +930,10 @@ void loop() {
             Z_direction = sgn(absolute_position - get_realPosition(&tmc4361[z], Z_use_encoder));
             if (tmc4361A_moveTo(&tmc4361[z], Z_commanded_target_position) == 0)
             {
-              if (stage_PID_enabled[AXIS_Z])
+							if (stage_PID_enabled[AXIS_Z] && disable_PID_control_flag[AXIS_Z]) {
                 tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_BPG0);
+								disable_PID_control_flag[AXIS_Z] = false;
+							}
               focusPosition = absolute_position;
               Z_commanded_movement_in_progress = true;
               mcu_cmd_execution_in_progress = true;
@@ -1566,12 +1582,14 @@ void loop() {
               tmc4361[i].rampParam[ASTART_IDX] = 0;
               tmc4361[i].rampParam[DFINAL_IDX] = 0;
               tmc4361A_sRampInit(&tmc4361[i]);
+
+              disable_PID_control_flag[i] = false;
             }
 
             // homing switch settings
-			tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x], home_safety_margin[x]);
-			tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y], home_safety_margin[y]);
-			tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z], home_safety_margin[z]);
+            tmc4361A_enableHomingLimit(&tmc4361[x], lft_sw_pol[x], TMC4361_homing_sw[x], home_safety_margin[x]);
+            tmc4361A_enableHomingLimit(&tmc4361[y], lft_sw_pol[y], TMC4361_homing_sw[y], home_safety_margin[y]);
+            tmc4361A_enableHomingLimit(&tmc4361[z], rht_sw_pol[z], TMC4361_homing_sw[z], home_safety_margin[z]);
 
             // DAC init
             set_DAC8050x_config();
@@ -2027,34 +2045,40 @@ void loop() {
         mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
       }
     }
-    // protect code for PID control 
+    // guard code for PID control 
     if (!is_homing_Z)
     {
       if (stage_PID_enabled[AXIS_X] == 1) {
-        if (tmc4361A_xmicrostepsTomm(&tmc4361[x], abs(tmc4361A_readInt(&tmc4361[x], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
-          // stop X axis
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[x], abs(tmc4361A_readInt(&tmc4361[x], TMC4361A_ENC_POS_DEV_RD))) >= 0.5) {
+          // stop X axis movement
           tmc4361A_set_PID(&tmc4361[x], PID_DISABLE);
           tmc4361A_stop(&tmc4361[x]);
+          // set the flag, then in the new movement reset PID control mode
+          disable_PID_control_flag[x] = true;
           // set flag
           X_commanded_movement_in_progress = false;
           mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
         }
       }
       if (stage_PID_enabled[AXIS_Y] == 1) {
-        if (tmc4361A_xmicrostepsTomm(&tmc4361[y], abs(tmc4361A_readInt(&tmc4361[y], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
-          // stop Y axis
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[y], abs(tmc4361A_readInt(&tmc4361[y], TMC4361A_ENC_POS_DEV_RD))) >= 0.5) {
+          // stop Y axis movement
           tmc4361A_set_PID(&tmc4361[y], PID_DISABLE);
           tmc4361A_stop(&tmc4361[y]);
+          // set the flag, then in the new movement reset PID control mode
+          disable_PID_control_flag[y] = true;
           // set flag
           Y_commanded_movement_in_progress = false;
           mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
         }
       }
       if (stage_PID_enabled[AXIS_Z] == 1) {
-        if (tmc4361A_xmicrostepsTomm(&tmc4361[z], abs(tmc4361A_readInt(&tmc4361[z], TMC4361A_ENC_POS_DEV_RD))) >= 0.25) {
-          // stop Z axis
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[z], abs(tmc4361A_readInt(&tmc4361[z], TMC4361A_ENC_POS_DEV_RD))) >= 0.5) {
+          // stop Z axis movement
           tmc4361A_set_PID(&tmc4361[z], PID_DISABLE);
           tmc4361A_stop(&tmc4361[z]);
+          // set the flag, then in the new movement reset PID control mode
+          disable_PID_control_flag[z] = true;
           // set flag
           Z_commanded_movement_in_progress = false;
           mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Y_commanded_movement_in_progress;
