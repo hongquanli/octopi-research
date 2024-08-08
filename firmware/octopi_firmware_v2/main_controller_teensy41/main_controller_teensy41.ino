@@ -97,6 +97,8 @@ static const int ACTIVE_LOW = 0;
 static const int ACTIVE_HIGH = 1;
 static const int DISABLED = 2;
 
+static const float THRESHOLD_DEVIATION_POS_ENCODER = 0.2;
+
 /***************************************************************************************************/
 /**************************************** Pin definations ******************************************/
 /***************************************************************************************************/
@@ -2046,10 +2048,9 @@ void loop() {
       }
     }
     // guard code for PID control 
-    if (!is_homing_Z)
-    {
+    if (!is_homing_X) {
       if (stage_PID_enabled[AXIS_X] == 1) {
-        if (tmc4361A_xmicrostepsTomm(&tmc4361[x], abs(tmc4361A_readInt(&tmc4361[x], TMC4361A_ENC_POS_DEV_RD))) >= 0.5) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[x], abs(tmc4361A_readInt(&tmc4361[x], TMC4361A_ENC_POS_DEV_RD))) >= THRESHOLD_DEVIATION_POS_ENCODER) {
           // stop X axis movement
           tmc4361A_set_PID(&tmc4361[x], PID_DISABLE);
           tmc4361A_stop(&tmc4361[x]);
@@ -2060,8 +2061,10 @@ void loop() {
           mcu_cmd_execution_in_progress = false || Y_commanded_movement_in_progress || Z_commanded_movement_in_progress;
         }
       }
+    }
+    if (!is_homing_Y) {
       if (stage_PID_enabled[AXIS_Y] == 1) {
-        if (tmc4361A_xmicrostepsTomm(&tmc4361[y], abs(tmc4361A_readInt(&tmc4361[y], TMC4361A_ENC_POS_DEV_RD))) >= 0.5) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[y], abs(tmc4361A_readInt(&tmc4361[y], TMC4361A_ENC_POS_DEV_RD))) >= THRESHOLD_DEVIATION_POS_ENCODER) {
           // stop Y axis movement
           tmc4361A_set_PID(&tmc4361[y], PID_DISABLE);
           tmc4361A_stop(&tmc4361[y]);
@@ -2072,8 +2075,10 @@ void loop() {
           mcu_cmd_execution_in_progress = false || X_commanded_movement_in_progress || Z_commanded_movement_in_progress;
         }
       }
+    }
+    if (!is_homing_Z) {
       if (stage_PID_enabled[AXIS_Z] == 1) {
-        if (tmc4361A_xmicrostepsTomm(&tmc4361[z], abs(tmc4361A_readInt(&tmc4361[z], TMC4361A_ENC_POS_DEV_RD))) >= 0.5) {
+        if (tmc4361A_xmicrostepsTomm(&tmc4361[z], abs(tmc4361A_readInt(&tmc4361[z], TMC4361A_ENC_POS_DEV_RD))) >= THRESHOLD_DEVIATION_POS_ENCODER) {
           // stop Z axis movement
           tmc4361A_set_PID(&tmc4361[z], PID_DISABLE);
           tmc4361A_stop(&tmc4361[z]);
