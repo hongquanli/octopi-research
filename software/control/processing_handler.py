@@ -1,10 +1,14 @@
+import os
+import time
 import threading
 import queue
 import numpy as np
 import pandas as pd
+import cv2
 import control.utils as utils
 from control._def import *
-import time
+
+
 
 def default_image_preprocessor(image, callable_list):
     """
@@ -77,6 +81,7 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
     :return: A process task, i.e. dict of 'function' (callable), 'args' (list), and
      'kwargs' (dict)
     """
+    SAVE_OVERLAY=True
     # Extract required kwargs
     dataHandler = process_kwargs.pop('dataHandler')
     upload_fn = process_kwargs.pop('upload_fn')
@@ -120,6 +125,22 @@ def process_fn_with_count_and_display(process_fn, *process_args, **process_kwarg
         mask = (255 * (result > threshold)).astype(np.uint8)
         color_mask, no_cells = utils.colorize_mask_get_counts(mask)
         overlay = utils.overlay_mask_dpc(color_mask, dpc_uint8)
+
+        # Save overlay image if SAVE_OVERLAY is True
+        if SAVE_OVERLAY:
+            save_dir = "overlay_images"
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            existing_files = [f for f in os.listdir(save_dir) if f.endswith('.png')]
+            next_number = len(existing_files) + 1
+
+            filename = f"{next_number:04d}.png"
+            filepath = os.path.join(save_dir, filename)
+            cv2.imwrite(filepath, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+
+            print(f"Saved overlay image: {filepath}")
+
 
     I, score = process_fn(*process_args, **process_kwargs)
     if I is None or score is None: 
