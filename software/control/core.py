@@ -1749,6 +1749,7 @@ class MultiPointWorker(QObject):
 
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
+        utils.create_done_file(current_path)
         self.navigationController.enable_joystick_button_action = True
         print(time.time())
         print(time.time()-start)
@@ -2808,6 +2809,7 @@ class MultiPointController(QObject):
             except:
                 pass
         print("total time for acquisition + processing + reset:", time.time() - self.recording_start_time)
+        utils.create_done_file(os.path.join(self.base_path,self.experiment_ID))
         self.acquisitionFinished.emit()
         self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()

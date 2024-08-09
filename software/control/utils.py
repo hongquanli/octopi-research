@@ -2,6 +2,7 @@ import cv2
 from numpy import std, square, mean
 import numpy as np
 from scipy.ndimage import label
+import os
 
 def crop_image(image,crop_width,crop_height):
     image_height = image.shape[0]
@@ -138,3 +139,6 @@ def interpolate_plane(triple1, triple2, triple3, point):
 
     return z
 
+def create_done_file(path):
+    with open(os.path.join(path,'.done'), 'w') as file:
+        pass  # This creates an empty file
