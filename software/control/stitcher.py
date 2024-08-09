@@ -9,20 +9,22 @@ import shutil
 import random
 import json
 import time
+from datetime import datetime
 from lxml import etree
 import numpy as np
 import pandas as pd
 import cv2
 import dask.array as da
+from dask.array import from_zarr
 from dask_image.imread import imread as dask_imread
 from skimage.registration import phase_cross_correlation
 import ome_zarr
 import zarr
+from tifffile import TiffWriter
 from aicsimageio.writers import OmeTiffWriter
 from aicsimageio.writers import OmeZarrWriter
 from aicsimageio import types
 from basicpy import BaSiC
-
 
 class Stitcher(QThread, QObject):
 
@@ -62,7 +64,7 @@ class Stitcher(QThread, QObject):
         self.num_z = self.num_c = 1
         self.num_cols = self.num_rows = 1
         self.input_height = self.input_width = 0
-        self.num_pyramid_levels = 1
+        self.num_pyramid_levels = 5
         self.v_shift = self.h_shift = (0,0)
         self.max_x_overlap = self.max_y_overlap = 0
         self.flatfields = {}
@@ -203,13 +205,14 @@ class Stitcher(QThread, QObject):
             if not found_dims:
                 self.dtype = np.dtype(image.dtype)
                 self.input_height, self.input_width = image.shape[:2]
-                self.chunks = (1, 1, 1, self.input_height, self.input_width)
+                self.chunks = (1, 1, 1, self.input_height//2, self.input_width//2)
                 found_dims = True
                 print("chunks", self.chunks)
 
             if len(image.shape) == 3:
                 self.is_rgb[channel] = True
-                mono_channel_names.extend([f"{channel} R", f"{channel} G", f"{channel} B"])
+                channel = channel.split('_')[0]
+                mono_channel_names.extend([f"{channel}_R", f"{channel}_G", f"{channel}_B"])
             else:
                 self.is_rgb[channel] = False
                 mono_channel_names.append(channel)
@@ -248,9 +251,10 @@ class Stitcher(QThread, QObject):
                 images_r = [dask_imread(tile['filepath'])[0][:, :, 0] for tile in selected_tiles]
                 images_g = [dask_imread(tile['filepath'])[0][:, :, 1] for tile in selected_tiles]
                 images_b = [dask_imread(tile['filepath'])[0][:, :, 2] for tile in selected_tiles]
-                process_images(images_r, channel + ' R')
-                process_images(images_g, channel + ' G')
-                process_images(images_b, channel + ' B')
+                channel = channel.split('_')[0]
+                process_images(images_r, channel + '_R')
+                process_images(images_g, channel + '_G')
+                process_images(images_b, channel + '_B')
             else:
                 # Process monochrome images
                 images = [dask_imread(tile['filepath'])[0] for tile in selected_tiles]
@@ -319,11 +323,11 @@ class Stitcher(QThread, QObject):
 
         obj_focal_length_mm = obj_tube_lens_mm / obj_mag
         actual_mag = tube_lens_mm / obj_focal_length_mm
-        pixel_size_um = sensor_pixel_size_um / actual_mag
-        print("pixel_size_um:", pixel_size_um)
+        self.pixel_size_um = sensor_pixel_size_um / actual_mag
+        print("pixel_size_um:", self.pixel_size_um)
 
-        dx_pixels = dx_mm * 1000 / pixel_size_um
-        dy_pixels = dy_mm * 1000 / pixel_size_um
+        dx_pixels = dx_mm * 1000 / self.pixel_size_um
+        dy_pixels = dy_mm * 1000 / self.pixel_size_um
         print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
 
         self.max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
@@ -408,10 +412,7 @@ class Stitcher(QThread, QObject):
             x_max *= 1.05
         size = max(y_max, x_max)
         num_levels = 1
-        while size > 2000:
-            size //= 2
-            num_levels += 1
-        self.num_pyramid_levels = num_levels
+        self.num_pyramid_levels = int(np.log2(max(self.input_width, self.input_height) / 64))
         print("num_pyramid_levels:", self.num_pyramid_levels)
         tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
         self.tczyx_shape = tczyx_shape
@@ -445,7 +446,7 @@ class Stitcher(QThread, QObject):
                             if self.is_rgb[channel]:
                                 for color_idx, color in enumerate(['R', 'G', 'B']):
                                     tile_color = tile[:, :, color_idx]
-                                    color_channel = f"{channel} {color}"
+                                    color_channel = f"{channel}_{color}"
                                     self.stitch_single_image(tile_color, z_level, self.mono_channel_names.index(color_channel), row, col)
                                     processed_tiles += 1
                             else:
@@ -497,7 +498,7 @@ class Stitcher(QThread, QObject):
             data_types=[self.stitched_images.dtype],
             dimension_order=[dims],
             channel_names=[self.mono_channel_names],
-            physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)],
+            physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, self.pixel_size_um, self.pixel_size_um)],
             #is_rgb=self.is_rgb
             #channel colors
         )
@@ -531,21 +532,13 @@ class Stitcher(QThread, QObject):
         zarr_writer.write_image(
             image_data=self.stitched_images,
             image_name=os.path.basename(self.output_path),
-            physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um),
+            physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, self.pixel_size_um, self.pixel_size_um),
             channel_names=self.mono_channel_names,
             channel_colors=self.channel_colors,
             dimension_order=dims,
             scale_num_levels=self.num_pyramid_levels,
             chunk_dims=self.chunks
         )
-        # # Print metadata after writing
-        # print("ome-zarr metadata...")
-        # zarr_root = zarr.open(self.output_path, mode='r')
-
-        # print("root attributes:")
-        # print(dict(zarr_root.attrs))
-        # print("zarr structure:")
-        # print(zarr_root.tree())
         self.stitched_images = None
 
     def create_complete_ome_zarr(self):
@@ -758,7 +751,6 @@ class Stitcher(QThread, QObject):
 
 
 class CoordinateStitcher(QThread, QObject):
-
     update_progress = Signal(int, int)
     getting_flatfields = Signal()
     starting_stitching = Signal()
@@ -769,6 +761,7 @@ class CoordinateStitcher(QThread, QObject):
         super().__init__()
         self.input_folder = input_folder
         self.output_name = output_name + output_format
+        self.output_format = output_format
         self.apply_flatfield = apply_flatfield
         self.use_registration = use_registration
 
@@ -784,22 +777,18 @@ class CoordinateStitcher(QThread, QObject):
         self.channel_names = []
         self.mono_channel_names = []
         self.channel_colors = []
-        self.num_z = self.num_c = 1
+        self.num_z = self.num_c = self.num_t = 1
         self.input_height = self.input_width = 0
-        self.num_pyramid_levels = 1
+        self.num_pyramid_levels = 5
         self.flatfields = {}
         self.stitching_data = {}
         self.dtype = np.uint16
         self.chunks = None
 
     def get_time_points(self):
-        try:
-            time_points = [d for d in os.listdir(self.input_folder) if os.path.isdir(os.path.join(self.input_folder, d)) and d.isdigit()]
-            time_points.sort(key=int)
-            return time_points
-        except Exception as e:
-            print(f"Error detecting time points: {e}")
-            return ['0']
+        self.time_points = [d for d in os.listdir(self.input_folder) if os.path.isdir(os.path.join(self.input_folder, d)) and d.isdigit()]
+        self.time_points.sort(key=int)
+        return self.time_points
 
     def extract_acquisition_parameters(self):
         acquistion_params_path = os.path.join(self.input_folder, 'acquisition parameters.json')
@@ -817,76 +806,114 @@ class CoordinateStitcher(QThread, QObject):
         self.pixel_size_um = sensor_pixel_size_um / actual_mag
         print("pixel_size_um:", self.pixel_size_um)
 
-    def parse_filenames(self, time_point):
+    def parse_filenames(self):
         self.extract_acquisition_parameters()
         self.get_pixel_size_from_params()
 
-        coordinates_path = os.path.join(self.input_folder, time_point, 'coordinates.csv')
-        self.coordinates_df = pd.read_csv(coordinates_path)
+        self.stitching_data = {}
+        self.regions = set()
+        self.channel_names = set()
+        max_z = 0
+        max_fov = 0
 
-        self.regions = sorted(self.coordinates_df['region'].unique())
+        for t, time_point in enumerate(self.time_points):
+            image_folder = os.path.join(self.input_folder, str(time_point))
+            coordinates_path = os.path.join(self.input_folder, time_point, 'coordinates.csv')
+            coordinates_df = pd.read_csv(coordinates_path)
 
-        image_folder = os.path.join(self.input_folder, time_point)
-        image_files = [f for f in os.listdir(image_folder) if f.endswith(('.bmp', '.tiff')) and 'focus_camera' not in f]
+            print(f"Processing timepoint {time_point}, image folder: {image_folder}")
 
-        for file in image_files:
-            parts = file.split('_', 3)
+            image_files = sorted([f for f in os.listdir(image_folder) if f.endswith(('.bmp', '.tiff')) and 'focus_camera' not in f])
+            
+            if not image_files:
+                raise Exception(f"No valid files found in directory for timepoint {time_point}.")
 
-            region, i, z_level, channel = parts[0], int(parts[1]), int(parts[2]), os.path.splitext(parts[3])[0]
+            for file in image_files:
+                parts = file.split('_', 3)
+                region, fov, z_level, channel = parts[0], int(parts[1]), int(parts[2]), os.path.splitext(parts[3])[0]
+                channel = channel.replace("_", " ").replace("full ", "full_")
 
-            # Look up the corresponding row in the coordinates DataFrame
-            coord_row = self.coordinates_df[(self.coordinates_df['region'] == region) & (self.coordinates_df['i'] == i) & (self.coordinates_df['z_level'] == z_level)]
+                coord_row = coordinates_df[(coordinates_df['region'] == region) & 
+                                           (coordinates_df['fov'] == fov) & 
+                                           (coordinates_df['z_level'] == z_level)]
 
-            if coord_row.empty:
-                print(f"Warning: No matching coordinates found for file {file}")
-                continue
+                if coord_row.empty:
+                    print(f"Warning: No matching coordinates found for file {file}")
+                    continue
 
-            coord_row = coord_row.iloc[0]  # Get the first (and should be only) matching row
+                coord_row = coord_row.iloc[0]
 
-            self.stitching_data[len(self.stitching_data)] = {
-                'filepath': os.path.join(image_folder, file),
-                'x': coord_row['x (mm)'],
-                'y': coord_row['y (mm)'],
-                'z': coord_row['z (um)'],
-                'channel': channel,
-                'z_level': z_level,
-                'region': region,
-                'fov_index': i
-            }
+                key = (t, region, fov, z_level, channel)
+                self.stitching_data[key] = {
+                    'filepath': os.path.join(image_folder, file),
+                    'x': coord_row['x (mm)'],
+                    'y': coord_row['y (mm)'],
+                    'z': coord_row['z (um)'],
+                    'channel': channel,
+                    'z_level': z_level,
+                    'region': region,
+                    'fov_idx': fov,
+                    't': t
+                }
 
-            if channel not in self.channel_names:
-                self.channel_names.append(channel)
+                self.regions.add(region)
+                self.channel_names.add(channel)
+                max_z = max(max_z, z_level)
+                max_fov = max(max_fov, fov)
 
-        self.setup_image_parameters()
+        self.regions = sorted(self.regions)
+        self.channel_names = sorted(self.channel_names)
+        self.num_t = len(self.time_points)
+        self.num_z = max_z + 1
+        self.num_fovs_per_region = max_fov + 1
+        
+        # Set up image parameters based on the first image
+        first_key = list(self.stitching_data.keys())[0]
+        first_region = self.stitching_data[first_key]['region']
+        first_fov = self.stitching_data[first_key]['fov_idx']
+        first_z_level = self.stitching_data[first_key]['z_level']
+        first_image = dask_imread(self.stitching_data[first_key]['filepath'])[0]
 
-    def setup_image_parameters(self):
-        first_image = list(self.stitching_data.values())[0]
-        image = dask_imread(first_image['filepath'])[0]
-
-        self.dtype = image.dtype
-        self.input_height, self.input_width = image.shape[:2]
-        self.chunks = (1, 1, 1, self.input_height, self.input_width)
-
-        self.num_z = self.coordinates_df['z_level'].max() + 1
-
+        self.dtype = first_image.dtype
+        if len(first_image.shape) == 2:
+            self.input_height, self.input_width = first_image.shape
+        elif len(first_image.shape) == 3:
+            self.input_height, self.input_width = first_image.shape[:2]
+        else:
+            raise ValueError(f"Unexpected image shape: {first_image.shape}")
+        self.chunks = (1, 1, 1, 512, 512)
+        self.num_pyramid_levels = int(np.log2(max(self.input_width, self.input_height) / 64))
+        #self.num_pyramid_levels = 5 # buggy if different 
+        print("num_pyramid_levels", self.num_pyramid_levels) 
+        # Set up final monochrome channels
+        self.mono_channel_names = []
         for channel in self.channel_names:
-            if len(image.shape) == 3:
+            channel_key = (t, first_region, first_fov, first_z_level, channel)
+            channel_image = dask_imread(self.stitching_data[channel_key]['filepath'])[0]
+            if len(channel_image.shape) == 3 and channel_image.shape[2] == 3:
                 self.is_rgb[channel] = True
-                self.mono_channel_names.extend([f"{channel} R", f"{channel} G", f"{channel} B"])
+                channel = channel.split('_')[0]
+                self.mono_channel_names.extend([f"{channel}_R", f"{channel}_G", f"{channel}_B"])
             else:
                 self.is_rgb[channel] = False
                 self.mono_channel_names.append(channel)
-
         self.num_c = len(self.mono_channel_names)
         self.channel_colors = [self.get_channel_color(name) for name in self.mono_channel_names]
 
+        print(f"FOV dimensions: {self.input_height}x{self.input_width}, Z levels: {self.num_z}, Time points: {self.num_t}")
+        print(f"{len(self.regions)} Regions: {self.regions}")
+        print(f"{self.num_c} Channels: {self.mono_channel_names}")
+
     def get_channel_color(self, channel_name):
         color_map = {
-            'BF': 0xFFFFFF,  # White
-            'Fluorescence_405': 0x0000FF,  # Blue
-            'Fluorescence_488': 0x00FF00,  # Green
-            'Fluorescence_561': 0xFF0000,  # Red
-            'Fluorescence_638': 0xFF00FF,  # Magenta
+            '405': 0x0000FF,  # Blue
+            '488': 0x00FF00,  # Green
+            '561': 0xFFCF00,  # Yellow
+            '638': 0xFF0000,  # Red
+            '730': 0x770000,  # Dark Red"
+            '_B': 0x0000FF,  # Blue
+            '_G': 0x00FF00,  # Green
+            '_R': 0xFF0000  # Red
         }
 
         for key in color_map:
@@ -896,11 +923,15 @@ class CoordinateStitcher(QThread, QObject):
         return 0xFFFFFF  # Default to white if no match found
 
     def calculate_output_dimensions(self, region):
-        region_df = self.coordinates_df[self.coordinates_df['region'] == region]
-        x_min = region_df['x (mm)'].min()
-        x_max = region_df['x (mm)'].max()
-        y_min = region_df['y (mm)'].min()
-        y_max = region_df['y (mm)'].max()
+        region_data = [tile_info for key, tile_info in self.stitching_data.items() if key[1] == region]
+        
+        if not region_data:
+            raise ValueError(f"No data found for region {region}")
+        
+        x_min = min(tile_info['x'] for tile_info in region_data)
+        x_max = max(tile_info['x'] for tile_info in region_data)
+        y_min = min(tile_info['y'] for tile_info in region_data)
+        y_max = max(tile_info['y'] for tile_info in region_data)
 
         width_mm = x_max - x_min + (self.input_width * self.pixel_size_um / 1000)
         height_mm = y_max - y_min + (self.input_height * self.pixel_size_um / 1000)
@@ -912,12 +943,18 @@ class CoordinateStitcher(QThread, QObject):
 
     def init_output(self, region):
         width, height = self.calculate_output_dimensions(region)
-        self.output_shape = (1, self.num_c, self.num_z, height, width)
+        self.output_shape = (self.num_t, self.num_c, self.num_z, height, width)
         return da.zeros(self.output_shape, dtype=self.dtype, chunks=self.chunks)
 
     def get_flatfields(self, progress_callback=None):
         def process_images(images, channel_name):
-            images = np.array(images)
+            if images.size == 0:
+                print(f"WARNING: No images found for channel {channel_name}")
+                return
+
+            if images.ndim != 3 and images.ndim != 4:
+                raise ValueError(f"Images must be 3 or 4-dimensional array, with dimension of (T, Y, X) or (T, Z, Y, X). Got shape {images.shape}")
+
             basic = BaSiC(get_darkfield=False, smoothness_flatfield=1)
             basic.fit(images)
             channel_index = self.mono_channel_names.index(channel_name)
@@ -926,60 +963,108 @@ class CoordinateStitcher(QThread, QObject):
                 progress_callback(channel_index + 1, self.num_c)
 
         for channel in self.channel_names:
-            all_tiles = [tile_info for tile_info in self.stitching_data.values() if tile_info['channel'] == channel]
-            random.shuffle(all_tiles)
-            selected_tiles = all_tiles[:min(32, len(all_tiles))]
+            print(f"Processing channel: {channel}")
+            images = []
+            for t in self.time_points:
+                time_images = [dask_imread(tile['filepath'])[0] for key, tile in self.stitching_data.items() if tile['channel'] == channel and key[0] == int(t)]
+                if not time_images:
+                    print(f"WARNING: No images found for channel {channel} at timepoint {t}")
+                    continue
+                random.shuffle(time_images)
+                selected_tiles = time_images[:min(32, len(time_images))]
+                images.extend(selected_tiles)
 
-            if self.is_rgb[channel]:
-                images_r = [dask_imread(tile['filepath'])[0][:, :, 0] for tile in selected_tiles]
-                images_g = [dask_imread(tile['filepath'])[0][:, :, 1] for tile in selected_tiles]
-                images_b = [dask_imread(tile['filepath'])[0][:, :, 2] for tile in selected_tiles]
-                process_images(images_r, channel + ' R')
-                process_images(images_g, channel + ' G')
-                process_images(images_b, channel + ' B')
-            else:
-                images = [dask_imread(tile['filepath'])[0] for tile in selected_tiles]
+            if not images:
+                print(f"WARNING: No images found for channel {channel} across all timepoints")
+                continue
+
+            images = np.array(images)
+
+            if images.ndim == 3:
+                # Images are in the shape (N, Y, X)
                 process_images(images, channel)
+            elif images.ndim == 4:
+                if images.shape[-1] == 3:
+                    # Images are in the shape (N, Y, X, 3) for RGB images
+                    images_r = images[..., 0]
+                    images_g = images[..., 1]
+                    images_b = images[..., 2]
+                    channel = channel.split('_')[0]
+                    process_images(images_r, channel + '_R')
+                    process_images(images_g, channel + '_G')
+                    process_images(images_b, channel + '_B')
+                else:
+                    # Images are in the shape (N, Z, Y, X)
+                    process_images(images, channel)
+            else:
+                raise ValueError(f"Unexpected number of dimensions in images array: {images.ndim}")
 
-    def stitch_images(self, time_point, region, progress_callback=None):
-        self.stitched_images = self.init_output(region)
-        region_data = {k: v for k, v in self.stitching_data.items() if v['region'] == region}
+    def stitch_and_save_region(self, region, progress_callback=None):
+        stitched_images = self.init_output(region)
+        region_data = {k: v for k, v in self.stitching_data.items() if k[1] == region}
         total_tiles = len(region_data)
         processed_tiles = 0
 
-        region_df = self.coordinates_df[self.coordinates_df['region'] == region]
-        x_min = region_df['x (mm)'].min()
-        y_min = region_df['y (mm)'].min()
+        x_min = min(tile_info['x'] for tile_info in region_data.values())
+        y_min = min(tile_info['y'] for tile_info in region_data.values())
 
-        for idx, tile_info in region_data.items():
+        for key, tile_info in region_data.items():
+            t, _, _, z_level, channel = key
             tile = dask_imread(tile_info['filepath'])[0]
 
             x_pixel = int((tile_info['x'] - x_min) * 1000 / self.pixel_size_um)
             y_pixel = int((tile_info['y'] - y_min) * 1000 / self.pixel_size_um)
 
-            self.place_tile(tile, x_pixel, y_pixel, int(tile_info['z_level']), tile_info['channel'])
+            self.place_tile(stitched_images, tile, x_pixel, y_pixel, z_level, channel, t)
 
             processed_tiles += 1
             if progress_callback:
                 progress_callback(processed_tiles, total_tiles)
 
-    def place_tile(self, tile, x, y, z_level, channel):
-        if self.is_rgb[channel]:
-            for i, color in enumerate(['R', 'G', 'B']):
-                channel_idx = self.mono_channel_names.index(f"{channel} {color}")
-                self.place_single_channel_tile(tile[:,:,i], x, y, z_level, channel_idx)
+        self.starting_saving.emit(False)
+        if len(self.regions) > 1:
+            self.save_region_to_hcs_ome_zarr(region, stitched_images)
         else:
+            self.save_region_to_ome_zarr(region, stitched_images)
+
+    def place_tile(self, stitched_images, tile, x, y, z_level, channel, t):
+        if len(tile.shape) == 2:
+            # Handle 2D grayscale image
             channel_idx = self.mono_channel_names.index(channel)
-            self.place_single_channel_tile(tile, x, y, z_level, channel_idx)
+            self.place_single_channel_tile(stitched_images, tile, x, y, z_level, channel_idx, t)
 
-    def place_single_channel_tile(self, tile, x, y, z_level, channel_idx):
-        y_end = min(y + tile.shape[0], self.output_shape[3])
-        x_end = min(x + tile.shape[1], self.output_shape[4])
+        elif len(tile.shape) == 3:
+            if tile.shape[2] == 3:
+                # Handle RGB image
+                channel = channel.split('_')[0]
+                for i, color in enumerate(['R', 'G', 'B']):
+                    channel_idx = self.mono_channel_names.index(f"{channel}_{color}")
+                    self.place_single_channel_tile(stitched_images, tile[:,:,i], x, y, z_level, channel_idx, t)
+            elif tile.shape[0] == 1:
+                channel_idx = self.mono_channel_names.index(channel)
+                self.place_single_channel_tile(stitched_images, tile[0], x, y, z_level, channel_idx, t)
+        else:
+            raise ValueError(f"Unexpected tile shape: {tile.shape}")
 
+    def place_single_channel_tile(self, stitched_images, tile, x, y, z_level, channel_idx, t):
+        #print(f"stitching tile: t={t}, channel={channel_idx}, z={z_level}, x={x}, y={y}")
+        if len(stitched_images.shape) != 5:
+            raise ValueError(f"Unexpected stitched_images shape: {stitched_images.shape}. Expected 5D array (t, c, z, y, x).")
+        
+        y_end = min(y + tile.shape[0], stitched_images.shape[3])
+        x_end = min(x + tile.shape[1], stitched_images.shape[4])
+        
         if self.apply_flatfield:
             tile = self.apply_flatfield_correction(tile, channel_idx)
-
-        self.stitched_images[0, channel_idx, z_level, y:y_end, x:x_end] = tile[:y_end-y, :x_end-x]
+        
+        try:
+            stitched_images[t, channel_idx, z_level, y:y_end, x:x_end] = tile[:y_end-y, :x_end-x]
+        except Exception as e:
+            print(f"ERROR: Failed to place tile. Details: {str(e)}")
+            print(f"DEBUG: t={t}, channel_idx={channel_idx}, z_level={z_level}")
+            print(f"DEBUG: y:{y}-{y_end}, x:{x}-{x_end}")
+            print(f"DEBUG: tile slice shape: {tile[:y_end-y, :x_end-x].shape}")
+            raise
 
     def apply_flatfield_correction(self, tile, channel_idx):
         if channel_idx in self.flatfields:
@@ -987,197 +1072,509 @@ class CoordinateStitcher(QThread, QObject):
                                                               max=np.iinfo(self.dtype).max).astype(self.dtype)
         return tile
 
-    def save_as_ome_zarr(self, time_point, region):
-        output_folder = os.path.join(self.input_folder, f"{time_point}_stitched")
-        os.makedirs(output_folder, exist_ok=True)
-        output_path = os.path.join(output_folder, f"{region}_{self.output_name}")
-        image_name = f"{region}_t{time_point}"
+    def generate_pyramid(self, image, num_levels):
+        pyramid = [image]
+        for level in range(1, num_levels):
+            scale_factor = 2 ** level
+            factors = {0: 1, 1: 1, 2: 1, 3: scale_factor, 4: scale_factor}
+            if isinstance(image, da.Array):
+                downsampled = da.coarsen(np.mean, image, factors, trim_excess=True)
+            else:
+                block_size = (1, 1, 1, scale_factor, scale_factor)
+                downsampled = downscale_local_mean(image, block_size)
+            pyramid.append(downsampled)
+        return pyramid
 
-        zarr_writer = OmeZarrWriter(output_path)
-        zarr_writer.write_image(
-            image_name=image_name,
-            image_data=self.stitched_images,
-            dimension_order="TCZYX",
-            channel_names=self.mono_channel_names,
-            channel_colors=self.channel_colors,
-            physical_pixel_sizes=types.PhysicalPixelSizes(self.acquisition_params.get("dz(um)", 1.0), self.pixel_size_um, self.pixel_size_um),
-            scale_num_levels=self.num_pyramid_levels,
-            chunk_dims=self.chunks
+    def save_region_to_hcs_ome_zarr(self, region, stitched_images):
+        output_path = os.path.join(self.input_folder, self.output_name)
+        store = ome_zarr.io.parse_url(output_path, mode="a").store
+        root = zarr.group(store=store)
+
+        row, col = region[0], region[1:]
+        row_group = root.require_group(row)
+        well_group = row_group.require_group(col)
+
+        if 'well' not in well_group.attrs:
+            well_metadata = {
+                "images": [{"path": "0", "acquisition": 0}],
+            }
+            ome_zarr.writer.write_well_metadata(well_group, well_metadata["images"])
+
+        image_group = well_group.require_group("0")
+        
+        pyramid = self.generate_pyramid(stitched_images, self.num_pyramid_levels)
+        coordinate_transformations = [
+            [{
+                "type": "scale",
+                "scale": [1, 1, self.acquisition_params.get("dz(um)", 1), self.pixel_size_um * (2 ** i), self.pixel_size_um * (2 ** i)]
+            }] for i in range(self.num_pyramid_levels)
+        ]
+
+        axes = [
+            {"name": "t", "type": "time", "unit": "second"},
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"}
+        ]
+
+        # Prepare channels metadata
+        omero_channels = [{
+            "label": name,
+            "color": f"{color:06X}",
+            "window": {"start": 0, "end": np.iinfo(self.dtype).max, "min": 0, "max": np.iinfo(self.dtype).max}
+        } for name, color in zip(self.mono_channel_names, self.channel_colors)]
+
+        omero = {
+            "name": f"{region}",
+            "version": "0.4",
+            "channels": omero_channels
+        }
+
+        image_group.attrs["omero"] = omero
+
+        # Write the multiscale image data and metadata
+        ome_zarr.writer.write_multiscale(
+            pyramid=pyramid,
+            group=image_group,
+            chunks=self.chunks,
+            axes=axes,
+            coordinate_transformations=coordinate_transformations,
+            storage_options=dict(chunks=self.chunks),
+            name=f"{region}"
         )
 
-    def create_complete_ome_zarr(self):
-        """ Creates a complete OME-ZARR with proper channel metadata. """
-        final_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
-        if len(self.time_points) == 1:
-            zarr_path = os.path.join(self.input_folder, f"0_stitched", self.output_name)
-            shutil.copytree(zarr_path, final_path)
-        else:
-            store = ome_zarr.io.parse_url(final_path, mode="w").store
-            root_group = zarr.group(store=store)
-            intensity_min = np.iinfo(self.dtype).min
-            intensity_max = np.iinfo(self.dtype).max
+    def save_region_to_ome_zarr(self, region, stitched_images):
+        output_path = os.path.join(self.input_folder, self.output_name)
+        store = ome_zarr.io.parse_url(output_path, mode="a").store
+        root = zarr.group(store=store)
 
-            data = self.load_and_merge_timepoints()
-            ome_zarr.writer.write_image(
-                image=data,
-                group=root_group,
-                axes="tczyx",
-                channel_names=self.mono_channel_names,
-                storage_options=dict(chunks=self.chunks)
-            )
+        # Generate the pyramid
+        pyramid = self.generate_pyramid(stitched_images, self.num_pyramid_levels)
 
-            channel_info = [{
-                "label": self.mono_channel_names[i],
-                "color": f"{self.channel_colors[i]:06X}",
-                "window": {"start": intensity_min, "end": intensity_max},
-                "active": True
-            } for i in range(self.num_c)]
+        datasets = []
+        for i in range(self.num_pyramid_levels):
+            scale = 2**i
+            datasets.append({
+                "path": str(i),
+                "coordinateTransformations": [{
+                    "type": "scale",
+                    "scale": [1, 1, self.acquisition_params.get("dz(um)", 1), self.pixel_size_um * scale, self.pixel_size_um * scale]
+                }]
+            })
 
-            # Assign the channel metadata to the image group
-            root_group.attrs["omero"] = {"channels": channel_info}
+        axes = [
+            {"name": "t", "type": "time", "unit": "second"},
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"}
+        ]
 
-        print(f"Data saved in OME-ZARR format at: {final_path}")
-        self.finished_saving.emit(final_path, self.dtype)
+        ome_zarr.writer.write_multiscales_metadata(root, datasets, axes=axes, name="stitched_image")
 
-    def create_hcs_ome_zarr(self):
-        """Creates a hierarchical Zarr file in the HCS OME-ZARR format for visualization in napari."""
-        hcs_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
-        if len(self.time_points) == 1 and len(self.regions) == 1:
-            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.regions[0]}_{self.output_name}")
-            shutil.copytree(stitched_zarr_path, hcs_path)
-        else:
-            store = ome_zarr.io.parse_url(hcs_path, mode="w").store
-            root_group = zarr.group(store=store)
+        omero = {
+            "name": "stitched_image",
+            "version": "0.4",
+            "channels": [{
+                "label": name,
+                "color": f"{color:06X}",
+                "window": {"start": 0, "end": np.iinfo(self.dtype).max, "min": 0, "max": np.iinfo(self.dtype).max}
+            } for name, color in zip(self.mono_channel_names, self.channel_colors)]
+        }
+        root.attrs["omero"] = omero
 
-            rows, columns = self.get_rows_and_columns()
-            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.regions)]
-            ome_zarr.writer.write_plate_metadata(root_group, rows, [str(col) for col in columns], well_paths)
+        coordinate_transformations = [
+            dataset["coordinateTransformations"] for dataset in datasets
+        ]
 
-            for well_id in self.regions:
-                row, col = well_id[0], well_id[1:]
-                row_group = root_group.require_group(row)
-                well_group = row_group.require_group(col)
-                self.write_well_and_metadata(well_id, well_group)
+        ome_zarr.writer.write_multiscale(
+            pyramid=pyramid,
+            group=root,
+            axes="tczyx",
+            coordinate_transformations=coordinate_transformations,
+            storage_options=dict(chunks=self.chunks)
+        )
 
-        print(f"Data saved in HCS OME-ZARR format at: {hcs_path}")
-        self.finished_saving.emit(hcs_path, self.dtype)
+    def write_stitched_plate_metadata(self):
+        output_path = os.path.join(self.input_folder, self.output_name)
+        store = ome_zarr.io.parse_url(output_path, mode="a").store
+        root = zarr.group(store=store)
 
-    def write_well_and_metadata(self, well_id, well_group):
-        """Process and save data for a single well across all timepoints."""
-        data = self.load_and_merge_timepoints(well_id)
-        intensity_min = np.iinfo(self.dtype).min
-        intensity_max = np.iinfo(self.dtype).max
-        field_paths = ["0"]  # Assuming single field of view
-        ome_zarr.writer.write_well_metadata(well_group, field_paths)
-        for fi, field in enumerate(field_paths):
-            image_group = well_group.require_group(str(field))
-            ome_zarr.writer.write_image(image=data,
-                                        group=image_group,
-                                        axes="tczyx",
-                                        channel_names=self.mono_channel_names,
-                                        storage_options=dict(chunks=self.chunks)
-                                        )
-            channel_info = [{
-                "label": self.mono_channel_names[c],
-                "color": f"{self.channel_colors[c]:06X}",
-                "window": {"start": intensity_min, "end": intensity_max},
-                "active": True
-            } for c in range(self.num_c)]
-
-            image_group.attrs["omero"] = {"channels": channel_info}
-
-    def load_and_merge_timepoints(self, well_id=''):
-        """Load and merge data for a well from Zarr files for each timepoint."""
-        t_data = []
-        t_shapes = []
-        for t in self.time_points:
-            if well_id:
-                filepath = f"{well_id}_{self.output_name}"
-            else:
-                filepath = f"{self.output_name}"
-            zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
-            print(f"t:{t} well:{well_id}, \t{zarr_path}")
-            z = zarr.open(zarr_path, mode='r')
-            t_array = da.from_zarr(z['0'], chunks=self.chunks)
-            t_data.append(t_array)
-            t_shapes.append(t_array.shape)
-
-        if len(t_data) > 1:
-            max_shape = tuple(max(s) for s in zip(*t_shapes))
-            padded_data = [self.pad_to_largest(t, max_shape) for t in t_data]
-            data = da.concatenate(padded_data, axis=0)
-        elif len(t_data) == 1:
-            data = t_data[0]
-        else:
-            raise ValueError("no data loaded from timepoints.")
-
-        return data
-
-    def pad_to_largest(self, array, target_shape):
-        if array.shape == target_shape:
-            return array
-        pad_widths = [(0, max(0, ts - s)) for s, ts in zip(array.shape, target_shape)]
-        return da.pad(array, pad_widths, mode='constant', constant_values=0)
+        rows, columns = self.get_rows_and_columns()
+        well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.regions)]
+        
+        plate_metadata = {
+            "name": "Stitched Plate",
+            "rows": [{"name": row} for row in rows],
+            "columns": [{"name": col} for col in columns],
+            "wells": [{"path": path, "rowIndex": rows.index(path[0]), "columnIndex": columns.index(path[2:])} 
+                      for path in well_paths],
+            "field_count": 1,
+            "acquisitions": [{
+                "id": 0,
+                "maximumfieldcount": 1,
+                "name": "Stitched Acquisition"
+            }]
+        }
+        
+        ome_zarr.writer.write_plate_metadata(
+            root,
+            rows=[row["name"] for row in plate_metadata["rows"]],
+            columns=[col["name"] for col in plate_metadata["columns"]],
+            wells=plate_metadata["wells"],
+            acquisitions=plate_metadata["acquisitions"],
+            name=plate_metadata["name"],
+            field_count=plate_metadata["field_count"]
+        )
 
     def get_rows_and_columns(self):
-        """Utility to extract rows and columns from well identifiers."""
-        rows = set()
-        columns = set()
-        for well_id in self.regions:
-            rows.add(well_id[0])  # Assuming well_id like 'A1'
-            columns.add(int(well_id[1:]))
-        return sorted(rows), sorted(columns)
+        rows = sorted(set(region[0] for region in self.regions))
+        columns = sorted(set(region[1:] for region in self.regions))
+        return rows, columns
+
+    def create_ome_tiff(self, stitched_images):
+        output_path = os.path.join(self.input_folder, self.output_name)
+        
+        with TiffWriter(output_path, bigtiff=True, ome=True) as tif:
+            tif.write(
+                data=stitched_images,
+                shape=stitched_images.shape,
+                dtype=self.dtype,
+                photometric='minisblack',
+                planarconfig='separate',
+                metadata={
+                    'axes': 'TCZYX',
+                    'Channel': {'Name': self.mono_channel_names},
+                    'SignificantBits': stitched_images.dtype.itemsize * 8,
+                    'Pixels': {
+                        'PhysicalSizeX': self.pixel_size_um,
+                        'PhysicalSizeXUnit': 'µm',
+                        'PhysicalSizeY': self.pixel_size_um,
+                        'PhysicalSizeYUnit': 'µm',
+                        'PhysicalSizeZ': self.acquisition_params.get("dz(um)", 1.0),
+                        'PhysicalSizeZUnit': 'µm',
+                    },
+                }
+            )
+        
+        print(f"Data saved in OME-TIFF format at: {output_path}")
+        self.finished_saving.emit(output_path, self.dtype)
+
+    # import concurrent.futures
+
+    # def run(self):
+    #     stime = time.time()
+    #     try:
+    #         self.get_time_points()
+    #         self.parse_filenames()
+
+    #         if self.apply_flatfield:
+    #             print("Calculating flatfields...")
+    #             self.getting_flatfields.emit()
+    #             self.get_flatfields(progress_callback=self.update_progress.emit)
+    #             print("time to apply flatfields", time.time() - stime)
+
+    #         if len(self.regions) > 1:
+    #             self.write_stitched_plate_metadata()
+
+    #         # Parallelize region processing
+    #         with concurrent.futures.ThreadPoolExecutor() as executor:
+    #             futures = []
+    #             for region in self.regions:
+    #                 future = executor.submit(self.process_region, region)
+    #                 futures.append(future)
+
+    #             # Wait for all futures to complete
+    #             for future in concurrent.futures.as_completed(futures):
+    #                 try:
+    #                     future.result()
+    #                 except Exception as e:
+    #                     print(f"Error processing region: {e}")
+
+    #         if self.output_format.endswith('.ome.tiff'):
+    #             self.create_ome_tiff(self.stitched_images)
+    #         else:
+    #             output_path = os.path.join(self.input_folder, self.output_name)
+    #             print(f"Data saved in OME-ZARR format at: {output_path}")
+    #             self.print_zarr_structure(output_path)
+
+    #         self.finished_saving.emit(os.path.join(self.input_folder, self.output_name), self.dtype)
+    #         print("total time to stitch + save:", time.time() - stime)
+
+    #     except Exception as e:
+    #         print("time before error", time.time() - stime)
+    #         print(f"Error while stitching: {e}")
+    #         raise
+
+    # def process_region(self, region):
+    #     wtime = time.time()
+    #     self.starting_stitching.emit()
+    #     print(f"\nstarting stitching for region {region}...")
+    #     self.stitch_and_save_region(region, progress_callback=self.update_progress.emit)
+
+    #     sttime = time.time()
+    #     print(f"time to stitch and save region {region}", time.time() - wtime)
+    #     print(f"...done with region:{region}")
 
     def run(self):
-        # Main stitching logic
         stime = time.time()
         try:
-            self.time_points = self.get_time_points()
-            for time_point in self.time_points:
-                ttime = time.time()
-                print(f"starting t:{time_point}...")
-                self.parse_filenames(time_point)
+            self.get_time_points()
+            self.parse_filenames()
 
-                if self.apply_flatfield:
-                    print("Calculating flatfields...")
-                    self.getting_flatfields.emit()
-                    self.get_flatfields(progress_callback=self.update_progress.emit)
-                    print("time to apply flatfields", time.time() - ttime)
+            if self.apply_flatfield:
+                print("Calculating flatfields...")
+                self.getting_flatfields.emit()
+                self.get_flatfields(progress_callback=self.update_progress.emit)
+                print("time to apply flatfields", time.time() - stime)
 
-                for region in self.regions:
-                    wtime = time.time()
-                    self.starting_stitching.emit()
-                    print(f"\nstarting stitching...")
-                    self.stitch_images(time_point, region, progress_callback=self.update_progress.emit)
+            if len(self.regions) > 1:
+                self.write_stitched_plate_metadata()
 
-                    sttime = time.time()
-                    print("time to stitch region", sttime - wtime)
+            for region in self.regions:
+                wtime = time.time()
+                self.starting_stitching.emit()
+                print(f"\nstarting stitching for region {region}...")
+                self.stitch_and_save_region(region, progress_callback=self.update_progress.emit)
 
-                    self.starting_saving.emit(not STITCH_COMPLETE_ACQUISITION)
-                    print(f"saving...")
-                    self.save_as_ome_zarr(time_point, region)
+                sttime = time.time()
+                print(f"time to stitch and save region {region}", time.time() - wtime)
+                print(f"...done with region:{region}")
 
-                    print("time to save stitched region", time.time() - sttime)
-                    print("time per region", time.time() - wtime)
-                    print(f"...done saving region:{region}")
-                print(f"...finished t:{time_point}")
-                print("time per timepoint", time.time() - ttime)
-
-            if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
-                self.starting_saving.emit(True)
-                scatime = time.time()
-                if len(self.regions) > 1:
-                    self.create_hcs_ome_zarr()
-                    print("...done saving complete hcs successfully")
-                else:
-                    self.create_complete_ome_zarr()
-                    print("...done saving complete successfully")
-                print("time to save merged regions and timepoints", time.time() - scatime)
+            if self.output_format.endswith('.ome.tiff'):
+                self.create_ome_tiff(self.stitched_images)
             else:
-                self.finished_saving.emit(self.output_path, self.dtype)
+                output_path = os.path.join(self.input_folder, self.output_name)
+                print(f"Data saved in OME-ZARR format at: {output_path}")
+                self.print_zarr_structure(output_path)
+
+            self.finished_saving.emit(os.path.join(self.input_folder, self.output_name), self.dtype)
             print("total time to stitch + save:", time.time() - stime)
 
         except Exception as e:
             print("time before error", time.time() - stime)
             print(f"Error while stitching: {e}")
             raise
+
+#________________________________________________________________________________________________________________________________
+# run_fovs: directly save fovs to final hcs ome zarr 
+# 
+# issue:
+# only shows one fov per region when there are multiple fovs 
+#   - (fix metadata? translation, scale, path, multiscale?)
+# correct channels in napari, well + plate metadata, z-stack shape, time-point shape
+
+    def run_fovs(self):
+        stime = time.time()
+        try:
+            self.get_time_points()
+            self.parse_filenames()
+
+            if self.apply_flatfield:
+                print("Calculating flatfields...")
+                self.getting_flatfields.emit()
+                self.get_flatfields(progress_callback=self.update_progress.emit)
+                print("time to apply flatfields", time.time() - stime)
+
+            self.starting_stitching.emit()
+            self.save_fovs()
+
+            output_path = os.path.join(self.input_folder, self.output_name)
+            print(f"Data saved in OME-ZARR format at: {output_path}")
+            self.print_zarr_structure(output_path)
+            self.finished_saving.emit(output_path, self.dtype)
+
+            print("total time to save FOVs:", time.time() - stime)
+
+        except Exception as e:
+            print("time before error", time.time() - stime)
+            print(f"Error while stitching: {e}")
+            raise
+
+
+    def save_fovs(self):
+        output_path = os.path.join(self.input_folder, self.output_name)
+        store = ome_zarr.io.parse_url(output_path, mode="a").store
+        root = zarr.group(store=store)
+
+        self.write_fov_plate_metadata(root)
+
+        total_fovs = sum(len(set([k[2] for k in self.stitching_data.keys() if k[1] == region])) for region in self.regions)
+        processed_fovs = 0
+
+        for region in self.regions:
+            region_data = {k: v for k, v in self.stitching_data.items() if k[1] == region}
+            well_group = self.write_fov_well_metadata(root, region)
+
+            for fov_idx in range(self.num_fovs_per_region):
+                fov_data = {k: v for k, v in region_data.items() if k[2] == fov_idx}
+                
+                if not fov_data:
+                    continue  # Skip if no data for this FOV index
+
+                tcz_fov = self.compile_single_fov_data(fov_data)
+                self.write_fov_to_zarr(well_group, tcz_fov, fov_idx, fov_data)
+                processed_fovs += 1
+                self.update_progress.emit(processed_fovs, total_fovs)
+
+        omero_channels = [{
+            "label": name,
+            "color": f"{color:06X}",
+            "window": {"start": 0, "end": np.iinfo(self.dtype).max, "min": 0, "max": np.iinfo(self.dtype).max}
+        } for name, color in zip(self.mono_channel_names, self.channel_colors)]
+
+        omero = {
+            "name": "hcs-acquisition",
+            "version": "0.4",
+            "channels": omero_channels
+        }
+
+        root.attrs["omero"] = omero
+
+    def compile_single_fov_data(self, fov_data):
+        # Initialize a 5D array to hold all the data for this FOV
+        tcz_fov = np.zeros((self.num_t, self.num_c, self.num_z, self.input_height, self.input_width), dtype=self.dtype)
+
+        for key, scan_info in fov_data.items():
+            t, _, _, z_level, channel = key
+            image = dask_imread(scan_info['filepath'])[0]
+            
+            if self.apply_flatfield:
+                channel_idx = self.mono_channel_names.index(channel)
+                image = self.apply_flatfield_correction(image, channel_idx)
+
+            if len(image.shape) == 3 and image.shape[2] == 3:  # RGB image
+                channel = channel.split('_')[0]
+                for i, color in enumerate(['R', 'G', 'B']):
+                    c_idx = self.mono_channel_names.index(f"{channel}_{color}")
+                    tcz_fov[t, c_idx, z_level] = image[:, :, i]
+            else:  # Grayscale image
+                c_idx = self.mono_channel_names.index(channel)
+                tcz_fov[t, c_idx, z_level] = image
+
+        return da.from_array(tcz_fov, chunks=self.chunks)
+
+    def write_fov_plate_metadata(self, root):
+        rows, columns = self.get_rows_and_columns()
+        well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.regions)]
+        
+        plate_metadata = {
+            "name": "Sample",
+            "rows": [{"name": row} for row in rows],
+            "columns": [{"name": col} for col in columns],
+            "wells": [{"path": path, "rowIndex": rows.index(path[0]), "columnIndex": columns.index(path[2:])} 
+                      for path in well_paths],
+            "field_count": self.num_fovs_per_region * len(self.regions),
+            "acquisitions": [{
+                "id": 0,
+                "maximumfieldcount": self.num_fovs_per_region,
+                "name": "Multipoint Acquisition"
+            }]
+        }
+        
+        ome_zarr.writer.write_plate_metadata(
+            root,
+            rows=[row["name"] for row in plate_metadata["rows"]],
+            columns=[col["name"] for col in plate_metadata["columns"]],
+            wells=plate_metadata["wells"],
+            acquisitions=plate_metadata["acquisitions"],
+            name=plate_metadata["name"],
+            field_count=plate_metadata["field_count"]
+        )
+
+    def write_fov_well_metadata(self, root, region):
+        row, col = region[0], region[1:]
+        row_group = root.require_group(row)
+        well_group = row_group.require_group(col)
+
+        if 'well' not in well_group.attrs:
+            well_metadata = {
+                "images": [{"path": str(fov_idx), "acquisition": 0} for fov_idx in range(self.num_fovs_per_region)]
+            }
+            ome_zarr.writer.write_well_metadata(well_group, well_metadata["images"])
+        return well_group
+
+    def write_fov_to_zarr(self, well_group, tcz_fov, fov_idx, fov_data):
+        axes = [
+            {"name": "t", "type": "time", "unit": "second"},
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"}
+        ]
+
+        # Generate pyramid levels
+        pyramid = self.generate_pyramid(tcz_fov, self.num_pyramid_levels)
+
+        # Get the position of the FOV (use the first scan in fov_data)
+        first_scan = next(iter(fov_data.values()))
+        x_mm, y_mm = first_scan['x'], first_scan['y']
+        
+        # Get the z positions
+        z_positions = sorted(set(scan_info['z'] for scan_info in fov_data.values()))
+        z_min = min(z_positions)
+        dz = self.acquisition_params.get("dz(um)", 1.0)
+        
+        # Create coordinate transformations for each pyramid level
+        coordinate_transformations = []
+        for level in range(len(pyramid)):
+            scale_factor = 2 ** level
+            coordinate_transformations.append([
+                {
+                    "type": "scale",
+                    "scale": [1, 1, dz, self.pixel_size_um * scale_factor, self.pixel_size_um * scale_factor]
+                },
+                {
+                    "type": "translation",
+                    "translation": [0, 0, z_min, y_mm*1000, x_mm*1000]
+                }
+            ])
+
+        image_group = well_group.require_group(str(fov_idx))
+
+        # Prepare datasets for multiscales metadata
+        datasets = [
+            {
+                "path": str(i),
+                "coordinateTransformations": coord_trans
+            } for i, coord_trans in enumerate(coordinate_transformations)
+        ]
+
+        # Write multiscales metadata
+        ome_zarr.writer.write_multiscales_metadata(
+            group=image_group,
+            datasets=datasets,
+            axes=axes,
+            name=f"FOV_{fov_idx}"  # This will be passed as part of **metadata
+        )
+
+        # Write the actual data
+        ome_zarr.writer.write_multiscale(
+            pyramid=pyramid,
+            group=image_group,
+            axes=axes,
+            coordinate_transformations=coordinate_transformations,
+            storage_options=dict(chunks=self.chunks),
+        )
+
+        # Add OMERO metadata
+        omero_channels = [{
+            "label": name,
+            "color": f"{color:06X}",
+            "window": {"start": 0, "end": np.iinfo(self.dtype).max, "min": 0, "max": np.iinfo(self.dtype).max}
+        } for name, color in zip(self.mono_channel_names, self.channel_colors)]
+
+        omero = {
+            "name": f"FOV_{fov_idx}",
+            "version": "0.4",
+            "channels": omero_channels
+        }
+
+        image_group.attrs["omero"] = omero
+
+    def print_zarr_structure(self, path, indent=""):
+        root = zarr.open(path, mode='r')
+        print(f"Zarr Tree and Metadata for: {path}")
+        print(root.tree())
+        print(dict(root.attrs))

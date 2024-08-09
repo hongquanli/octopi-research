@@ -2631,12 +2631,13 @@ class MultiPointWidgetGrid(QFrame):
         self.navigationViewer = navigationViewer
         self.scanCoordinates = scanCoordinates
         self.configurationManager = configurationManager
+        self.acquisition_pattern = ACQUISITION_PATTERN
         self.base_path_is_set = False
         self.well_selected = False
         self.use_coordinate_acquisition = True
         self.num_regions = 0
         self.region_coordinates = {}
-        self.region_coordinates_map = {}
+        self.region_fov_coordinates_dict = {}
         self.acquisition_start_time = None
         self.eta_seconds = 0
         self.add_components()
@@ -3098,7 +3099,7 @@ class MultiPointWidgetGrid(QFrame):
             overlap_percent=self.entry_overlap.value(),
             shape=self.combobox_shape.currentText()
         )
-        self.region_coordinates_map[well_id] = scan_coordinates
+        self.region_fov_coordinates_dict[well_id] = scan_coordinates
 
         print(f"{action} Region: {well_id} - x={x:.3f}, y={y:.3f}") #, z={z:.3f}")
         print("Size:", self.entry_scan_size.value())
@@ -3109,8 +3110,8 @@ class MultiPointWidgetGrid(QFrame):
         if well_id in self.region_coordinates:
             del self.region_coordinates[well_id]
 
-            if well_id in self.region_coordinates_map:
-                region_scan_coordinates = self.region_coordinates_map.pop(well_id)
+            if well_id in self.region_fov_coordinates_dict:
+                region_scan_coordinates = self.region_fov_coordinates_dict.pop(well_id)
                 for coord in region_scan_coordinates:
                     self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
 
@@ -3119,7 +3120,7 @@ class MultiPointWidgetGrid(QFrame):
     def clear_regions(self):
         self.navigationViewer.clear_overlay()
         self.region_coordinates.clear()
-        self.region_coordinates_map.clear()
+        self.region_fov_coordinates_dict.clear()
         print("Cleared all regions")
 
     def create_region_coordinates(self, objectiveStore, center_x, center_y, scan_size_mm=None, overlap_percent=10, shape='Square'):
@@ -3174,8 +3175,10 @@ class MultiPointWidgetGrid(QFrame):
                 else:
                     raise ValueError(f"Unsupported shape: {shape}. Choose 'Square' or 'Circle'.")
 
-            if i % 2 == 1:  # Reverse every other row
+            if self.acquisition_pattern == 'S-Pattern' and i % 2 == 1:  # Reverse every other row
                 row.reverse()
+            elif self.acquisition_pattern == 'Unidirectional':
+                pass
 
             scan_coordinates.extend(row)
 
@@ -3246,6 +3249,52 @@ class MultiPointWidgetGrid(QFrame):
         self.scanCoordinates.grid_skip_positions = region_skip_positions
         return steps, step_size_mm
 
+    def sort_coordinates(self):
+        def well_id_sort_key(well_id):
+            # Split the well_id into the row part and the column part
+            row_label = well_id[0]  # First character is the row label
+            col_number = int(well_id[1:])  # Remaining characters are the column number
+            return (row_label, col_number)
+
+        print(f"Acquisition pattern: {self.acquisition_pattern}")
+        
+        sorted_keys = sorted(self.region_coordinates.keys(), key=well_id_sort_key)
+        
+        if self.acquisition_pattern == 'S-Pattern':
+            # Determine number of columns based on the keys
+            num_columns = max(int(key[1:]) for key in sorted_keys)
+            
+            # Group keys by row
+            rows = {}
+            for key in sorted_keys:
+                row_label = key[0]
+                if row_label not in rows:
+                    rows[row_label] = []
+                rows[row_label].append(key)
+            
+            # Sort each row and apply the S-pattern
+            sorted_keys = []
+            for i, row_label in enumerate(sorted(rows.keys())):
+                row = sorted(rows[row_label], key=lambda x: int(x[1:]))  # Sort the row by column number
+                
+                if i % 2 == 1:  # Reverse every other row
+                    row.reverse()
+                
+                sorted_keys.extend(row)
+
+        elif self.acquisition_pattern == 'Unidirectional':
+            # Already sorted by well_id_sort_key
+            pass
+        else:
+            # No sorting for any other pattern
+            return
+
+        # Create new dictionaries with sorted keys using dictionary comprehensions
+        self.region_coordinates = {key: self.region_coordinates[key] for key in sorted_keys}
+        self.region_fov_coordinates_dict = {key: self.region_fov_coordinates_dict[key] 
+                                            for key in sorted_keys 
+                                            if key in self.region_fov_coordinates_dict}
+
     def toggle_acquisition(self, pressed):
         if not self.base_path_is_set:
             self.btn_startAcquisition.setChecked(False)
@@ -3272,6 +3321,7 @@ class MultiPointWidgetGrid(QFrame):
             overlap_percent = self.entry_overlap.value()
             shape = self.combobox_shape.currentText()
 
+            self.sort_coordinates()
             if self.use_coordinate_acquisition:
                 if len(self.region_coordinates) == 0:
                     # Use current location if no regions added
@@ -3286,10 +3336,10 @@ class MultiPointWidgetGrid(QFrame):
                         overlap_percent=overlap_percent,
                         shape=shape
                     )
-                    self.region_coordinates_map['current'] = scan_coordinates
+                    self.region_fov_coordinates_dict['current'] = scan_coordinates
 
                 # Calculate total number of positions for signal emission
-                total_positions = sum(len(coords) for coords in self.region_coordinates_map.values())
+                total_positions = sum(len(coords) for coords in self.region_fov_coordinates_dict.values())
                 Nx = Ny = int(math.sqrt(total_positions))
                 dx_mm = dy_mm = scan_size_mm / (Nx - 1) if Nx > 1 else scan_size_mm
 
@@ -3315,6 +3365,9 @@ class MultiPointWidgetGrid(QFrame):
                 self.multipointController.set_deltaX(dx_mm)
                 self.multipointController.set_deltaY(dy_mm)
 
+            minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
+            maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
+            self.multipointController.set_z_range(minZ, maxZ)
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_deltat(self.entry_dt.value())
@@ -3329,14 +3382,15 @@ class MultiPointWidgetGrid(QFrame):
             self.signal_acquisition_shape.emit(Nx, Ny, self.entry_NZ.value(),
                                                dx_mm, dy_mm, self.entry_deltaZ.value())
             print("Nx,Ny,Nz", Nx, Ny, self.entry_NZ.value())
-            print("dx,dy,zd", dx_mm, dy_mm, self.entry_deltaZ.value())
+            print("dx,dy,dz", dx_mm, dy_mm, self.entry_deltaZ.value())
+            print("Z-range", (minZ, maxZ))
             print("region coordinates:")
             for well_id, coords in self.region_coordinates.items():
                 print(f"{well_id}: {coords}")
 
             # Start acquisition
             if self.use_coordinate_acquisition:
-                self.multipointController.run_acquisition(location_list=self.region_coordinates, coordinate_dict=self.region_coordinates_map)
+                self.multipointController.run_acquisition(location_list=self.region_coordinates, coordinate_dict=self.region_fov_coordinates_dict)
             else:
                 if self.scanCoordinates.format == 0:
                     self.multipointController.run_acquisition(location_list=list(self.region_coordinates.values())) # glass slide
@@ -3363,6 +3417,15 @@ class MultiPointWidgetGrid(QFrame):
             if self.scanCoordinates.format == 0:
                 self.entry_well_coverage.setEnabled(False)
             self.entry_deltaZ.setEnabled(False)
+        if enabled:
+            self.navigationController.zPos.connect(self.update_z_min)
+            self.navigationController.zPos.connect(self.update_z_max)
+        else:
+            try:  
+                self.navigationController.zPos.disconnect(self.update_z_min)
+                self.navigationController.zPos.disconnect(self.update_z_max)
+            except TypeError:
+                pass 
 
     def set_saving_dir(self):
         dialog = QFileDialog()

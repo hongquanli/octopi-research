@@ -1639,11 +1639,13 @@ class MultiPointWorker(QObject):
         self.timestamp_acquisition_started = self.multiPointController.timestamp_acquisition_started
         self.time_point = 0
         self.af_fov_count = 0
+        self.num_fovs = 0
         self.coordinate_dict = self.multiPointController.coordinate_dict
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
         self.scan_coordinates_name = self.multiPointController.scan_coordinates_name
         self.z_stacking_config = self.multiPointController.z_stacking_config
+        self.z_range = self.multiPointController.z_range
 
         self.microscope = self.multiPointController.parent
         try:
@@ -1742,7 +1744,7 @@ class MultiPointWorker(QObject):
         # create a dataframe to save coordinates
         self.initialize_coordinates_dataframe()
 
-        # init z parameters
+        # init z parameters, z range
         self.initialize_z_stack()
 
         if self.coordinate_dict is not None:
@@ -1761,11 +1763,14 @@ class MultiPointWorker(QObject):
     def initialize_z_stack(self):
         self.count_rtp = 0
         self.dz_usteps = 0 # accumulated z displacement
-        self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
         # z stacking config
         if self.z_stacking_config == 'FROM TOP':
             self.deltaZ_usteps = -abs(self.deltaZ_usteps)
+            self.move_to_z_level(self.z_range[1])
+        else:
+            self.move_to_z_level(self.z_range[0])
+        self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
         # reset piezo to home position
         if self.use_piezo:
@@ -1783,13 +1788,13 @@ class MultiPointWorker(QObject):
 
         if IS_HCS:
             if self.coordinate_dict is not None:
-                self.coordinates_pd = pd.DataFrame(columns=['region'] + base_columns + piezo_column)
+                self.coordinates_pd = pd.DataFrame(columns=['region', 'fov'] + base_columns + piezo_column)
             else:
                 self.coordinates_pd = pd.DataFrame(columns=['region', 'i', 'j'] + base_columns + piezo_column)
         else:
             self.coordinates_pd = pd.DataFrame(columns=['i', 'j'] + base_columns + piezo_column)
 
-    def update_coordinates_dataframe(self, region_id, i, j, z_level):
+    def update_coordinates_dataframe(self, region_id, z_level, fov=None, i=None, j=None):
         base_data = {
             'z_level': [z_level],
             'x (mm)': [self.navigationController.x_pos_mm],
@@ -1803,7 +1808,7 @@ class MultiPointWorker(QObject):
             if self.coordinate_dict is not None:
                 new_row = pd.DataFrame({
                     'region': [region_id],
-                    'i': [i],
+                    'fov': [fov],
                     **base_data,
                     **piezo_data
                 })
@@ -1849,20 +1854,23 @@ class MultiPointWorker(QObject):
         # check if z is included in the coordinate
         if len(coordinate_mm) == 3:
             z_mm = coordinate_mm[2]
-            if z_mm >= self.navigationController.z_pos_mm:
-                self.navigationController.move_z_to(z_mm)
+            self.move_to_z_level(z_mm)
+
+    def move_to_z_level(self, z_mm):
+        if z_mm >= self.navigationController.z_pos_mm:
+            self.navigationController.move_z_to(z_mm)
+            self.wait_till_operation_is_completed()
+        else:
+            self.navigationController.move_z_to(z_mm)
+            self.wait_till_operation_is_completed()
+            # remove backlash
+            if self.navigationController.get_pid_control_flag(2) is False:
+                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+                self.navigationController.move_z_usteps(-_usteps_to_clear_backlash) # to-do: combine this with the above
                 self.wait_till_operation_is_completed()
-            else:
-                self.navigationController.move_z_to(z_mm)
+                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
-                # remove backlash
-                if self.navigationController.get_pid_control_flag(2) is False:
-                    _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                    self.navigationController.move_z_usteps(-_usteps_to_clear_backlash) # to-do: combine this with the above
-                    self.wait_till_operation_is_completed()
-                    self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                    self.wait_till_operation_is_completed()
-            time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
+        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
     def run_grid_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
@@ -1890,7 +1898,7 @@ class MultiPointWorker(QObject):
 
                 self.wait_till_operation_is_completed()
 
-            num_fovs = self.NX * self.NY - len(self.multiPointController.scanCoordinates.grid_skip_positions)
+            self.num_fovs = self.NX * self.NY - len(self.multiPointController.scanCoordinates.grid_skip_positions)
             fov_count = 0 # count fovs for progress
 
             for i in range(self.NY):
@@ -1900,10 +1908,9 @@ class MultiPointWorker(QObject):
                     sgn_i, sgn_j, real_i, real_j = self.calculate_grid_indices(i, j)
 
                     if not self.multiPointController.scanCoordinates or (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
-                        self.acquire_at_position(region_id, current_path, real_i, real_j)
-
+                        self.acquire_at_position(region_id, current_path, fov=fov_count, i=real_i, j=real_j)
                         fov_count += 1
-                        self.signal_region_progress.emit(fov_count, num_fovs)
+                        self.signal_region_progress.emit(fov_count, self.num_fovs)
 
                     if self.multiPointController.abort_acqusition_requested:
                         self.handle_acquisition_abort(current_path, region_id)
@@ -1926,21 +1933,21 @@ class MultiPointWorker(QObject):
 
             self.signal_acquisition_progress.emit(region_index + 1, n_regions)
 
-            num_fovs = len(coordinates)
+            self.num_fovs = len(coordinates)
 
             for fov_count, coordinate_mm in enumerate(coordinates):
 
                 self.move_to_coordinate(coordinate_mm)
 
-                self.acquire_at_position(region_id, current_path, fov_count)
+                self.acquire_at_position(region_id, current_path, fov=fov_count)
 
-                self.signal_region_progress.emit(fov_count, num_fovs)
+                self.signal_region_progress.emit(fov_count + 1, self.num_fovs)
 
                 if self.multiPointController.abort_acqusition_requested:
                     self.handle_acquisition_abort(current_path, region_id)
                     return
 
-    def acquire_at_position(self, region_id, current_path, i=None, j=None):
+    def acquire_at_position(self, region_id, current_path, fov=None, i=None, j=None):
 
         self.perform_autofocus(region_id)
 
@@ -1958,10 +1965,8 @@ class MultiPointWorker(QObject):
         for z_level in range(self.NZ):
             if i is not None and j is not None:
                 file_ID = f"{coordinate_name}_{i}_{j}_{z_level}"
-            elif i is not None:
-                file_ID = f"{coordinate_name}_{i}_{z_level}"
             else:
-                file_ID = f"{coordinate_name}_x{x_mm:.3f}_y{y_mm:.3f}_z{z_level}"
+                file_ID = f"{coordinate_name}_{fov}_{z_level}"
 
             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
             print("ID:", file_ID, "\nScan Coordinate:", metadata)
@@ -2029,7 +2034,10 @@ class MultiPointWorker(QObject):
                 except AttributeError as e:
                     print(repr(e))
 
-            self.update_coordinates_dataframe(region_id, i, j, z_level)
+            if i is None or j is None:
+                self.update_coordinates_dataframe(region_id, z_level, fov)
+            else:
+                self.update_coordinates_dataframe(region_id, z_level, i, j)
             self.signal_register_current_fov.emit(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
             # check if the acquisition should be aborted
@@ -2523,6 +2531,7 @@ class MultiPointController(QObject):
         self.parent = parent
         self.start_time = 0
         self.old_images_per_page = 1
+        self.z_range = [self.navigationController.z_pos_mm, self.navigationController.z_pos_mm + self.deltaZ * (self.NZ - 1)] # [start_mm, end_mm]
 
         try:
             if self.parent is not None:
@@ -2537,6 +2546,9 @@ class MultiPointController(QObject):
         if z_stacking_config_index in Z_STACKING_CONFIG_MAP:
             self.z_stacking_config = Z_STACKING_CONFIG_MAP[z_stacking_config_index]
         print(f"z-stacking configuration set to: {self.z_stacking_config}")
+
+    def set_z_range(self, minZ, maxZ):
+        self.z_range = [minZ, maxZ]
 
     def set_NX(self,N):
         self.NX = N
