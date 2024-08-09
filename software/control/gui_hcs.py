@@ -369,7 +369,7 @@ class OctopiGUI(QMainWindow):
             self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
         self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
         self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
-        self.cameraTabWidget.addTab(frame, "Microscope")
+        self.cameraTabWidget.addTab(frame, "Sample")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 

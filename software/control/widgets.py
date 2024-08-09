@@ -2632,6 +2632,7 @@ class MultiPointWidgetGrid(QFrame):
         self.scanCoordinates = scanCoordinates
         self.configurationManager = configurationManager
         self.acquisition_pattern = ACQUISITION_PATTERN
+        self.fov_pattern = FOV_PATTERN
         self.base_path_is_set = False
         self.well_selected = False
         self.use_coordinate_acquisition = True
@@ -3175,9 +3176,9 @@ class MultiPointWidgetGrid(QFrame):
                 else:
                     raise ValueError(f"Unsupported shape: {shape}. Choose 'Square' or 'Circle'.")
 
-            if self.acquisition_pattern == 'S-Pattern' and i % 2 == 1:  # Reverse every other row
+            if self.fov_pattern == 'S-Pattern' and i % 2 == 1:  # Reverse every other row
                 row.reverse()
-            elif self.acquisition_pattern == 'Unidirectional':
+            elif self.fov_pattern == 'Unidirectional':
                 pass
 
             scan_coordinates.extend(row)
@@ -3258,6 +3259,10 @@ class MultiPointWidgetGrid(QFrame):
 
         print(f"Acquisition pattern: {self.acquisition_pattern}")
         
+        if len(self.region_coordinates.keys()) <= 1:
+            ("no coordinates, using current")
+            return
+
         sorted_keys = sorted(self.region_coordinates.keys(), key=well_id_sort_key)
         
         if self.acquisition_pattern == 'S-Pattern':
