@@ -352,11 +352,6 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
 
-        if not USE_NAPARI_FOR_LIVE_CONTROL:
-            self.microscopeControlTabWidget = QTabWidget()
-            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
-            self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
-
         frame = QFrame()
         frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
         top_row_layout = QHBoxLayout()
@@ -369,18 +364,24 @@ class OctopiGUI(QMainWindow):
             self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
         self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
         self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
-        self.cameraTabWidget.addTab(frame, "Sample")
+        # self.cameraTabWidget.addTab(frame, "Sample")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
         layout = QVBoxLayout()  #layout = QStackedLayout()
-
+        layout.addWidget(frame)
         if USE_NAPARI_FOR_LIVE_CONTROL:
             layout.addWidget(self.cameraTabWidget)
             layout.addWidget(self.navigationWidget)
         else:
+            self.microscopeControlTabWidget = QTabWidget()
+            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
+            self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
             layout.addWidget(self.microscopeControlTabWidget)
             layout.addWidget(self.cameraTabWidget)
+            #layout.addWidget(self.liveControlWidget)
+            #layout.addWidget(self.navigationWidget)
+            
 
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
@@ -639,7 +640,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.cameraTabWidget.insertTab(0, self.laserAutofocusControlWidget, "Laser AF")
+            self.cameraTabWidget.insertTab(1, self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()

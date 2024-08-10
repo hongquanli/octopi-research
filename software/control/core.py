@@ -1640,6 +1640,7 @@ class MultiPointWorker(QObject):
         self.time_point = 0
         self.af_fov_count = 0
         self.num_fovs = 0
+        self.total_scans = 0
         self.coordinate_dict = self.multiPointController.coordinate_dict
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
@@ -1899,6 +1900,7 @@ class MultiPointWorker(QObject):
                 self.wait_till_operation_is_completed()
 
             self.num_fovs = self.NX * self.NY - len(self.multiPointController.scanCoordinates.grid_skip_positions)
+            self.total_scans = self.num_fovs * self.NZ * len(self.selected_configurations)
             fov_count = 0 # count fovs for progress
 
             for i in range(self.NY):
@@ -1908,9 +1910,8 @@ class MultiPointWorker(QObject):
                     sgn_i, sgn_j, real_i, real_j = self.calculate_grid_indices(i, j)
 
                     if not self.multiPointController.scanCoordinates or (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
-                        self.acquire_at_position(region_id, current_path, fov=fov_count, i=real_i, j=real_j)
+                        self.acquire_at_position(region_id, current_path, fov_count, i=real_i, j=real_j)
                         fov_count += 1
-                        self.signal_region_progress.emit(fov_count, self.num_fovs)
 
                     if self.multiPointController.abort_acqusition_requested:
                         self.handle_acquisition_abort(current_path, region_id)
@@ -1934,20 +1935,18 @@ class MultiPointWorker(QObject):
             self.signal_acquisition_progress.emit(region_index + 1, n_regions)
 
             self.num_fovs = len(coordinates)
+            self.total_scans = self.num_fovs * self.NZ * len(self.selected_configurations)
 
             for fov_count, coordinate_mm in enumerate(coordinates):
 
                 self.move_to_coordinate(coordinate_mm)
-
-                self.acquire_at_position(region_id, current_path, fov=fov_count)
-
-                self.signal_region_progress.emit(fov_count + 1, self.num_fovs)
+                self.acquire_at_position(region_id, current_path, fov_count)
 
                 if self.multiPointController.abort_acqusition_requested:
                     self.handle_acquisition_abort(current_path, region_id)
                     return
 
-    def acquire_at_position(self, region_id, current_path, fov=None, i=None, j=None):
+    def acquire_at_position(self, region_id, current_path, fov, i=None, j=None):
 
         self.perform_autofocus(region_id)
 
@@ -1979,8 +1978,9 @@ class MultiPointWorker(QObject):
 
             current_round_images = {}
             # iterate through selected modes
-            for config in self.selected_configurations:
+            for config_idx, config in enumerate(self.selected_configurations):
 
+                current_image = (fov * self.NZ * len(self.selected_configurations) + z_level * len(self.selected_configurations) + config_idx + 1)
                 self.handle_z_offset(config)
 
                 # acquire image
@@ -1992,6 +1992,7 @@ class MultiPointWorker(QObject):
                     self.acquire_spectrometer_data(config, file_ID, current_path, i, j, z_level)
 
                 self.undo_z_offset(config)
+                self.signal_region_progress.emit(current_image, self.total_scans)
 
             # tiled preview
             if not USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
@@ -2573,6 +2574,7 @@ class MultiPointController(QObject):
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
 
     def set_deltaZ(self,delta_um):
+        delta_um = 1.0 if delta_um == 0 else delta_um
         mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)

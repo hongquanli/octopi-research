@@ -9,6 +9,7 @@ import shutil
 import random
 import json
 import time
+import math
 from datetime import datetime
 from lxml import etree
 import numpy as np
@@ -412,7 +413,7 @@ class Stitcher(QThread, QObject):
             x_max *= 1.05
         size = max(y_max, x_max)
         num_levels = 1
-        self.num_pyramid_levels = int(np.log2(max(self.input_width, self.input_height) / 64))
+        self.num_pyramid_levels = math.ceil((np.log2(max(self.input_width, self.input_height) / 512)))
         print("num_pyramid_levels:", self.num_pyramid_levels)
         tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
         self.tczyx_shape = tczyx_shape
@@ -882,7 +883,7 @@ class CoordinateStitcher(QThread, QObject):
         else:
             raise ValueError(f"Unexpected image shape: {first_image.shape}")
         self.chunks = (1, 1, 1, 512, 512)
-        self.num_pyramid_levels = int(np.log2(max(self.input_width, self.input_height) / 64))
+        self.num_pyramid_levels = math.ceil((np.log2(max(self.input_width, self.input_height) / 512)))
         #self.num_pyramid_levels = 5 # buggy if different 
         print("num_pyramid_levels", self.num_pyramid_levels) 
         # Set up final monochrome channels
@@ -1261,61 +1262,6 @@ class CoordinateStitcher(QThread, QObject):
         print(f"Data saved in OME-TIFF format at: {output_path}")
         self.finished_saving.emit(output_path, self.dtype)
 
-    # import concurrent.futures
-
-    # def run(self):
-    #     stime = time.time()
-    #     try:
-    #         self.get_time_points()
-    #         self.parse_filenames()
-
-    #         if self.apply_flatfield:
-    #             print("Calculating flatfields...")
-    #             self.getting_flatfields.emit()
-    #             self.get_flatfields(progress_callback=self.update_progress.emit)
-    #             print("time to apply flatfields", time.time() - stime)
-
-    #         if len(self.regions) > 1:
-    #             self.write_stitched_plate_metadata()
-
-    #         # Parallelize region processing
-    #         with concurrent.futures.ThreadPoolExecutor() as executor:
-    #             futures = []
-    #             for region in self.regions:
-    #                 future = executor.submit(self.process_region, region)
-    #                 futures.append(future)
-
-    #             # Wait for all futures to complete
-    #             for future in concurrent.futures.as_completed(futures):
-    #                 try:
-    #                     future.result()
-    #                 except Exception as e:
-    #                     print(f"Error processing region: {e}")
-
-    #         if self.output_format.endswith('.ome.tiff'):
-    #             self.create_ome_tiff(self.stitched_images)
-    #         else:
-    #             output_path = os.path.join(self.input_folder, self.output_name)
-    #             print(f"Data saved in OME-ZARR format at: {output_path}")
-    #             self.print_zarr_structure(output_path)
-
-    #         self.finished_saving.emit(os.path.join(self.input_folder, self.output_name), self.dtype)
-    #         print("total time to stitch + save:", time.time() - stime)
-
-    #     except Exception as e:
-    #         print("time before error", time.time() - stime)
-    #         print(f"Error while stitching: {e}")
-    #         raise
-
-    # def process_region(self, region):
-    #     wtime = time.time()
-    #     self.starting_stitching.emit()
-    #     print(f"\nstarting stitching for region {region}...")
-    #     self.stitch_and_save_region(region, progress_callback=self.update_progress.emit)
-
-    #     sttime = time.time()
-    #     print(f"time to stitch and save region {region}", time.time() - wtime)
-    #     print(f"...done with region:{region}")
 
     def run(self):
         stime = time.time()
@@ -1329,33 +1275,42 @@ class CoordinateStitcher(QThread, QObject):
                 self.get_flatfields(progress_callback=self.update_progress.emit)
                 print("time to apply flatfields", time.time() - stime)
 
-            if len(self.regions) > 1:
-                self.write_stitched_plate_metadata()
-
-            for region in self.regions:
-                wtime = time.time()
-                self.starting_stitching.emit()
-                print(f"\nstarting stitching for region {region}...")
-                self.stitch_and_save_region(region, progress_callback=self.update_progress.emit)
-
-                sttime = time.time()
-                print(f"time to stitch and save region {region}", time.time() - wtime)
-                print(f"...done with region:{region}")
-
-            if self.output_format.endswith('.ome.tiff'):
-                self.create_ome_tiff(self.stitched_images)
+            if self.num_fovs_per_region > 1:
+                self.run_regions()
             else:
-                output_path = os.path.join(self.input_folder, self.output_name)
-                print(f"Data saved in OME-ZARR format at: {output_path}")
-                self.print_zarr_structure(output_path)
-
-            self.finished_saving.emit(os.path.join(self.input_folder, self.output_name), self.dtype)
-            print("total time to stitch + save:", time.time() - stime)
+                self.run_fovs() # only displays one fov per region even though all fovs are saved in zarr with metadata
 
         except Exception as e:
             print("time before error", time.time() - stime)
             print(f"Error while stitching: {e}")
             raise
+
+
+    def run_regions(self):
+        stime = time.time()
+        if len(self.regions) > 1:
+            self.write_stitched_plate_metadata()
+
+        for region in self.regions:
+            wtime = time.time()
+            self.starting_stitching.emit()
+            print(f"\nstarting stitching for region {region}...")
+            self.stitch_and_save_region(region, progress_callback=self.update_progress.emit)
+
+            sttime = time.time()
+            print(f"time to stitch and save region {region}", time.time() - wtime)
+            print(f"...done with region:{region}")
+
+        if self.output_format.endswith('.ome.tiff'):
+            self.create_ome_tiff(self.stitched_images)
+        else:
+            output_path = os.path.join(self.input_folder, self.output_name)
+            print(f"Data saved in OME-ZARR format at: {output_path}")
+            self.print_zarr_structure(output_path)
+
+        self.finished_saving.emit(os.path.join(self.input_folder, self.output_name), self.dtype)
+        print("total time to stitch + save:", time.time() - stime)
+
 
 #________________________________________________________________________________________________________________________________
 # run_fovs: directly save fovs to final hcs ome zarr 
@@ -1367,33 +1322,8 @@ class CoordinateStitcher(QThread, QObject):
 
     def run_fovs(self):
         stime = time.time()
-        try:
-            self.get_time_points()
-            self.parse_filenames()
+        self.starting_stitching.emit()
 
-            if self.apply_flatfield:
-                print("Calculating flatfields...")
-                self.getting_flatfields.emit()
-                self.get_flatfields(progress_callback=self.update_progress.emit)
-                print("time to apply flatfields", time.time() - stime)
-
-            self.starting_stitching.emit()
-            self.save_fovs()
-
-            output_path = os.path.join(self.input_folder, self.output_name)
-            print(f"Data saved in OME-ZARR format at: {output_path}")
-            self.print_zarr_structure(output_path)
-            self.finished_saving.emit(output_path, self.dtype)
-
-            print("total time to save FOVs:", time.time() - stime)
-
-        except Exception as e:
-            print("time before error", time.time() - stime)
-            print(f"Error while stitching: {e}")
-            raise
-
-
-    def save_fovs(self):
         output_path = os.path.join(self.input_folder, self.output_name)
         store = ome_zarr.io.parse_url(output_path, mode="a").store
         root = zarr.group(store=store)
@@ -1431,6 +1361,12 @@ class CoordinateStitcher(QThread, QObject):
         }
 
         root.attrs["omero"] = omero
+
+        print(f"Data saved in OME-ZARR format at: {output_path}")
+        self.print_zarr_structure(output_path)
+        self.finished_saving.emit(output_path, self.dtype)
+
+        print("total time to save FOVs:", time.time() - stime)
 
     def compile_single_fov_data(self, fov_data):
         # Initialize a 5D array to hold all the data for this FOV

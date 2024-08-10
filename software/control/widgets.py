@@ -2894,7 +2894,7 @@ class MultiPointWidgetGrid(QFrame):
 
             # Calculate ETA
             fov_per_second = processed_fovs / elapsed_time
-            self.eta_seconds = remaining_fovs / fov_per_second if fov_per_second > 0 else 0
+            self.eta_seconds = remaining_fovs / fov_per_second * self.entry_Nt.value() if fov_per_second > 0 else 0
             self.update_eta_display()
 
             # Start or restart the timer
@@ -3013,8 +3013,6 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_maxZ.setValue(z_pos_mm*1000)
         print("init max z:", self.entry_maxZ.value())
 
-        self.navigationController.zPos.connect(self.update_z_min)
-        self.navigationController.zPos.connect(self.update_z_max)
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
 
@@ -3422,15 +3420,15 @@ class MultiPointWidgetGrid(QFrame):
             if self.scanCoordinates.format == 0:
                 self.entry_well_coverage.setEnabled(False)
             self.entry_deltaZ.setEnabled(False)
-        if enabled:
-            self.navigationController.zPos.connect(self.update_z_min)
-            self.navigationController.zPos.connect(self.update_z_max)
-        else:
-            try:  
-                self.navigationController.zPos.disconnect(self.update_z_min)
-                self.navigationController.zPos.disconnect(self.update_z_max)
-            except TypeError:
-                pass 
+        # if enabled:
+        #     self.navigationController.zPos.connect(self.update_z_min)
+        #     self.navigationController.zPos.connect(self.update_z_max)
+        # else:
+        #     try:  
+        #         self.navigationController.zPos.disconnect(self.update_z_min)
+        #         self.navigationController.zPos.disconnect(self.update_z_max)
+        #     except TypeError:
+        #         pass 
 
     def set_saving_dir(self):
         dialog = QFileDialog()
@@ -3868,7 +3866,8 @@ class NapariLiveWidget(QWidget):
 
         control_layout.addStretch(1)
 
-        if USE_NAPARI_FOR_LIVE_CONTROL:
+        add_live_controls = True
+        if USE_NAPARI_FOR_LIVE_CONTROL or add_live_controls:
             live_controls_widget = QWidget()
             live_controls_widget.setLayout(control_layout)
 
