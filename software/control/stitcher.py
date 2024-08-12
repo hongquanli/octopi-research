@@ -758,14 +758,16 @@ class CoordinateStitcher(QThread, QObject):
     starting_saving = Signal(bool)
     finished_saving = Signal(str, object)
 
-    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0):
+    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel='', registration_z_level=0):
         super().__init__()
         self.input_folder = input_folder
         self.output_name = output_name + output_format
         self.output_format = output_format
         self.apply_flatfield = apply_flatfield
         self.use_registration = use_registration
-
+        if use_registration:
+            self.registration_channel = registration_channel
+            self.registration_z_level = registration_z_level
         self.coordinates_df = None
         self.pixel_size_um = None
         self.acquisition_params = None
@@ -785,6 +787,8 @@ class CoordinateStitcher(QThread, QObject):
         self.stitching_data = {}
         self.dtype = np.uint16
         self.chunks = None
+        self.h_shift = (0, 0)
+        self.v_shift = (0, 0)
 
     def get_time_points(self):
         self.time_points = [d for d in os.listdir(self.input_folder) if os.path.isdir(os.path.join(self.input_folder, d)) and d.isdigit()]
@@ -1000,6 +1004,108 @@ class CoordinateStitcher(QThread, QObject):
             else:
                 raise ValueError(f"Unexpected number of dimensions in images array: {images.ndim}")
 
+    def calculate_shifts(self, region):
+        region_data = [v for k, v in self.stitching_data.items() if k[1] == region]
+        
+        # Get unique x and y positions
+        x_positions = sorted(set(tile['x'] for tile in region_data))
+        y_positions = sorted(set(tile['y'] for tile in region_data))
+        
+        # Initialize shifts
+        self.h_shift = (0, 0)
+        self.v_shift = (0, 0)
+
+        # Set registration channel if not already set
+        if not self.registration_channel:
+            self.registration_channel = self.channel_names[0]
+        elif self.registration_channel not in self.channel_names:
+            print(f"Warning: Specified registration channel '{self.registration_channel}' not found. Using {self.channel_names[0]}.")
+            self.registration_channel = self.channel_names[0]
+
+        # Handle horizontal shift
+        if len(x_positions) >= 2:
+            center_x_index = (len(x_positions) - 1) // 2
+            center_x = x_positions[center_x_index]
+            right_x = x_positions[center_x_index + 1]
+            center_y = y_positions[len(y_positions) // 2]  # Use middle y for 2x1 grid
+
+            center_tile = self.get_tile(region, center_x, center_y, self.registration_channel, self.registration_z_level)
+            right_tile = self.get_tile(region, right_x, center_y, self.registration_channel, self.registration_z_level)
+
+            if center_tile is not None and right_tile is not None:
+                self.h_shift = self.calculate_horizontal_shift(center_tile, right_tile)
+            else:
+                print(f"Warning: Missing tiles for horizontal shift calculation in region {region}.")
+
+        # Handle vertical shift
+        if len(y_positions) >= 2:
+            center_y_index = (len(y_positions) - 1) // 2
+            center_y = y_positions[center_y_index]
+            bottom_y = y_positions[center_y_index + 1]
+            center_x = x_positions[len(x_positions) // 2]  # Use middle x for 1x2 grid
+
+            center_tile = self.get_tile(region, center_x, center_y, self.registration_channel, self.registration_z_level)
+            bottom_tile = self.get_tile(region, center_x, bottom_y, self.registration_channel, self.registration_z_level)
+
+            if center_tile is not None and bottom_tile is not None:
+                self.v_shift = self.calculate_vertical_shift(center_tile, bottom_tile)
+            else:
+                print(f"Warning: Missing tiles for vertical shift calculation in region {region}.")
+
+        print(f"Horizontal shift: {self.h_shift}")
+        print(f"Vertical shift: {self.v_shift}")
+
+    def get_tile(self, region, x, y, channel, z_level):
+        for key, value in self.stitching_data.items():
+            if (key[1] == region and 
+                value['x'] == x and 
+                value['y'] == y and 
+                value['channel'] == channel and 
+                value['z_level'] == z_level):
+                try:
+                    return dask_imread(value['filepath'])[0]
+                except FileNotFoundError:
+                    print(f"Warning: Tile file not found: {value['filepath']}")
+                    return None
+        print(f"Warning: No matching tile found for region {region}, x={x}, y={y}, channel={channel}, z={z_level}")
+        return None
+
+    def calculate_horizontal_shift(self, img1, img2, max_overlap=None, margin_ratio=0.2):
+        if max_overlap is None:
+            max_overlap = img1.shape[1] // 2  # Use half of the image width as default max overlap
+
+        img1 = self.normalize_image(img1)
+        img2 = self.normalize_image(img2)
+
+        margin = int(img1.shape[0] * margin_ratio)
+        img1_overlap = img1[margin:-margin, -max_overlap:]
+        img2_overlap = img2[margin:-margin, :max_overlap]
+
+        shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
+        return round(shift[0]), round(shift[1] - img1_overlap.shape[1])
+
+    def calculate_vertical_shift(self, img1, img2, max_overlap=None, margin_ratio=0.2):
+        if max_overlap is None:
+            max_overlap = img1.shape[0] // 2  # Use half of the image height as default max overlap
+
+        img1 = self.normalize_image(img1)
+        img2 = self.normalize_image(img2)
+
+        margin = int(img1.shape[1] * margin_ratio)
+        img1_overlap = img1[-max_overlap:, margin:-margin]
+        img2_overlap = img2[:max_overlap, margin:-margin]
+
+        shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
+        return round(shift[0] - img1_overlap.shape[0]), round(shift[1])
+
+    def normalize_image(self, img):
+        img_min, img_max = img.min(), img.max()
+        img_normalized = (img - img_min) / (img_max - img_min)
+        scale_factor = np.iinfo(self.dtype).max if np.issubdtype(self.dtype, np.integer) else 1
+        return (img_normalized * scale_factor).astype(self.dtype)
+
+
+
     def stitch_and_save_region(self, region, progress_callback=None):
         stitched_images = self.init_output(region)
         region_data = {k: v for k, v in self.stitching_data.items() if k[1] == region}
@@ -1008,13 +1114,36 @@ class CoordinateStitcher(QThread, QObject):
 
         x_min = min(tile_info['x'] for tile_info in region_data.values())
         y_min = min(tile_info['y'] for tile_info in region_data.values())
+        x_max = max(tile_info['x'] for tile_info in region_data.values())
+        y_max = max(tile_info['y'] for tile_info in region_data.values())
+
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+
+        # Pre-calculate shift values if registration is used
+        if self.use_registration:
+            h_shift_x = self.h_shift[1]
+            h_shift_y = self.h_shift[0]
+            v_shift_x = self.v_shift[1]
+            v_shift_y = self.v_shift[0]
 
         for key, tile_info in region_data.items():
-            t, _, _, z_level, channel = key
+            t, _, fov, z_level, channel = key
             tile = dask_imread(tile_info['filepath'])[0]
 
+            # Calculate base position
             x_pixel = int((tile_info['x'] - x_min) * 1000 / self.pixel_size_um)
             y_pixel = int((tile_info['y'] - y_min) * 1000 / self.pixel_size_um)
+
+            # Apply shifts if registration is used
+            if self.use_registration:
+                # Calculate relative position of the tile in the region
+                rel_x = (tile_info['x'] - x_min) / x_range
+                rel_y = (tile_info['y'] - y_min) / y_range
+
+                # Apply horizontal and vertical shifts based on relative position
+                x_pixel += int(rel_x * h_shift_x + rel_y * v_shift_x)
+                y_pixel += int(rel_y * v_shift_y + rel_x * h_shift_y)
 
             self.place_tile(stitched_images, tile, x_pixel, y_pixel, z_level, channel, t)
 
@@ -1293,6 +1422,11 @@ class CoordinateStitcher(QThread, QObject):
 
         for region in self.regions:
             wtime = time.time()
+
+            if self.use_registration:
+                print(f"\nCalculating shifts for region {region}...")
+                self.calculate_shifts(region)
+
             self.starting_stitching.emit()
             print(f"\nstarting stitching for region {region}...")
             self.stitch_and_save_region(region, progress_callback=self.update_progress.emit)
