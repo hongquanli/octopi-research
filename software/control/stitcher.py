@@ -1105,6 +1105,8 @@ class CoordinateStitcher(QThread, QObject):
         img1_overlap = img1[margin:-margin, -max_overlap:]
         img2_overlap = img2[margin:-margin, :max_overlap]
 
+        self.visualize_image(img1_overlap, img2_overlap, 'horizontal')
+
         shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
         return round(shift[0]), round(shift[1] - img1_overlap.shape[1])
 
@@ -1115,6 +1117,8 @@ class CoordinateStitcher(QThread, QObject):
         margin = int(img1.shape[1] * 0.2)  # 20% margin
         img1_overlap = img1[-max_overlap:, margin:-margin]
         img2_overlap = img2[:max_overlap, margin:-margin]
+
+        self.visualize_image(img1_overlap, img2_overlap, 'vertical')
 
         shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
         return round(shift[0] - img1_overlap.shape[0]), round(shift[1])
@@ -1139,6 +1143,13 @@ class CoordinateStitcher(QThread, QObject):
         img_normalized = (img - img_min) / (img_max - img_min)
         scale_factor = np.iinfo(self.dtype).max if np.issubdtype(self.dtype, np.integer) else 1
         return (img_normalized * scale_factor).astype(self.dtype)
+
+    def visualize_image(self, img1, img2, title):
+        if title == 'horizontal':
+            combined_image = np.hstack((img1, img2))
+        else:
+            combined_image = np.vstack((img1, img2))
+        cv2.imwrite(f"{self.input_folder}/{title}.png", combined_image)
 
     def stitch_and_save_region(self, region, progress_callback=None):
         stitched_images = self.init_output(region)
