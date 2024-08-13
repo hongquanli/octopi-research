@@ -944,11 +944,33 @@ class CoordinateStitcher(QThread, QObject):
         width_pixels = int(np.ceil(width_mm * 1000 / self.pixel_size_um))
         height_pixels = int(np.ceil(height_mm * 1000 / self.pixel_size_um))
 
+        # Add extra space for shifts if registration is used
+        if self.use_registration:
+            num_cols = len(set(tile_info['x'] for tile_info in region_data))
+            num_rows = len(set(tile_info['y'] for tile_info in region_data))
+            
+            extra_width = abs(self.h_shift[1]) * (num_cols - 1)
+            extra_height = abs(self.v_shift[0]) * (num_rows - 1)
+            
+            # Account for cross-component shifts
+            extra_width += abs(self.v_shift[1]) * (num_rows - 1)
+            extra_height += abs(self.h_shift[0]) * (num_cols - 1)
+            
+            width_pixels += int(np.ceil(extra_width))
+            height_pixels += int(np.ceil(extra_height))
+
+        # Add a small buffer (e.g., 5% of the image size) to ensure we don't cut off any edges
+        #buff = int(max(self.input_width, self.input_height) * 0.05)
+        #width_pixels += buff
+        #height_pixels += buff
+
+        print(f"Calculated dimensions for region {region}: {width_pixels}x{height_pixels}")
         return width_pixels, height_pixels
 
     def init_output(self, region):
         width, height = self.calculate_output_dimensions(region)
         self.output_shape = (self.num_t, self.num_c, self.num_z, height, width)
+        print(f"Output shape for region {region}: {self.output_shape}")
         return da.zeros(self.output_shape, dtype=self.dtype, chunks=self.chunks)
 
     def get_flatfields(self, progress_callback=None):
