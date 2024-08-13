@@ -1022,38 +1022,80 @@ class CoordinateStitcher(QThread, QObject):
             print(f"Warning: Specified registration channel '{self.registration_channel}' not found. Using {self.channel_names[0]}.")
             self.registration_channel = self.channel_names[0]
 
-        # Handle horizontal shift
-        if len(x_positions) >= 2:
-            center_x_index = (len(x_positions) - 1) // 2
-            center_x = x_positions[center_x_index]
-            right_x = x_positions[center_x_index + 1]
-            center_y = y_positions[len(y_positions) // 2]  # Use middle y for 2x1 grid
+        # Calculate estimated overlap from acquisition parameters
+        dx_mm = self.acquisition_params['dx(mm)']
+        dy_mm = self.acquisition_params['dy(mm)']
+        obj_mag = self.acquisition_params['objective']['magnification']
+        obj_tube_lens_mm = self.acquisition_params['objective']['tube_lens_f_mm']
+        sensor_pixel_size_um = self.acquisition_params['sensor_pixel_size_um']
+        tube_lens_mm = self.acquisition_params['tube_lens_mm']
 
+        obj_focal_length_mm = obj_tube_lens_mm / obj_mag
+        actual_mag = tube_lens_mm / obj_focal_length_mm
+        self.pixel_size_um = sensor_pixel_size_um / actual_mag
+        print("pixel_size_um:", self.pixel_size_um)
+
+        dx_pixels = dx_mm * 1000 / self.pixel_size_um
+        dy_pixels = dy_mm * 1000 / self.pixel_size_um
+        print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
+
+        self.max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
+        self.max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
+        print("objective calculated - vertical overlap:", self.max_y_overlap, ", horizontal overlap:", self.max_x_overlap)
+
+        # Find center positions
+        center_x_index = len(x_positions) // 2
+        center_y_index = len(y_positions) // 2
+        
+        center_x = x_positions[center_x_index]
+        center_y = y_positions[center_y_index]
+        
+        # Calculate horizontal shift
+        if center_x_index + 1 < len(x_positions):
+            right_x = x_positions[center_x_index + 1]
             center_tile = self.get_tile(region, center_x, center_y, self.registration_channel, self.registration_z_level)
             right_tile = self.get_tile(region, right_x, center_y, self.registration_channel, self.registration_z_level)
-
+            
             if center_tile is not None and right_tile is not None:
-                self.h_shift = self.calculate_horizontal_shift(center_tile, right_tile)
+                self.h_shift = self.calculate_horizontal_shift(center_tile, right_tile, self.max_x_overlap)
             else:
                 print(f"Warning: Missing tiles for horizontal shift calculation in region {region}.")
-
-        # Handle vertical shift
-        if len(y_positions) >= 2:
-            center_y_index = (len(y_positions) - 1) // 2
-            center_y = y_positions[center_y_index]
+        
+        # Calculate vertical shift
+        if center_y_index + 1 < len(y_positions):
             bottom_y = y_positions[center_y_index + 1]
-            center_x = x_positions[len(x_positions) // 2]  # Use middle x for 1x2 grid
-
             center_tile = self.get_tile(region, center_x, center_y, self.registration_channel, self.registration_z_level)
             bottom_tile = self.get_tile(region, center_x, bottom_y, self.registration_channel, self.registration_z_level)
-
+            
             if center_tile is not None and bottom_tile is not None:
-                self.v_shift = self.calculate_vertical_shift(center_tile, bottom_tile)
+                self.v_shift = self.calculate_vertical_shift(center_tile, bottom_tile, self.max_y_overlap)
             else:
                 print(f"Warning: Missing tiles for vertical shift calculation in region {region}.")
 
         print(f"Horizontal shift: {self.h_shift}")
         print(f"Vertical shift: {self.v_shift}")
+
+    def calculate_horizontal_shift(self, img1, img2, max_overlap):
+        img1 = self.normalize_image(img1)
+        img2 = self.normalize_image(img2)
+
+        margin = int(img1.shape[0] * 0.2)  # 20% margin
+        img1_overlap = img1[margin:-margin, -max_overlap:]
+        img2_overlap = img2[margin:-margin, :max_overlap]
+
+        shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
+        return round(shift[0]), round(shift[1] - img1_overlap.shape[1])
+
+    def calculate_vertical_shift(self, img1, img2, max_overlap):
+        img1 = self.normalize_image(img1)
+        img2 = self.normalize_image(img2)
+
+        margin = int(img1.shape[1] * 0.2)  # 20% margin
+        img1_overlap = img1[-max_overlap:, margin:-margin]
+        img2_overlap = img2[:max_overlap, margin:-margin]
+
+        shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
+        return round(shift[0] - img1_overlap.shape[0]), round(shift[1])
 
     def get_tile(self, region, x, y, channel, z_level):
         for key, value in self.stitching_data.items():
@@ -1070,41 +1112,11 @@ class CoordinateStitcher(QThread, QObject):
         print(f"Warning: No matching tile found for region {region}, x={x}, y={y}, channel={channel}, z={z_level}")
         return None
 
-    def calculate_horizontal_shift(self, img1, img2, max_overlap=None, margin_ratio=0.2):
-        if max_overlap is None:
-            max_overlap = img1.shape[1] // 2  # Use half of the image width as default max overlap
-
-        img1 = self.normalize_image(img1)
-        img2 = self.normalize_image(img2)
-
-        margin = int(img1.shape[0] * margin_ratio)
-        img1_overlap = img1[margin:-margin, -max_overlap:]
-        img2_overlap = img2[margin:-margin, :max_overlap]
-
-        shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
-        return round(shift[0]), round(shift[1] - img1_overlap.shape[1])
-
-    def calculate_vertical_shift(self, img1, img2, max_overlap=None, margin_ratio=0.2):
-        if max_overlap is None:
-            max_overlap = img1.shape[0] // 2  # Use half of the image height as default max overlap
-
-        img1 = self.normalize_image(img1)
-        img2 = self.normalize_image(img2)
-
-        margin = int(img1.shape[1] * margin_ratio)
-        img1_overlap = img1[-max_overlap:, margin:-margin]
-        img2_overlap = img2[:max_overlap, margin:-margin]
-
-        shift, error, diffphase = phase_cross_correlation(img1_overlap, img2_overlap, upsample_factor=10)
-        return round(shift[0] - img1_overlap.shape[0]), round(shift[1])
-
     def normalize_image(self, img):
         img_min, img_max = img.min(), img.max()
         img_normalized = (img - img_min) / (img_max - img_min)
         scale_factor = np.iinfo(self.dtype).max if np.issubdtype(self.dtype, np.integer) else 1
         return (img_normalized * scale_factor).astype(self.dtype)
-
-
 
     def stitch_and_save_region(self, region, progress_callback=None):
         stitched_images = self.init_output(region)
