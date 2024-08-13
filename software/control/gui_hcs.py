@@ -817,6 +817,9 @@ class OctopiGUI(QMainWindow):
         if is_scan_grid:
             self.navigationViewer.on_acquisition_start(acquisition_started)
             self.multiPointWidgetGrid.display_progress_bar(acquisition_started)
+        if is_multipoint:
+            self.navigationViewer.on_acquisition_start(acquisition_started)
+            self.multiPointWidget2.display_progress_bar(acquisition_started)
 
     def toggleStitcherWidget(self, checked):
         if checked:

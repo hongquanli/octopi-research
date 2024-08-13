@@ -861,7 +861,7 @@ class LiveControlWidget(QFrame):
         self.entry_analogGain = QDoubleSpinBox()
         self.entry_analogGain.setMinimum(0)
         self.entry_analogGain.setMaximum(24)
-        self.entry_analogGain.setSuffix('x')
+        # self.entry_analogGain.setSuffix('x')
         self.entry_analogGain.setSingleStep(0.1)
         self.entry_analogGain.setValue(0)
         self.entry_analogGain.setSizePolicy(sizePolicy)
@@ -1594,7 +1594,7 @@ class AutoFocusWidget(QFrame):
         self.autofocusController.set_N(10)
 
         self.combobox_z_stack = QComboBox()
-        self.combobox_z_stack.addItems(['Planes Above', 'Planes Centered', 'Planes Below'])
+        self.combobox_z_stack.addItems(['Above', 'Centered', 'Below'])
 
         self.btn_autofocus = QPushButton('Autofocus')
         self.btn_autofocus.setDefault(False)
@@ -1611,7 +1611,7 @@ class AutoFocusWidget(QFrame):
         grid_line0.addWidget(QLabel('# of Z-Planes'))
         grid_line0.addWidget(self.entry_N)
         grid_line0.addStretch(1)
-        grid_line0.addWidget(QLabel('Z-Stack'))
+        grid_line0.addWidget(QLabel('Acquisition Z-Stack'))
         grid_line0.addWidget(self.combobox_z_stack)
         grid_line0.addStretch(1)
         self.grid.addLayout(grid_line0)
@@ -2168,6 +2168,14 @@ class MultiPointWidget2(QFrame):
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
 
+        self.progress_label = QLabel('Region -/-')
+        self.progress_bar = QProgressBar()
+        self.eta_label = QLabel('--:--:--')
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
+        self.eta_label.setVisible(False)
+        self.eta_timer = QTimer()
+
         # layout
         grid_line0 = QGridLayout()
         grid_line0.addWidget(QLabel('Saving Path'))
@@ -2216,6 +2224,12 @@ class MultiPointWidget2(QFrame):
         grid_line2.setColumnStretch(5, 1)
         grid_line2.setColumnStretch(8, 1)
 
+        # Row : Progress Bar
+        row_progress_layout = QHBoxLayout()
+        row_progress_layout.addWidget(self.progress_label)
+        row_progress_layout.addWidget(self.progress_bar)
+        row_progress_layout.addWidget(self.eta_label)
+
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
@@ -2238,6 +2252,7 @@ class MultiPointWidget2(QFrame):
         # self.grid.addLayout(grid_line5,2,0)
         self.grid.addLayout(grid_line2,4,0)
         self.grid.addLayout(grid_line3,5,0)
+        self.grid.addLayout(row_progress_layout,6,0)
         self.setLayout(self.grid)
 
         # add and display a timer - to be implemented
@@ -2260,6 +2275,11 @@ class MultiPointWidget2(QFrame):
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
 
+        self.multipointController.signal_acquisition_progress.connect(self.update_acquisition_progress)
+        self.multipointController.signal_region_progress.connect(self.update_region_progress)
+        self.signal_acquisition_started.connect(self.display_progress_bar)
+        self.eta_timer.timeout.connect(self.update_eta_display)
+
         self.btn_add.clicked.connect(self.add_location)
         self.btn_remove.clicked.connect(self.remove_location)
         self.btn_previous.clicked.connect(self.previous)
@@ -2277,6 +2297,66 @@ class MultiPointWidget2(QFrame):
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
         self.shortcut.activated.connect(self.btn_add.click)
+
+    def update_region_progress(self, current_fov, num_fovs):
+        self.progress_bar.setMaximum(num_fovs)
+        self.progress_bar.setValue(current_fov)
+
+        if self.acquisition_start_time is not None and current_fov > 0:
+            elapsed_time = time.time() - self.acquisition_start_time
+
+            # Calculate total processed FOVs and total FOVs
+            if self.num_regions > 1:
+                current_region = int(self.progress_label.text().split('/')[0].split(' ')[1])
+            else:
+                current_region = 1
+            processed_fovs = (current_region - 1) * num_fovs + current_fov
+            total_fovs = self.num_regions * num_fovs
+            remaining_fovs = total_fovs - processed_fovs
+
+            # Calculate ETA
+            fov_per_second = processed_fovs / elapsed_time
+            self.eta_seconds = remaining_fovs / fov_per_second * self.entry_Nt.value() if fov_per_second > 0 else 0
+            self.update_eta_display()
+
+            # Start or restart the timer
+            self.eta_timer.start(1000)  # Update every 1000 ms (1 second)
+
+    def update_acquisition_progress(self, current_region, num_regions):
+        if current_region == 1:  # First region
+            self.acquisition_start_time = time.time()
+            self.num_regions = num_regions
+        if num_regions <= 1:
+            self.progress_label.setText("Progress")
+        else:
+            self.progress_label.setText(f"Region {current_region}/{num_regions}")
+        self.progress_bar.setValue(0)
+
+    def update_eta_display(self):
+        if self.eta_seconds > 0:
+            self.eta_seconds -= 1  # Decrease by 1 second
+            hours, remainder = divmod(int(self.eta_seconds), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            if hours > 0:
+                eta_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            else:
+                eta_str = f"{minutes:02d}:{seconds:02d}"
+            self.eta_label.setText(f"{eta_str}")
+        else:
+            self.eta_timer.stop()
+            self.eta_label.setText("00:00")
+
+    def display_progress_bar(self, show):
+        self.progress_label.setVisible(show)
+        self.progress_bar.setVisible(show)
+        self.eta_label.setVisible(show)
+        if show:
+            self.progress_bar.setValue(0)
+            self.progress_label.setText("Region 0/0")
+            self.eta_label.setText("--:--")
+            self.acquisition_start_time = None
+        else:
+            self.eta_timer.stop()
 
     def set_deltaX(self,value):
         mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
@@ -2424,6 +2504,7 @@ class MultiPointWidget2(QFrame):
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
+
     def disable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(False)
 
@@ -2512,7 +2593,8 @@ class MultiPointWidget2(QFrame):
         self.location_list = np.empty((0, 3), dtype=float)
         self.location_ids = np.empty((0,), dtype=str)
         self.dropdown_location_list.clear()
-        self.navigationViewer.clear_slide()
+        # self.navigationViewer.clear_slide()
+        self.navigationViewer.clear_overlay()
         self.table_location_list.setRowCount(0)
 
     def clear_only_location_list(self):
@@ -3759,7 +3841,7 @@ class NapariLiveWidget(QWidget):
         self.entry_analogGain.setRange(0, 24)
         self.entry_analogGain.setSingleStep(0.1)
         self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
-        self.entry_analogGain.setSuffix("x")
+        # self.entry_analogGain.setSuffix('x')
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
 
         # Illumination Intensity

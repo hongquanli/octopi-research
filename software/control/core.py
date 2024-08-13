@@ -1766,11 +1766,16 @@ class MultiPointWorker(QObject):
         self.dz_usteps = 0 # accumulated z displacement
 
         # z stacking config
-        if self.z_stacking_config == 'FROM TOP':
+        if self.coordinate_dict is not None:
+            if self.z_stacking_config == 'FROM TOP':
+                self.deltaZ_usteps = -abs(self.deltaZ_usteps)
+                self.move_to_z_level(self.z_range[1])
+            else:
+                self.move_to_z_level(self.z_range[0])
+
+        elif self.z_stacking_config == 'FROM TOP':
             self.deltaZ_usteps = -abs(self.deltaZ_usteps)
-            self.move_to_z_level(self.z_range[1])
-        else:
-            self.move_to_z_level(self.z_range[0])
+
         self.z_pos = self.navigationController.z_pos # zpos at the beginning of the scan
 
         # reset piezo to home position
@@ -1842,6 +1847,7 @@ class MultiPointWorker(QObject):
 
 
     def move_to_coordinate(self, coordinate_mm):
+        print("moving to coordinate", coordinate_mm)
         x_mm = coordinate_mm[0]
         self.navigationController.move_x_to(x_mm)
         self.wait_till_operation_is_completed()
@@ -1858,6 +1864,7 @@ class MultiPointWorker(QObject):
             self.move_to_z_level(z_mm)
 
     def move_to_z_level(self, z_mm):
+        print("moving z")
         if z_mm >= self.navigationController.z_pos_mm:
             self.navigationController.move_z_to(z_mm)
             self.wait_till_operation_is_completed()
