@@ -294,6 +294,8 @@ class Camera(object):
         # exposure time in ms
         if self.trigger_mode == TriggerMode.HARDWARE:
             self.camera.put_ExpoTime(int(exposure_time*1000) + int(self.strobe_delay_us))
+        else:
+            self.camera.put_ExpoTime(int(exposure_time*1000))
 
     def update_camera_exposure_time(self):
         pass
@@ -407,9 +409,6 @@ class Camera(object):
 
         self._update_buffer_settings()
 
-        if self.callback_reset_strobe_delay_function is not None:
-            self.callback_reset_strobe_delay_function()
-
         if was_streaming:
             self.start_streaming()
         #     if pixel_format == 'BAYER_RG8':
@@ -421,6 +420,9 @@ class Camera(object):
         #     self.pixel_format = pixel_format
         # else:
         #     print("pixel format is not implemented or not writable")
+
+        if self.callback_reset_strobe_delay_function is not None:
+            self.callback_reset_strobe_delay_function()
 
         # if was_streaming:
         #    self.start_streaming()
