@@ -1981,6 +1981,7 @@ class MultiPointWorker(QObject):
 
                 self.undo_z_offset(config)
 
+            '''
             # tiled preview
             if not USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
                 # initialize the variable
@@ -1999,6 +2000,7 @@ class MultiPointWorker(QObject):
                 self.tiled_preview[real_i*height:(real_i+1)*height, real_j*width:(real_j+1)*width, ] = I
                 # emit the result
                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
+            '''
 
             # real time processing 
             acquired_image_configs = list(current_round_images.keys())

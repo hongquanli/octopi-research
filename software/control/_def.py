@@ -549,7 +549,7 @@ SCIMICROSCOPY_LED_ARRAY_DEFAULT_COLOR = [1,1,1]
 SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the camera (in seconds)
 
 # Tiled preview
-SHOW_TILED_PREVIEW = True
+SHOW_TILED_PREVIEW = False
 PRVIEW_DOWNSAMPLE_FACTOR = 5
 
 # Stitcher
