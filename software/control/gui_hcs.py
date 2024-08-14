@@ -469,6 +469,7 @@ class OctopiGUI(QMainWindow):
             self.multipointController.signal_stitcher.connect(self.startStitcher)
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
             self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels) # change enabled registration channels
+            self.multiPointWidget.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
@@ -476,6 +477,7 @@ class OctopiGUI(QMainWindow):
             if ENABLE_STITCHER:
                 self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
                 self.multiPointWidget2.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
+                self.multiPointWidget2.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_SCAN_GRID:
             self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
@@ -483,6 +485,7 @@ class OctopiGUI(QMainWindow):
             if ENABLE_STITCHER:
                 self.multiPointWidgetGrid.signal_stitcher_widget.connect(self.toggleStitcherWidget)
                 self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
+                self.multiPointWidgetGrid.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -834,17 +837,21 @@ class OctopiGUI(QMainWindow):
             apply_flatfield = self.stitcherWidget.applyFlatfieldCheck.isChecked()
             use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
             registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
+            registration_z_level = self.stitcherWidget.registrationZCombo.value()
+            overlap_percent = self.multiPointWidgetGrid.entry_overlap.value()
             output_name = acquisitionWidget.lineEdit_experimentID.text()
             if output_name == "":
                 output_name = "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
             if self.recordTabWidget.currentIndex() == self.recordTabWidget.indexOf(self.multiPointWidgetGrid):
-                self.stitcherThread = stitcher.CoordinateStitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
-                                           apply_flatfield=apply_flatfield, use_registration=use_registration)#, registration_channel=registration_channel)
+                self.stitcherThread = stitcher.CoordinateStitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format, 
+                                                apply_flatfield=apply_flatfield, overlap_percent=overlap_percent,
+                                                use_registration=use_registration, registration_channel=registration_channel, registration_z_level=registration_z_level)
             else:
                 self.stitcherThread = stitcher.Stitcher(input_folder=acquisition_path, output_name=output_name, output_format=output_format,
-                                           apply_flatfield=apply_flatfield, use_registration=use_registration, registration_channel=registration_channel)
+                                                apply_flatfield=apply_flatfield, 
+                                                use_registration=use_registration, registration_channel=registration_channel, registration_z_level=registration_z_level)
 
             # Connect signals to slots
             self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)

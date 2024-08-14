@@ -1712,6 +1712,7 @@ class MultiPointWidget(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
+    signal_acquisition_z_levels = Signal(int)
     signal_acquisition_shape = Signal(int, int, int, float, float, float)
     signal_stitcher_widget = Signal(bool)
 
@@ -1893,6 +1894,7 @@ class MultiPointWidget(QFrame):
         self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
         self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
+        self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
@@ -2030,6 +2032,7 @@ class MultiPointWidget2(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
+    signal_acquisition_z_levels = Signal(int)
     signal_acquisition_shape = Signal(int, int, int, float, float, float)
     signal_stitcher_widget = Signal(bool)
 
@@ -2160,6 +2163,9 @@ class MultiPointWidget2(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
+        self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
+        self.checkbox_genFocusMap.setChecked(False)
+
         self.checkbox_stitchOutput = QCheckBox('Stitch Output')
         self.checkbox_stitchOutput.setChecked(False)
 
@@ -2231,6 +2237,7 @@ class MultiPointWidget2(QFrame):
         row_progress_layout.addWidget(self.eta_label)
 
         grid_af = QVBoxLayout()
+        grid_af.addWidget(self.checkbox_genFocusMap)
         grid_af.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
@@ -2266,7 +2273,9 @@ class MultiPointWidget2(QFrame):
         self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
         self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
+        self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
+        self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
@@ -2304,32 +2313,46 @@ class MultiPointWidget2(QFrame):
 
         if self.acquisition_start_time is not None and current_fov > 0:
             elapsed_time = time.time() - self.acquisition_start_time
+            Nt = self.entry_Nt.value()
+            dt = self.entry_dt.value()
 
             # Calculate total processed FOVs and total FOVs
-            if self.num_regions > 1:
-                current_region = int(self.progress_label.text().split('/')[0].split(' ')[1])
-            else:
-                current_region = 1
-            processed_fovs = (current_region - 1) * num_fovs + current_fov
-            total_fovs = self.num_regions * num_fovs
+            processed_fovs = (self.current_region - 1) * num_fovs + current_fov + self.current_time_point * self.num_regions * num_fovs
+            total_fovs = self.num_regions * num_fovs * Nt
             remaining_fovs = total_fovs - processed_fovs
 
             # Calculate ETA
             fov_per_second = processed_fovs / elapsed_time
-            self.eta_seconds = remaining_fovs / fov_per_second * self.entry_Nt.value() if fov_per_second > 0 else 0
+            self.eta_seconds = remaining_fovs / fov_per_second + (Nt - 1 - self.current_time_point) * dt if fov_per_second > 0 else 0
             self.update_eta_display()
 
             # Start or restart the timer
             self.eta_timer.start(1000)  # Update every 1000 ms (1 second)
 
-    def update_acquisition_progress(self, current_region, num_regions):
-        if current_region == 1:  # First region
+    def update_acquisition_progress(self, current_region, num_regions, current_time_point):
+        self.current_region = current_region
+        self.current_time_point = current_time_point
+
+        if self.current_region == 1 and self.current_time_point == 0:  # First region
             self.acquisition_start_time = time.time()
             self.num_regions = num_regions
-        if num_regions <= 1:
-            self.progress_label.setText("Progress")
+        
+        progress_text = ""
+
+        # Update timepoint progress if there are multiple timepoints and the timepoint has changed
+        if self.entry_Nt.value() > 1:
+            progress_text += f" Time {current_time_point + 1}/{self.entry_Nt.value()} "
+
+        # Update region progress if there are multiple regions
+        if num_regions > 1:
+            progress_text += f" Region {current_region}/{num_regions} "
+
+        # Set the progress label text, ensuring it's not empty
+        if progress_text.strip():
+            self.progress_label.setText(progress_text)
         else:
-            self.progress_label.setText(f"Region {current_region}/{num_regions}")
+            self.progress_label.setText("Progress")
+
         self.progress_bar.setValue(0)
 
     def update_eta_display(self):
@@ -2498,6 +2521,7 @@ class MultiPointWidget2(QFrame):
         self.entry_dt.setEnabled(enabled)
         self.entry_Nt.setEnabled(enabled)
         self.list_configurations.setEnabled(enabled)
+        self.checkbox_genFocusMap.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
         self.checkbox_withReflectionAutofocus.setEnabled(enabled)
         self.checkbox_stitchOutput.setEnabled(enabled)
@@ -2701,9 +2725,11 @@ class MultiPointWidgetGrid(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
+    signal_acquisition_z_levels = Signal(int)
     signal_acquisition_shape = Signal(int, int, int, float, float, float)
     signal_update_navigation_viewer = Signal()
     signal_stitcher_widget = Signal(bool)
+
 
     def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2956,7 +2982,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_minZ.valueChanged.connect(self.update_dz)
         self.entry_maxZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.update_dz)
-
+        self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
 
     def update_region_progress(self, current_fov, num_fovs):
         self.progress_bar.setMaximum(num_fovs)
@@ -2964,32 +2990,46 @@ class MultiPointWidgetGrid(QFrame):
 
         if self.acquisition_start_time is not None and current_fov > 0:
             elapsed_time = time.time() - self.acquisition_start_time
+            Nt = self.entry_Nt.value()
+            dt = self.entry_dt.value()
 
             # Calculate total processed FOVs and total FOVs
-            if self.num_regions > 1:
-                current_region = int(self.progress_label.text().split('/')[0].split(' ')[1])
-            else:
-                current_region = 1
-            processed_fovs = (current_region - 1) * num_fovs + current_fov
-            total_fovs = self.num_regions * num_fovs
+            processed_fovs = (self.current_region - 1) * num_fovs + current_fov + self.current_time_point * self.num_regions * num_fovs
+            total_fovs = self.num_regions * num_fovs * Nt
             remaining_fovs = total_fovs - processed_fovs
 
             # Calculate ETA
             fov_per_second = processed_fovs / elapsed_time
-            self.eta_seconds = remaining_fovs / fov_per_second * self.entry_Nt.value() if fov_per_second > 0 else 0
+            self.eta_seconds = remaining_fovs / fov_per_second + (Nt - 1 - self.current_time_point) * dt if fov_per_second > 0 else 0
             self.update_eta_display()
 
             # Start or restart the timer
             self.eta_timer.start(1000)  # Update every 1000 ms (1 second)
 
-    def update_acquisition_progress(self, current_region, num_regions):
-        if current_region == 1:  # First region
+    def update_acquisition_progress(self, current_region, num_regions, current_time_point):
+        self.current_region = current_region
+        self.current_time_point = current_time_point
+
+        if self.current_region == 1 and self.current_time_point == 0:  # First region
             self.acquisition_start_time = time.time()
             self.num_regions = num_regions
-        if num_regions <= 1:
-            self.progress_label.setText("Progress")
+        
+        progress_text = ""
+
+        # Update timepoint progress if there are multiple timepoints and the timepoint has changed
+        if self.entry_Nt.value() > 1:
+            progress_text += f" Time {current_time_point + 1}/{self.entry_Nt.value()} "
+
+        # Update region progress if there are multiple regions
+        if num_regions > 1:
+            progress_text += f" Region {current_region}/{num_regions} "
+
+        # Set the progress label text, ensuring it's not empty
+        if progress_text.strip():
+            self.progress_label.setText(progress_text)
         else:
-            self.progress_label.setText(f"Region {current_region}/{num_regions}")
+            self.progress_label.setText("Progress")
+
         self.progress_bar.setValue(0)
 
     def update_eta_display(self):
@@ -3588,6 +3628,7 @@ class StitcherWidget(QFrame):
         self.registrationZCombo = QSpinBox(self)
         self.registrationZCombo.setSingleStep(1)
         self.registrationZCombo.setMinimum(0)
+        self.registrationZCombo.setMaximum(0)
         self.registrationZCombo.setValue(0)
         self.registrationZLabel.setVisible(False)
         self.registrationZCombo.setVisible(False)
@@ -3629,6 +3670,11 @@ class StitcherWidget(QFrame):
     def updateRegistrationChannels(self, selected_channels):
         self.registrationChannelCombo.clear()  # Clear existing items
         self.registrationChannelCombo.addItems(selected_channels)
+
+    def updateRegistrationZLevels(self, Nz):
+        print("set Max Z =", Nz)
+        self.registrationZCombo.setMinimum(0)
+        self.registrationZCombo.setMaximum(Nz - 1)
 
     def gettingFlatfields(self):
         self.statusLabel.setText('Status: Calculating Flatfield Images...')

@@ -45,6 +45,7 @@ class Stitcher(QThread, QObject):
         self.use_registration = use_registration
         if use_registration:
             self.registration_channel = registration_channel
+            self.registration_z_level = registration_z_level
 
         self.selected_modes = self.extract_selected_modes(self.input_folder)
         self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
@@ -310,7 +311,7 @@ class Stitcher(QThread, QObject):
             print(f"Error calculating vertical shift: {e}")
             return (0, 0)
 
-    def calculate_shifts(self, roi="", z_level=0):
+    def calculate_shifts(self, roi=""):
         roi = self.regions[0] if roi not in self.regions else roi
         self.registration_channel = self.registration_channel if self.registration_channel in self.channel_names else self.channel_names[0]
 
@@ -344,7 +345,7 @@ class Stitcher(QThread, QObject):
             row_top, row_bottom = row_bottom, row_top
 
         img1_path = img2_path_vertical = img2_path_horizontal = None
-        for (row, col), tile_info in self.stitching_data[roi][self.registration_channel][z_level].items():
+        for (row, col), tile_info in self.stitching_data[roi][self.registration_channel][self.registration_z_level].items():
             if col == col_left and row == row_top:
                 img1_path = tile_info['filepath']
             elif col == col_left and row == row_bottom:
@@ -354,7 +355,7 @@ class Stitcher(QThread, QObject):
 
         if img1_path is None:
             raise Exception(
-                f"No input file found for c:{self.registration_channel} k:{z_level} "
+                f"No input file found for c:{self.registration_channel} k:{self.registration_z_level} "
                 f"j:{col_left} i:{row_top}"
             )
 
@@ -413,8 +414,15 @@ class Stitcher(QThread, QObject):
             x_max *= 1.05
         size = max(y_max, x_max)
         num_levels = 1
-        self.num_pyramid_levels = math.ceil((np.log2(max(self.input_width, self.input_height) / 512)))
-        print("num_pyramid_levels:", self.num_pyramid_levels)
+        
+        # Get the number of rows and columns
+        if self.is_wellplate and STITCH_COMPLETE_ACQUISITION:
+            rows, columns = self.get_rows_and_columns() 
+            self.num_pyramid_levels = math.ceil(np.log2(max(x_max, y_max) / 1024 * max(len(rows), len(columns))))
+        else:
+            self.num_pyramid_levels = math.ceil(np.log2(max(x_max, y_max) / 1024))
+        print("num_pyramid_levels", self.num_pyramid_levels)
+
         tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
         self.tczyx_shape = tczyx_shape
         print(f"(t:{time_point}, roi:{region_id}) output shape: {tczyx_shape}")
@@ -433,7 +441,7 @@ class Stitcher(QThread, QObject):
                 for col in range(self.num_cols):
                     col = self.num_cols - 1 - col if self.is_reversed['cols'] else col
 
-                    if self.use_registration and DYNAMIC_REGISTRATION and z_level == 0:
+                    if self.use_registration and DYNAMIC_REGISTRATION and z_level == self.registration_z_level:
                         if (row, col) in self.stitching_data[roi][self.registration_channel][z_level]:
                             tile_info = self.stitching_data[roi][self.registration_channel][z_level][(row, col)]
                             self.h_shift, self.v_shift = self.calculate_dynamic_shifts(roi, self.registration_channel, z_level, row, col)
@@ -758,7 +766,7 @@ class CoordinateStitcher(QThread, QObject):
     starting_saving = Signal(bool)
     finished_saving = Signal(str, object)
 
-    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel='', registration_z_level=0):
+    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel='', registration_z_level=0, overlap_percent=0):
         super().__init__()
         self.input_folder = input_folder
         self.output_name = output_name + output_format
@@ -773,6 +781,7 @@ class CoordinateStitcher(QThread, QObject):
         self.acquisition_params = None
         self.time_points = []
         self.regions = []
+        self.overlap_percent = overlap_percent
         self.init_stitching_parameters()
 
     def init_stitching_parameters(self):
@@ -789,6 +798,8 @@ class CoordinateStitcher(QThread, QObject):
         self.chunks = None
         self.h_shift = (0, 0)
         self.v_shift = (0, 0)
+        self.x_positions = set()
+        self.y_positions = set()
 
     def get_time_points(self):
         self.time_points = [d for d in os.listdir(self.input_folder) if os.path.isdir(os.path.join(self.input_folder, d)) and d.isdigit()]
@@ -887,9 +898,7 @@ class CoordinateStitcher(QThread, QObject):
         else:
             raise ValueError(f"Unexpected image shape: {first_image.shape}")
         self.chunks = (1, 1, 1, 512, 512)
-        self.num_pyramid_levels = math.ceil((np.log2(max(self.input_width, self.input_height) / 512)))
-        #self.num_pyramid_levels = 5 # buggy if different 
-        print("num_pyramid_levels", self.num_pyramid_levels) 
+        
         # Set up final monochrome channels
         self.mono_channel_names = []
         for channel in self.channel_names:
@@ -932,37 +941,40 @@ class CoordinateStitcher(QThread, QObject):
         
         if not region_data:
             raise ValueError(f"No data found for region {region}")
-        
-        x_min = min(tile_info['x'] for tile_info in region_data)
-        x_max = max(tile_info['x'] for tile_info in region_data)
-        y_min = min(tile_info['y'] for tile_info in region_data)
-        y_max = max(tile_info['y'] for tile_info in region_data)
 
-        width_mm = x_max - x_min + (self.input_width * self.pixel_size_um / 1000)
-        height_mm = y_max - y_min + (self.input_height * self.pixel_size_um / 1000)
+        self.x_positions = sorted(set(tile_info['x'] for tile_info in region_data))
+        self.y_positions = sorted(set(tile_info['y'] for tile_info in region_data))
 
-        width_pixels = int(np.ceil(width_mm * 1000 / self.pixel_size_um))
-        height_pixels = int(np.ceil(height_mm * 1000 / self.pixel_size_um))
+
 
         # Add extra space for shifts if registration is used
         if self.use_registration:
-            num_cols = len(set(tile_info['x'] for tile_info in region_data))
-            num_rows = len(set(tile_info['y'] for tile_info in region_data))
-            
-            extra_width = abs(self.h_shift[1]) * (num_cols - 1)
-            extra_height = abs(self.v_shift[0]) * (num_rows - 1)
-            
-            # Account for cross-component shifts
-            extra_width += abs(self.v_shift[1]) * (num_rows - 1)
-            extra_height += abs(self.h_shift[0]) * (num_cols - 1)
-            
-            width_pixels += int(np.ceil(extra_width))
-            height_pixels += int(np.ceil(extra_height))
 
-        # Add a small buffer (e.g., 5% of the image size) to ensure we don't cut off any edges
-        #buff = int(max(self.input_width, self.input_height) * 0.05)
-        #width_pixels += buff
-        #height_pixels += buff
+            num_cols = len(self.x_positions)
+            num_rows = len(self.y_positions)
+
+            width_pixels = int(self.input_width + ((num_cols - 1) * (self.input_width + self.h_shift[1]))) # horizontal width with overlap
+            width_pixels += abs((num_rows - 1) * self.v_shift[1]) # horizontal shift from vertical registration
+            height_pixels = int(self.input_height + ((num_rows - 1) * (self.input_height + self.v_shift[0]))) # vertical height with overlap
+            height_pixels += abs((num_cols - 1) * self.h_shift[0]) # vertical shift from horizontal registration
+
+        else:
+            width_mm = max(self.x_positions) - min(self.x_positions) + (self.input_width * self.pixel_size_um / 1000)
+            height_mm = max(self.y_positions) - min(self.y_positions) + (self.input_height * self.pixel_size_um / 1000)
+
+            width_pixels = int(np.ceil(width_mm * 1000 / self.pixel_size_um))
+            height_pixels = int(np.ceil(height_mm * 1000 / self.pixel_size_um))
+
+        # Get the number of rows and columns
+        if len(self.regions) > 1:
+            rows, columns = self.get_rows_and_columns()
+            max_dimension = max(len(rows), len(columns))
+        else:
+            max_dimension = 1
+
+        # Calculate the number of pyramid levels
+        self.num_pyramid_levels = math.ceil(np.log2(max(width_pixels, height_pixels) / 1024 * max_dimension))
+        print("num_pyramid_levels", self.num_pyramid_levels)
 
         print(f"Calculated dimensions for region {region}: {width_pixels}x{height_pixels}")
         return width_pixels, height_pixels
@@ -1061,9 +1073,13 @@ class CoordinateStitcher(QThread, QObject):
         dy_pixels = dy_mm * 1000 / self.pixel_size_um
         print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
 
-        self.max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
-        self.max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
-        print("objective calculated - vertical overlap:", self.max_y_overlap, ", horizontal overlap:", self.max_x_overlap)
+        max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
+        max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
+        print("objective calculated - vertical overlap:", max_y_overlap, ", horizontal overlap:", max_x_overlap)
+
+        max_x_overlap = round(self.input_width * self.overlap_percent / 100 / 2)
+        max_y_overlap = round(self.input_height * self.overlap_percent / 100 / 2)
+        print("overlap calculated - vertical overlap:", max_y_overlap, ", horizontal overlap:", max_x_overlap)
 
         # Find center positions
         center_x_index = len(x_positions) // 2
@@ -1079,7 +1095,7 @@ class CoordinateStitcher(QThread, QObject):
             right_tile = self.get_tile(region, right_x, center_y, self.registration_channel, self.registration_z_level)
             
             if center_tile is not None and right_tile is not None:
-                self.h_shift = self.calculate_horizontal_shift(center_tile, right_tile, self.max_x_overlap)
+                self.h_shift = self.calculate_horizontal_shift(center_tile, right_tile, max_x_overlap)
             else:
                 print(f"Warning: Missing tiles for horizontal shift calculation in region {region}.")
         
@@ -1090,12 +1106,16 @@ class CoordinateStitcher(QThread, QObject):
             bottom_tile = self.get_tile(region, center_x, bottom_y, self.registration_channel, self.registration_z_level)
             
             if center_tile is not None and bottom_tile is not None:
-                self.v_shift = self.calculate_vertical_shift(center_tile, bottom_tile, self.max_y_overlap)
+                self.v_shift = self.calculate_vertical_shift(center_tile, bottom_tile, max_y_overlap)
             else:
                 print(f"Warning: Missing tiles for vertical shift calculation in region {region}.")
 
-        print(f"Horizontal shift: {self.h_shift}")
-        print(f"Vertical shift: {self.v_shift}")
+        print(f"Calculated shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
+        print(f"Expected shifts - Horizontal: {(0, - self.input_width + dx_pixels)}, Vertical: {(-self.input_height + dy_pixels, 0)}")
+        self.h_shift = (-64 , - self.input_width + dx_pixels)
+        self.v_shift = (-self.input_height + dy_pixels, 150)
+        print(f"Actual shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
+
 
     def calculate_horizontal_shift(self, img1, img2, max_overlap):
         img1 = self.normalize_image(img1)
@@ -1145,50 +1165,68 @@ class CoordinateStitcher(QThread, QObject):
         return (img_normalized * scale_factor).astype(self.dtype)
 
     def visualize_image(self, img1, img2, title):
-        if title == 'horizontal':
-            combined_image = np.hstack((img1, img2))
-        else:
-            combined_image = np.vstack((img1, img2))
-        cv2.imwrite(f"{self.input_folder}/{title}.png", combined_image)
+        try:
+            # Ensure images are numpy arrays
+            img1 = np.asarray(img1)
+            img2 = np.asarray(img2)
+
+            if title == 'horizontal':
+                combined_image = np.hstack((img1, img2))
+            else:
+                combined_image = np.vstack((img1, img2))
+            
+            # Convert to uint8 for saving as PNG
+            combined_image_uint8 = (combined_image / np.iinfo(self.dtype).max * 255).astype(np.uint8)
+            
+            cv2.imwrite(f"{self.input_folder}/{title}.png", combined_image_uint8)
+            
+            print(f"Saved {title}.png successfully")
+        except Exception as e:
+            print(f"Error in visualize_image: {e}")
+            print(f"img1 shape: {img1.shape}, dtype: {img1.dtype}")
+            print(f"img2 shape: {img2.shape}, dtype: {img2.dtype}")
+            print(f"combined_image shape: {combined_image.shape}, dtype: {combined_image.dtype}")
+            print(f"combined_image_uint8 shape: {combined_image_uint8.shape}, dtype: {combined_image_uint8.dtype}")
 
     def stitch_and_save_region(self, region, progress_callback=None):
-        stitched_images = self.init_output(region)
+        stitched_images = self.init_output(region)  # sets self.x_positions, self.y_positions
         region_data = {k: v for k, v in self.stitching_data.items() if k[1] == region}
         total_tiles = len(region_data)
         processed_tiles = 0
 
-        x_min = min(tile_info['x'] for tile_info in region_data.values())
-        y_min = min(tile_info['y'] for tile_info in region_data.values())
-        x_max = max(tile_info['x'] for tile_info in region_data.values())
-        y_max = max(tile_info['y'] for tile_info in region_data.values())
-
-        x_range = x_max - x_min
-        y_range = y_max - y_min
-
-        # Pre-calculate shift values if registration is used
-        if self.use_registration:
-            h_shift_x = self.h_shift[1]
-            h_shift_y = self.h_shift[0]
-            v_shift_x = self.v_shift[1]
-            v_shift_y = self.v_shift[0]
+        x_min = min(self.x_positions)
+        y_min = min(self.y_positions)
+        dx_pixels = int(self.acquisition_params['dx(mm)'] * 1000 / self.pixel_size_um)
+        dy_pixels = int(self.acquisition_params['dy(mm)'] * 1000 / self.pixel_size_um)
 
         for key, tile_info in region_data.items():
             t, _, fov, z_level, channel = key
             tile = dask_imread(tile_info['filepath'])[0]
 
-            # Calculate base position
-            x_pixel = int((tile_info['x'] - x_min) * 1000 / self.pixel_size_um)
-            y_pixel = int((tile_info['y'] - y_min) * 1000 / self.pixel_size_um)
-
-            # Apply shifts if registration is used
             if self.use_registration:
-                # Calculate relative position of the tile in the region
-                rel_x = (tile_info['x'] - x_min) / x_range
-                rel_y = (tile_info['y'] - y_min) / y_range
+                col_index = self.x_positions.index(tile_info['x'])
+                row_index = self.y_positions.index(tile_info['y'])
 
-                # Apply horizontal and vertical shifts based on relative position
-                x_pixel += int(rel_x * h_shift_x + rel_y * v_shift_x)
-                y_pixel += int(rel_y * v_shift_y + rel_x * h_shift_y)
+                # Initialize starting coordinates based on tile position and shift
+                x_pixel = int(col_index * (self.input_width + self.h_shift[1]))
+                y_pixel = int(row_index * (self.input_height + self.v_shift[0]))
+
+                # Apply horizontal shift effect on y-coordinate
+                if self.h_shift[0] < 0:
+                    y_pixel += int((len(self.x_positions) - 1 - col_index) * abs(self.h_shift[0]))  # Moves up ->
+                else:
+                    y_pixel += int(col_index * self.h_shift[0])  # Moves down ->
+
+                # Apply vertical shift effect on x-coordinate
+                if self.v_shift[1] < 0:
+                    x_pixel += int((len(self.y_positions) - 1 - row_index) * abs(self.v_shift[1]))  # Moves left V
+                else:
+                    x_pixel += int(row_index * self.v_shift[1])  # Moves right V
+
+            else:
+                # Calculate base position
+                x_pixel = int((tile_info['x'] - x_min) * 1000 / self.pixel_size_um)
+                y_pixel = int((tile_info['y'] - y_min) * 1000 / self.pixel_size_um)
 
             self.place_tile(stitched_images, tile, x_pixel, y_pixel, z_level, channel, t)
 
@@ -1202,11 +1240,11 @@ class CoordinateStitcher(QThread, QObject):
         else:
             self.save_region_to_ome_zarr(region, stitched_images)
 
-    def place_tile(self, stitched_images, tile, x, y, z_level, channel, t):
+    def place_tile(self, stitched_images, tile, x_pixel, y_pixel, z_level, channel, t):
         if len(tile.shape) == 2:
             # Handle 2D grayscale image
             channel_idx = self.mono_channel_names.index(channel)
-            self.place_single_channel_tile(stitched_images, tile, x, y, z_level, channel_idx, t)
+            self.place_single_channel_tile(stitched_images, tile, x_pixel, y_pixel, z_level, channel_idx, t)
 
         elif len(tile.shape) == 3:
             if tile.shape[2] == 3:
@@ -1214,31 +1252,29 @@ class CoordinateStitcher(QThread, QObject):
                 channel = channel.split('_')[0]
                 for i, color in enumerate(['R', 'G', 'B']):
                     channel_idx = self.mono_channel_names.index(f"{channel}_{color}")
-                    self.place_single_channel_tile(stitched_images, tile[:,:,i], x, y, z_level, channel_idx, t)
+                    self.place_single_channel_tile(stitched_images, tile[:,:,i], x_pixel, y_pixel, z_level, channel_idx, t)
             elif tile.shape[0] == 1:
                 channel_idx = self.mono_channel_names.index(channel)
-                self.place_single_channel_tile(stitched_images, tile[0], x, y, z_level, channel_idx, t)
+                self.place_single_channel_tile(stitched_images, tile[0], x_pixel, y_pixel, z_level, channel_idx, t)
         else:
             raise ValueError(f"Unexpected tile shape: {tile.shape}")
 
-    def place_single_channel_tile(self, stitched_images, tile, x, y, z_level, channel_idx, t):
-        #print(f"stitching tile: t={t}, channel={channel_idx}, z={z_level}, x={x}, y={y}")
+    def place_single_channel_tile(self, stitched_images, tile, x_pixel, y_pixel, z_level, channel_idx, t):
         if len(stitched_images.shape) != 5:
             raise ValueError(f"Unexpected stitched_images shape: {stitched_images.shape}. Expected 5D array (t, c, z, y, x).")
         
-        y_end = min(y + tile.shape[0], stitched_images.shape[3])
-        x_end = min(x + tile.shape[1], stitched_images.shape[4])
+        y_end = min(y_pixel + tile.shape[0], stitched_images.shape[3])
+        x_end = min(x_pixel + tile.shape[1], stitched_images.shape[4])
         
         if self.apply_flatfield:
             tile = self.apply_flatfield_correction(tile, channel_idx)
         
         try:
-            stitched_images[t, channel_idx, z_level, y:y_end, x:x_end] = tile[:y_end-y, :x_end-x]
+            stitched_images[t, channel_idx, z_level, y_pixel:y_end, x_pixel:x_end] = tile[:y_end-y_pixel, :x_end-x_pixel]
         except Exception as e:
             print(f"ERROR: Failed to place tile. Details: {str(e)}")
-            print(f"DEBUG: t={t}, channel_idx={channel_idx}, z_level={z_level}")
-            print(f"DEBUG: y:{y}-{y_end}, x:{x}-{x_end}")
-            print(f"DEBUG: tile slice shape: {tile[:y_end-y, :x_end-x].shape}")
+            print(f"DEBUG: t:{t}, channel_idx:{channel_idx}, z_level:{z_level}, y:{y_pixel}-{y_end}, x:{x_pixel}-{x_end}")
+            print(f"DEBUG: tile slice shape: {tile[:y_end-y_pixel, :x_end-x_pixel].shape}")
             raise
 
     def apply_flatfield_correction(self, tile, channel_idx):
@@ -1465,12 +1501,16 @@ class CoordinateStitcher(QThread, QObject):
         if len(self.regions) > 1:
             self.write_stitched_plate_metadata()
 
+        if self.use_registration:
+            print(f"\nCalculating shifts for region {self.regions[0]}...")
+            self.calculate_shifts(self.regions[0])
+
         for region in self.regions:
             wtime = time.time()
 
-            if self.use_registration:
-                print(f"\nCalculating shifts for region {region}...")
-                self.calculate_shifts(region)
+            # if self.use_registration:
+            #     print(f"\nCalculating shifts for region {region}...")
+            #     self.calculate_shifts(region)
 
             self.starting_stitching.emit()
             print(f"\nstarting stitching for region {region}...")

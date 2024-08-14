@@ -1595,7 +1595,7 @@ class MultiPointWorker(QObject):
     napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
     napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
     napari_rtp_layers_update = Signal(np.ndarray, str)
-    signal_acquisition_progress = Signal(int, int)
+    signal_acquisition_progress = Signal(int, int, int)
     signal_region_progress = Signal(int, int)
 
     def __init__(self,multiPointController):
@@ -1884,7 +1884,7 @@ class MultiPointWorker(QObject):
         n_regions = len(self.scan_coordinates_mm)
 
         for region_id in range(n_regions):
-            self.signal_acquisition_progress.emit(region_id + 1, n_regions)
+            self.signal_acquisition_progress.emit(region_id + 1, n_regions, self.time_point)
             coordinate_mm = self.scan_coordinates_mm[region_id]
 
             self.x_scan_direction = 1
@@ -1939,7 +1939,7 @@ class MultiPointWorker(QObject):
 
         for region_index, (region_id, coordinates) in enumerate(self.coordinate_dict.items()):
 
-            self.signal_acquisition_progress.emit(region_index + 1, n_regions)
+            self.signal_acquisition_progress.emit(region_index + 1, n_regions, self.time_point)
 
             self.num_fovs = len(coordinates)
             self.total_scans = self.num_fovs * self.NZ * len(self.selected_configurations)
@@ -2016,7 +2016,7 @@ class MultiPointWorker(QObject):
                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
                 # populate the tiled_preview
-                self.tiled_preview[real_i*height:(real_i+1)*height, real_j*width:(real_j+1)*width, ] = I
+                self.tiled_preview[i*height:(i+1)*height, j*width:(j+1)*width, ] = I
                 # emit the result
                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
@@ -2489,7 +2489,7 @@ class MultiPointController(QObject):
     napari_layers_update = Signal(np.ndarray, int, int, int, str) # image, i, j, k, channel
     napari_mosaic_update = Signal(np.ndarray, float, float, int, str) # image, x_mm, y_mm, k, channel
     signal_z_piezo_um = Signal(float)
-    signal_acquisition_progress = Signal(int, int)
+    signal_acquisition_progress = Signal(int, int, int)
     signal_region_progress = Signal(int, int)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
@@ -2624,7 +2624,14 @@ class MultiPointController(QObject):
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
         configManagerThrowaway = ConfigurationManager(self.configurationManager.config_filename)
         configManagerThrowaway.write_configuration_selected(self.selected_configurations,os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
-        acquisition_parameters = {'dx(mm)':self.deltaX, 'Nx':self.NX, 'dy(mm)':self.deltaY, 'Ny':self.NY, 'dz(um)':self.deltaZ*1000,'Nz':self.NZ,'dt(s)':self.deltat,'Nt':self.Nt,'with AF':self.do_autofocus,'with reflection AF':self.do_reflection_af}
+        # Prepare acquisition parameters
+        acquisition_parameters = {
+            'dx(mm)': self.deltaX, 'Nx': self.NX,
+            'dy(mm)': self.deltaY, 'Ny': self.NY,
+            'dz(um)': self.deltaZ * 1000 if self.deltaZ != 0 else 1, 'Nz': self.NZ,
+            'dt(s)': self.deltat, 'Nt': self.Nt,
+            'with AF': self.do_autofocus, 'with reflection AF': self.do_reflection_af,
+        }
         try: # write objective data if it is available
             current_objective = self.parent.objectiveStore.current_objective
             objective_info = self.parent.objectiveStore.objectives_dict.get(current_objective, {})
@@ -2887,8 +2894,8 @@ class MultiPointController(QObject):
     def slot_z_piezo_um(self, displacement_um):
         self.signal_z_piezo_um.emit(displacement_um)
 
-    def slot_acquisition_progress(self, current_region, total_regions):
-        self.signal_acquisition_progress.emit(current_region, total_regions)
+    def slot_acquisition_progress(self, current_region, total_regions, current_time_point):
+        self.signal_acquisition_progress.emit(current_region, total_regions, current_time_point)
 
     def slot_region_progress(self, current_fov, total_fovs):
         self.signal_region_progress.emit(current_fov, total_fovs)
