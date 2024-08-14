@@ -278,8 +278,6 @@ class Camera(object):
         self.last_numpy_image = None
 
     def set_exposure_time(self,exposure_time):
-        # exposure time in ms
-        self.camera.put_ExpoTime(int(exposure_time*1000))
         # use_strobe = (self.trigger_mode == TriggerMode.HARDWARE) # true if using hardware trigger
         # if use_strobe == False or self.is_global_shutter:
         #     self.exposure_time = exposure_time
@@ -292,6 +290,10 @@ class Camera(object):
         #     self.camera.ExposureTime.set(camera_exposure_time)
         self.exposure_time = exposure_time
         self.callback_reset_strobe_delay_function()
+
+        # exposure time in ms
+        if self.trigger_mode == TriggerMode.HARDWARE:
+            self.camera.put_ExpoTime(int(exposure_time*1000) + int(self.strobe_delay_us))
 
     def update_camera_exposure_time(self):
         pass
