@@ -138,8 +138,7 @@ const int pin_PG = 0;
 /***************************************************************************************************/
 /************************************ camera trigger and strobe ************************************/
 /***************************************************************************************************/
-// trigger delay + exposure time
-uint32_t trigger_delay_pulse_length_us = 50;
+static const int TRIGGER_PULSE_LENGTH_us = 50;
 
 bool trigger_output_level[6] = {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
 bool control_strobe[6] = {false, false, false, false, false, false};
@@ -1567,7 +1566,7 @@ void loop() {
   for (int camera_channel = 0; camera_channel < 6; camera_channel++)
   {
     // end the trigger pulse
-    if (trigger_output_level[camera_channel] == LOW && (micros() - timestamp_trigger_rising_edge[camera_channel]) >= trigger_delay_pulse_length_us )
+    if (trigger_output_level[camera_channel] == LOW && (micros() - timestamp_trigger_rising_edge[camera_channel]) >= TRIGGER_PULSE_LENGTH_us )
     {
       digitalWrite(camera_trigger_pins[camera_channel], HIGH);
       trigger_output_level[camera_channel] = HIGH;
