@@ -853,6 +853,7 @@ class OctopiGUI(QMainWindow):
                                                 apply_flatfield=apply_flatfield, 
                                                 use_registration=use_registration, registration_channel=registration_channel, registration_z_level=registration_z_level)
 
+            self.stitcherWidget.setStitcherThread(self.stitcherThread)
             # Connect signals to slots
             self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
             self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
@@ -870,6 +871,8 @@ class OctopiGUI(QMainWindow):
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter(1)
             self.emission_filter_wheel.close()
+
+        self.stitcherWidget.closeEvent()
 
         # move the objective to a defined position upon exit
         if HOMING_ENABLED_X and HOMING_ENABLED_Y:
@@ -891,6 +894,7 @@ class OctopiGUI(QMainWindow):
         self.liveController.stop_live()
         self.camera.stop_streaming()
         self.camera.close()
+
         if ENABLE_CELLX:
             for channel in [1,2,3,4]:
                 self.cellx.turn_off(channel)

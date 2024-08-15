@@ -1056,34 +1056,14 @@ class CoordinateStitcher(QThread, QObject):
             print(f"Warning: Specified registration channel '{self.registration_channel}' not found. Using {self.channel_names[0]}.")
             self.registration_channel = self.channel_names[0]
 
-        # Calculate estimated overlap from acquisition parameters
-        dx_mm = self.acquisition_params['dx(mm)']
-        dy_mm = self.acquisition_params['dy(mm)']
-        obj_mag = self.acquisition_params['objective']['magnification']
-        obj_tube_lens_mm = self.acquisition_params['objective']['tube_lens_f_mm']
-        sensor_pixel_size_um = self.acquisition_params['sensor_pixel_size_um']
-        tube_lens_mm = self.acquisition_params['tube_lens_mm']
 
-        obj_focal_length_mm = obj_tube_lens_mm / obj_mag
-        actual_mag = tube_lens_mm / obj_focal_length_mm
-        self.pixel_size_um = sensor_pixel_size_um / actual_mag
-        print("pixel_size_um:", self.pixel_size_um)
-
-        dx_pixels = dx_mm * 1000 / self.pixel_size_um
-        dy_pixels = dy_mm * 1000 / self.pixel_size_um
-        print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
-
-        max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
-        max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
-        print("objective calculated - vertical overlap:", max_y_overlap, ", horizontal overlap:", max_x_overlap)
-
-        max_x_overlap = round(self.input_width * self.overlap_percent / 100 / 2)
-        max_y_overlap = round(self.input_height * self.overlap_percent / 100 / 2)
-        print("overlap calculated - vertical overlap:", max_y_overlap, ", horizontal overlap:", max_x_overlap)
+        max_x_overlap = round(self.input_width * self.overlap_percent / 2 / 100)
+        max_y_overlap = round(self.input_height * self.overlap_percent / 2 / 100)
+        print(f"Expected shifts - Horizontal: {(0, -max_x_overlap)}, Vertical: {(-max_y_overlap , 0)}")
 
         # Find center positions
-        center_x_index = len(x_positions) // 2
-        center_y_index = len(y_positions) // 2
+        center_x_index = (len(x_positions) - 1) // 2
+        center_y_index = (len(y_positions) - 1) // 2
         
         center_x = x_positions[center_x_index]
         center_y = y_positions[center_y_index]
@@ -1111,10 +1091,6 @@ class CoordinateStitcher(QThread, QObject):
                 print(f"Warning: Missing tiles for vertical shift calculation in region {region}.")
 
         print(f"Calculated shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
-        print(f"Expected shifts - Horizontal: {(0, - self.input_width + dx_pixels)}, Vertical: {(-self.input_height + dy_pixels, 0)}")
-        self.h_shift = (-64 , - self.input_width + dx_pixels)
-        self.v_shift = (-self.input_height + dy_pixels, 150)
-        print(f"Actual shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
 
 
     def calculate_horizontal_shift(self, img1, img2, max_overlap):
@@ -1196,32 +1172,30 @@ class CoordinateStitcher(QThread, QObject):
 
         x_min = min(self.x_positions)
         y_min = min(self.y_positions)
-        dx_pixels = int(self.acquisition_params['dx(mm)'] * 1000 / self.pixel_size_um)
-        dy_pixels = int(self.acquisition_params['dy(mm)'] * 1000 / self.pixel_size_um)
 
         for key, tile_info in region_data.items():
             t, _, fov, z_level, channel = key
             tile = dask_imread(tile_info['filepath'])[0]
 
             if self.use_registration:
-                col_index = self.x_positions.index(tile_info['x'])
-                row_index = self.y_positions.index(tile_info['y'])
+                self.col_index = self.x_positions.index(tile_info['x'])
+                self.row_index = self.y_positions.index(tile_info['y'])
 
                 # Initialize starting coordinates based on tile position and shift
-                x_pixel = int(col_index * (self.input_width + self.h_shift[1]))
-                y_pixel = int(row_index * (self.input_height + self.v_shift[0]))
+                x_pixel = int(self.col_index * (self.input_width + self.h_shift[1]))
+                y_pixel = int(self.row_index * (self.input_height + self.v_shift[0]))
 
                 # Apply horizontal shift effect on y-coordinate
                 if self.h_shift[0] < 0:
-                    y_pixel += int((len(self.x_positions) - 1 - col_index) * abs(self.h_shift[0]))  # Moves up ->
+                    y_pixel += int((len(self.x_positions) - 1 - self.col_index) * abs(self.h_shift[0]))  # Moves up ->
                 else:
-                    y_pixel += int(col_index * self.h_shift[0])  # Moves down ->
+                    y_pixel += int(self.col_index * self.h_shift[0])  # Moves down ->
 
                 # Apply vertical shift effect on x-coordinate
                 if self.v_shift[1] < 0:
-                    x_pixel += int((len(self.y_positions) - 1 - row_index) * abs(self.v_shift[1]))  # Moves left V
+                    x_pixel += int((len(self.y_positions) - 1 - self.row_index) * abs(self.v_shift[1]))  # Moves left V
                 else:
-                    x_pixel += int(row_index * self.v_shift[1])  # Moves right V
+                    x_pixel += int(self.row_index * self.v_shift[1])  # Moves right V
 
             else:
                 # Calculate base position
@@ -1238,7 +1212,8 @@ class CoordinateStitcher(QThread, QObject):
         if len(self.regions) > 1:
             self.save_region_to_hcs_ome_zarr(region, stitched_images)
         else:
-            self.save_region_to_ome_zarr(region, stitched_images)
+            self.save_as_ome_zarr(region, stitched_images)
+            # self.save_region_to_ome_zarr(region, stitched_images) # bugs: when starting to save, main gui lags and disconnects
 
     def place_tile(self, stitched_images, tile, x_pixel, y_pixel, z_level, channel, t):
         if len(tile.shape) == 2:
@@ -1262,12 +1237,26 @@ class CoordinateStitcher(QThread, QObject):
     def place_single_channel_tile(self, stitched_images, tile, x_pixel, y_pixel, z_level, channel_idx, t):
         if len(stitched_images.shape) != 5:
             raise ValueError(f"Unexpected stitched_images shape: {stitched_images.shape}. Expected 5D array (t, c, z, y, x).")
+
+        if self.apply_flatfield:
+            tile = self.apply_flatfield_correction(tile, channel_idx)
+
+        if self.use_registration:
+            # Determine crop for tile edges
+            top_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if self.row_index > 0 else 0 # if y
+            bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if self.row_index < len(self.y_positions) - 1 else 0
+            left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if self.col_index > 0 else 0
+            right_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if self.col_index < len(self.x_positions) - 1 else 0
+
+            # Apply cropping to the tile
+            tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
+
+            # Adjust x_pixel and y_pixel based on cropping
+            x_pixel += left_crop
+            y_pixel += top_crop
         
         y_end = min(y_pixel + tile.shape[0], stitched_images.shape[3])
         x_end = min(x_pixel + tile.shape[1], stitched_images.shape[4])
-        
-        if self.apply_flatfield:
-            tile = self.apply_flatfield_correction(tile, channel_idx)
         
         try:
             stitched_images[t, channel_idx, z_level, y_pixel:y_end, x_pixel:x_end] = tile[:y_end-y_pixel, :x_end-x_pixel]
@@ -1353,6 +1342,33 @@ class CoordinateStitcher(QThread, QObject):
             coordinate_transformations=coordinate_transformations,
             storage_options=dict(chunks=self.chunks),
             name=f"{region}"
+        )
+
+    def save_as_ome_zarr(self, region, stitched_images):
+        output_path = os.path.join(self.input_folder, self.output_name)
+        dz_um = self.acquisition_params.get("dz(um)", None)
+        sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
+        channel_minmax = [(np.iinfo(self.dtype).min, np.iinfo(self.dtype).max)] * self.num_c
+        for i in range(self.num_c):
+            print(f"Channel {i}:", self.mono_channel_names[i], " \tColor:", self.channel_colors[i], " \tPixel Range:", channel_minmax[i])
+
+        zarr_writer = OmeZarrWriter(output_path)
+        zarr_writer.build_ome(
+            size_z=self.num_z,
+            image_name=region,
+            channel_names=self.mono_channel_names,
+            channel_colors=self.channel_colors,
+            channel_minmax=channel_minmax
+        )
+        zarr_writer.write_image(
+            image_data=stitched_images,
+            image_name=region,
+            physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, self.pixel_size_um, self.pixel_size_um),
+            channel_names=self.mono_channel_names,
+            channel_colors=self.channel_colors,
+            dimension_order="TCZYX",
+            scale_num_levels=self.num_pyramid_levels,
+            chunk_dims=self.chunks
         )
 
     def save_region_to_ome_zarr(self, region, stitched_images):

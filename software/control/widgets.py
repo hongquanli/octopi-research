@@ -3542,15 +3542,6 @@ class MultiPointWidgetGrid(QFrame):
             if self.scanCoordinates.format == 0:
                 self.entry_well_coverage.setEnabled(False)
             self.entry_deltaZ.setEnabled(False)
-        # if enabled:
-        #     self.navigationController.zPos.connect(self.update_z_min)
-        #     self.navigationController.zPos.connect(self.update_z_max)
-        # else:
-        #     try:  
-        #         self.navigationController.zPos.disconnect(self.update_z_min)
-        #         self.navigationController.zPos.disconnect(self.update_z_max)
-        #     except TypeError:
-        #         pass 
 
     def set_saving_dir(self):
         dialog = QFileDialog()
@@ -3581,6 +3572,7 @@ class StitcherWidget(QFrame):
     def __init__(self, configurationManager, *args, **kwargs):
         super(StitcherWidget, self).__init__(*args, **kwargs)
         self.configurationManager = configurationManager
+        self.stitcherThread = None
         self.output_path = ""
         self.contrast_limit = None
         self.contrast_limits = {}
@@ -3655,17 +3647,14 @@ class StitcherWidget(QFrame):
         self.layout.addWidget(self.statusLabel)
         self.statusLabel.setVisible(False)
 
+    def setStitcherThread(self, thread):
+        self.stitcherThread = thread
+
     def onRegistrationCheck(self, checked):
         self.registrationChannelLabel.setVisible(checked)
         self.registrationChannelCombo.setVisible(checked)
         self.registrationZLabel.setVisible(checked)
         self.registrationZCombo.setVisible(checked)
-        # if checked:
-        #     self.rowLayout2.removeWidget(self.applyFlatfieldCheck)
-        #     self.rowLayout1.insertWidget(0, self.applyFlatfieldCheck)
-        # else:
-        #     self.rowLayout1.removeWidget(self.applyFlatfieldCheck)
-        #     self.rowLayout2.insertWidget(0, self.applyFlatfieldCheck)
 
     def updateRegistrationChannels(self, selected_channels):
         self.registrationChannelCombo.clear()  # Clear existing items
@@ -3706,6 +3695,11 @@ class StitcherWidget(QFrame):
         self.progressBar.setVisible(True)
 
     def finishedSaving(self, output_path, dtype):
+        if self.stitcherThread is not None:
+            self.stitcherThread.quit()
+            self.stitcherThread.wait()
+            self.stitcherThread.deleteLater()
+            self.stitcherThread = None
         self.statusLabel.setVisible(False)
         self.progressBar.setVisible(False)
         self.viewOutputButton.setVisible(True)
@@ -3797,6 +3791,14 @@ class StitcherWidget(QFrame):
         self.progressBar.setVisible(False)
         self.statusLabel.setText("Status: Image Acquisition")
         self.statusLabel.setVisible(False)
+
+    def closeEvent(self, event):
+        if self.stitcherThread is not None:
+            self.stitcherThread.quit()
+            self.stitcherThread.wait()
+            self.stitcherThread.deleteLater()
+            self.stitcherThread = None
+        super().closeEvent(event)
 
 
 class NapariLiveWidget(QWidget):
