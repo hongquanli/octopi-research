@@ -267,7 +267,7 @@ class OctopiGUI(QMainWindow):
 
         # only toupcam need reset strobe argument when camera's argument change 
         if CAMERA_TYPE == "Toupcam":
-            self.camera.set_callback_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
+            self.camera.set_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
 
         # load widgets
         if ENABLE_SPINNING_DISK_CONFOCAL:

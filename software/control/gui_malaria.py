@@ -153,7 +153,7 @@ class OctopiGUI(QMainWindow):
 
         # only toupcam need reset strobe argument when camera's argument change 
         if CAMERA_TYPE == "Toupcam":
-            self.camera.set_callback_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
+            self.camera.set_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
 
         # load widgets
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False)

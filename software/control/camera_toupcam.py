@@ -175,7 +175,7 @@ class Camera(object):
             self.Height = resolution[1]
 
         # when camera arguments changed, call it to update strobe_delay
-        self.callback_reset_strobe_delay_function = None
+        self.reset_strobe_delay = None
 
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
@@ -289,7 +289,7 @@ class Camera(object):
         #     camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
         #     self.camera.ExposureTime.set(camera_exposure_time)
         self.exposure_time = exposure_time
-        self.callback_reset_strobe_delay_function()
+        self.reset_strobe_delay()
 
         # exposure time in ms
         if self.trigger_mode == TriggerMode.HARDWARE:
@@ -362,7 +362,6 @@ class Camera(object):
             self.stop_streaming()
 
         self.pixel_format = pixel_format
-
         if self.data_format == 'RAW':
             if pixel_format == 'MONO8':
                 self.pixel_size_byte = 1
@@ -421,8 +420,8 @@ class Camera(object):
         # else:
         #     print("pixel format is not implemented or not writable")
 
-        if self.callback_reset_strobe_delay_function is not None:
-            self.callback_reset_strobe_delay_function()
+        if self.reset_strobe_delay is not None:
+            self.reset_strobe_delay()
 
         # if was_streaming:
         #    self.start_streaming()
@@ -464,8 +463,8 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
-        if self.callback_reset_strobe_delay_function is not None:
-            self.callback_reset_strobe_delay_function()
+        if self.reset_strobe_delay is not None:
+            self.reset_strobe_delay()
 
     def _update_buffer_settings(self):
         # resize the buffer
@@ -705,8 +704,8 @@ class Camera(object):
         if was_streaming:
             self.start_streaming()
 
-        if self.callback_reset_strobe_delay_function is not None:
-            self.callback_reset_strobe_delay_function()
+        if self.reset_strobe_delay is not None:
+            self.reset_strobe_delay()
 
     def reset_camera_acquisition_counter(self):
         # if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
@@ -846,8 +845,8 @@ class Camera(object):
         
         self.strobe_delay_us = frame_time
 
-    def set_callback_reset_strobe_delay_function(self, callback_fun):
-        self.callback_reset_strobe_delay_function = callback_fun 
+    def set_reset_strobe_delay_function(self, function_body):
+        self.reset_strobe_delay = function_body 
 
 class Camera_Simulation(object):
     
@@ -910,7 +909,7 @@ class Camera_Simulation(object):
         self.brand = 'ToupTek'
 
         # when camera arguments changed, call it to update strobe_delay
-        self.callback_reset_strobe_delay_function = None
+        self.reset_strobe_delay = None
 
     def open(self,index=0):
         pass
@@ -1028,5 +1027,5 @@ class Camera_Simulation(object):
     def calculate_hardware_trigger_arguments(self):
         pass
 
-    def set_callback_reset_strobe_delay_function(self, callback_fun):
+    def set_reset_strobe_delay_function(self, function_body):
         pass

@@ -616,7 +616,6 @@ class LiveController(QObject):
         self.fps_trigger = fps_trigger
         self.timer_trigger_interval = (1/self.fps_trigger)*1000
         self.timer_trigger.setInterval(int(self.timer_trigger_interval))
-        self.reset_strobe_arugment()
 
     def _stop_triggerred_acquisition(self):
         self.timer_trigger.stop()
@@ -634,7 +633,7 @@ class LiveController(QObject):
                 self._stop_triggerred_acquisition()
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
-            self.reset_strobe_arugment()
+            self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
 
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
                 self._start_triggerred_acquisition()
