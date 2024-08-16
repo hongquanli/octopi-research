@@ -528,8 +528,6 @@ class FocusMapWidget(QWidget):
         except IndexError:
             pass
 
-
-
     def enable_focusmap(self):
         self.disable_all_buttons()
         if self.autofocusController.use_focus_map == False:
@@ -669,7 +667,6 @@ class CameraSettingsWidget(QFrame):
         format_line.addWidget(self.dropdown_res,1)
         format_line.addStretch()
         self.camera_layout.addLayout(format_line)
-
 
         if include_camera_temperature_setting:
             temp_line = QHBoxLayout()
@@ -1307,7 +1304,7 @@ class NavigationWidget(QFrame):
         self.btn_zero_Z = QPushButton('Zero Z')
         self.btn_zero_Z.setDefault(False)
 
-        self.btn_load_slide = QPushButton('To Slide Loading Position')
+        self.btn_load_slide = QPushButton('Move To Loading Position')
         self.btn_load_slide.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         grid_line0 = QGridLayout()
@@ -1472,7 +1469,7 @@ class NavigationWidget(QFrame):
     def slot_slide_loading_position_reached(self):
         self.slide_position = 'loading'
         self.btn_load_slide.setStyleSheet("background-color: #C2FFC2")
-        self.btn_load_slide.setText('To Scanning Position')
+        self.btn_load_slide.setText('Move to Scanning Position')
         self.btn_moveX_forward.setEnabled(False)
         self.btn_moveX_backward.setEnabled(False)
         self.btn_moveY_forward.setEnabled(False)
@@ -1484,7 +1481,7 @@ class NavigationWidget(QFrame):
     def slot_slide_scanning_position_reached(self):
         self.slide_position = 'scanning'
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
-        self.btn_load_slide.setText('To Loading Position')
+        self.btn_load_slide.setText('Move to Loading Position')
         self.btn_moveX_forward.setEnabled(True)
         self.btn_moveX_backward.setEnabled(True)
         self.btn_moveY_forward.setEnabled(True)
@@ -1566,7 +1563,7 @@ class DACControWidget(QFrame):
 
 
 class AutoFocusWidget(QFrame):
-    signal_z_stacking = Signal(int)
+    signal_autoLevelSetting = Signal(bool)
 
     def __init__(self, autofocusController, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1583,51 +1580,51 @@ class AutoFocusWidget(QFrame):
         self.entry_delta.setSuffix(' μm')
         self.entry_delta.setValue(1.524)
         self.entry_delta.setKeyboardTracking(False)
+        self.entry_delta.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.autofocusController.set_deltaZ(1.524)
 
         self.entry_N = QSpinBox()
         self.entry_N.setMinimum(3)
+        self.entry_N.setMaximum(10000)
+        self.entry_N.setFixedWidth(self.entry_N.sizeHint().width())
         self.entry_N.setMaximum(20)
         self.entry_N.setSingleStep(1)
         self.entry_N.setValue(10)
         self.entry_N.setKeyboardTracking(False)
+        self.entry_N.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.autofocusController.set_N(10)
-
-        self.combobox_z_stack = QComboBox()
-        self.combobox_z_stack.addItems(['Above', 'Centered', 'Below'])
 
         self.btn_autofocus = QPushButton('Autofocus')
         self.btn_autofocus.setDefault(False)
         self.btn_autofocus.setCheckable(True)
         self.btn_autofocus.setChecked(False)
 
+        self.btn_autolevel = QPushButton('Autolevel')
+        self.btn_autolevel.setCheckable(True)
+        self.btn_autolevel.setChecked(False)
+        self.btn_autolevel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
         # layout
         self.grid = QVBoxLayout()
         grid_line0 = QHBoxLayout()
-        grid_line0.addStretch(1)
         grid_line0.addWidget(QLabel('\u0394 Z'))
         grid_line0.addWidget(self.entry_delta)
-        grid_line0.addStretch(1)
+        grid_line0.addSpacing(20)
         grid_line0.addWidget(QLabel('# of Z-Planes'))
         grid_line0.addWidget(self.entry_N)
-        grid_line0.addStretch(1)
-        grid_line0.addWidget(QLabel('Acquisition Z-Stack'))
-        grid_line0.addWidget(self.combobox_z_stack)
-        grid_line0.addStretch(1)
+        grid_line0.addSpacing(20)
+        grid_line0.addWidget(self.btn_autolevel)
+
         self.grid.addLayout(grid_line0)
         self.grid.addWidget(self.btn_autofocus)
-
         self.setLayout(self.grid)
 
         # connections
         self.btn_autofocus.clicked.connect(lambda : self.autofocusController.autofocus(False))
+        self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
         self.entry_delta.valueChanged.connect(self.set_deltaZ)
         self.entry_N.valueChanged.connect(self.autofocusController.set_N)
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
-        self.combobox_z_stack.currentIndexChanged.connect(self.emit_z_stack_config)
-
-    def emit_z_stack_config(self, index):
-        self.signal_z_stacking.emit(index)
 
     def set_deltaZ(self,value):
         mm_per_ustep = SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
@@ -1799,7 +1796,7 @@ class MultiPointWidget(QFrame):
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1)
-        self.entry_Nt.setMaximum(50000)   # @@@ to be changed
+        self.entry_Nt.setMaximum(5000)   # @@@ to be changed
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
         self.entry_Nt.setKeyboardTracking(False)
@@ -1813,7 +1810,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
+        self.checkbox_genFocusMap = QCheckBox('Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
@@ -1864,9 +1861,9 @@ class MultiPointWidget(QFrame):
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
-        grid_af.addWidget(self.checkbox_genFocusMap)
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+        grid_af.addWidget(self.checkbox_genFocusMap)
         if ENABLE_STITCHER:
             grid_af.addWidget(self.checkbox_stitchOutput)
 
@@ -2067,8 +2064,11 @@ class MultiPointWidget2(QFrame):
         self.base_path_is_set = True
 
         self.lineEdit_experimentID = QLineEdit()
+        self.lineEdit_experimentID.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.lineEdit_experimentID.setFixedWidth(96)
 
         self.dropdown_location_list = QComboBox()
+        self.dropdown_location_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.btn_add = QPushButton('Add')
         self.btn_remove = QPushButton('Remove')
         self.btn_previous = QPushButton('Previous')
@@ -2085,7 +2085,7 @@ class MultiPointWidget2(QFrame):
         self.table_location_list.setColumnCount(4)
         header_labels = ['x', 'y', 'z', 'ID']
         self.table_location_list.setHorizontalHeaderLabels(header_labels)
-        self.btn_show_table_location_list = QPushButton('Open / Edit')
+        self.btn_show_table_location_list = QPushButton('Edit') # Open / Edit
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0)
@@ -2095,13 +2095,17 @@ class MultiPointWidget2(QFrame):
         self.entry_deltaX.setDecimals(3)
         self.entry_deltaX.setSuffix(' mm')
         self.entry_deltaX.setKeyboardTracking(False)
+        self.entry_deltaX.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_NX = QSpinBox()
         self.entry_NX.setMinimum(1)
+        self.entry_NX.setMaximum(1000)
+        self.entry_NX.setMinimumWidth(self.entry_NX.sizeHint().width())
         self.entry_NX.setMaximum(50)
         self.entry_NX.setSingleStep(1)
         self.entry_NX.setValue(1)
         self.entry_NX.setKeyboardTracking(False)
+        self.entry_NX.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_deltaY = QDoubleSpinBox()
         self.entry_deltaY.setMinimum(0)
@@ -2111,13 +2115,17 @@ class MultiPointWidget2(QFrame):
         self.entry_deltaY.setDecimals(3)
         self.entry_deltaY.setSuffix(' mm')
         self.entry_deltaY.setKeyboardTracking(False)
+        self.entry_deltaY.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_NY = QSpinBox()
         self.entry_NY.setMinimum(1)
+        self.entry_NY.setMaximum(1000)
+        self.entry_NY.setMinimumWidth(self.entry_NX.sizeHint().width())
         self.entry_NY.setMaximum(50)
         self.entry_NY.setSingleStep(1)
         self.entry_NY.setValue(1)
         self.entry_NY.setKeyboardTracking(False)
+        self.entry_NY.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_deltaZ = QDoubleSpinBox()
         self.entry_deltaZ.setMinimum(0)
@@ -2127,6 +2135,7 @@ class MultiPointWidget2(QFrame):
         self.entry_deltaZ.setDecimals(3)
         self.entry_deltaZ.setSuffix(' μm')
         self.entry_deltaZ.setKeyboardTracking(False)
+        #self.entry_deltaZ.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_NZ = QSpinBox()
         self.entry_NZ.setMinimum(1)
@@ -2142,10 +2151,11 @@ class MultiPointWidget2(QFrame):
         self.entry_dt.setValue(0)
         self.entry_dt.setSuffix(' s')
         self.entry_dt.setKeyboardTracking(False)
+        #self.entry_dt.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1)
-        self.entry_Nt.setMaximum(50000)   # @@@ to be changed
+        self.entry_Nt.setMaximum(5000)   # @@@ to be changed
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
         self.entry_Nt.setKeyboardTracking(False)
@@ -2163,7 +2173,7 @@ class MultiPointWidget2(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
+        self.checkbox_genFocusMap = QCheckBox('Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         self.checkbox_stitchOutput = QCheckBox('Stitch Output')
@@ -2173,6 +2183,7 @@ class MultiPointWidget2(QFrame):
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
+        self.btn_startAcquisition.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.progress_label = QLabel('Region -/-')
         self.progress_bar = QProgressBar()
@@ -2183,48 +2194,62 @@ class MultiPointWidget2(QFrame):
         self.eta_timer = QTimer()
 
         # layout
-        grid_line0 = QGridLayout()
+        grid_line0  = QHBoxLayout()
         grid_line0.addWidget(QLabel('Saving Path'))
-        grid_line0.addWidget(self.lineEdit_savingDir, 0,1)
-        grid_line0.addWidget(self.btn_setSavingDir, 0,2)
-        grid_line0.addWidget(QLabel('ID'), 0,3)
-        grid_line0.addWidget(self.lineEdit_experimentID,0,4)
+        grid_line0.addWidget(self.lineEdit_savingDir)
+        grid_line0.addWidget(self.btn_setSavingDir)
+        grid_line0.addWidget(QLabel('ID'))
+        grid_line0.addWidget(self.lineEdit_experimentID)
 
-        grid_line4 = QGridLayout()
-        grid_line4.addWidget(QLabel('Location List'),0,0)
-        grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
-        grid_line4.addWidget(self.btn_clear,0,3)
-        grid_line4.addWidget(self.btn_show_table_location_list,0,4)
+        grid_line1 = QGridLayout()
+        temp3 = QHBoxLayout()
+        temp3.addWidget(QLabel('Location List'))
+        temp3.addWidget(self.dropdown_location_list)
+        grid_line1.addLayout(temp3, 0, 0, 1, 3)  # Span across all columns except the last
+        grid_line1.addWidget(self.btn_show_table_location_list, 0, 3)  # Align with other buttons
 
-        grid_line3point5 = QGridLayout()
-        grid_line3point5.addWidget(self.btn_add,0,0)
-        grid_line3point5.addWidget(self.btn_remove,0,1)
-        grid_line3point5.addWidget(self.btn_next,0,2)
-        grid_line3point5.addWidget(self.btn_previous,0,3)
-        #grid_line3point5.addWidget(self.btn_load_last_executed,0,4)
+        # Make all buttons span 2 columns for consistent width
+        grid_line1.addWidget(self.btn_add, 1, 0)
+        grid_line1.addWidget(self.btn_remove,1, 1)
+        grid_line1.addWidget(self.btn_next,1, 2)
+        grid_line1.addWidget(self.btn_clear, 1, 3)
 
-        grid_line3point75 = QGridLayout()
-        grid_line3point75.addWidget(self.btn_import_locations,0,0)
-        grid_line3point75.addWidget(self.btn_export_locations,0,1)
+        grid_line1.addWidget(self.btn_import_locations, 2, 0, 1, 2)
+        grid_line1.addWidget(self.btn_export_locations, 2, 2, 1, 2)
 
+        # Adjust the placement of labels and entries
         grid_line2 = QGridLayout()
-        grid_line2.addWidget(QLabel('dx'), 0,0)
-        grid_line2.addWidget(self.entry_deltaX, 0,1)
-        grid_line2.addWidget(QLabel('Nx'), 0,3)
-        grid_line2.addWidget(self.entry_NX, 0,4)
-        grid_line2.addWidget(QLabel('dy'), 0,6)
-        grid_line2.addWidget(self.entry_deltaY, 0,7)
-        grid_line2.addWidget(QLabel('Ny'), 0,9)
-        grid_line2.addWidget(self.entry_NY, 0,10)
+        grid_line2.addWidget(QLabel('dx'), 3, 0)
+        grid_line2.addWidget(self.entry_deltaX, 3, 1)
+        grid_line2.addWidget(QLabel('Nx'), 3, 3)
+        grid_line2.addWidget(self.entry_NX, 3, 4)
 
-        grid_line2.addWidget(QLabel('dz'), 1,0)
-        grid_line2.addWidget(self.entry_deltaZ, 1,1)
-        grid_line2.addWidget(QLabel('Nz'), 1,3)
-        grid_line2.addWidget(self.entry_NZ, 1,4)
-        grid_line2.addWidget(QLabel('dt'), 1,6)
-        grid_line2.addWidget(self.entry_dt, 1,7)
-        grid_line2.addWidget(QLabel('Nt'), 1,9)
-        grid_line2.addWidget(self.entry_Nt, 1,10)
+        grid_line2.addWidget(QLabel('dz'), 3, 6)
+        grid_line2.addWidget(self.entry_deltaZ, 3, 7)
+        grid_line2.addWidget(QLabel('Nz'), 3, 9)
+        grid_line2.addWidget(self.entry_NZ, 3, 10)
+
+        grid_line2.addWidget(QLabel('dy'), 4, 0)
+        grid_line2.addWidget(self.entry_deltaY, 4, 1)
+        grid_line2.addWidget(QLabel('Ny'), 4, 3)
+        grid_line2.addWidget(self.entry_NY, 4, 4)
+
+        grid_line2.addWidget(QLabel('dt'), 4, 6)
+        grid_line2.addWidget(self.entry_dt, 4, 7)
+        grid_line2.addWidget(QLabel('Nt'), 4, 9)
+        grid_line2.addWidget(self.entry_Nt, 4, 10)
+
+        grid_af = QVBoxLayout()
+        grid_af.addWidget(self.checkbox_withAutofocus)
+        if SUPPORT_LASER_AUTOFOCUS:
+            grid_af.addWidget(self.checkbox_withReflectionAutofocus)
+        grid_af.addWidget(self.checkbox_genFocusMap)
+        if ENABLE_STITCHER:
+            grid_af.addWidget(self.checkbox_stitchOutput)
+
+        grid_line2.addWidget(self.list_configurations,5,0,1,5)
+        grid_line2.addLayout(grid_af,5,6,1,2)
+        grid_line2.addWidget(self.btn_startAcquisition,5,8,1,3)
 
         grid_line2.setColumnStretch(2, 1)
         grid_line2.setColumnStretch(5, 1)
@@ -2236,30 +2261,12 @@ class MultiPointWidget2(QFrame):
         row_progress_layout.addWidget(self.progress_bar)
         row_progress_layout.addWidget(self.eta_label)
 
-        grid_af = QVBoxLayout()
-        grid_af.addWidget(self.checkbox_genFocusMap)
-        grid_af.addWidget(self.checkbox_withAutofocus)
-        if SUPPORT_LASER_AUTOFOCUS:
-            grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        if ENABLE_STITCHER:
-            grid_af.addWidget(self.checkbox_stitchOutput)
-
-        grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(self.list_configurations)
-        # grid_line3.addWidget(self.checkbox_withAutofocus)
-        grid_line3.addLayout(grid_af)
-        grid_line3.addWidget(self.btn_startAcquisition)
-
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
-        # self.grid.addLayout(grid_line1,1,0)
-        self.grid.addLayout(grid_line4,1,0)
-        self.grid.addLayout(grid_line3point5,2,0)
-        self.grid.addLayout(grid_line3point75,3,0)
-        # self.grid.addLayout(grid_line5,2,0)
-        self.grid.addLayout(grid_line2,4,0)
-        self.grid.addLayout(grid_line3,5,0)
-        self.grid.addLayout(row_progress_layout,6,0)
+        self.grid.addLayout(grid_line1,1,0)
+        self.grid.addLayout(grid_line2,2,0)
+        #self.grid.addLayout(grid_line3,4,0)
+        self.grid.addLayout(row_progress_layout,3,0)
         self.setLayout(self.grid)
 
         # add and display a timer - to be implemented
@@ -2480,7 +2487,7 @@ class MultiPointWidget2(QFrame):
             z = row[2]
             name = row_ind[0]
             if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
-                location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' μm'
+                location_str = 'x:' + str(round(x,3)) + 'mm  y:' + str(round(y,3)) + 'mm  z:' + str(round(1000*z,1)) + 'μm'
                 self.dropdown_location_list.addItem(location_str)
                 self.location_list = np.vstack((self.location_list, [[x,y,z]]))
                 self.location_ids = np.append(self.location_ids, name)
@@ -2528,7 +2535,6 @@ class MultiPointWidget2(QFrame):
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
 
-
     def disable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(False)
 
@@ -2544,11 +2550,11 @@ class MultiPointWidget2(QFrame):
             name = self.create_point_id()
 
         if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
-            location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' μm'
+            location_str = 'x:' + str(round(x,3)) + 'mm  y:' + str(round(y,3)) + 'mm  z:' + str(round(1000*z,1)) + 'μm'
             self.dropdown_location_list.addItem(location_str)
             index = self.dropdown_location_list.count() - 1
             self.dropdown_location_list.setCurrentIndex(index)
-            self.location_list = np.vstack((self.location_list, [[self.navigationController.x_pos_mm,self.navigationController.y_pos_mm,self.navigationController.z_pos_mm]]))
+            self.location_list = np.vstack((self.location_list, [[x,y,z]]))
             print(self.location_list)
             self.location_ids = np.append(self.location_ids, name)
             self.table_location_list.insertRow(self.table_location_list.rowCount())
@@ -2592,8 +2598,10 @@ class MultiPointWidget2(QFrame):
 
     def next(self):
         index = self.dropdown_location_list.currentIndex()
-        max_index = self.dropdown_location_list.count() - 1
-        index = min(index + 1, max_index)
+        # max_index = self.dropdown_location_list.count() - 1
+        # index = min(index + 1, max_index)
+        num_regions = self.dropdown_location_list.count()
+        index = (index + 1) % (num_regions)
         self.dropdown_location_list.setCurrentIndex(index)
         x = self.location_list[index,0]
         y = self.location_list[index,1]
@@ -2658,7 +2666,7 @@ class MultiPointWidget2(QFrame):
             self.location_ids[row] = val_edit
 
         self.navigationViewer.register_fov_to_image(self.location_list[row,0], self.location_list[row,1])
-        location_str = 'x: ' + str(round(self.location_list[row,0],3)) + ' mm, y: ' + str(round(self.location_list[row,1],3)) + ' mm, z: ' + str(1000*round(self.location_list[row,2],3)) + ' μm'
+        location_str = 'x:' + str(round(self.location_list[row,0],3)) + 'mm  y:' + str(round(self.location_list[row,1],3)) + 'mm  z:' + str(round(1000*(self.location_list[row,2]),3)) + 'μm'
         self.dropdown_location_list.setItemText(row, location_str)
         self.go_to(row)
 
@@ -2670,7 +2678,7 @@ class MultiPointWidget2(QFrame):
 
     def _update_z(self,index,z_mm):
         self.location_list[index,2] = z_mm
-        location_str = 'x: ' + str(round(self.location_list[index,0],3)) + ' mm, y: ' + str(round(self.location_list[index,1],3)) + ' mm, z: ' + str(round(1000*z_mm,1)) + ' μm'
+        location_str = 'x:' + str(round(self.location_list[index,0],3)) + 'mm  y:' + str(round(self.location_list[index,1],3)) + 'mm  z:' + str(round(1000*z_mm,1)) + 'μm'
         self.dropdown_location_list.setItemText(index, location_str)
 
     def export_location_list(self):
@@ -2704,7 +2712,7 @@ class MultiPointWidget2(QFrame):
                 z = row['z (um)']
                 name = row['ID']
                 if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
-                    location_str = 'x: ' + str(round(x,3)) + ' mm, y: ' + str(round(y,3)) + ' mm, z: ' + str(round(1000*z,1)) + ' μm'
+                    location_str = 'x:' + str(round(x,3)) + 'mm  y:' + str(round(y,3)) + 'mm  z:' + str(round(1000*z,1)) + 'μm'
                     self.dropdown_location_list.addItem(location_str)
                     index = self.dropdown_location_list.count() - 1
                     self.dropdown_location_list.setCurrentIndex(index)
@@ -2729,7 +2737,7 @@ class MultiPointWidgetGrid(QFrame):
     signal_acquisition_shape = Signal(int, int, int, float, float, float)
     signal_update_navigation_viewer = Signal()
     signal_stitcher_widget = Signal(bool)
-
+    signal_z_stacking = Signal(int)
 
     def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2754,9 +2762,17 @@ class MultiPointWidgetGrid(QFrame):
         self.set_default_scan_size()
 
     def add_components(self):
+
+        self.entry_well_coverage = QDoubleSpinBox()
+        self.entry_well_coverage.setRange(1, 999.99)
+        self.entry_well_coverage.setValue(100)
+        self.entry_well_coverage.setSuffix("%")
+        btn_width = self.entry_well_coverage.sizeHint().width()
+
         self.btn_setSavingDir = QPushButton('Browse')
         self.btn_setSavingDir.setDefault(False)
         self.btn_setSavingDir.setIcon(QIcon('icon/folder.png'))
+        self.btn_setSavingDir.setFixedWidth(btn_width)
 
         self.lineEdit_savingDir = QLineEdit()
         self.lineEdit_savingDir.setText(DEFAULT_SAVING_PATH)
@@ -2771,15 +2787,11 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_scan_size.setValue(1)
         self.entry_scan_size.setSuffix(" mm")
 
-        self.entry_well_coverage = QDoubleSpinBox()
-        self.entry_well_coverage.setRange(1, 1000)
-        self.entry_well_coverage.setValue(100)
-        self.entry_well_coverage.setSuffix(" %")
-
         self.entry_overlap = QDoubleSpinBox()
         self.entry_overlap.setRange(0, 99)
         self.entry_overlap.setValue(10)
-        self.entry_overlap.setSuffix(" %")
+        self.entry_overlap.setSuffix("%")
+        self.entry_overlap.setFixedWidth(btn_width)
 
         # Add z-min and z-max entries
         self.entry_minZ = QDoubleSpinBox()
@@ -2788,6 +2800,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_minZ.setSingleStep(1)  # Step by 1 μm
         self.entry_minZ.setValue(self.navigationController.z_pos_mm * 1000)  # Set to minimum
         self.entry_minZ.setSuffix(" μm")
+        #self.entry_minZ.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.set_minZ_button = QPushButton('Set')
         self.set_minZ_button.clicked.connect(self.set_z_min)
@@ -2798,6 +2811,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_maxZ.setSingleStep(1)  # Step by 1 μm
         self.entry_maxZ.setValue(self.navigationController.z_pos_mm * 1000)  # Set to maximum
         self.entry_maxZ.setSuffix(" μm")
+        #self.entry_maxZ.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.set_maxZ_button = QPushButton('Set')
         self.set_maxZ_button.clicked.connect(self.set_z_max)
@@ -2808,7 +2822,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_deltaZ.setSingleStep(0.2)
         self.entry_deltaZ.setValue(Acquisition.DZ)
         self.entry_deltaZ.setDecimals(3)
-        self.entry_deltaZ.setEnabled(False)
+        #self.entry_deltaZ.setEnabled(False)
         self.entry_deltaZ.setSuffix(" μm")
 
         self.entry_NZ = QSpinBox()
@@ -2816,6 +2830,8 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_NZ.setMaximum(2000)
         self.entry_NZ.setSingleStep(1)
         self.entry_NZ.setValue(1)
+        self.entry_NZ.setEnabled(False)
+        self.entry_NZ.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_dt = QDoubleSpinBox()
         self.entry_dt.setMinimum(0)
@@ -2826,9 +2842,14 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1)
-        self.entry_Nt.setMaximum(50000)
+        self.entry_Nt.setMaximum(5000)
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
+        self.entry_Nt.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.combobox_z_stack = QComboBox()
+        self.combobox_z_stack.addItems(['From Bottom (Z-min)', 'From Center', 'From Top (Z-max)'])
+        self.combobox_z_stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.list_configurations = QListWidget()
         for microscope_configuration in self.configurationManager.configurations:
@@ -2838,6 +2859,7 @@ class MultiPointWidgetGrid(QFrame):
         # Add a combo box for shape selection
         self.combobox_shape = QComboBox()
         self.combobox_shape.addItems(['Square', 'Circle'])
+        self.combobox_shape.setFixedWidth(btn_width)
 
         self.checkbox_withAutofocus = QCheckBox('Contrast AF')
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
@@ -2847,7 +2869,7 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_genFocusMap = QCheckBox('Generate Focus Map')
+        self.checkbox_genFocusMap = QCheckBox('Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         # Add a checkbox for coordinate-based acquisition
@@ -2862,6 +2884,7 @@ class MultiPointWidgetGrid(QFrame):
         self.btn_startAcquisition.setStyleSheet("background-color: #C2C2FF")
         self.btn_startAcquisition.setCheckable(True)
         self.btn_startAcquisition.setChecked(False)
+        #self.btn_startAcquisition.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.progress_label = QLabel('Region -/-')
         self.progress_bar = QProgressBar()
@@ -2883,11 +2906,10 @@ class MultiPointWidgetGrid(QFrame):
         main_layout.addLayout(saving_path_layout)
 
         # Experiment ID and Scan Shape
-
         row_1_layout = QHBoxLayout()
         row_1_layout.addWidget(QLabel('Experiment ID'))
         row_1_layout.addWidget(self.lineEdit_experimentID)
-        row_1_layout.addWidget(QLabel('Shape'))
+        row_1_layout.addWidget(QLabel('Well Shape'))
         row_1_layout.addWidget(self.combobox_shape)
         main_layout.addLayout(row_1_layout)
 
@@ -2896,17 +2918,19 @@ class MultiPointWidgetGrid(QFrame):
         row_4_layout.addWidget(QLabel('Size'))
         row_4_layout.addWidget(self.entry_scan_size)
         row_4_layout.addStretch(1)
+        row_4_layout.addWidget(QLabel('Overlap'))
+        row_4_layout.addWidget(self.entry_overlap)
+        row_4_layout.addStretch(1)
         row_4_layout.addWidget(QLabel('Well Coverage'))
         row_4_layout.addWidget(self.entry_well_coverage)
-        row_4_layout.addStretch(1)
-        row_4_layout.addWidget(QLabel('FOV Overlap'))
-        row_4_layout.addWidget(self.entry_overlap)
         main_layout.addLayout(row_4_layout)
 
         # Z and T
         row_2_3_layout = QGridLayout()
         row_2_3_layout.addWidget(self.set_minZ_button, 0, 0)
-        row_2_3_layout.addWidget(QLabel('Z-min'), 0, 1)
+        min_label = QLabel('Z-min')
+        min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter) # AlignRight
+        row_2_3_layout.addWidget(min_label, 0, 1)
         row_2_3_layout.addWidget(self.entry_minZ, 0, 2)
         row_2_3_layout.addWidget(QLabel('dz'), 0, 4)
         row_2_3_layout.addWidget(self.entry_deltaZ, 0, 5)
@@ -2914,35 +2938,42 @@ class MultiPointWidgetGrid(QFrame):
         row_2_3_layout.addWidget(self.entry_NZ, 0, 8)
 
         row_2_3_layout.addWidget(self.set_maxZ_button, 1, 0)
-        row_2_3_layout.addWidget(QLabel('Z-max'), 1, 1)
+        max_label = QLabel('Z-max')
+        max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        row_2_3_layout.addWidget(max_label, 1, 1)
         row_2_3_layout.addWidget(self.entry_maxZ, 1, 2)
         row_2_3_layout.addWidget(QLabel('dt'), 1, 4)
         row_2_3_layout.addWidget(self.entry_dt, 1, 5)
         row_2_3_layout.addWidget(QLabel('Nt'), 1, 7)
         row_2_3_layout.addWidget(self.entry_Nt, 1, 8)
-        row_2_3_layout.setColumnStretch(3, 1)
-        row_2_3_layout.setColumnStretch(6, 1)
 
-
-        main_layout.addLayout(row_2_3_layout)
-
-        # Configurations list, AF options, Start Acquisition button
-        row_bottom_layout = QHBoxLayout()
-        row_bottom_layout.addWidget(self.list_configurations)
+        temp = QHBoxLayout()
+        stack_label = QLabel('Z-Stack')
+        temp.addWidget(stack_label)
+        temp.addWidget(self.combobox_z_stack)
+        #stack_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        row_2_3_layout.addLayout(temp,2,0,1,3)
+        row_2_3_layout.addWidget(self.list_configurations,3,0,1,3)
 
         options_layout = QVBoxLayout()
-        options_layout.addWidget(self.checkbox_genFocusMap)
         options_layout.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             options_layout.addWidget(self.checkbox_withReflectionAutofocus)
         # options_layout.addWidget(self.checkbox_useCoordinateAcquisition)
+        options_layout.addWidget(self.checkbox_genFocusMap)
         if ENABLE_STITCHER:
             options_layout.addWidget(self.checkbox_stitchOutput)
+        
+        row_2_3_layout.addLayout(options_layout,2,4,2,3)
+        row_2_3_layout.addWidget(self.btn_startAcquisition,2,6,2,3)
 
-        row_bottom_layout.addLayout(options_layout)
+        spacer_widget = QWidget()
+        spacer_widget.setFixedWidth(1)
+        row_2_3_layout.addWidget(spacer_widget, 0, 3, 2, 1)  # Add spacer
+        # row_2_3_layout.setColumnStretch(3, 1)
+        # row_2_3_layout.setColumnStretch(6, 1)
 
-        row_bottom_layout.addWidget(self.btn_startAcquisition)
-        main_layout.addLayout(row_bottom_layout)
+        main_layout.addLayout(row_2_3_layout)
 
         # Row 5: Progress Bar
         row_progress_layout = QHBoxLayout()
@@ -2960,28 +2991,30 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.entry_scan_size.valueChanged.connect(self.update_coverage_from_scan_size)
         self.entry_well_coverage.valueChanged.connect(self.update_scan_size_from_coverage)
+        self.combobox_shape.currentTextChanged.connect(self.on_set_shape)
+        self.entry_scan_size.valueChanged.connect(self.update_well_coordinates)
+        self.entry_overlap.valueChanged.connect(self.update_well_coordinates)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
         self.navigationViewer.signal_draw_scan_grid.connect(self.set_live_scan_coordinates)
-        self.combobox_shape.currentTextChanged.connect(self.update_well_coordinates)
-        self.entry_scan_size.valueChanged.connect(self.update_well_coordinates)
-        self.entry_overlap.valueChanged.connect(self.update_well_coordinates)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
         self.multipointController.signal_acquisition_progress.connect(self.update_acquisition_progress)
         self.multipointController.signal_region_progress.connect(self.update_region_progress)
         self.signal_acquisition_started.connect(self.display_progress_bar)
         self.eta_timer.timeout.connect(self.update_eta_display)
+        self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
 
         self.navigationController.zPos.connect(self.update_z_min)
         self.navigationController.zPos.connect(self.update_z_max)
         self.entry_minZ.valueChanged.connect(self.update_z_max)
         self.entry_maxZ.valueChanged.connect(self.update_z_min)
-        self.entry_minZ.valueChanged.connect(self.update_dz)
-        self.entry_maxZ.valueChanged.connect(self.update_dz)
-        self.entry_NZ.valueChanged.connect(self.update_dz)
+        self.entry_minZ.valueChanged.connect(self.update_Nz)
+        self.entry_maxZ.valueChanged.connect(self.update_Nz)
+        self.entry_deltaZ.valueChanged.connect(self.update_Nz)
+        #self.entry_NZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
 
     def update_region_progress(self, current_fov, num_fovs):
@@ -3067,26 +3100,41 @@ class MultiPointWidgetGrid(QFrame):
             self.entry_well_coverage.setEnabled(True)
             self.entry_well_coverage.setValue(100)
             self.update_scan_size_from_coverage()
+        print("scan size:", self.entry_scan_size.value())
+        print("well size:", self.navigationViewer.well_size_mm)
+
+    def set_default_shape(self):
+        if self.scanCoordinates.format in [384, 1536]:
+            self.combobox_shape.setCurrentText('Square')
+        elif self.scanCoordinates.format != 0:
+            self.combobox_shape.setCurrentText('Circle')
+
+    def get_effective_well_size(self):
+        well_size = self.scanCoordinates.well_size_mm
+        print("defaault well size", well_size)
+        if self.combobox_shape.currentText() == 'Circle':
+            fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
+            return well_size + fov_size_mm * (1 + math.sqrt(2))
+        print("actual well size", well_size)
+        return well_size
+
+    def on_set_shape(self):
+        self.update_coverage_from_scan_size()
+        self.update_well_coordinates()
 
     def update_coverage_from_scan_size(self):
-        if self.scanCoordinates.format != 0 and hasattr(self.scanCoordinates, 'well_size_mm'):
-            well_size = self.scanCoordinates.well_size_mm
-            if self.combobox_shape.currentText() == 'Circle':
-                fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
-                well_size += fov_size_mm * (1 + math.sqrt(2))
+        if self.navigationViewer.sample != 'glass slide' and hasattr(self.navigationViewer, 'well_size_mm'):
+            effective_well_size = self.get_effective_well_size()
             scan_size = self.entry_scan_size.value()
-            coverage = (scan_size / well_size) * 100
+            coverage = round((scan_size / effective_well_size) * 100, 2)
             print('COVERAGE', coverage)
             self.entry_well_coverage.setValue(coverage)
 
     def update_scan_size_from_coverage(self):
-        if hasattr(self.scanCoordinates, 'well_size_mm'):
-            well_size = self.scanCoordinates.well_size_mm
-            if self.combobox_shape.currentText() == 'Circle':
-                fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
-                well_size += fov_size_mm * (1 + math.sqrt(2))
+        if hasattr(self.navigationViewer, 'well_size_mm'):
+            effective_well_size = self.get_effective_well_size()
             coverage = self.entry_well_coverage.value()
-            scan_size = (coverage / 100) * well_size
+            scan_size = round((coverage / 100) * effective_well_size, 3)
             print('SIZE', scan_size)
             self.entry_scan_size.setValue(scan_size)
 
@@ -3096,6 +3144,13 @@ class MultiPointWidgetGrid(QFrame):
         nz = self.entry_NZ.value()
         dz = (z_max - z_min) / (nz - 1) if nz > 1 else 0
         self.entry_deltaZ.setValue(dz)
+
+    def update_Nz(self):
+        z_min = self.entry_minZ.value()
+        z_max = self.entry_maxZ.value()
+        dz = self.entry_deltaZ.value()
+        nz = math.ceil((z_max - z_min) / dz) + 1
+        self.entry_NZ.setValue(nz)
 
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
@@ -3137,12 +3192,6 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
-
-    def set_default_shape(self):
-        if self.scanCoordinates.format in [384, 1536]:
-            self.combobox_shape.setCurrentText('Square')
-        elif self.scanCoordinates.format != 0:
-            self.combobox_shape.setCurrentText('Circle')
 
     def set_live_scan_coordinates(self, x_mm, y_mm):
         if self.scanCoordinates.format == 0 and self.multipointController.parent.recordTabWidget.currentWidget() == self:
@@ -3321,7 +3370,6 @@ class MultiPointWidgetGrid(QFrame):
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
         print("fov_size_mm:", fov_size_mm)
         print("step_size_mm:", step_size_mm)
-
 
         steps = math.floor(scan_size_mm / step_size_mm)
         if shape == 'Circle':
@@ -3541,7 +3589,7 @@ class MultiPointWidgetGrid(QFrame):
 
             if self.scanCoordinates.format == 0:
                 self.entry_well_coverage.setEnabled(False)
-            self.entry_deltaZ.setEnabled(False)
+            self.entry_NZ.setEnabled(False)
 
     def set_saving_dir(self):
         dialog = QFileDialog()
@@ -3562,9 +3610,6 @@ class MultiPointWidgetGrid(QFrame):
 
     def display_stitcher_widget(self, checked):
         self.signal_stitcher_widget.emit(checked)
-        # if checked:
-        #     self.checkbox_useCoordinateAcquisition.setChecked(not checked)
-        # self.checkbox_useCoordinateAcquisition.setVisible(not checked)
 
 
 class StitcherWidget(QFrame):
@@ -3661,7 +3706,6 @@ class StitcherWidget(QFrame):
         self.registrationChannelCombo.addItems(selected_channels)
 
     def updateRegistrationZLevels(self, Nz):
-        print("set Max Z =", Nz)
         self.registrationZCombo.setMinimum(0)
         self.registrationZCombo.setMaximum(Nz - 1)
 
@@ -3842,9 +3886,9 @@ class NapariLiveWidget(QWidget):
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
-        self.customize_napari_viewer()
+        self.customizeViewer()
 
-    def customize_napari_viewer(self):
+    def customizeViewer(self):
         # Hide the status bar (which includes the activity button)
         if hasattr(self.viewer.window, '_status_bar'):
             self.viewer.window._status_bar.hide()
@@ -3853,17 +3897,7 @@ class NapariLiveWidget(QWidget):
         if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
             self.viewer.window._qt_viewer.layerButtons.hide()
 
-        # Hide or remove the layer control buttons
-        if hasattr(self.viewer.window._qt_viewer, 'dockLayerControls'):
-            layer_controls = self.viewer.window._qt_viewer.dockLayerControls.widget()
-            if layer_controls is not None:
-                # Look for a container of buttons within the layer controls
-                button_container = layer_controls.findChild(QWidget, "button_container")
-                if button_container:
-                    button_container.hide()
-
     def initControlWidgets(self, show_trigger_options, show_display_options, show_autolevel, autolevel):
-
         # Microscope Configuration
         self.dropdown_modeSelection = QComboBox()
         for config in self.configurationManager.configurations:
@@ -3874,7 +3908,32 @@ class NapariLiveWidget(QWidget):
         # Live button
         self.btn_live = QPushButton("Start Live")
         self.btn_live.setCheckable(True)
-        self.btn_live.setStyleSheet("font-weight: bold; background-color: #A0A0F0")
+        gradient_style = """
+            QPushButton {
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                                                  stop:0 #D6D6FF, stop:1 #C2C2FF);
+                border-radius: 5px;
+                color: black;
+                border: 1px solid #A0A0A0;
+            }
+            QPushButton:checked {
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                                                  stop:0 #FFD6D6, stop:1 #FFC2C2);
+                border: 1px solid #A0A0A0;
+            }
+            QPushButton:hover {
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                                                  stop:0 #E0E0FF, stop:1 #D0D0FF);
+            }
+            QPushButton:pressed {
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                                                  stop:0 #9090C0, stop:1 #8080B0);
+            }
+        """
+        self.btn_live.setStyleSheet(gradient_style)
+        #self.btn_live.setStyleSheet("font-weight: bold; background-color: #7676F7") #6666D3
+        current_height = self.btn_live.sizeHint().height()
+        self.btn_live.setFixedHeight(int(current_height * 1.5))
         self.btn_live.clicked.connect(self.toggle_live)
 
         # Exposure Time
@@ -3923,7 +3982,6 @@ class NapariLiveWidget(QWidget):
         #self.entry_triggerFPS.setSuffix(" fps")
         self.entry_triggerFPS.valueChanged.connect(self.liveController.set_trigger_fps)
 
-
         # Display FPS
         self.entry_displayFPS = QDoubleSpinBox()
         self.entry_displayFPS.setRange(1, 240)
@@ -3947,7 +4005,6 @@ class NapariLiveWidget(QWidget):
         self.btn_autolevel.setChecked(autolevel)
         self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
 
-
         def make_row(label_widget, entry_widget, value_label=None):
             row = QHBoxLayout()
             row.addWidget(label_widget)
@@ -3959,12 +4016,12 @@ class NapariLiveWidget(QWidget):
         control_layout = QVBoxLayout()
 
         # Add widgets to layout
-        config_label = QLabel('Configuration')
+        config_label = QLabel('Channel')
         top_row = make_row(config_label, self.dropdown_modeSelection)
         control_layout.addLayout(top_row)
-        control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         control_layout.addWidget(self.btn_live)
-        control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         row1 = make_row(QLabel('Exposure Time'), self.entry_exposureTime)
         control_layout.addLayout(row1)
@@ -3974,25 +4031,25 @@ class NapariLiveWidget(QWidget):
 
         row3 = make_row((QLabel('Analog Gain')), self.entry_analogGain)
         control_layout.addLayout(row3)
-        control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         if show_trigger_options:
             row0 = make_row(QLabel('Trigger Mode'), self.dropdown_triggerMode)
             control_layout.addLayout(row0)
             row00 = make_row(QLabel('Trigger FPS'), self.entry_triggerFPS)
             control_layout.addLayout(row00)
-            control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         if show_display_options:
             row4 = make_row((QLabel('Display FPS')), self.entry_displayFPS)
             control_layout.addLayout(row4)
             row5 = make_row(QLabel('Display Resolution'), self.slider_resolutionScaling, self.label_resolutionScaling)
             control_layout.addLayout(row5)
-            control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         if show_autolevel:
             control_layout.addWidget(self.btn_autolevel)
-            control_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         control_layout.addStretch(1)
 
@@ -4000,6 +4057,7 @@ class NapariLiveWidget(QWidget):
         if USE_NAPARI_FOR_LIVE_CONTROL or add_live_controls:
             live_controls_widget = QWidget()
             live_controls_widget.setLayout(control_layout)
+            live_controls_widget.setFixedWidth(270)
 
             layer_controls_widget = self.viewer.window._qt_viewer.dockLayerControls.widget()
             layer_list_widget = self.viewer.window._qt_viewer.dockLayerList.widget()
@@ -4154,6 +4212,9 @@ class NapariLiveWidget(QWidget):
             self.init_live = False
             print("init live rgb")
 
+        if self.dtype != np.dtype(image.dtype):
+            self.initLiveLayer("Live View", image.shape[0], image.shape[1], image.dtype, rgb)
+
         layer = self.viewer.layers["Live View"]
         layer.data = image
 
@@ -4223,7 +4284,6 @@ class NapariLiveWidget(QWidget):
         self.viewer.window.activate()
 
 
-
 class NapariMultiChannelWidget(QWidget):
 
     signal_layer_contrast_limits = Signal(str, float, float)
@@ -4258,6 +4318,16 @@ class NapariMultiChannelWidget(QWidget):
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
+        self.customizeViewer()
+
+    def customizeViewer(self):
+        # Hide the status bar (which includes the activity button)
+        if hasattr(self.viewer.window, '_status_bar'):
+            self.viewer.window._status_bar.hide()
+
+        # Hide the layer buttons
+        if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
+            self.viewer.window._qt_viewer.layerButtons.hide()
 
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
         pixel_size_um = self.objectiveStore.get_pixel_size()
@@ -4313,6 +4383,11 @@ class NapariMultiChannelWidget(QWidget):
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
         rgb = len(image.shape) == 3
+
+        if self.dtype != np.dtype(image.dtype):
+            self.acquisition_initialized = False
+            self.initLayers(image.shape[0], image.shape[1], image.dtype)
+
         if channel_name not in self.viewer.layers:
             self.channels.add(channel_name)
             if rgb:
@@ -4438,6 +4513,16 @@ class NapariTiledDisplayWidget(QWidget):
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewerWidget)
         self.setLayout(self.layout)
+        self.customizeViewer()
+
+    def customizeViewer(self):
+        # Hide the status bar (which includes the activity button)
+        if hasattr(self.viewer.window, '_status_bar'):
+            self.viewer.window._status_bar.hide()
+
+        # Hide the layer buttons
+        if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
+            self.viewer.window._qt_viewer.layerButtons.hide()
 
     def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
         self.acquisition_initialized = False
@@ -4488,18 +4573,21 @@ class NapariTiledDisplayWidget(QWidget):
         self.resetView()
         self.layers_initialized = True
         self.viewer_scale_initialized = False
-        self.layers_initialized = True
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
-
         if i == -1 or j == -1:
             print("no tiled preview for coordinate acquisition")
             return
-        rgb = len(image.shape) == 3  # Check if image is RGB based on shape
+        
         if not self.layers_initialized:
-           self.initLayers(image.shape[0], image.shape[1], image.dtype)
+            self.initLayers(image.shape[0], image.shape[1], image.dtype)
 
+        if self.dtype != np.dtype(image.dtype):
+            self.acquisition_initialized = False
+            self.initLayers(image.shape[0], image.shape[1], image.dtype)
+        
+        rgb = len(image.shape) == 3  # Check if image is RGB based on shape
         if channel_name not in self.viewer.layers:
             self.channels.add(channel_name)
             if rgb:
@@ -4600,6 +4688,7 @@ class NapariMosaicDisplayWidget(QWidget):
         self.layout.addWidget(self.clear_button)
 
         self.setLayout(self.layout)
+        self.customizeViewer()
         self.viewer_pixel_size_mm = 1
         self.dz_um = None
         self.Nz = None
@@ -4607,6 +4696,15 @@ class NapariMosaicDisplayWidget(QWidget):
         self.viewer_extents = [] # [min_y, max_y, min_x, max_x]
         self.top_left_coordinate = None  # [y, x] in mm
         self.contrast_limits = {}
+
+    def customizeViewer(self):
+        # Hide the status bar (which includes the activity button)
+        if hasattr(self.viewer.window, '_status_bar'):
+            self.viewer.window._status_bar.hide()
+
+        # Hide the layer buttons
+        # if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
+        #     self.viewer.window._qt_viewer.layerButtons.hide()
 
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -4661,7 +4759,6 @@ class NapariMosaicDisplayWidget(QWidget):
                 scale_factor = image_pixel_size_mm / self.viewer_pixel_size_mm
                 image = cv2.resize(image, (int(image.shape[1] * scale_factor), int(image.shape[0] * scale_factor)), interpolation=cv2.INTER_LINEAR)
 
-
         if channel_name not in self.viewer.layers:
             # Create a new layer for this channel
             channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
@@ -4702,7 +4799,6 @@ class NapariMosaicDisplayWidget(QWidget):
 
         layer.refresh()
 
-
     def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
         # Calculate new mosaic size and position
         mosaic_height = int(math.ceil((self.viewer_extents[1] - self.viewer_extents[0]) / self.viewer_pixel_size_mm))
@@ -4732,7 +4828,6 @@ class NapariMosaicDisplayWidget(QWidget):
                     new_data[y_offset:y_end, x_offset:x_end] = mosaic.data[:y_end-y_offset, :x_end-x_offset]
                 mosaic.data = new_data
             self.resetView()
-
 
         # Insert new image
         y_pos = int(math.floor((y_mm - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
@@ -4985,7 +5080,6 @@ class TrackingControllerWidget(QFrame):
         pixel_size_xy = pixel_size_um / (magnification / (objective_tube_lens_mm / tube_lens_mm))
         self.trackingController.update_pixel_size(pixel_size_xy)
         print(f'pixel size is {pixel_size_xy:.2f} μm')
-
 
     '''
         # connections
@@ -5688,19 +5782,20 @@ class WellplateFormatWidget(QWidget):
         self.setWellplateSettings(self.wellplate_format)
 
     def setWellplateSettings(self, wellplate_format):
-        # Define settings for each wellplate format
-        settings = {
-            # Desired order: a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip
-            0: (0, 0, 0, 0, 0, 0, 0),
-            6: (24.55, 23.01, 297, 209, 34.94, 39.2, 0),
-            12: (24.75, 16.26, 297, 209, 22.05, 26, 0),
-            24: (24.45, 22.07, 144, 108, 15.54, 19.3, 0), # 24: (17.05, 13.67, 144, 108, 15.54, 19.3, 0),
-            96: (11.31, 10.75, 171, 138, 6.21, 9, 0),
-            384: (12.05, 9.05, 144, 108, 3.3, 4.5, 1),
-            1536: (11.0, 7.86, 144, 108, 1.5, 2.25, 0)
-        }
-        if wellplate_format in settings:
-            self.signalWellplateSettings.emit(wellplate_format, *settings[wellplate_format])
+        if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
+            settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
+            self.signalWellplateSettings.emit(
+                wellplate_format,
+                settings['a1_x_mm'],
+                settings['a1_y_mm'],
+                settings['a1_x_pixel'],
+                settings['a1_y_pixel'],
+                settings['well_size_mm'],
+                settings['well_spacing_mm'],
+                settings['number_of_skip']
+            )
+        else:
+            print(f"Wellplate format {wellplate_format} not recognized")
 
 
 class WellSelectionWidget(QTableWidget):
@@ -5840,14 +5935,8 @@ class WellSelectionWidget(QTableWidget):
                 # Reset to selectable by default
                 item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
-        # Apply non-selectability as needed
-        if self.format in [96, 384]:
-            skip = 1  # Skip is always 1 for 96 and 384 formats
-        else:
-            skip = self.number_of_skip
-
-        if skip > 0:
-            for i in range(skip):
+        if self.number_of_skip > 0:
+            for i in range(self.number_of_skip):
                 for j in range(self.columns):  # Apply to rows
                     self.item(i, j).setFlags(self.item(i, j).flags() & ~Qt.ItemIsSelectable)
                     self.item(self.rows - 1 - i, j).setFlags(self.item(self.rows - 1 - i, j).flags() & ~Qt.ItemIsSelectable)

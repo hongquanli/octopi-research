@@ -504,7 +504,7 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
-        self.autofocusWidget.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
+        self.multiPointWidgetGrid.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
 
         self.recordTabWidget.currentChanged.connect(self.onTabChanged)
         self.imageDisplayTabs.currentChanged.connect(self.onDisplayTabChanged)
@@ -776,8 +776,7 @@ class OctopiGUI(QMainWindow):
                 else:
                     self.dock_wellSelection.addWidget(self.wellSelectionWidget)
                 self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
-                # if ENABLE_SCAN_GRID:
-                #     self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
+
             elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
                 self.wellSelectionWidget.setParent(None)
                 self.wellSelectionWidget.deleteLater()
@@ -796,9 +795,8 @@ class OctopiGUI(QMainWindow):
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.clear_only_location_list()
         if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.set_default_scan_size()
             self.multiPointWidgetGrid.clear_regions()
-
+            self.multiPointWidgetGrid.set_default_scan_size()
         self.wellSelectionWidget.onSelectionChanged()
 
     def toggleWellSelector(self, show):
@@ -872,7 +870,7 @@ class OctopiGUI(QMainWindow):
             self.emission_filter_wheel.set_emission_filter(1)
             self.emission_filter_wheel.close()
 
-        self.stitcherWidget.closeEvent()
+        self.stitcherWidget.closeEvent(event)
 
         # move the objective to a defined position upon exit
         if HOMING_ENABLED_X and HOMING_ENABLED_Y:
