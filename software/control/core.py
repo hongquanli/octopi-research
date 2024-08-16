@@ -514,7 +514,14 @@ class LiveController(QObject):
                 if 'DF LED matrix' in self.currentConfiguration.name:
                     self.led_array.set_illumination('df')
             else:
-                self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+                if 'BF LED matrix full_R' in self.currentConfiguration.name:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100),g=0,b=0)
+                elif 'BF LED matrix full_G' in self.currentConfiguration.name:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=0,g=(intensity/100),b=0)
+                elif 'BF LED matrix full_B' in self.currentConfiguration.name:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=0,g=0,b=(intensity/100))
+                else:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
             # update illumination
             if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
