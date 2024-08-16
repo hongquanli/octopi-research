@@ -67,11 +67,13 @@ class OctopiGUI(QMainWindow):
 
         self.objectiveStore = core.ObjectiveStore()
         self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
+        self.objectiveStore = core.ObjectiveStore(parent=self) # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-        self.navigationController = core.NavigationController(self.microcontroller)
+        self.navigationController = core.NavigationController(self.microcontroller,self.objectiveStore)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-        self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager)
+        self.scanCoordinates = core.ScanCoordinates()
+        self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         self.imageSaver = core.ImageSaver(image_format=Acquisition.IMAGE_FORMAT)
@@ -98,12 +100,15 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+        self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=str(6)+' well plate')
+        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
 
         self.recordTabWidget = QTabWidget()
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
+        self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
         self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+        # self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
 
         # layout widgets
         layout = QVBoxLayout() 
@@ -177,6 +182,21 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
         self.liveControlWidget.update_camera_settings()
         self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+
+        self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
+
+        if USE_NAPARI_FOR_MULTIPOINT:
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore)
+            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+            if ENABLE_FLEXIBLE_MULTIPOINT:
+                self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+
+            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+
 
     def closeEvent(self, event):
         event.accept()

@@ -2,6 +2,7 @@ import serial
 from serial.tools import list_ports
 import time
 from typing import Tuple, Optional
+import struct
 
 class SerialDevice:
     """

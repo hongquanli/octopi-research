@@ -22,7 +22,7 @@ Applications include
 - BOM for the multicolor laser engine: [link](https://docs.google.com/spreadsheets/d/1hEM6PsxZPTp1LY3cpxUJOS3Q1YLQN-xniF33ZddFj9U/edit#gid=1175873468)
 - BOM for the control panel: [link](https://docs.google.com/spreadsheets/d/1z2HjibIG9PHffiDsbuzQXmvf2gSFMduHrXkPwDbcXRY/edit?usp=sharing)
 
-## Eearly Results, Related Work and Possible Applications
+## Early Results, Related Work and Possible Applications
 Refer to our website: www.squid-imaging.org
 
 ## References
