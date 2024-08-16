@@ -117,8 +117,8 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION_LED_MATRIX
         cmd[2] = illumination_source
-        cmd[3] = min(int(r*255),255)
-        cmd[4] = min(int(g*255),255)
+        cmd[3] = min(int(g*255),255)
+        cmd[4] = min(int(r*255),255)
         cmd[5] = min(int(b*255),255)
         self.send_command(cmd)
 
