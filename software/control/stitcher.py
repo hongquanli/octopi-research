@@ -1212,8 +1212,8 @@ class CoordinateStitcher(QThread, QObject):
         if len(self.regions) > 1:
             self.save_region_to_hcs_ome_zarr(region, stitched_images)
         else:
-            self.save_as_ome_zarr(region, stitched_images)
-            # self.save_region_to_ome_zarr(region, stitched_images) # bugs: when starting to save, main gui lags and disconnects
+            # self.save_as_ome_zarr(region, stitched_images)
+            self.save_region_to_ome_zarr(region, stitched_images) # bugs: when starting to save, main gui lags and disconnects
 
     def place_tile(self, stitched_images, tile, x_pixel, y_pixel, z_level, channel, t):
         if len(tile.shape) == 2:
