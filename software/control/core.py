@@ -2736,7 +2736,7 @@ class MultiPointController(QObject):
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMosaicDisplayWidget)
                 # self.parent.imageDisplayTabs. # disable naparitileddisplaywidget tab
 
-            elif USE_NAPARI_FOR_TILED_DISPLAY:
+            elif USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariTiledDisplayWidget)
 
             elif USE_NAPARI_FOR_MULTIPOINT:

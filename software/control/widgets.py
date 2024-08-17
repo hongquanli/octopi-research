@@ -924,6 +924,8 @@ class LiveControlWidget(QFrame):
         gain_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         grid_line2.addWidget(gain_label)
         grid_line2.addWidget(self.entry_analogGain)
+        if show_autolevel:
+            grid_line2.addWidget(self.btn_autolevel)
 
         grid_line4 = QHBoxLayout()
         grid_line4.addWidget(QLabel('Illumination'))
@@ -950,15 +952,7 @@ class LiveControlWidget(QFrame):
             resolution_label = QLabel(' Display Resolution')
             resolution_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             half2.addWidget(resolution_label)
-            # half2.addWidget(QLabel('Resolution'))
-            if show_autolevel:
-                half2.addWidget(self.slider_resolutionScaling)
-                half2.addWidget(self.btn_autolevel)
-            else:
-                half2.addWidget(self.slider_resolutionScaling)
-
-        elif show_autolevel:
-            half.addWidget(self.btn_autolevel)
+            half2.addWidget(self.slider_resolutionScaling)
 
         grid_line0.addLayout(half,0,2)
         grid_line0.addLayout(half2,1,2)
@@ -3683,14 +3677,17 @@ class StitcherWidget(QFrame):
         self.layout.addWidget(self.viewOutputButton)
 
         # Progress bar
-        self.progressBar = QProgressBar()
-        self.layout.addWidget(self.progressBar)
-        self.progressBar.setVisible(False)  # Initially hidden
+        progress_row = QHBoxLayout()
 
         # Status label
         self.statusLabel = QLabel("Status: Image Acquisition")
-        self.layout.addWidget(self.statusLabel)
+        progress_row.addWidget(self.statusLabel)
         self.statusLabel.setVisible(False)
+
+        self.progressBar = QProgressBar()
+        progress_row.addWidget(self.progressBar)
+        self.progressBar.setVisible(False)  # Initially hidden
+        self.layout.addLayout(progress_row)
 
     def setStitcherThread(self, thread):
         self.stitcherThread = thread
@@ -3710,7 +3707,7 @@ class StitcherWidget(QFrame):
         self.registrationZCombo.setMaximum(Nz - 1)
 
     def gettingFlatfields(self):
-        self.statusLabel.setText('Status: Calculating Flatfield Images...')
+        self.statusLabel.setText('Status: Calculating Flatfields')
         self.viewOutputButton.setVisible(False)
         self.viewOutputButton.setStyleSheet("")
         self.progressBar.setValue(0)
@@ -3718,7 +3715,7 @@ class StitcherWidget(QFrame):
         self.progressBar.setVisible(True)
 
     def startingStitching(self):
-        self.statusLabel.setText('Status: Stitching Acquisition Scans...')
+        self.statusLabel.setText('Status: Stitching Acquisition')
         self.viewOutputButton.setVisible(False)
         self.progressBar.setValue(0)
         self.statusLabel.setVisible(True)
@@ -3731,9 +3728,9 @@ class StitcherWidget(QFrame):
 
     def startingSaving(self, stitch_complete=False):
         if stitch_complete:
-            self.statusLabel.setText('Status: Saving Complete Acquisition Image...')
+            self.statusLabel.setText('Status: Saving Stitched Acquisition')
         else:
-            self.statusLabel.setText('Status: Saving Stitched Image...')
+            self.statusLabel.setText('Status: Saving Stitched Image')
         self.statusLabel.setVisible(True)
         self.progressBar.setRange(0, 0)  # indeterminate mode.
         self.progressBar.setVisible(True)
@@ -4016,10 +4013,10 @@ class NapariLiveWidget(QWidget):
         control_layout = QVBoxLayout()
 
         # Add widgets to layout
-        config_label = QLabel('Channel')
-        top_row = make_row(config_label, self.dropdown_modeSelection)
-        control_layout.addLayout(top_row)
-        control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        # config_label = QLabel('Channel')
+        # top_row = make_row(config_label, self.dropdown_modeSelection)
+        # control_layout.addLayout(top_row)
+        control_layout.addWidget(self.dropdown_modeSelection)
         control_layout.addWidget(self.btn_live)
         control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 

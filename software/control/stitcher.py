@@ -35,7 +35,7 @@ class Stitcher(QThread, QObject):
     starting_saving = Signal(bool)
     finished_saving = Signal(str, object)
 
-    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel='', registration_z_level=0):
+    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel='', registration_z_level=0, flexible=True):
         QThread.__init__(self)
         QObject.__init__(self)
         self.input_folder = input_folder
@@ -54,6 +54,7 @@ class Stitcher(QThread, QObject):
         self.is_reversed = self.determine_directions(self.input_folder) # init: top to bottom, left to right
         print(self.is_reversed)
         self.is_wellplate = IS_HCS
+        self.flexible = flexible
         self.init_stitching_parameters()
         # self.overlap_percent = Acquisition.OVERLAP_PERCENT
 
@@ -739,7 +740,7 @@ class Stitcher(QThread, QObject):
                 print(f"...finished t:{time_point}")
                 print("time per timepoint", time.time() - ttime)
 
-            if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
+            if STITCH_COMPLETE_ACQUISITION and not self.flexible and ".ome.zarr" in self.output_name:
                 self.starting_saving.emit(True)
                 scatime = time.time()
                 if self.is_wellplate:
