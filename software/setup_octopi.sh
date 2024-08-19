@@ -128,7 +128,7 @@ install_python_packages() {
                    PyQt5 pyqtgraph qtpy pyserial lxml==4.9.4 crc==1.3.0 \
                    opencv-python-headless opencv-contrib-python-headless \
                    dask_image imageio aicsimageio tifffile \
-                   napari[all] napari-ome-zarr basicpy
+                   napari[all] napari-ome-zarr basicpy pycparser
 }
 
 # Installs PyTorch with CUDA support for Linux using Conda, updates JAX to a specific version based on the OS
