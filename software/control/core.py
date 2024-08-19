@@ -652,7 +652,8 @@ class LiveController(QObject):
                 self._stop_triggerred_acquisition()
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
-            self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
+            self.reset_strobe_arugment()
+            self.camera.set_exposure_time(self.currentConfiguration.exposure_time)
 
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
                 self._start_triggerred_acquisition()
