@@ -292,10 +292,11 @@ class OctopiGUI(QMainWindow):
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
-        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates)
+        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController,self.navigationViewer,self.multipointController,self.objectiveStore,self.configurationManager,self.scanCoordinates)
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
         self.wellplateFormatWidget = widgets.WellplateFormatWidget()
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
+        self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget,self.wellplateFormatWidget)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         if ENABLE_STITCHER:
@@ -348,31 +349,27 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         if ENABLE_RECORDING:
-            self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-        if ENABLE_SPINNING_DISK_CONFOCAL:
-            self.recordTabWidget.addTab(self.spinningDiskConfocalWidget,"Spinning Disk Confocal")
-
-        frame = QFrame()
-        frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        top_row_layout = QHBoxLayout()
-        top_row_layout.addWidget(self.objectivesWidget)
-        top_row_layout.addWidget(self.wellplateFormatWidget)
-        frame.setLayout(top_row_layout)  # Set the layout on the frame
+            self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording") 
 
         self.cameraTabWidget = QTabWidget()
         if ENABLE_OBJECTIVE_PIEZO:
             self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
+        if ENABLE_NL5:
+            self.cameraTabWidget.addTab(self.nl5Wdiget,"NL5")
+        if ENABLE_SPINNING_DISK_CONFOCAL:
+            self.cameraTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
+
         self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
         self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
-        # self.cameraTabWidget.addTab(frame, "Sample")
+        # self.cameraTabWidget.addTab(self.sampleSettingsWidget, "Sample")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
         layout = QVBoxLayout()  #layout = QStackedLayout()
-        layout.addWidget(frame)
+        layout.addWidget(self.sampleSettingsWidget)
         if USE_NAPARI_FOR_LIVE_CONTROL:
-            layout.addWidget(self.cameraTabWidget)
             layout.addWidget(self.navigationWidget)
+            layout.addWidget(self.cameraTabWidget)
         else:
             self.microscopeControlTabWidget = QTabWidget()
             self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
@@ -382,7 +379,6 @@ class OctopiGUI(QMainWindow):
             #layout.addWidget(self.liveControlWidget)
             #layout.addWidget(self.navigationWidget)
             
-
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
         layout.addWidget(self.recordTabWidget)
@@ -391,6 +387,7 @@ class OctopiGUI(QMainWindow):
             self.stitcherWidget.hide()
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
+        # layout.addWidget(self.sampleSettingsWidget)
 
         # transfer the layout to the central widget
         self.centralWidget = QWidget()
@@ -611,7 +608,6 @@ class OctopiGUI(QMainWindow):
             self.objectivesWidget.signal_objective_changed.connect(self.multiPointWidgetGrid.update_well_coordinates)
             self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_current_location)
 
-
         # camera
         self.camera.set_callback(self.streamHandler.on_new_frame)
 
@@ -643,7 +639,7 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
-            self.cameraTabWidget.insertTab(1, self.laserAutofocusControlWidget, "Laser AF")
+            self.cameraTabWidget.insertTab(self.cameraTabWidget.indexOf(self.autofocusWidget) + 1, self.laserAutofocusControlWidget, "Laser AF")
 
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation = False)
             dock_laserfocus_image_display.showTitleBar()
@@ -690,12 +686,6 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController.signal_plots.connect(self.waveformDisplay.plot)
             self.displacementMeasurementController.signal_readings.connect(self.displacementMeasurementWidget.display_readings)
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
-
-        # widget for confocal
-        if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.cameraTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
-        if ENABLE_NL5:
-            self.cameraTabWidget.addTab(self.nl5Wdiget,"Confocal")
 
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
             self.navigationController.move_to_cached_position()

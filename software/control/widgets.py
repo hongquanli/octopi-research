@@ -358,29 +358,24 @@ class SpinningDiskConfocalWidget(QWidget):
         emissionFilterLayout.addWidget(self.dropdown_emission_filter)
 
         dichroicLayout = QHBoxLayout()
-        dichroicLayout.addWidget(QLabel("Dichroic Position"))
+        dichroicLayout.addWidget(QLabel("Dichroic Filter Position"))
 
         self.dropdown_dichroic = QComboBox(self)
         self.dropdown_dichroic.addItems([str(i+1) for i in range(5)])
 
         dichroicLayout.addWidget(self.dropdown_dichroic)
 
-        dropdownLayout = QVBoxLayout()
-
-        dropdownLayout.addLayout(dichroicLayout)
-        dropdownLayout.addLayout(emissionFilterLayout)
-        dropdownLayout.addStretch()
-
         self.btn_toggle_widefield = QPushButton("Switch to Confocal")
 
         self.btn_toggle_motor = QPushButton("Disk Motor On")
         self.btn_toggle_motor.setCheckable(True)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.btn_toggle_motor)
+        layout = QGridLayout(self)
+        layout.addWidget(self.btn_toggle_motor,0,0)
 
-        layout.addWidget(self.btn_toggle_widefield)
-        layout.addLayout(dropdownLayout)
+        layout.addWidget(self.btn_toggle_widefield,0,1)
+        layout.addLayout(dichroicLayout,1,0)
+        layout.addLayout(emissionFilterLayout,1,1)
         self.setLayout(layout)
 
     def disable_all_buttons(self):
@@ -838,7 +833,7 @@ class LiveControlWidget(QFrame):
         self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
         self.dropdown_modeSelection.setSizePolicy(sizePolicy)
 
-        self.btn_live = QPushButton("Live")
+        self.btn_live = QPushButton("Start Live")
         self.btn_live.setCheckable(True)
         self.btn_live.setChecked(False)
         self.btn_live.setDefault(False)
@@ -926,13 +921,12 @@ class LiveControlWidget(QFrame):
         grid_line2.addWidget(self.entry_analogGain)
         if show_autolevel:
             grid_line2.addWidget(self.btn_autolevel)
+            #self.btn_live.setFixedWidth(self.btn_autolevel.sizeHint().width())
 
         grid_line4 = QHBoxLayout()
         grid_line4.addWidget(QLabel('Illumination'))
         grid_line4.addWidget(self.slider_illuminationIntensity)
         grid_line4.addWidget(self.entry_illuminationIntensity)
-
-        #grid_line3 = QHBoxLayout()
 
         grid_line0 = QGridLayout()
         half = QHBoxLayout()
@@ -963,14 +957,16 @@ class LiveControlWidget(QFrame):
         self.grid.addLayout(grid_line4)
         if show_trigger_options or show_display_options or show_autolevel:
             self.grid.addLayout(grid_line0)
-        self.grid.addStretch()
+        #self.grid.addStretch()
         self.setLayout(self.grid)
 
     def toggle_live(self,pressed):
         if pressed:
             self.liveController.start_live()
+            self.btn_live.setText('Stop Live')
         else:
             self.liveController.stop_live()
+            self.btn_live.setText('Start Live')
 
     def update_camera_settings(self):
         self.signal_newAnalogGain.emit(self.entry_analogGain.value())
@@ -1029,13 +1025,18 @@ class PiezoWidget(QFrame):
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setMinimum(0)
         self.slider.setMaximum(OBJECTIVE_PIEZO_RANGE_UM)  # Assuming maximum position is 300 um
+        
         self.spinBox = QDoubleSpinBox(self)
-
         self.spinBox.setRange(0.0, OBJECTIVE_PIEZO_RANGE_UM)  # Range set from 0 to 300 um
         self.spinBox.setDecimals(0)
         self.spinBox.setSingleStep(1)  # Small step for fine control
+        self.spinBox.setSuffix(' μm')
+
+        # Row 3: Home Button
+        self.home_btn = QPushButton("Home to " + str(OBJECTIVE_PIEZO_HOME_UM) + " μm", self)
 
         hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.home_btn)
         hbox1.addWidget(self.slider)
         hbox1.addWidget(self.spinBox)
 
@@ -1045,6 +1046,7 @@ class PiezoWidget(QFrame):
         self.increment_spinBox.setDecimals(0)
         self.increment_spinBox.setSingleStep(1)
         self.increment_spinBox.setValue(1.0)  # Set default increment to 1 um
+        self.increment_spinBox.setSuffix(' μm')
         self.move_up_btn = QPushButton("Move Up", self)
         self.move_down_btn = QPushButton("Move Down", self)
 
@@ -1053,17 +1055,10 @@ class PiezoWidget(QFrame):
         hbox2.addWidget(self.move_up_btn)
         hbox2.addWidget(self.move_down_btn)
 
-        # Row 3: Home Button
-        self.home_btn = QPushButton("Home to " + str(OBJECTIVE_PIEZO_HOME_UM) + " μm", self)
-
-        hbox3 = QHBoxLayout()
-        hbox3.addWidget(self.home_btn)
-
         # Vertical Layout to include all HBoxes
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
         vbox.addLayout(hbox2)
-        vbox.addLayout(hbox3)
 
         self.setLayout(vbox)
 
@@ -1159,12 +1154,12 @@ class RecordingWidget(QFrame):
         grid_line3.addWidget(self.entry_saveFPS, 0,1)
         grid_line3.addWidget(QLabel('Time Limit (s)'), 0,2)
         grid_line3.addWidget(self.entry_timeLimit, 0,3)
-        grid_line3.addWidget(self.btn_record, 0,4)
 
-        self.grid = QGridLayout()
-        self.grid.addLayout(grid_line1,0,0)
-        self.grid.addLayout(grid_line2,1,0)
-        self.grid.addLayout(grid_line3,2,0)
+        self.grid = QVBoxLayout()
+        self.grid.addLayout(grid_line1)
+        self.grid.addLayout(grid_line2)
+        self.grid.addLayout(grid_line3)
+        self.grid.addWidget(self.btn_record)
         self.setLayout(self.grid)
 
         # add and display a timer - to be implemented
@@ -1537,23 +1532,23 @@ class DACControWidget(QFrame):
         self.slider_DAC1.valueChanged.connect(self.entry_DAC1.setValue)
 
         # layout
-        grid_line1 = QGridLayout()
-        grid_line1.addWidget(QLabel('DAC0'), 0,0)
-        grid_line1.addWidget(self.slider_DAC0, 0,1)
-        grid_line1.addWidget(self.entry_DAC0, 0,2)
-        grid_line1.addWidget(QLabel('DAC1'), 1,0)
-        grid_line1.addWidget(self.slider_DAC1, 1,1)
-        grid_line1.addWidget(self.entry_DAC1, 1,2)
+        grid_line1 = QHBoxLayout()
+        grid_line1.addWidget(QLabel('DAC0'))
+        grid_line1.addWidget(self.slider_DAC0)
+        grid_line1.addWidget(self.entry_DAC0)
+        grid_line1.addWidget(QLabel('DAC1'))
+        grid_line1.addWidget(self.slider_DAC1)
+        grid_line1.addWidget(self.entry_DAC1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line1,1,0)
         self.setLayout(self.grid)
 
     def set_DAC0(self,value):
-        self.microcontroller.analog_write_onboard_DAC(0,int(value*65535/100))
+        self.microcontroller.analog_write_onboard_DAC(0,round(value*65535/100))
 
     def set_DAC1(self,value):
-        self.microcontroller.analog_write_onboard_DAC(1,int(value*65535/100))
+        self.microcontroller.analog_write_onboard_DAC(1,round(value*65535/100))
 
 
 class AutoFocusWidget(QFrame):
@@ -1810,7 +1805,7 @@ class MultiPointWidget(QFrame):
         self.checkbox_withReflectionAutofocus = QCheckBox('Reflection AF')
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput = QCheckBox('Stitch Scans')
         self.checkbox_stitchOutput.setChecked(False)
 
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
@@ -2170,7 +2165,7 @@ class MultiPointWidget2(QFrame):
         self.checkbox_genFocusMap = QCheckBox('Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
-        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput = QCheckBox('Stitch Scans')
         self.checkbox_stitchOutput.setChecked(False)
 
         self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
@@ -2871,7 +2866,7 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_useCoordinateAcquisition.setChecked(self.use_coordinate_acquisition)
         self.checkbox_useCoordinateAcquisition.stateChanged.connect(lambda state: setattr(self, 'use_coordinate_acquisition', bool(state)))
 
-        self.checkbox_stitchOutput = QCheckBox('Stitch Output')
+        self.checkbox_stitchOutput = QCheckBox('Stitch Scans')
         self.checkbox_stitchOutput.setChecked(False)
 
         self.btn_startAcquisition = QPushButton('Start\n Acquisition ')
@@ -3715,7 +3710,7 @@ class StitcherWidget(QFrame):
         self.progressBar.setVisible(True)
 
     def startingStitching(self):
-        self.statusLabel.setText('Status: Stitching Acquisition')
+        self.statusLabel.setText('Status: Stitching Scans')
         self.viewOutputButton.setVisible(False)
         self.progressBar.setValue(0)
         self.statusLabel.setVisible(True)
@@ -3730,7 +3725,7 @@ class StitcherWidget(QFrame):
         if stitch_complete:
             self.statusLabel.setText('Status: Saving Stitched Acquisition')
         else:
-            self.statusLabel.setText('Status: Saving Stitched Image')
+            self.statusLabel.setText('Status: Saving Stitched Region')
         self.statusLabel.setVisible(True)
         self.progressBar.setRange(0, 0)  # indeterminate mode.
         self.progressBar.setVisible(True)
@@ -4050,19 +4045,18 @@ class NapariLiveWidget(QWidget):
 
         control_layout.addStretch(1)
 
-        add_live_controls = True
+        add_live_controls = False
         if USE_NAPARI_FOR_LIVE_CONTROL or add_live_controls:
             live_controls_widget = QWidget()
             live_controls_widget.setLayout(control_layout)
-            live_controls_widget.setFixedWidth(270)
+            # layer_list_widget.setFixedWidth(270)
 
             layer_controls_widget = self.viewer.window._qt_viewer.dockLayerControls.widget()
             layer_list_widget = self.viewer.window._qt_viewer.dockLayerList.widget()
-            self.viewer.window._qt_viewer.layerButtons.hide()
 
+            self.viewer.window._qt_viewer.layerButtons.hide()
             self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerControls)
             self.viewer.window.remove_dock_widget(self.viewer.window._qt_viewer.dockLayerList)
-            # self.dock_live_controls = self.viewer.window.add_dock_widget(dock_live_controls, area='left', name='live controls', tabify=True)
 
             # Add the actual dock widgets
             self.dock_layer_controls = self.viewer.window.add_dock_widget(layer_controls_widget, area='left', name='layer controls', tabify=True)
@@ -4073,20 +4067,22 @@ class NapariLiveWidget(QWidget):
 
         if USE_NAPARI_WELL_SELECTION:
             well_selector_layout = QVBoxLayout()
-            title_label = QLabel("Well Selector")
-            title_label.setAlignment(Qt.AlignCenter)  # Center the title
+            #title_label = QLabel("Well Selector")
+            #title_label.setAlignment(Qt.AlignCenter)  # Center the title
             #title_label.setStyleSheet("font-weight: bold;")  # Optional: style the title
-            well_selector_layout.addWidget(title_label)
+            #well_selector_layout.addWidget(title_label)
 
             well_selector_row = QHBoxLayout()
             well_selector_row.addStretch(1)
             well_selector_row.addWidget(self.wellSelectionWidget)
             well_selector_row.addStretch(1)
             well_selector_layout.addLayout(well_selector_row)
+            well_selector_layout.addStretch()
 
             well_selector_dock_widget = QWidget()
             well_selector_dock_widget.setLayout(well_selector_layout)
-            self.dock_well_selector = self.viewer.window.add_dock_widget(well_selector_dock_widget, area='bottom', name='well selector', tabify=True)
+            self.dock_well_selector = self.viewer.window.add_dock_widget(well_selector_dock_widget, area='bottom', name='well selector')
+            self.dock_well_selector.setFixedHeight(self.dock_well_selector.minimumSizeHint().height())
 
         self.print_window_menu_items()
 
@@ -5757,15 +5753,15 @@ class WellplateFormatWidget(QWidget):
 
     def initUI(self):
         layout = QHBoxLayout(self)
-        self.label = QLabel("Wellplate Format", self)
+        self.label = QLabel("Sample Format", self)
         self.comboBox = QComboBox(self)
         self.comboBox.addItem("glass slide", 0)
-        self.comboBox.addItem("6 wells", 6)
-        self.comboBox.addItem("12 wells", 12)
-        self.comboBox.addItem("24 wells", 24)
-        self.comboBox.addItem("96 wells", 96)
-        self.comboBox.addItem("384 wells", 384)
-        self.comboBox.addItem("1536 wells", 1536)
+        self.comboBox.addItem("6 well plate", 6)
+        self.comboBox.addItem("12 well plate", 12)
+        self.comboBox.addItem("24 well plate", 24)
+        self.comboBox.addItem("96 well plate", 96)
+        self.comboBox.addItem("384 well plate", 384)
+        self.comboBox.addItem("1536 well plate", 1536)
         self.comboBox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout.addWidget(self.label)
         layout.addWidget(self.comboBox)
@@ -5823,16 +5819,12 @@ class WellSelectionWidget(QTableWidget):
         self.setData()
 
     def setupLayout(self, format_):
-        format_settings = { # format: (rows, cols, spacing_mm)
-            0: (1, 1, 0),
-            6: (2, 3, 39.2),
-            12: (3, 4, 26),
-            24: (4, 6, 18),
-            96: (8, 12, 9),
-            384: (16, 24, 4.5),
-            1536: (32, 48, 2.25)
-        }
-        self.rows, self.columns, self.spacing_mm = format_settings.get(format_, (1, 1, 0))
+        if format_ == 0:
+            self.rows, self.columns, self.spacing_mm = (1, 1, 0)
+        else:
+            self.rows = WELLPLATE_FORMAT_SETTINGS[format_].get('rows', 1)
+            self.columns = WELLPLATE_FORMAT_SETTINGS[format_].get('cols', 1)
+            self.spacing_mm = WELLPLATE_FORMAT_SETTINGS[format_].get('well_spacing_mm', 0)
         self.setRowCount(self.rows)
         self.setColumnCount(self.columns)
         if format_ == 0:
@@ -5843,6 +5835,8 @@ class WellSelectionWidget(QTableWidget):
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.verticalScrollBar().setDisabled(True)
+        self.horizontalScrollBar().setDisabled(True)
         self.setFocusPolicy(Qt.NoFocus)
         self.setTabKeyNavigation(False)
         self.setDragEnabled(False)
@@ -5906,6 +5900,9 @@ class WellSelectionWidget(QTableWidget):
     def wheelEvent(self, event):
         # Ignore wheel events to prevent scrolling
         event.ignore()
+
+    def scrollTo(self, index, hint=QAbstractItemView.EnsureVisible):
+        pass
 
     def set_white_boundaries_style(self):
         style = """
@@ -6115,6 +6112,7 @@ class Well1536SelectionWidget(QWidget):
         list_of_selected_cells = list(self.selected_cells.keys())
         return(list_of_selected_cells)
 
+
 class LedMatrixSettingsDialog(QDialog):
     def __init__(self,led_array):
         self.led_array = led_array
@@ -6146,3 +6144,16 @@ class LedMatrixSettingsDialog(QDialog):
 
     def update_NA(self):
         self.led_array.set_NA(self.NA_spinbox.value())
+
+
+class SampleSettingsWidget(QFrame):
+    def __init__(self, ObjectivesWidget, WellplateFormatWidget ,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.objectivesWidget = ObjectivesWidget
+        self.wellplateFormatWidget = WellplateFormatWidget
+        top_row_layout = QGridLayout()
+        top_row_layout.addWidget(self.objectivesWidget,0,0)
+        top_row_layout.addWidget(self.wellplateFormatWidget,0,1)
+        self.setLayout(top_row_layout)  # Set the layout on the frame
+        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        

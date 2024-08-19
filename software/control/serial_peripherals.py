@@ -119,7 +119,7 @@ class XLight_Simulation:
         self.disk_motor_state = False
         self.spinning_disk_pos = 0
 
-    def set_emission_filter(self,position, extraction=False):
+    def set_emission_filter(self,position, extraction=False, validate=False):
         self.emission_wheel_pos = position
         return position
 

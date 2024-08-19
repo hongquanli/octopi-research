@@ -698,8 +698,10 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_x_pixel': 340,
         'a1_y_pixel': 318,
         'well_size_mm': 34.94,
-        'well_spacing_mm': 38.76,
-        'number_of_skip': 0
+        'well_spacing_mm': 38.76, # 39.2
+        'number_of_skip': 0,
+        'rows': 2,
+        'cols': 3
     },
     12: {
         'a1_x_mm': 24.75,
@@ -708,7 +710,9 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_y_pixel': 200,
         'well_size_mm': 22.05,
         'well_spacing_mm': 26,
-        'number_of_skip': 0
+        'number_of_skip': 0,
+        'rows': 3,
+        'cols': 4
     },
     24: {
         'a1_x_mm': 24.45,
@@ -716,8 +720,10 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_x_pixel': 233,
         'a1_y_pixel': 210,
         'well_size_mm': 15.54,
-        'well_spacing_mm': 19.3,
-        'number_of_skip': 0
+        'well_spacing_mm': 19.3, # 18
+        'number_of_skip': 0,
+        'rows': 4,
+        'cols': 6
     },
     96: {
         'a1_x_mm': 11.31,
@@ -726,7 +732,9 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_y_pixel': 135,
         'well_size_mm': 6.21,
         'well_spacing_mm': 9,
-        'number_of_skip': 0
+        'number_of_skip': 0,
+        'rows': 8,
+        'cols': 12
     },
     384: {
         'a1_x_mm': 12.05,
@@ -735,7 +743,9 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_y_pixel': 106,
         'well_size_mm': 3.3,
         'well_spacing_mm': 4.5,
-        'number_of_skip': 1
+        'number_of_skip': 1,
+        'rows': 16,
+        'cols': 24
     },
     1536: {
         'a1_x_mm': 11.0,
@@ -744,7 +754,9 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_y_pixel': 108,
         'well_size_mm': 1.5,
         'well_spacing_mm': 2.25,
-        'number_of_skip': 0
+        'number_of_skip': 0,
+        'rows': 32,
+        'cols': 48
     }
 }
 
