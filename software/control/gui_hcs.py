@@ -195,7 +195,7 @@ class OctopiGUI(QMainWindow):
 
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
         self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
-
+        
         # home XY, set zero and set software limit
         if HOMING_ENABLED_X and HOMING_ENABLED_Y:
             print('home xy')
@@ -272,6 +272,10 @@ class OctopiGUI(QMainWindow):
         self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
+
+        # only toupcam need reset strobe argument when camera's argument change 
+        if CAMERA_TYPE == "Toupcam":
+            self.camera.set_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
 
         # load widgets
         if ENABLE_SPINNING_DISK_CONFOCAL:

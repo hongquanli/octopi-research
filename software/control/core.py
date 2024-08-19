@@ -427,7 +427,6 @@ class Configuration:
         self.emission_filter_position = emission_filter_position
 
 class LiveController(QObject):
-    
     def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.microscope = parent
@@ -654,6 +653,7 @@ class LiveController(QObject):
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
             self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
+
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
                 self._start_triggerred_acquisition()
         if mode == TriggerMode.CONTINUOUS: 
@@ -704,6 +704,14 @@ class LiveController(QObject):
 
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
+
+    def reset_strobe_arugment(self):
+        # re-calculate the strobe_delay_us value
+        try:
+            self.camera.calculate_hardware_trigger_arguments()
+        except AttributeError:
+            pass
+        self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
 
 class NavigationController(QObject):
 
