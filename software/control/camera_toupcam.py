@@ -289,7 +289,6 @@ class Camera(object):
         #     camera_exposure_time = self.exposure_delay_us + self.exposure_time*1000 + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1) + 500 # add an additional 500 us so that the illumination can fully turn off before rows start to end exposure
         #     self.camera.ExposureTime.set(camera_exposure_time)
         self.exposure_time = exposure_time
-        self.reset_strobe_delay()
 
         # exposure time in ms
         if self.trigger_mode == TriggerMode.HARDWARE:

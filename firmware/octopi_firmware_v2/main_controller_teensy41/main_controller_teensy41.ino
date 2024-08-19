@@ -139,7 +139,6 @@ const int pin_PG = 0;
 /************************************ camera trigger and strobe ************************************/
 /***************************************************************************************************/
 static const int TRIGGER_PULSE_LENGTH_us = 50;
-
 bool trigger_output_level[6] = {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
 bool control_strobe[6] = {false, false, false, false, false, false};
 bool strobe_output_level[6] = {LOW, LOW, LOW, LOW, LOW, LOW};
