@@ -2852,7 +2852,8 @@ class MultiPointController(QObject):
                 pass
         print("total time for acquisition + processing + reset:", time.time() - self.recording_start_time)
         self.acquisitionFinished.emit()
-        self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
+        if not self.abort_acqusition_requested:
+            self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
     def request_abort_aquisition(self):

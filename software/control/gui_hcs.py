@@ -859,8 +859,8 @@ class OctopiGUI(QMainWindow):
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter(1)
             self.emission_filter_wheel.close()
-
-        self.stitcherWidget.closeEvent(event)
+        if ENABLE_STITCHER:
+            self.stitcherWidget.closeEvent(event)
 
         # move the objective to a defined position upon exit
         if HOMING_ENABLED_X and HOMING_ENABLED_Y:
