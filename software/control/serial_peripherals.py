@@ -106,6 +106,12 @@ class SerialDevice:
 
         raise RuntimeError("Max attempts reached without receiving expected response.")
 
+    def write_and_read(self, command, read_delay=0.1, max_attempts=3, attempt_delay=1):
+        self.serial.write(command.encode())
+        time.sleep(read_delay)  # Wait for the command to be sent
+        response = self.serial.readline().decode().strip()
+        return response
+
     def write(self, command):
         self.serial.write(command.encode())
 
@@ -115,6 +121,16 @@ class SerialDevice:
 
 class XLight_Simulation:
     def __init__(self):
+        self.has_spinning_disk_motor = True
+        self.has_spinning_disk_slider = True
+        self.has_dichroic_filters_wheel = True
+        self.has_emission_filters_wheel = True
+        self.has_excitation_filters_wheel = True
+        self.has_illumination_iris_diaphragm = True
+        self.has_emission_iris_diaphragm = True
+        self.has_dichroic_filter_slider = True
+        self.has_ttl_control = True
+
         self.emission_wheel_pos = 1
         self.dichroic_wheel_pos = 1
         self.disk_motor_state = False
@@ -133,7 +149,6 @@ class XLight_Simulation:
 
     def get_dichroic(self):
         return self.dichroic_wheel_pos
-
     
     def set_disk_position(self, position):
         self.spinning_disk_pos = position
@@ -148,6 +163,22 @@ class XLight_Simulation:
 
     def get_disk_motor_state(self):
         return self.disk_motor_state
+
+    def set_illumination_iris(self,value):
+        # value: 0 - 100
+        self.illumination_iris = value
+        return self.illumination_iris
+
+    def set_emission_iris(self,value):
+        # value: 0 - 100
+        self.emission_iris = value
+        return self.emission_iris
+
+    def set_filter_slider(self,position):
+        if str(position) not in ["0","1","2","3"]:
+            raise ValueError("Invalid slider position!")
+        self.slider_position = position
+        return self.slider_position
 
 # CrestOptics X-Light Port specs:
 # 9600 baud
@@ -164,13 +195,52 @@ class XLight:
         cephla already has) for device-finding purposes. Otherwise, all
         XLight devices should use the same serial protocol
         """
+        self.has_spinning_disk_motor = False
+        self.has_spinning_disk_slider = False
+        self.has_dichroic_filters_wheel = False
+        self.has_emission_filters_wheel = False
+        self.has_excitation_filters_wheel = False
+        self.has_illumination_iris_diaphragm = False
+        self.has_emission_iris_diaphragm = False
+        self.has_dichroic_filter_slider = False
+        self.has_ttl_control = False
+        self.sleep_time_for_wheel = sleep_time_for_wheel
+
         self.serial_connection = SerialDevice(SN=SN,baudrate=115200,
                 bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
                 parity=serial.PARITY_NONE,
                 xonxoff=False,rtscts=False,dsrdtr=False)
         self.serial_connection.open_ser()
 
-        self.sleep_time_for_wheel = sleep_time_for_wheel
+        self.parse_idc_response(self.serial_connection.write_and_read("idc\r"))
+        self.print_config()
+
+    def parse_idc_response(self, response):
+        # Convert hexadecimal response to integer
+        config_value = int(response, 16)
+
+        # Check each bit and set the corresponding variable
+        self.has_spinning_disk_motor = bool(config_value & 0x00000001)
+        self.has_spinning_disk_slider = bool(config_value & 0x00000002)
+        self.has_dichroic_filters_wheel = bool(config_value & 0x00000004)
+        self.has_emission_filters_wheel = bool(config_value & 0x00000008)
+        self.has_excitation_filters_wheel = bool(config_value & 0x00000080)
+        self.has_illumination_iris_diaphragm = bool(config_value & 0x00000200)
+        self.has_emission_iris_diaphragm = bool(config_value & 0x00000400)
+        self.has_dichroic_filter_slider = bool(config_value & 0x00000800)
+        self.has_ttl_control = bool(config_value & 0x00001000)
+
+    def print_config(self):
+        print("Machine Configuration:")
+        print(f"Spinning disk motor: {self.has_spinning_disk_motor}")
+        print(f"Spinning disk slider: {self.has_spinning_disk_slider}")
+        print(f"Dichroic filters wheel: {self.has_dichroic_filters_wheel}")
+        print(f"Emission filters wheel: {self.has_emission_filters_wheel}")
+        print(f"Excitation filters wheel: {self.has_excitation_filters_wheel}")
+        print(f"Illumination Iris diaphragm: {self.has_illumination_iris_diaphragm}")
+        print(f"Emission Iris diaphragm: {self.has_emission_iris_diaphragm}")
+        print(f"Dichroic filter slider: {self.has_dichroic_filter_slider}")
+        print(f"TTL control and combined commands subsystem: {self.has_ttl_control}")
     
     def set_emission_filter(self,position,extraction=False,validate=True):
         if str(position) not in ["1","2","3","4","5","6","7","8"]:
@@ -227,6 +297,29 @@ class XLight:
         current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read)
         self.spinning_disk_pos = int(current_pos[1])
         return self.spinning_disk_pos
+
+    def set_illumination_iris(self,value):
+        # value: 0 - 100
+        self.illumination_iris = value
+        value = str(int(10*value))
+        self.serial_connection.write_and_check("J"+value+"\r","J"+value)
+        return self.illumination_iris
+
+    def set_emission_iris(self,value):
+        # value: 0 - 100
+        self.emission_iris = value
+        value = str(int(10*value))
+        self.serial_connection.write_and_check("V"+value+"\r","V"+value)
+        return self.emission_iris
+
+    def set_filter_slider(self,position):
+        if str(position) not in ["0","1","2","3"]:
+            raise ValueError("Invalid slider position!")
+        self.slider_position = position
+        position_to_write = str(position)
+        position_to_read = str(position)
+        self.serial_connection.write_and_check("P"+position_to_write+"\r","V"+position_to_read)
+        return self.slider_position
 
     def get_disk_position(self):
         current_pos = self.serial_connection.write_and_check("rD\r","rD")
