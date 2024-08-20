@@ -2858,6 +2858,9 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
+        self.checkbox_usePiezo = QCheckBox('Use Piezo')
+        self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
+
         self.checkbox_genFocusMap = QCheckBox('Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
 
@@ -2941,7 +2944,7 @@ class MultiPointWidgetGrid(QFrame):
         temp.addWidget(stack_label)
         temp.addWidget(self.combobox_z_stack)
         #stack_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        row_2_3_layout.addLayout(temp,2,0,1,3)
+        #row_2_3_layout.addLayout(temp,2,0,1,3)
         row_2_3_layout.addWidget(self.list_configurations,3,0,1,3)
 
         options_layout = QVBoxLayout()
@@ -2950,6 +2953,7 @@ class MultiPointWidgetGrid(QFrame):
             options_layout.addWidget(self.checkbox_withReflectionAutofocus)
         # options_layout.addWidget(self.checkbox_useCoordinateAcquisition)
         options_layout.addWidget(self.checkbox_genFocusMap)
+        options_layout.addWidget(self.checkbox_usePiezo)
         if ENABLE_STITCHER:
             options_layout.addWidget(self.checkbox_stitchOutput)
         
@@ -2986,6 +2990,7 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
+        self.checkbox_usePiezo.stateChanged.connect(self.multipointController.set_use_piezo)
         self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
         self.navigationViewer.signal_draw_scan_grid.connect(self.set_live_scan_coordinates)
@@ -4240,7 +4245,7 @@ class NapariLiveWidget(QWidget):
         curr_layer_name = self.dropdown_modeSelection.currentText()
         if self.live_layer_name != curr_layer_name:
             self.live_layer_name = curr_layer_name
-            layer.contrast_limits = self.contrast_limits.get(self.live_layer_name, self.getContrastLimits())
+            #layer.contrast_limits = self.contrast_limits.get(self.live_layer_name, self.getContrastLimits())
         layer.refresh()
 
     def onDoubleClick(self, layer, event):
@@ -4366,6 +4371,7 @@ class NapariMultiChannelWidget(QWidget):
         else:
             self.viewer.layers.clear()
             self.acquisition_initialized = True
+            self.contrast_limits = {}
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)

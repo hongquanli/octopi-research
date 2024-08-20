@@ -2550,6 +2550,9 @@ class MultiPointController(QObject):
         self.coordinate_dict = None # for coordinate grid vs postion grid
         self.z_stacking_config = Z_STACKING_CONFIG
 
+    def set_use_piezo(self, checked):
+        self.use_piezo == checked
+
     def set_z_stacking_config(self, z_stacking_config_index):
         if z_stacking_config_index in Z_STACKING_CONFIG_MAP:
             self.z_stacking_config = Z_STACKING_CONFIG_MAP[z_stacking_config_index]
