@@ -698,7 +698,7 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_x_pixel': 340,
         'a1_y_pixel': 318,
         'well_size_mm': 34.94,
-        'well_spacing_mm': 38.76, # 39.2
+        'well_spacing_mm': 39.2, # 39.2
         'number_of_skip': 0,
         'rows': 2,
         'cols': 3

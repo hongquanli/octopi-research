@@ -790,6 +790,7 @@ class LiveControlWidget(QFrame):
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
+    signal_live_configuration = Signal(object)
 
     def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=True, show_autolevel = False, autolevel=False, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -976,6 +977,7 @@ class LiveControlWidget(QFrame):
         self.is_switching_mode = True
         # identify the mode selected (note that this references the object in self.configurationManager.configurations)
         self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
+        self.signal_live_configuration.emit(self.currentConfiguration)
         # update the microscope to the current configuration
         self.liveController.set_microscope_mode(self.currentConfiguration)
         # update the exposure time and analog gain settings according to the selected configuration
@@ -2078,13 +2080,15 @@ class MultiPointWidget2(QFrame):
 
         self.entry_deltaX = QDoubleSpinBox()
         self.entry_deltaX.setMinimum(0)
+        self.entry_deltaX.setMaximum(1000)
+        self.entry_deltaX.setDecimals(3)
+        self.entry_deltaX.setSuffix(' mm')
+        self.entry_deltaX.setMinimumWidth(self.entry_deltaX.sizeHint().width())
         self.entry_deltaX.setMaximum(5)
         self.entry_deltaX.setSingleStep(0.1)
         self.entry_deltaX.setValue(Acquisition.DX)
-        self.entry_deltaX.setDecimals(3)
-        self.entry_deltaX.setSuffix(' mm')
         self.entry_deltaX.setKeyboardTracking(False)
-        self.entry_deltaX.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        #self.entry_deltaX.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_NX = QSpinBox()
         self.entry_NX.setMinimum(1)
@@ -2098,13 +2102,15 @@ class MultiPointWidget2(QFrame):
 
         self.entry_deltaY = QDoubleSpinBox()
         self.entry_deltaY.setMinimum(0)
+        self.entry_deltaY.setMaximum(1000)
+        self.entry_deltaY.setDecimals(3)
+        self.entry_deltaY.setSuffix(' mm')
+        self.entry_deltaY.setMinimumWidth(self.entry_deltaY.sizeHint().width())
         self.entry_deltaY.setMaximum(5)
         self.entry_deltaY.setSingleStep(0.1)
         self.entry_deltaY.setValue(Acquisition.DX)
-        self.entry_deltaY.setDecimals(3)
-        self.entry_deltaY.setSuffix(' mm')
         self.entry_deltaY.setKeyboardTracking(False)
-        self.entry_deltaY.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        #self.entry_deltaY.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.entry_NY = QSpinBox()
         self.entry_NY.setMinimum(1)
@@ -2164,6 +2170,9 @@ class MultiPointWidget2(QFrame):
 
         self.checkbox_genFocusMap = QCheckBox('Focus Map')
         self.checkbox_genFocusMap.setChecked(False)
+
+        self.checkbox_usePiezo = QCheckBox('Piezo Z-Stack')
+        self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
 
         self.checkbox_stitchOutput = QCheckBox('Stitch Scans')
         self.checkbox_stitchOutput.setChecked(False)
@@ -2233,6 +2242,7 @@ class MultiPointWidget2(QFrame):
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
         grid_af.addWidget(self.checkbox_genFocusMap)
+        grid_af.addWidget(self.checkbox_usePiezo)
         if ENABLE_STITCHER:
             grid_af.addWidget(self.checkbox_stitchOutput)
 
@@ -2274,6 +2284,7 @@ class MultiPointWidget2(QFrame):
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_usePiezo.stateChanged.connect(self.multipointController.set_use_piezo)
         self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
@@ -2297,7 +2308,6 @@ class MultiPointWidget2(QFrame):
         self.table_location_list.cellClicked.connect(self.cell_was_clicked)
         self.table_location_list.cellChanged.connect(self.cell_was_changed)
         self.btn_show_table_location_list.clicked.connect(self.table_location_list.show)
-
         self.dropdown_location_list.currentIndexChanged.connect(self.go_to)
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
@@ -2858,10 +2868,11 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_withReflectionAutofocus.setChecked(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
-        self.checkbox_usePiezo = QCheckBox('Use Piezo')
+        self.checkbox_usePiezo = QCheckBox('Piezo Z-Stack')
         self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
 
-        self.checkbox_genFocusMap = QCheckBox('Focus Map')
+        #self.checkbox_genFocusMap = QCheckBox('Focus Map')
+        self.checkbox_genFocusMap = QCheckBox('AF Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         # Add a checkbox for coordinate-based acquisition
@@ -3042,7 +3053,6 @@ class MultiPointWidgetGrid(QFrame):
             self.num_regions = num_regions
         
         progress_text = ""
-
         # Update timepoint progress if there are multiple timepoints and the timepoint has changed
         if self.entry_Nt.value() > 1:
             progress_text += f" Time {current_time_point + 1}/{self.entry_Nt.value()} "
@@ -3094,8 +3104,6 @@ class MultiPointWidgetGrid(QFrame):
             self.entry_well_coverage.setEnabled(True)
             self.entry_well_coverage.setValue(100)
             self.update_scan_size_from_coverage()
-        print("scan size:", self.entry_scan_size.value())
-        print("well size:", self.navigationViewer.well_size_mm)
 
     def set_default_shape(self):
         if self.scanCoordinates.format in [384, 1536]:
@@ -3105,11 +3113,9 @@ class MultiPointWidgetGrid(QFrame):
 
     def get_effective_well_size(self):
         well_size = self.scanCoordinates.well_size_mm
-        print("defaault well size", well_size)
         if self.combobox_shape.currentText() == 'Circle':
             fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
             return well_size + fov_size_mm * (1 + math.sqrt(2))
-        print("actual well size", well_size)
         return well_size
 
     def on_set_shape(self):
@@ -3180,9 +3186,8 @@ class MultiPointWidgetGrid(QFrame):
         self.navigationController.zPos.disconnect(self.update_z_max)
 
         self.entry_minZ.setValue(z_pos_mm*1000)
-        print("init min z:", self.entry_minZ.value())
         self.entry_maxZ.setValue(z_pos_mm*1000)
-        print("init max z:", self.entry_maxZ.value())
+        print("init Z-min/max:", self.entry_minZ.value())
 
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
@@ -3199,7 +3204,6 @@ class MultiPointWidgetGrid(QFrame):
 
     def set_well_coordinates(self, selected):
         self.well_selected = selected and bool(self.scanCoordinates.get_selected_wells())
-        print("well selected?", self.well_selected)
         if hasattr(self.multipointController.parent, 'recordTabWidget') and self.multipointController.parent.recordTabWidget.currentWidget() == self:
             if self.scanCoordinates.format == 0:
                 x = self.navigationController.x_pos_mm
@@ -3351,7 +3355,6 @@ class MultiPointWidgetGrid(QFrame):
             scan_coordinates.append((center_x, center_y))
             self.navigationViewer.register_fov_to_image(center_x, center_y)
 
-        ("update nav viewer")
         self.signal_update_navigation_viewer.emit()
         return scan_coordinates
 
@@ -3855,11 +3858,11 @@ class NapariLiveWidget(QWidget):
         self.liveController = liveController
         self.configurationManager = configurationManager
         self.wellSelectionWidget = wellSelectionWidget
-        self.live_layer_name = ""
+        self.live_configuration = self.liveController.currentConfiguration
         self.image_width = 0
         self.image_height = 0
         self.dtype = np.uint8
-        self.channels = []
+        self.channels = set()
         self.init_live = False
         self.init_live_rgb = False
         self.contrast_limits = {}
@@ -3869,12 +3872,11 @@ class NapariLiveWidget(QWidget):
         self.last_was_autofocus = False
         self.fps_trigger = 10
         self.fps_display = 10
-        self.currentConfiguration = self.configurationManager.configurations[0]
 
         self.initNapariViewer()
         self.addNapariGrayclipColormap()
         self.initControlWidgets(show_trigger_options, show_display_options, show_autolevel, autolevel)
-        self.update_microscope_mode_by_name(self.currentConfiguration.name)
+        self.update_microscope_mode_by_name(self.live_configuration.name)
 
     def initNapariViewer(self):
         self.viewer = napari.Viewer(show=False)
@@ -3899,7 +3901,7 @@ class NapariLiveWidget(QWidget):
         self.dropdown_modeSelection = QComboBox()
         for config in self.configurationManager.configurations:
             self.dropdown_modeSelection.addItem(config.name)
-        self.dropdown_modeSelection.setCurrentText(self.currentConfiguration.name)
+        self.dropdown_modeSelection.setCurrentText(self.live_configuration.name)
         self.dropdown_modeSelection.currentTextChanged.connect(self.update_microscope_mode_by_name)
 
         # Live button
@@ -3936,7 +3938,7 @@ class NapariLiveWidget(QWidget):
         # Exposure Time
         self.entry_exposureTime = QDoubleSpinBox()
         self.entry_exposureTime.setRange(self.liveController.camera.EXPOSURE_TIME_MS_MIN, self.liveController.camera.EXPOSURE_TIME_MS_MAX)
-        self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
+        self.entry_exposureTime.setValue(self.live_configuration.exposure_time)
         self.entry_exposureTime.setSuffix(" ms")
         self.entry_exposureTime.valueChanged.connect(self.update_config_exposure_time)
 
@@ -3944,14 +3946,14 @@ class NapariLiveWidget(QWidget):
         self.entry_analogGain = QDoubleSpinBox()
         self.entry_analogGain.setRange(0, 24)
         self.entry_analogGain.setSingleStep(0.1)
-        self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
+        self.entry_analogGain.setValue(self.live_configuration.analog_gain)
         # self.entry_analogGain.setSuffix('x')
         self.entry_analogGain.valueChanged.connect(self.update_config_analog_gain)
 
         # Illumination Intensity
         self.slider_illuminationIntensity = QSlider(Qt.Horizontal)
         self.slider_illuminationIntensity.setRange(0, 100)
-        self.slider_illuminationIntensity.setValue(int(self.currentConfiguration.illumination_intensity))
+        self.slider_illuminationIntensity.setValue(int(self.live_configuration.illumination_intensity))
         self.slider_illuminationIntensity.setTickPosition(QSlider.TicksBelow)
         self.slider_illuminationIntensity.setTickInterval(10)
         self.slider_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
@@ -4131,27 +4133,27 @@ class NapariLiveWidget(QWidget):
         self.dropdown_modeSelection.setCurrentText(config.name)
 
     def update_microscope_mode_by_name(self, current_microscope_mode_name):
-        self.currentConfiguration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
-        if self.currentConfiguration:
-            self.liveController.set_microscope_mode(self.currentConfiguration)
-            self.entry_exposureTime.setValue(self.currentConfiguration.exposure_time)
-            self.entry_analogGain.setValue(self.currentConfiguration.analog_gain)
-            self.slider_illuminationIntensity.setValue(int(self.currentConfiguration.illumination_intensity))
+        self.live_configuration = next((config for config in self.configurationManager.configurations if config.name == current_microscope_mode_name), None)
+        if self.live_configuration:
+            self.liveController.set_microscope_mode(self.live_configuration)
+            self.entry_exposureTime.setValue(self.live_configuration.exposure_time)
+            self.entry_analogGain.setValue(self.live_configuration.analog_gain)
+            self.slider_illuminationIntensity.setValue(int(self.live_configuration.illumination_intensity))
 
     def update_config_exposure_time(self, new_value):
-        self.currentConfiguration.exposure_time = new_value
-        self.configurationManager.update_configuration(self.currentConfiguration.id, 'ExposureTime', new_value)
+        self.live_configuration.exposure_time = new_value
+        self.configurationManager.update_configuration(self.live_configuration.id, 'ExposureTime', new_value)
         self.signal_newExposureTime.emit(new_value)
 
     def update_config_analog_gain(self, new_value):
-        self.currentConfiguration.analog_gain = new_value
-        self.configurationManager.update_configuration(self.currentConfiguration.id, 'AnalogGain', new_value)
+        self.live_configuration.analog_gain = new_value
+        self.configurationManager.update_configuration(self.live_configuration.id, 'AnalogGain', new_value)
         self.signal_newAnalogGain.emit(new_value)
 
     def update_config_illumination_intensity(self, new_value):
-        self.currentConfiguration.illumination_intensity = new_value
-        self.configurationManager.update_configuration(self.currentConfiguration.id, 'IlluminationIntensity', new_value)
-        self.liveController.set_illumination(self.currentConfiguration.illumination_source, new_value)
+        self.live_configuration.illumination_intensity = new_value
+        self.configurationManager.update_configuration(self.live_configuration.id, 'IlluminationIntensity', new_value)
+        self.liveController.set_illumination(self.live_configuration.illumination_source, new_value)
 
     def update_resolution_scaling(self, value):
         self.streamHandler.set_display_resolution_scaling(value)
@@ -4176,18 +4178,27 @@ class NapariLiveWidget(QWidget):
         self.viewer.layers.clear()
         self.image_width = image_width
         self.image_height = image_height
-        self.dtype = np.dtype(image_dtype)
-        self.channels.append(channel)
-        self.live_layer_name = channel
-        self.contrast_limits[channel] = self.getContrastLimits()
-        if rgb == True:
+        if self.dtype != np.dtype(image_dtype):
+            self.updateAllContrastLimits(np.dtype(image_dtype))
+            self.dtype = image_dtype
+
+        self.channels.add(channel)
+        self.live_configuration.name = channel
+        # Ensure we have contrast limits for this channel
+        if self.live_configuration.name not in self.contrast_limits:
+            self.contrast_limits[self.live_configuration.name] = self.getContrastLimits(self.dtype)
+
+        if rgb:
             canvas = np.zeros((image_height, image_width, 3), dtype=self.dtype)
         else:
             canvas = np.zeros((image_height, image_width), dtype=self.dtype)
-        layer = self.viewer.add_image(canvas, name=channel, visible=True, rgb=rgb, colormap='grayclip',
-                                      contrast_limits=self.contrast_limits[channel], blending='additive')
+        limits = self.getContrastLimits(self.dtype)
+        layer = self.viewer.add_image(canvas, name="Live View", visible=True, rgb=rgb, colormap='grayclip',
+                                      contrast_limits=limits, blending='additive')
+        layer.contrast_limits = self.contrast_limits.get(self.live_configuration.name, limits)
         layer.mouse_double_click_callbacks.append(self.onDoubleClick)
-        layer.events.contrast_limits.connect(self.signalContrastLimits)  # Connect to contrast limits event
+        layer.events.contrast_limits.connect(self.signalContrastLimits)
+        
         if not self.init_scale:
             self.resetView()
             self.previous_scale = self.viewer.camera.zoom
@@ -4203,21 +4214,25 @@ class NapariLiveWidget(QWidget):
             self.init_live = False
             self.init_live_rgb = False
 
+        if not self.live_configuration.name:
+            self.live_configuration.name = self.liveController.currentConfiguration.name
         rgb = len(image.shape) >= 3
+
         if not rgb and not self.init_live:
-            self.initLiveLayer("Live View", image.shape[0], image.shape[1], image.dtype, rgb)
+            self.initLiveLayer(self.live_configuration.name, image.shape[0], image.shape[1], image.dtype, rgb)
             self.init_live = True
             self.init_live_rgb = False
             print("init live")
         elif rgb and not self.init_live_rgb:
-            self.initLiveLayer("Live View", image.shape[0], image.shape[1], image.dtype, rgb)
+            self.initLiveLayer(self.live_configuration.name, image.shape[0], image.shape[1], image.dtype, rgb)
             self.init_live_rgb = True
             self.init_live = False
             print("init live rgb")
 
         layer = self.viewer.layers["Live View"]
         layer.data = image
-
+        layer.contrast_limits = self.contrast_limits.get(self.live_configuration.name, self.getContrastLimits(self.dtype))
+        print(self.live_configuration.name, self.contrast_limits)
         if from_autofocus:
             # save viewer scale
             if not self.last_was_autofocus:
@@ -4241,11 +4256,6 @@ class NapariLiveWidget(QWidget):
             self.previous_scale = self.viewer.camera.zoom
             self.previous_center = self.viewer.camera.center
             self.last_was_autofocus = False
-
-        curr_layer_name = self.dropdown_modeSelection.currentText()
-        if self.live_layer_name != curr_layer_name:
-            self.live_layer_name = curr_layer_name
-            #layer.contrast_limits = self.contrast_limits.get(self.live_layer_name, self.getContrastLimits())
         layer.refresh()
 
     def onDoubleClick(self, layer, event):
@@ -4259,22 +4269,43 @@ class NapariLiveWidget(QWidget):
             # Emit the centered coordinates and dimensions of the layer's data array
             self.signal_coordinates_clicked.emit(x_centered, y_centered, layer_shape[-1], layer_shape[-2])
 
+    def set_live_configuration(self, live_configuration):
+        self.live_configuration = live_configuration
+
     def signalContrastLimits(self, event):
         layer = event.source
-        layer_name = self.dropdown_modeSelection.currentText()
-        min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
-        self.signal_layer_contrast_limits.emit(layer_name, min_val, max_val)
-        self.contrast_limits[layer_name] = min_val, max_val
+        min_val, max_val = map(float, layer.contrast_limits)
+        print("live signalling", self.live_configuration.name, "contrast limits:", min_val, max_val)
+        self.signal_layer_contrast_limits.emit(self.live_configuration.name, min_val, max_val)
+        self.contrast_limits[self.live_configuration.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
+        print("live saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
-    def getContrastLimits(self):
-        if np.issubdtype(self.dtype, np.integer):
-            return (np.iinfo(self.dtype).min, np.iinfo(self.dtype).max)
-        elif np.issubdtype(self.dtype, np.floating):
+    def getContrastLimits(self, dtype):
+        if np.issubdtype(dtype, np.integer):
+            return (np.iinfo(dtype).min, np.iinfo(dtype).max)
+        elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
         return (0,1)
+
+    def updateAllContrastLimits(self, image_dtype):
+        old_max_limits = self.getContrastLimits(self.dtype)
+        new_max_limits = self.getContrastLimits(image_dtype)
+        self.dtype = image_dtype
+
+        for channel in self.contrast_limits.keys():
+            old_limits = self.contrast_limits[channel]
+
+            # Scale the existing limits to the new dtype range
+            new_min = old_limits[0]  / old_max_limits[1] * new_max_limits[1]
+            new_max = old_limits[1]  / old_max_limits[1] * new_max_limits[1]
+            new_limits = (new_min, new_max)
+
+            print("old:", old_limits, "new:", new_limits)
+            self.contrast_limits[channel] = new_limits
+            self.signal_layer_contrast_limits.emit(channel, new_limits[0], new_limits[1])
 
     def resetView(self):
         self.viewer.reset_view()
@@ -4362,8 +4393,8 @@ class NapariMultiChannelWidget(QWidget):
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def initLayers(self, image_height, image_width, image_dtype):
+        print(self.contrast_limits)
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        #self.viewer.layers.clear()
         if self.acquisition_initialized:
             for layer in list(self.viewer.layers):
                 if layer.name not in self.channels:
@@ -4371,7 +4402,7 @@ class NapariMultiChannelWidget(QWidget):
         else:
             self.viewer.layers.clear()
             self.acquisition_initialized = True
-            self.contrast_limits = {}
+        
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
@@ -4384,12 +4415,10 @@ class NapariMultiChannelWidget(QWidget):
         rgb = len(image.shape) == 3
 
         # Check if the layer exists and has a different dtype
-        if self.dtype != image.dtype: # or self.viewer.layers[channel_name].data.dtype != image.dtype:
+        if self.dtype != np.dtype(image.dtype): # or self.viewer.layers[channel_name].data.dtype != image.dtype:
             # Remove the existing layer
             self.layers_initialized = False
             self.acquisition_initialized = False
-            self.dtype = image.dtype
-            self.contrast_limits[channel_name] = self.getContrastLimits(image.dtype)
 
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
@@ -4408,11 +4437,12 @@ class NapariMultiChannelWidget(QWidget):
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width), dtype=self.dtype)
 
             limits = self.getContrastLimits(self.dtype)
+            print("multichannel", channel_name, limits)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
                                           colormap=color, contrast_limits=limits, blending='additive',
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
+
             print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
-            self.contrast_limits[channel_name] = self.getContrastLimits(self.dtype)
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
@@ -4439,8 +4469,6 @@ class NapariMultiChannelWidget(QWidget):
             # Remove the existing layer
             self.layers_initialized = False
             self.acquisition_initialized = False
-            self.dtype = image.dtype
-            self.contrast_limits[channel_name] = self.getContrastLimits(image.dtype)
 
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
@@ -4459,12 +4487,9 @@ class NapariMultiChannelWidget(QWidget):
                     color = self.generateColormap(channel_info)
                 canvas = np.zeros((self.image_height, self.image_width), dtype=self.dtype)
 
-            limits = self.getContrastLimits(self.dtype)
-            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
-                                          colormap=color, contrast_limits=limits, blending='additive')
-            layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, colormap=color, 
+                                        blending='additive', contrast_limits=self.getContrastLimits(self.dtype))
             layer.events.contrast_limits.connect(self.signalContrastLimits)
-
             self.resetView()
 
         layer = self.viewer.layers[channel_name]
@@ -4477,15 +4502,34 @@ class NapariMultiChannelWidget(QWidget):
             return (np.iinfo(dtype).min, np.iinfo(dtype).max)
         elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
-        return None
+        return (0, 1)
+
+    def updateAllContrastLimits(self, image_dtype):
+        old_max_limits = self.getContrastLimits(self.dtype)
+        new_max_limits = self.getContrastLimits(image_dtype)
+        self.dtype = image_dtype
+
+        for channel in self.contrast_limits.keys():
+            old_limits = self.contrast_limits[channel]
+
+            # Scale the existing limits to the new dtype range
+            new_min = old_limits[0]  / old_max_limits[1] * new_max_limits[1]
+            new_max = old_limits[1]  / old_max_limits[1] * new_max_limits[1]
+            new_limits = (new_min, new_max)
+            
+            print("old:", old_limits, "new:", new_limits)
+            self.contrast_limits[channel] = new_limits
+            # self.signal_layer_contrast_limits.emit(channel, new_limits[0], new_limits[1])
 
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
         self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
-        self.contrast_limits[layer.name] = min_val, max_val
+        print("multichannel signaling", layer.name, "contrast limits:", min_val, max_val)
+        self.contrast_limits[layer.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
+        print("multichannel saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def resetView(self):
@@ -4577,18 +4621,19 @@ class NapariTiledDisplayWidget(QWidget):
 
     def initLayers(self, image_height, image_width, image_dtype):
         """Initializes the full canvas for each channel based on the acquisition parameters."""
-        if self.acquisition_initialized and image_dype == self.dtype:
+        if self.acquisition_initialized:
             for layer in list(self.viewer.layers):
                 if layer.name not in self.channels:
                     self.viewer.layers.remove(layer)
         else:
             self.viewer.layers.clear()
             self.acquisition_initialized = True
+        
         self.image_width = image_width // self.downsample_factor
         self.image_height = image_height // self.downsample_factor
         self.dtype = np.dtype(image_dtype)
-        self.resetView()
         self.layers_initialized = True
+        self.resetView()
         self.viewer_scale_initialized = False
 
     def updateLayers(self, image, i, j, k, channel_name):
@@ -4598,12 +4643,10 @@ class NapariTiledDisplayWidget(QWidget):
             return
 
         # Check if the layer exists and has a different dtype
-        if self.dtype != image.dtype: # or self.viewer.layers[channel_name].data.dtype != image.dtype:
+        if self.dtype != image.dtype:
             # Remove the existing layer
             self.layers_initialized = False
             self.acquisition_initialized = False
-            self.dtype = image.dtype
-            self.contrast_limits[channel_name] = self.getContrastLimits(image.dtype)
 
         if not self.layers_initialized:
             self.initLayers(image.shape[0], image.shape[1], image.dtype)
@@ -4649,20 +4692,39 @@ class NapariTiledDisplayWidget(QWidget):
         layer.data = layer_data
         layer.refresh()
 
-    def signalContrastLimits(self, event):
-        layer = event.source
-        min_val, max_val = map(float, layer.contrast_limits)
-        self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
-        self.contrast_limits[layer.name] = min_val, max_val
-
     def getContrastLimits(self, dtype):
         if np.issubdtype(dtype, np.integer):
             return (np.iinfo(dtype).min, np.iinfo(dtype).max)
         elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
-        return None
+        return (0, 1)
+
+    def updateAllContrastLimits(self, image_dtype):
+        old_max_limits = self.getContrastLimits(self.dtype)
+        new_max_limits = self.getContrastLimits(image_dtype)
+        self.dtype = image_dtype
+
+        for channel in self.contrast_limits.keys():
+            old_limits = self.contrast_limits[channel]
+
+            # Scale the existing limits to the new dtype range
+            new_min = old_limits[0]  / old_max_limits[1] * new_max_limits[1]
+            new_max = old_limits[1]  / old_max_limits[1] * new_max_limits[1]
+            new_limits = (new_min, new_max)
+            
+            print("old:", old_limits, "new:", new_limits)
+            self.contrast_limits[channel] = new_limits
+            # self.signal_layer_contrast_limits.emit(channel, new_limits[0], new_limits[1])
+
+    def signalContrastLimits(self, event):
+        layer = event.source
+        min_val, max_val = map(float, layer.contrast_limits)
+        print("tiled signalling", layer.name, "contrast limits:", min_val, max_val)
+        self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
+        self.contrast_limits[layer.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
+        print("tiled saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def onDoubleClick(self, layer, event):
@@ -4758,6 +4820,7 @@ class NapariMosaicDisplayWidget(QWidget):
         # Calculate the pixel size for this image
         image_pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
         image_pixel_size_mm = image_pixel_size_um / 1000
+        image_dtype = image.dtype
 
         # Downsample the image
         if self.downsample_factor != 1:
@@ -4769,12 +4832,11 @@ class NapariMosaicDisplayWidget(QWidget):
 
         if not self.viewer.layers:
             # This is the first image, so set the viewer_pixel_size_mm and dtype
-            self.dtype = image.dtype
             self.viewer_pixel_size_mm = image_pixel_size_mm
             self.viewer_extents = [y_mm, y_mm + image.shape[0] * image_pixel_size_mm,
                                    x_mm, x_mm + image.shape[1] * image_pixel_size_mm]
             self.top_left_coordinate = [y_mm, x_mm]
-            self.dtype = image.dtype
+            self.dtype = image_dtype
         else:
             # Convert the image to the same dtype as the existing mosaic
             image = self.convertDtype(image, self.dtype)
@@ -4816,10 +4878,11 @@ class NapariMosaicDisplayWidget(QWidget):
         self.updateLayer(layer, image, x_mm, y_mm, k, prev_top_left)
 
         # Update contrast limits if necessary
-        limits = self.getContrastLimits(self.dtype)
-        if channel_name in self.contrast_limits:
-            layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
-
+        contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
+        print(f"mosaic contrast limits {channel_name}: {contrast_limits}")
+        scale = np.iinfo(self.dtype).max / np.iinfo(image_dtype).max
+        layer.contrast_limits = (contrast_limits[0] * scale, contrast_limits[1] * scale)
+        print(f"mosaic contrast limits scaled {channel_name}: {layer.contrast_limits}")        
         layer.refresh()
 
     def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
@@ -4908,10 +4971,12 @@ class NapariMosaicDisplayWidget(QWidget):
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
-        self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
+        print("mosaic not really signalling", layer.name, "contrast limits:", min_val, max_val)
+        #self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
         self.contrast_limits[layer.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
+        print("mosaic saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def onDoubleClick(self, layer, event):

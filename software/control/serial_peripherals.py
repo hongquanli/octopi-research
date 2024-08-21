@@ -417,6 +417,7 @@ class CellX_Simulation:
                 parity=serial.PARITY_NONE,
                 xonxoff=False,rtscts=False,dsrdtr=False)
         self.serial_connection.open_ser()
+        self.power = {}
 
     def turn_on(self, channel):
         pass
