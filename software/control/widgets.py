@@ -4275,12 +4275,10 @@ class NapariLiveWidget(QWidget):
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
-        print("live signalling", self.live_configuration.name, "contrast limits:", min_val, max_val)
         self.signal_layer_contrast_limits.emit(self.live_configuration.name, min_val, max_val)
         self.contrast_limits[self.live_configuration.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
-        print("live saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def getContrastLimits(self, dtype):
@@ -4303,7 +4301,6 @@ class NapariLiveWidget(QWidget):
             new_max = old_limits[1]  / old_max_limits[1] * new_max_limits[1]
             new_limits = (new_min, new_max)
 
-            print("old:", old_limits, "new:", new_limits)
             self.contrast_limits[channel] = new_limits
             self.signal_layer_contrast_limits.emit(channel, new_limits[0], new_limits[1])
 
@@ -4402,6 +4399,8 @@ class NapariMultiChannelWidget(QWidget):
         else:
             self.viewer.layers.clear()
             self.acquisition_initialized = True
+            if self.dtype != np.dtype(image_dtype) and not USE_NAPARI_FOR_LIVE_VIEW:
+                updateAllContrastLimits(image_dtype)
         
         self.image_width = image_width
         self.image_height = image_height
@@ -4437,12 +4436,11 @@ class NapariMultiChannelWidget(QWidget):
                 canvas = np.zeros((self.Nz, self.image_height, self.image_width), dtype=self.dtype)
 
             limits = self.getContrastLimits(self.dtype)
-            print("multichannel", channel_name, limits)
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
                                           colormap=color, contrast_limits=limits, blending='additive',
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
 
-            print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
+            # print(f"multi channel - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
@@ -4517,7 +4515,6 @@ class NapariMultiChannelWidget(QWidget):
             new_max = old_limits[1]  / old_max_limits[1] * new_max_limits[1]
             new_limits = (new_min, new_max)
             
-            print("old:", old_limits, "new:", new_limits)
             self.contrast_limits[channel] = new_limits
             # self.signal_layer_contrast_limits.emit(channel, new_limits[0], new_limits[1])
 
@@ -4525,11 +4522,9 @@ class NapariMultiChannelWidget(QWidget):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)  # or use int if necessary
         self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
-        print("multichannel signaling", layer.name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
-        print("multichannel saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def resetView(self):
@@ -4669,7 +4664,7 @@ class NapariTiledDisplayWidget(QWidget):
             layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
                                           colormap=color, contrast_limits=limits, blending='additive',
                                           scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
-            print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
+            # print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
             layer.contrast_limits = self.contrast_limits.get(channel_name, limits)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
@@ -4712,19 +4707,16 @@ class NapariTiledDisplayWidget(QWidget):
             new_max = old_limits[1]  / old_max_limits[1] * new_max_limits[1]
             new_limits = (new_min, new_max)
             
-            print("old:", old_limits, "new:", new_limits)
             self.contrast_limits[channel] = new_limits
             # self.signal_layer_contrast_limits.emit(channel, new_limits[0], new_limits[1])
 
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
-        print("tiled signalling", layer.name, "contrast limits:", min_val, max_val)
         self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
         self.contrast_limits[layer.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
-        print("tiled saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def onDoubleClick(self, layer, event):
@@ -4879,10 +4871,8 @@ class NapariMosaicDisplayWidget(QWidget):
 
         # Update contrast limits if necessary
         contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
-        print(f"mosaic contrast limits {channel_name}: {contrast_limits}")
         scale = np.iinfo(self.dtype).max / np.iinfo(image_dtype).max
         layer.contrast_limits = (contrast_limits[0] * scale, contrast_limits[1] * scale)
-        print(f"mosaic contrast limits scaled {channel_name}: {layer.contrast_limits}")        
         layer.refresh()
 
     def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
@@ -4892,7 +4882,6 @@ class NapariMosaicDisplayWidget(QWidget):
 
         is_rgb = len(image.shape) == 3 and image.shape[2] == 3
         if layer.data.shape[:2] != (mosaic_height, mosaic_width):
-            print("shifting mosaic...", layer.data.shape, (mosaic_height, mosaic_width))
             for mosaic in self.viewer.layers:
                 if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
                     new_data = np.zeros((mosaic_height, mosaic_width, 3), dtype=mosaic.data.dtype)
@@ -4971,12 +4960,10 @@ class NapariMosaicDisplayWidget(QWidget):
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
-        print("mosaic not really signalling", layer.name, "contrast limits:", min_val, max_val)
         #self.signal_layer_contrast_limits.emit(layer.name, min_val, max_val)
         self.contrast_limits[layer.name] = (min_val, max_val)
 
     def saveContrastLimits(self, layer_name, min_val, max_val):
-        print("mosaic saving", layer_name, "contrast limits:", min_val, max_val)
         self.contrast_limits[layer_name] = (min_val, max_val)
 
     def onDoubleClick(self, layer, event):
