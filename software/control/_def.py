@@ -578,6 +578,10 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
 OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 
+# Stage
+USE_PRIOR_STAGE = True
+PRIOR_STAGE_SN = "AQ0427ZH"
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
@@ -729,3 +733,4 @@ elif WELLPLATE_FORMAT == 1536:
     A1_Y_MM = 7.86      # measured stage position - to update
     A1_X_PIXEL = 144    # coordinate on the png - to update
     A1_Y_PIXEL = 108    # coordinate on the png - to update
+
