@@ -74,6 +74,7 @@ sh ./install_ids.sh
 
 You will be asked to enter sudo password.
 
+
 If you would like to update the firmware of the camera (optional), download the Vision firmware update (GUF file) on the same page.
 
 Open the `software/drivers and libraries/ids/ids-peak_2.11.0.0-178_amd64/bin` folder in terminal and run the following
@@ -87,6 +88,7 @@ This will start the iDS peak Cockpit software. Then:
 3. Click on the firmware update icon in the menu to open the dialog for selecting the update file for the Vision firmware (*.guf).
 4. Select the update file.
 5. Click on "Open".
+
 The update is started and the camera is updated. Note: If you select an incorrect update file by mistake, you will see the message "The update file is incompatible".
 After the update is complete, you can close the iDS peak Cockpit software. (Reference: https://en.ids-imaging.com/tl_files/downloads/usb3-vision/firmware/ReadMe.html)
 
