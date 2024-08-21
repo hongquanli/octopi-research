@@ -1,0 +1,110 @@
+# Dhyana 90
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6401", GROUP="users", MODE="0666"
+
+# Dhyana 400A
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6402", GROUP="users", MODE="0666"
+
+# Dhyana 400A
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6409", GROUP="users", MODE="0666"
+
+# Dhyana 400D
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6404", GROUP="users", MODE="0666"
+
+# Dhyana 400D
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e403", GROUP="users", MODE="0666"
+
+# Dhyana 400D
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e404", GROUP="users", MODE="0666"
+
+# Dhyana 400D
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e405", GROUP="users", MODE="0666"
+
+# Dhyana 401D
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6406", GROUP="users", MODE="0666"
+
+# Dhyana 401DS
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e002", GROUP="users", MODE="0666"
+
+# Dhyana D95
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6405", GROUP="users", MODE="0666"
+
+# Dhyana D95
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e406", GROUP="users", MODE="0666"
+
+# Dhyana D95S
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e001", GROUP="users", MODE="0666"
+
+# Dhyana 200D
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6408", GROUP="users", MODE="0666"
+
+# Dhyana 201DS
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e003", GROUP="users", MODE="0666"
+
+# Dhyana D95
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e004", GROUP="users", MODE="0666"
+
+# Dhyana 400DC
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="6804", GROUP="users", MODE="0666"
+
+# Dhyana 400DC
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="ec03", GROUP="users", MODE="0666"
+
+# Dhyana 400BSI
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e406", GROUP="users", MODE="0666"
+
+# Dhyana 400BSI V2
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e408", GROUP="users", MODE="0666"
+
+# MIchrome 5 Pro
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="ec07", GROUP="users", MODE="0666"
+
+# MIchrome 6
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="ec09", GROUP="users", MODE="0666"
+
+# MIchrome 20
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="ec0b", GROUP="users", MODE="0666"
+
+# FL-20
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="ec0d", GROUP="users", MODE="0666"
+
+# MIchrome 5BW
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e407", GROUP="users", MODE="0666"
+
+# MIchrome 6BW
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e409", GROUP="users", MODE="0666"
+
+# FL-20BW
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e40d", GROUP="users", MODE="0666"
+
+# DigiRetina16
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="2a01", GROUP="users", MODE="0666"
+
+# ISH1000
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="a803", GROUP="users", MODE="0666"
+
+# ISH500
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="a804", GROUP="users", MODE="0666"
+
+# ISH300
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="a807", GROUP="users", MODE="0666"
+
+# ISH130
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0547", ATTRS{idProduct}=="a008", GROUP="users", MODE="0666"
+
+# TrueChrome AF
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="eba1", ATTRS{idProduct}=="7590", GROUP="users", MODE="0666"
+
+# GT 2.0
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="eba1", ATTRS{idProduct}=="7601", GROUP="users", MODE="0666"
+
+# FL 9BW
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e422", GROUP="users", MODE="0666"
+
+# FL 9BW LT
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e426", GROUP="users", MODE="0666"
+
+# FL 26BW
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e423", GROUP="users", MODE="0666"
+
+# FL 26BW
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="5453", ATTRS{idProduct}=="e423", GROUP="users", MODE="0666"

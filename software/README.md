@@ -65,6 +65,8 @@ sh ./install_hamamatsu.sh
 
 <details>
 <summary>Installing drivers and libraries for iDS camera support</summary>
+- Software:
+
 Go to iDS's page for downloading their software (https://en.ids-imaging.com/download-details/1009877.html?os=linux&version=&bus=64&floatcalc=). Register and log in.
 
 Open the `software/drivers and libraries/ids` folder in terminal and run the following
@@ -74,6 +76,7 @@ sh ./install_ids.sh
 
 You will be asked to enter sudo password.
 
+- Firmware (optional):
 
 If you would like to update the firmware of the camera (optional), download the Vision firmware update (GUF file) on the same page.
 
@@ -91,6 +94,26 @@ This will start the iDS peak Cockpit software. Then:
 
 The update is started and the camera is updated. Note: If you select an incorrect update file by mistake, you will see the message "The update file is incompatible".
 After the update is complete, you can close the iDS peak Cockpit software. (Reference: https://en.ids-imaging.com/tl_files/downloads/usb3-vision/firmware/ReadMe.html)
+
+</details>
+
+<details>
+<summary>Installing drivers and libraries for Tucsen camera support</summary>
+
+Open the `software/drivers and libraries/tucsen` folder in terminal and run the following to log in as a root user
+```
+sudo -s
+```
+
+The following steps should be run as root user
+```
+sh ./install_tucsen.sh
+```
+
+After installation, run the following to log out
+```
+exit
+```
 
 </details>
 
