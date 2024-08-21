@@ -1,48 +1,49 @@
 # set QT_API environment variable
 import os 
 import sys
-os.environ["QT_API"] = "pyqt5"
-import qtpy
 
 # qt libraries
+os.environ["QT_API"] = "pyqt5"
+import qtpy
+import pyqtgraph as pg
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
-from control.processing_handler import ProcessingHandler
+# control 
+from control._def import *
+if DO_FLUORESCENCE_RTP:
+    from control.processing_handler import ProcessingHandler
+    from control.processing_pipeline import *
+    from control.multipoint_built_in_functionalities import malaria_rtp
 
 import control.utils as utils
-from control._def import *
-
+import control.utils_config as utils_config
 import control.tracking as tracking
+import control.serial_peripherals as serial_peripherals
+
 try:
     from control.multipoint_custom_script_entry import *
     print('custom multipoint script found')
 except:
     pass
-import control.serial_peripherals as serial_peripherals
 
 from queue import Queue
 from threading import Thread, Lock
+from pathlib import Path
+from datetime import datetime
 import time
+import subprocess
+import shutil
+from lxml import etree
+import json
+import math
+import random
 import numpy as np
-import pyqtgraph as pg
-import scipy
+import pandas as pd
 import scipy.signal
 import cv2
-from datetime import datetime
-
-from lxml import etree as ET
-from pathlib import Path
-import control.utils_config as utils_config
-
-import math
-import json
-import pandas as pd
-
 import imageio as iio
-
-import subprocess
 
 
 class ObjectiveStore:
@@ -729,7 +730,11 @@ class NavigationController(QObject):
  
         # move to selected fov
         self.move_x_to(self.scan_begin_position_x+dx_mm*cx*pixel_sign_x)
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
         self.move_y_to(self.scan_begin_position_y-dy_mm*cy*pixel_sign_y)
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
 
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -784,6 +789,10 @@ class NavigationController(QObject):
 
             delta_x = pixel_sign_x*pixel_size_x*click_x/1000.0
             delta_y = pixel_sign_y*pixel_size_y*click_y/1000.0
+
+            if not IS_HCS:
+                delta_x /= 2.2
+                delta_y /= 2.2
 
             self.move_x(delta_x)
             self.move_y(delta_y)
@@ -1311,9 +1320,12 @@ class AutofocusWorker(QObject):
             # tunr of the illumination if using software trigger
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_off_illumination()
-            image = utils.crop_image(image,self.crop_width,self.crop_height)
+            
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
             self.image_to_display.emit(image)
+            image = utils.crop_image(image,self.crop_width,self.crop_height)
+            #image_to_display = utils.crop_image(image,round(self.crop_width* self.liveController.display_resolution_scaling), round(self.crop_height* self.liveController.display_resolution_scaling))
+
             QApplication.processEvents()
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
@@ -1566,9 +1578,9 @@ class MultiPointWorker(QObject):
     signal_register_current_fov = Signal(float,float)
     signal_detection_stats = Signal(object)
     signal_z_piezo_um = Signal(float)
+    napari_rtp_layers_update = Signal(np.ndarray, str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
-    napari_layers_init = Signal(int, int, object, bool)
-
+    napari_layers_init = Signal(int, int, object)
     signal_update_stats = Signal(object)
 
     def __init__(self,multiPointController):
@@ -1577,7 +1589,8 @@ class MultiPointWorker(QObject):
 
         self.signal_update_stats.connect(self.update_stats)
         self.start_time = 0
-        self.processingHandler = multiPointController.processingHandler
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1613,15 +1626,24 @@ class MultiPointWorker(QObject):
         self.time_point = 0
 
         self.microscope = self.multiPointController.parent
+        try:
+            self.model = self.microscope.segmentation_model
+        except:
+            pass
+        self.crop = SEGMENTATION_CROP
 
+        # hard-coded model initialization
+        #model_path = 'models/m2unet_model_flat_erode1_wdecay5_smallbatch/laptop-model_4000_11.engine'
         self.t_dpc = []
         self.t_inf = []
         self.t_over=[]
 
         self.tiled_preview = None
-        
+        self.count = 0
 
     def update_stats(self, new_stats):
+        self.count += 1
+        print("stats", self.count)
         for k in new_stats.keys():
             try:
                 self.detection_stats[k]+=new_stats[k]
@@ -1635,6 +1657,7 @@ class MultiPointWorker(QObject):
     def run(self):
 
         self.start_time = time.perf_counter_ns()
+
         if self.camera.is_streaming == False:
              self.camera.start_streaming()
 
@@ -1681,10 +1704,17 @@ class MultiPointWorker(QObject):
                     if self.multiPointController.abort_acqusition_requested:
                         break
                     time.sleep(0.05)
-        self.processingHandler.processing_queue.join()
-        self.processingHandler.upload_queue.join()
-        elapsed_time = time.perf_counter_ns()-self.start_time
-        print("Time taken for acquisition/processing: "+str(elapsed_time/10**9))
+        elapsed_time = time.perf_counter_ns() - self.start_time
+        print("Time taken for acquisition: " + str(elapsed_time/10**9))
+
+        if DO_FLUORESCENCE_RTP:
+            # End processing using the updated method
+            self.processingHandler.processing_queue.join()
+            self.processingHandler.upload_queue.join()
+            self.processingHandler.end_processing()
+            time.sleep(0.2)
+        # wait for signal_update_stats in process_fn_with_count_and_display
+        print("Time taken for acquisition/processing: ", (time.perf_counter_ns() - self.start_time) / 1e9)
         self.finished.emit()
 
     def wait_till_operation_is_completed(self):
@@ -1705,7 +1735,6 @@ class MultiPointWorker(QObject):
 
         slide_path = os.path.join(self.base_path, self.experiment_ID)
 
-
         # create a dataframe to save coordinates
         if IS_HCS:
             if self.use_piezo:
@@ -1718,24 +1747,21 @@ class MultiPointWorker(QObject):
             else:
                 self.coordinates_pd = pd.DataFrame(columns = ['i', 'j', 'k', 'x (mm)', 'y (mm)', 'z (um)', 'time'])
 
-
         n_regions = len(self.scan_coordinates_mm)
 
         for coordinate_id in range(n_regions):
-
-            coordiante_mm = self.scan_coordinates_mm[coordinate_id]
-            print(coordiante_mm)
-
+            coordiante_mm = self.scan_coordinates_mm[coordinate_id]         
             if self.scan_coordinates_name is None:
                 # flexible scan, use a sequencial ID
-                coordiante_name = str(coordinate_id)
+                coordinate_name = str(coordinate_id)
             else:
-                coordiante_name = self.scan_coordinates_name[coordinate_id]
+                coordinate_name = self.scan_coordinates_name[coordinate_id]
             
             if self.use_scan_coordinates:
                 # move to the specified coordinate
                 self.navigationController.move_x_to(coordiante_mm[0]-self.deltaX*(self.NX-1)/2)
                 self.navigationController.move_y_to(coordiante_mm[1]-self.deltaY*(self.NY-1)/2)
+
                 # check if z is included in the coordinate
                 if len(coordiante_mm) == 3:
                     if coordiante_mm[2] >= self.navigationController.z_pos_mm:
@@ -1757,8 +1783,7 @@ class MultiPointWorker(QObject):
                 if len(coordiante_mm) == 3:
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
                 # add '_' to the coordinate name
-                coordiante_name = coordiante_name + '_'
-
+                coordinate_name = coordinate_name + '_'
 
             self.x_scan_direction = 1
             self.dx_usteps = 0 # accumulated x displacement
@@ -1783,6 +1808,7 @@ class MultiPointWorker(QObject):
                 if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
                     self.signal_z_piezo_um.emit(self.z_piezo_um)
 
+            count_rtp = 1
             # along y
             for i in range(self.NY):
 
@@ -1794,7 +1820,7 @@ class MultiPointWorker(QObject):
                     if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
 
                         print('run custom multipoint')
-                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+                        multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordinate_name,i,j)
 
                     else:
 
@@ -1840,7 +1866,7 @@ class MultiPointWorker(QObject):
                                     else:
                                         self.microscope.laserAutofocusController.move_to_target(0)
                                 except:
-                                    file_ID = coordiante_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
+                                    file_ID = coordinate_name + str(i) + '_' + str(j if self.x_scan_direction==1 else self.NX-1-j)
                                     saving_path = os.path.join(current_path, file_ID + '_focus_camera.bmp')
                                     iio.imwrite(saving_path,self.microscope.laserAutofocusController.image) 
                                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! laser AF failed !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -1870,7 +1896,7 @@ class MultiPointWorker(QObject):
                             real_i = self.NY-1-i if sgn_i == -1 else i
                             real_j = j if sgn_j == 1 else self.NX-1-j
 
-                            file_ID = coordiante_name + str(self.NY-1-i if sgn_i == -1 else i) + '_' + str(j if sgn_j == 1 else self.NX-1-j) + '_' + str(k)
+                            file_ID = coordinate_name + str(real_i) + '_' + str(real_j) + '_' + str(k)
                             # metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
                             # metadata = json.dumps(metadata)
 
@@ -1879,7 +1905,7 @@ class MultiPointWorker(QObject):
                                 image = self.microscope.laserAutofocusController.get_image()
                                 saving_path = os.path.join(current_path, file_ID + '_laser af camera' + '.bmp')
                                 iio.imwrite(saving_path,image)
-
+                            
                             current_round_images = {}
                             # iterate through selected modes
                             for config in self.selected_configurations:
@@ -1943,13 +1969,15 @@ class MultiPointWorker(QObject):
                                                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                                                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                                                     image = image[:,:,1]
+                                        # if 'Fluorescence 405' not in config.name:
+                                        #     image = np.stack((image,) * 3, axis=-1) #simulation RGB
                                         iio.imwrite(saving_path,image)
 
                                     if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
                                         if not init_napari_layers:
                                             print("init napari layers")
                                             init_napari_layers = True
-                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype, False)
+                                            self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
                                         self.napari_layers_update.emit(image, real_i, real_j, k, config.name)
 
                                     current_round_images[config.name] = np.copy(image)
@@ -2039,7 +2067,7 @@ class MultiPointWorker(QObject):
                                                 if not init_napari_layers:
                                                     print(f"init napari {channel} layer")
                                                     init_napari_layers = True
-                                                    self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype, True)
+                                                    self.napari_layers_init.emit(i_size[0], i_size[1], i_dtype)
                                                 self.napari_layers_update.emit(images[channel], real_i, real_j, k, config.name)
 
                                             file_name = file_ID + '_' + channel.replace(' ', '_') + ('.tiff' if i_dtype == np.uint16 else '.' + Acquisition.IMAGE_FORMAT)
@@ -2064,7 +2092,7 @@ class MultiPointWorker(QObject):
                                                 print("init napari rgb layer")
                                                 init_napari_layers = True
                                                 print(rgb_image.dtype)
-                                                self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype, True)
+                                                self.napari_layers_init.emit(rgb_image.shape[0], rgb_image.shape[1], rgb_image.dtype)
                                             self.napari_layers_update.emit(rgb_image, real_i, real_j, k, config.name)
 
                                         # write the RGB image
@@ -2091,16 +2119,16 @@ class MultiPointWorker(QObject):
                                         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
                             # tiled preview
-                            if SHOW_TILED_PREVIEW and 'BF LED matrix full' in current_round_images:
+                            if not USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
                                 # initialize the variable
                                 if self.tiled_preview is None:
-                                    size = current_round_images['BF LED matrix full'].shape
+                                    size = current_round_images['BF LED matrix left half'].shape
                                     if len(size) == 2:
                                         self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR)),dtype=current_round_images['BF LED matrix full'].dtype)
                                     else:
                                         self.tiled_preview = np.zeros((int(self.NY*size[0]/PRVIEW_DOWNSAMPLE_FACTOR),self.NX*int(size[1]/PRVIEW_DOWNSAMPLE_FACTOR),size[2]),dtype=current_round_images['BF LED matrix full'].dtype)
                                 # downsample the image
-                                I = current_round_images['BF LED matrix full']
+                                I = current_round_images['BF LED matrix left half']
                                 width = int(I.shape[1]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 height = int(I.shape[0]/PRVIEW_DOWNSAMPLE_FACTOR)
                                 I = cv2.resize(I, (width,height), interpolation=cv2.INTER_AREA)
@@ -2112,10 +2140,32 @@ class MultiPointWorker(QObject):
                                 # emit the result
                                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
 
+                            # real time processing 
+                            acquired_image_configs = list(current_round_images.keys())
+                            if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
+                                try:
+                                    print("real time processing", count_rtp)
+                                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
+                                        raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
+                                    I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
+                                    I_left = current_round_images['BF LED matrix left half']
+                                    I_right = current_round_images['BF LED matrix right half']
+                                    if len(I_left.shape) == 3:
+                                        I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
+                                    if len(I_right.shape) == 3:
+                                        I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
+                                    malaria_rtp(I_fluorescence, I_left, I_right, real_i, real_j, k, self,
+                                                classification_test_mode=self.microscope.classification_test_mode,
+                                                sort_during_multipoint=SORT_DURING_MULTIPOINT,
+                                                disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
+                                    count_rtp += 1
+                                except AttributeError as e:
+                                    print(repr(e))
+
                             # add the coordinate of the current location
                             if IS_HCS:
                                 if self.use_piezo:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
@@ -2123,7 +2173,7 @@ class MultiPointWorker(QObject):
                                                             'z_piezo (um)':[self.z_piezo_um-OBJECTIVE_PIEZO_HOME_UM],
                                                             'time':datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')})
                                 else:
-                                    new_row = pd.DataFrame({'well': coordiante_name.replace("_", ""),
+                                    new_row = pd.DataFrame({'well': coordinate_name.replace("_", ""),
                                                             'i':[self.NY-1-i if sgn_i == -1 else i],'j':[j if sgn_j == 1 else self.NX-1-j],'k':[k],
                                                             'x (mm)':[self.navigationController.x_pos_mm],
                                                             'y (mm)':[self.navigationController.y_pos_mm],
@@ -2254,6 +2304,10 @@ class MultiPointWorker(QObject):
                         self.dy_usteps = self.dy_usteps + self.deltaY_usteps
 
             # finished XY scan
+
+            if SHOW_TILED_PREVIEW and IS_HCS:
+                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
+
             if n_regions == 1:
                 # only move to the start position if there's only one region in the scan
                 if self.NY > 1:
@@ -2262,15 +2316,15 @@ class MultiPointWorker(QObject):
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
                     self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
+                
+                if SHOW_TILED_PREVIEW and not IS_HCS:
+                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move x back at the end of the scan
                 if self.x_scan_direction == -1:
                     self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
                     self.wait_till_operation_is_completed()
                     time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-                if SHOW_TILED_PREVIEW:
-                    self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
                 # move z back
                 if self.navigationController.get_pid_control_flag(2) is False:
@@ -2299,15 +2353,18 @@ class MultiPointController(QObject):
     signal_current_configuration = Signal(Configuration)
     signal_register_current_fov = Signal(float,float)
     detection_stats = Signal(object)
+    signal_stitcher = Signal(str)
+    napari_rtp_layers_update = Signal(np.ndarray, str)
     napari_layers_update = Signal(np.ndarray, int, int, int, str)
-    napari_layers_init = Signal(int, int, object, bool)
+    napari_layers_init = Signal(int, int, object)
     signal_z_piezo_um = Signal(float)
 
     def __init__(self,camera,navigationController,liveController,autofocusController,configurationManager,usb_spectrometer=None,scanCoordinates=None,parent=None):
         QObject.__init__(self)
 
         self.camera = camera
-        self.processingHandler = ProcessingHandler()
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
@@ -2332,6 +2389,8 @@ class MultiPointController(QObject):
         self.gen_focus_map = False
         self.focus_map_storage = []
         self.already_using_fmap = False
+        self.do_segmentation = False
+        self.do_fluorescence_rtp = DO_FLUORESCENCE_RTP
         self.crop_width = Acquisition.CROP_WIDTH
         self.crop_height = Acquisition.CROP_HEIGHT
         self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
@@ -2343,6 +2402,7 @@ class MultiPointController(QObject):
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates
         self.parent = parent
+        self.start_time = 0
 
         self.old_images_per_page = 1
         try:
@@ -2382,6 +2442,12 @@ class MultiPointController(QObject):
         self.gen_focus_map = flag
         if not flag:
             self.autofocusController.set_focus_map_use(False)
+    def set_stitch_tiles_flag(self, flag):
+        self.do_stitch_tiles = flag
+    def set_segmentation_flag(self, flag):
+        self.do_segmentation = flag
+    def set_fluorescence_rtp_flag(self, flag):
+        self.do_fluorescence_rtp = flag
     def set_crop(self,crop_width,height):
         self.crop_width = crop_width
         self.crop_height = crop_height
@@ -2420,15 +2486,23 @@ class MultiPointController(QObject):
         f.write(json.dumps(acquisition_parameters))
         f.close()
 
-
     def set_selected_configurations(self, selected_configurations_name):
         self.selected_configurations = []
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
+
+    def reset_gallery(self):
+        if hasattr(self.parent, 'dataHandler'):
+            self.parent.dataHandler.reset()
+        if hasattr(self, 'multiPointWorker'):
+            self.multiPointWorker.detection_stats = {}
+            self.multiPointWorker.async_detection_stats = {}
+            self.multiPointWorker.count = 0
         
     def run_acquisition(self, location_list=None): # @@@ to do: change name to run_experiment
         print('start multipoint')
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+        self.start_time = time.time()
 
         if location_list is not None:
             print(location_list)
@@ -2460,16 +2534,21 @@ class MultiPointController(QObject):
             else:
                 self.usb_spectrometer_was_streaming = False
 
+        # set current tabs
         if self.parent is not None:
-            try:
-                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
-            except:
-                pass
-            try:
+            configs = [config.name for config in self.selected_configurations]
+            print(configs)
+            if DO_FLUORESCENCE_RTP and 'BF LED matrix left half' in configs and 'BF LED matrix right half' in configs and 'Fluorescence 405 nm Ex' in configs:
                 self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
-            except:
-                pass
-        
+                if USE_NAPARI_FOR_MULTIPOINT:
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariRTPWidget)
+                else:
+                    self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            elif USE_NAPARI_FOR_TILED_DISPLAY:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariTiledDisplayWidget)
+            else:
+                self.parent.imageDisplayTabs.setCurrentIndex(0)
+
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
 
@@ -2511,8 +2590,9 @@ class MultiPointController(QObject):
 
         self.thread = QThread()
         # create a worker object
-        self.processingHandler.start_processing()
-        self.processingHandler.start_uploading()
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.start_processing()
+            self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
         # move the worker to the thread
         self.multiPointWorker.moveToThread(self.thread)
@@ -2520,8 +2600,12 @@ class MultiPointController(QObject):
         self.thread.started.connect(self.multiPointWorker.run)
         self.multiPointWorker.signal_detection_stats.connect(self.slot_detection_stats)
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
-        self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
-        self.multiPointWorker.finished.connect(self.thread.quit)
+        if DO_FLUORESCENCE_RTP:
+            self.processingHandler.finished.connect(self.multiPointWorker.deleteLater)
+            self.processingHandler.finished.connect(self.thread.quit)
+        else:
+            self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
+            self.multiPointWorker.finished.connect(self.thread.quit)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
@@ -2529,6 +2613,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
         self.multiPointWorker.signal_register_current_fov.connect(self.slot_register_current_fov)
         self.multiPointWorker.napari_layers_init.connect(self.slot_napari_layers_init)
+        self.multiPointWorker.napari_rtp_layers_update.connect(self.slot_napari_rtp_layers_update)
         self.multiPointWorker.napari_layers_update.connect(self.slot_napari_layers_update)
         self.multiPointWorker.signal_z_piezo_um.connect(self.slot_z_piezo_um)
         # self.thread.finished.connect(self.thread.deleteLater)
@@ -2559,15 +2644,16 @@ class MultiPointController(QObject):
                 self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
-        self.processingHandler.end_processing()
         if self.parent is not None:
             try:
-                self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
+                # self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
                 self.parent.dataHandler.sort('Sort by prediction score')
                 self.parent.dataHandler.signal_populate_page0.emit()
             except:
                 pass
+        print("total time for acquisition + processing + reset:", time.time() - self.start_time)
         self.acquisitionFinished.emit()
+        self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))
         QApplication.processEvents()
 
     def request_abort_aquisition(self):
@@ -2594,11 +2680,14 @@ class MultiPointController(QObject):
     def slot_register_current_fov(self,x_mm,y_mm):
         self.signal_register_current_fov.emit(x_mm,y_mm)
 
+    def slot_napari_rtp_layers_update(self, image, channel):
+        self.napari_rtp_layers_update.emit(image, channel)
+
     def slot_napari_layers_update(self, image, i, j, k, channel):
         self.napari_layers_update.emit(image, i, j, k, channel)
 
-    def slot_napari_layers_init(self, image_height, image_width, dtype, rgb):
-        self.napari_layers_init.emit(image_height, image_width, dtype, rgb)
+    def slot_napari_layers_init(self, image_height, image_width, dtype):
+        self.napari_layers_init.emit(image_height, image_width, dtype)
 
     def slot_z_piezo_um(self, displacement_um):
         self.signal_z_piezo_um.emit(displacement_um)
@@ -2948,7 +3037,7 @@ class TrackingWorker(QObject):
             # track
             objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
             if objectFound == False:
-                print('')
+                print('tracker: object not found')
                 break
             in_plane_position_error_pixel = image_center - centroid 
             in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
@@ -2994,6 +3083,686 @@ class TrackingWorker(QObject):
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
+
+
+class Stitcher(Thread, QObject):
+
+    update_progress = Signal(int, int)
+    getting_flatfields = Signal()
+    starting_stitching = Signal()
+    starting_saving = Signal(bool)
+    finished_saving = Signal(str, object) 
+
+    def __init__(self, input_folder, output_name='', output_format=".ome.zarr", apply_flatfield=0, use_registration=0, registration_channel=''):
+        Thread.__init__(self)
+        QObject.__init__(self)
+        self.input_folder = input_folder
+        self.image_folder = None
+        self.output_name = output_name + output_format
+        self.apply_flatfield = apply_flatfield
+        self.use_registration = use_registration
+        if use_registration:
+            self.registration_channel = registration_channel
+
+        self.selected_modes = self.extract_selected_modes(self.input_folder)
+        self.acquisition_params = self.extract_acquisition_parameters(self.input_folder)
+        self.time_points = self.get_time_points(self.input_folder)
+        print("timepoints:", self.time_points)
+        self.is_reversed = self.determine_directions(self.image_folder) # init: top to bottom, left to right
+        print(self.is_reversed)
+        self.is_rgb = {}
+        self.wells = []
+        self.channel_names = []
+        self.mono_channel_names = []
+        self.channel_colors = []
+        self.num_z = self.num_c = 1
+        self.num_cols = self.num_rows = 1
+        self.input_height = self.input_width = 0
+        self.v_shift = self.h_shift = (0,0)
+        self.max_x_overlap = self.max_y_overlap = 0
+        self.flatfields = {}
+        self.stitching_data = {}
+        self.stitched_images = None
+        self.chunks = None
+        self.dtype = np.uint16
+        # self.overlap_percent = Acquisition.OVERLAP_PERCENT
+
+    def get_time_points(self, input_folder):
+        try: # detects directories named as integers, representing time points.
+            time_points = [d for d in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, d)) and d.isdigit()]
+            time_points.sort(key=int)
+            return time_points
+        except Exception as e:
+            print(f"Error detecting time points: {e}")
+            return ['0']
+
+    def extract_selected_modes(self, input_folder):
+        try:
+            configs_path = os.path.join(input_folder, 'configurations.xml')
+            tree = etree.parse(configs_path)
+            root = tree.getroot()
+            selected_modes = {}
+            for mode in root.findall('.//mode'):
+                if mode.get('Selected') == '1':
+                    mode_id = mode.get('ID')
+                    selected_modes[mode_id] = {
+                        'Name': mode.get('Name'),
+                        'ExposureTime': mode.get('ExposureTime'),
+                        'AnalogGain': mode.get('AnalogGain'),
+                        'IlluminationSource': mode.get('IlluminationSource'),
+                        'IlluminationIntensity': mode.get('IlluminationIntensity')
+                    }
+            return selected_modes
+        except Exception as e:
+            print(f"Error reading selected modes: {e}")
+
+    def extract_acquisition_parameters(self, input_folder):
+        acquistion_params_path = os.path.join(input_folder, 'acquisition parameters.json')
+        with open(acquistion_params_path, 'r') as file:
+            acquisition_params = json.load(file)
+        return acquisition_params
+
+    def extract_wavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts:
+                return color
+        return None
+
+
+    def determine_directions(self, image_folder):
+        return {'rows': self.acquisition_params.get("row direction", False), 
+                'cols': self.acquisition_params.get("col direction", False), 
+                'z-planes': False}
+        # coordinates = pd.read_csv(os.path.join(image_folder, 'coordinates.csv'))
+        # if IS_WELLPLATE:
+        #     try:
+        #         first_well = coordinates['well'].unique()[0]
+        #         coordinates = coordinates[coordinates['well'] == first_well]
+        #     except Exception as e:
+        #         print("no coordinates.csv well data:", e)
+        
+        # i_rev = not coordinates.sort_values(by='i')['y (mm)'].is_monotonic_increasing
+        # j_rev = not coordinates.sort_values(by='j')['x (mm)'].is_monotonic_increasing
+        # k_rev = not coordinates.sort_values(by='k')['z (um)'].is_monotonic_increasing
+        # return {'rows': i_rev, 'cols': j_rev, 'z-planes': k_rev}
+
+    def parse_filenames(self, time_point):
+        # Initialize directories and read files
+        self.image_folder = os.path.join(self.input_folder, str(time_point))
+        # print("processing image folder:", self.image_folder)
+        all_files = os.listdir(self.image_folder)
+        sorted_input_files = sorted(
+            [filename for filename in all_files if filename.endswith((".bmp", ".tiff")) and 'focus_camera' not in filename]
+        )
+        if not sorted_input_files:
+            raise Exception("No valid files found in directory.")
+
+        input_extension = os.path.splitext(sorted_input_files[0])[1]
+        max_i, max_j, max_k = 0, 0, 0
+        wells, channel_names = set(), set()
+
+        for filename in sorted_input_files:
+            if IS_WELLPLATE:
+                well, i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 4) 
+            else:
+                well = '0'
+                i, j, k, channel_name = os.path.splitext(filename)[0].split('_', 3)
+
+            channel_name = channel_name.replace("_", " ").replace("full ", "full_")
+            i, j, k = int(i), int(j), int(k)
+
+            wells.add(well)
+            channel_names.add(channel_name)
+            max_i, max_j, max_k = max(max_i, i), max(max_j, j), max(max_k, k)
+
+            tile_info = {
+                'filepath': os.path.join(self.image_folder, filename),
+                'well': well, 
+                'channel': channel_name, 
+                'z_level': k, 
+                'row': i, 
+                'col': j
+            }
+            self.stitching_data.setdefault(well, {}).setdefault(channel_name, {}).setdefault(k, {}).setdefault((i, j), tile_info)
+
+
+
+        self.wells = sorted(wells)
+        self.channel_names = sorted(channel_names)
+        self.num_z, self.num_cols, self.num_rows = max_k + 1, max_j + 1, max_i + 1
+
+        first_coord = f"{self.wells[0]}_0_0_0_" if IS_WELLPLATE else "0_0_0_"
+        found_dims = False
+        mono_channel_names = []
+
+        for channel in self.channel_names:
+            filename = first_coord + channel.replace(" ", "_") + input_extension
+            image = dask_imread(os.path.join(self.image_folder, filename))[0]
+
+            if not found_dims:
+                self.dtype = np.dtype(image.dtype)
+                self.input_height, self.input_width = image.shape[:2]
+                self.chunks = (1, 1, 1, self.input_height, self.input_width)
+                found_dims = True
+                print("chunks", self.chunks)
+
+            if len(image.shape) == 3:
+                self.is_rgb[channel] = True
+                mono_channel_names.extend([f"{channel} R", f"{channel} G", f"{channel} B"])
+            else:
+                self.is_rgb[channel] = False
+                mono_channel_names.append(channel)
+
+        self.mono_channel_names = mono_channel_names
+        self.num_c = len(mono_channel_names)
+        self.channel_colors = [CHANNEL_COLORS_HEX.get(self.extract_wavelength(name), 0xFFFFFF) for name in self.mono_channel_names]
+        print(self.mono_channel_names)
+
+    def get_flatfields(self, progress_callback=None):
+        def process_images(images, channel_name):
+            images = np.array(images)
+            basic = BaSiC(get_darkfield=False, smoothness_flatfield=1)
+            basic.fit(images)
+            channel_index = self.mono_channel_names.index(channel_name)
+            self.flatfields[channel_index] = basic.flatfield
+            if progress_callback:
+                progress_callback(channel_index + 1, self.num_c)
+
+        # Iterate only over the channels you need to process
+        for channel in self.channel_names:
+            all_tiles = []
+            # Collect tiles from all wells and z-levels for the current channel
+            for well in self.wells:
+                for z_level in self.stitching_data[well][channel]:
+                    for row_col, tile_info in self.stitching_data[well][channel][z_level].items():
+                        all_tiles.append(tile_info)
+
+            # Shuffle and select a subset of tiles for flatfield calculation
+            random.shuffle(all_tiles)
+            selected_tiles = all_tiles[:min(32, len(all_tiles))]
+
+            if self.is_rgb[channel]:
+                # Process each color channel if the channel is RGB
+                images_r = [dask_imread(tile['filepath'])[0][:, :, 0] for tile in selected_tiles]
+                images_g = [dask_imread(tile['filepath'])[0][:, :, 1] for tile in selected_tiles]
+                images_b = [dask_imread(tile['filepath'])[0][:, :, 2] for tile in selected_tiles]
+                process_images(images_r, channel + ' R')
+                process_images(images_g, channel + ' G')
+                process_images(images_b, channel + ' B')
+            else:
+                # Process monochrome images
+                images = [dask_imread(tile['filepath'])[0] for tile in selected_tiles]
+                process_images(images, channel)
+
+    def normalize_image(self, img):
+        img_min, img_max = img.min(), img.max()
+        img_normalized = (img - img_min) / (img_max - img_min)
+        scale_factor = np.iinfo(self.dtype).max if np.issubdtype(self.dtype, np.integer) else 1
+        return (img_normalized * scale_factor).astype(self.dtype)
+
+    def visualize_image(self, img1, img2, title):
+        if title == 'horizontal':
+            combined_image = np.hstack((img1, img2))
+        else:
+            combined_image = np.vstack((img1, img2))
+        cv2.imwrite(f"{self.input_folder}/{title}.png", combined_image)
+
+    def calculate_horizontal_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.2):
+        try:
+            img1 = dask_imread(img1_path)[0].compute()
+            img2 = dask_imread(img2_path)[0].compute()
+            img1 = self.normalize_image(img1)
+            img2 = self.normalize_image(img2)
+
+            margin = int(self.input_height * margin_ratio)
+            img1_roi, img2_roi = img1[margin:-margin, -max_overlap:], img2[margin:-margin, :max_overlap]
+            img1_roi, img2_roi = img1_roi.astype(self.dtype), img2_roi.astype(self.dtype)
+
+            self.visualize_image(img1_roi, img2_roi, "horizontal")
+            shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
+            return round(shift[0]), round(shift[1] - img1_roi.shape[1])
+        except Exception as e:
+            print(f"Error calculating horizontal shift: {e}")
+            return (0, 0)
+
+    def calculate_vertical_shift(self, img1_path, img2_path, max_overlap, margin_ratio=0.2):
+        try:
+            img1 = dask_imread(img1_path)[0].compute()
+            img2 = dask_imread(img2_path)[0].compute()
+            img1 = self.normalize_image(img1)
+            img2 = self.normalize_image(img2)
+
+            margin = int(self.input_width * margin_ratio)
+            img1_roi, img2_roi = img1[-max_overlap:, margin:-margin], img2[:max_overlap, margin:-margin]
+            img1_roi, img2_roi = img1_roi.astype(self.dtype), img2_roi.astype(self.dtype)
+
+            self.visualize_image(img1_roi, img2_roi, "vertical")
+            shift, error, diffphase = phase_cross_correlation(img1_roi, img2_roi, upsample_factor=10)
+            return round(shift[0] - img1_roi.shape[0]), round(shift[1])
+        except Exception as e:
+            print(f"Error calculating vertical shift: {e}")
+            return (0, 0)
+
+    def calculate_shifts(self, well="", z_level=0):
+        well = self.wells[0] if well not in self.wells else well
+        self.registration_channel = self.registration_channel if self.registration_channel in self.channel_names else self.channel_names[0]
+
+        # Calculate estimated overlap from acquisition parameters
+        dx_mm = self.acquisition_params['dx(mm)']
+        dy_mm = self.acquisition_params['dy(mm)']
+        obj_mag = self.acquisition_params['objective']['magnification']
+        obj_tube_lens_mm = self.acquisition_params['objective']['tube_lens_f_mm']
+        sensor_pixel_size_um = self.acquisition_params['sensor_pixel_size_um']
+        tube_lens_mm = self.acquisition_params['tube_lens_mm']
+
+        obj_focal_length_mm = obj_tube_lens_mm / obj_mag
+        actual_mag = tube_lens_mm / obj_focal_length_mm
+        pixel_size_um = sensor_pixel_size_um / actual_mag
+        print("pixel_size_um:", pixel_size_um)
+
+        dx_pixels = dx_mm * 1000 / pixel_size_um 
+        dy_pixels = dy_mm * 1000 / pixel_size_um
+        print("dy_pixels", dy_pixels, ", dx_pixels:", dx_pixels)
+        
+        self.max_x_overlap = round(abs(self.input_width - dx_pixels) / 2)
+        self.max_y_overlap = round(abs(self.input_height - dy_pixels) / 2)
+        print("objective calculated - vertical overlap:", self.max_y_overlap, ", horizontal overlap:", self.max_x_overlap)
+
+        col_left, col_right = (self.num_cols - 1) // 2, (self.num_cols - 1) // 2 + 1
+        if self.is_reversed['cols']:
+            col_left, col_right = col_right, col_left
+
+        row_top, row_bottom = (self.num_rows - 1) // 2, (self.num_rows - 1) // 2 + 1
+        if self.is_reversed['rows']:
+            row_top, row_bottom = row_bottom, row_top
+
+        for (row, col), tile_info in self.stitching_data[well][self.registration_channel][z_level].items():
+            if col == col_left and row == row_top:
+                img1_path = tile_info['filepath']
+            elif col == col_left and row == row_bottom:
+                img2_path_vertical = tile_info['filepath']
+            elif col == col_right and row == row_top:
+                img2_path_horizontal = tile_info['filepath']
+
+        if img1_path is None:
+            raise Exception(
+                f"No input file found for c:{self.registration_channel} k:{z_level} "
+                f"j:{col_left} i:{row_top}"
+            )
+
+        self.v_shift = (
+            self.calculate_vertical_shift(img1_path, img2_path_vertical, self.max_y_overlap)
+            if self.max_y_overlap > 0 and img2_path_vertical and img1_path != img2_path_vertical else (0, 0)
+        )
+        self.h_shift = (
+            self.calculate_horizontal_shift(img1_path, img2_path_horizontal, self.max_x_overlap)
+            if self.max_x_overlap > 0 and img2_path_horizontal and img1_path != img2_path_horizontal else (0, 0)
+        )
+        print("vertical shift:", self.v_shift, ", horizontal shift:", self.h_shift)
+
+    def calculate_dynamic_shifts(self, well, channel, z_level, row, col):
+        h_shift, v_shift = self.h_shift, self.v_shift
+
+        # Check for left neighbor
+        if (row, col - 1) in self.stitching_data[well][channel][z_level]:
+            left_tile_path = self.stitching_data[well][channel][z_level][row, col - 1]['filepath']
+            current_tile_path = self.stitching_data[well][channel][z_level][row, col]['filepath']
+            # Calculate horizontal shift
+            new_h_shift = self.calculate_horizontal_shift(left_tile_path, current_tile_path, abs(self.h_shift[1]))
+
+            # Check if the new horizontal shift is within 10% of the precomputed shift
+            if self.h_shift == (0,0) or (0.95 * abs(self.h_shift[1]) <= abs(new_h_shift[1]) <= 1.05 * abs(self.h_shift[1]) and 
+                0.95 * abs(self.h_shift[0]) <= abs(new_h_shift[0]) <= 1.05 * abs(self.h_shift[0])):
+                print("new h shift", new_h_shift, h_shift)
+                h_shift = new_h_shift
+
+        # Check for top neighbor
+        if (row - 1, col) in self.stitching_data[well][channel][z_level]:
+            top_tile_path = self.stitching_data[well][channel][z_level][row - 1, col]['filepath']
+            current_tile_path = self.stitching_data[well][channel][z_level][row, col]['filepath']
+            # Calculate vertical shift
+            new_v_shift = self.calculate_vertical_shift(top_tile_path, current_tile_path, abs(self.v_shift[0]))
+
+            # Check if the new vertical shift is within 10% of the precomputed shift
+            if self.v_shift == (0,0) or (0.95 * abs(self.v_shift[0]) <= abs(new_v_shift[0]) <= 1.05 * abs(self.v_shift[0]) and 
+                0.95 * abs(self.v_shift[1]) <= abs(new_v_shift[1]) <= 1.05 * abs(self.v_shift[1])):
+                print("new v shift", new_v_shift, v_shift)
+                v_shift = new_v_shift
+
+        return h_shift, v_shift
+
+    def init_output(self, time_point, well):
+        output_folder = os.path.join(self.input_folder, f"{time_point}_stitched")
+        os.makedirs(output_folder, exist_ok=True)
+        self.output_path = os.path.join(output_folder, f"{well}_{self.output_name}" if IS_WELLPLATE else self.output_name)
+
+        x_max = (self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + # horizontal width with overlap
+                abs((self.num_rows - 1) * self.v_shift[1])) # horizontal shift from vertical registration
+        y_max = (self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + # vertical height with overlap
+                abs((self.num_cols - 1) * self.h_shift[0])) # vertical shift from horizontal registration
+        if self.use_registration and FULL_REGISTRATION:
+            y_max *= 1.05
+            x_max *= 1.05
+        tczyx_shape = (1, self.num_c, self.num_z, y_max, x_max)
+        print(f"(t:{time_point}, well:{well}) output shape: {tczyx_shape}")
+        return da.zeros(tczyx_shape, dtype=self.dtype, chunks=self.chunks)
+
+    def stitch_images(self, time_point, well, progress_callback=None):
+        self.stitched_images = self.init_output(time_point, well)
+        total_tiles = sum(1 for channel_data in self.stitching_data[well].values() 
+                                  for z_data in channel_data.values() 
+                                  for row_col in z_data.keys())
+        processed_tiles = 0
+
+        for z_level in range(self.num_z):
+
+            for row in range(self.num_rows):
+                row = self.num_rows - 1 - row if self.is_reversed['rows'] else row
+
+                for col in range(self.num_cols):
+                    col = self.num_cols - 1 - col if self.is_reversed['cols'] else col
+
+                    if self.use_registration and FULL_REGISTRATION and z_level == 0:
+                        if (row, col) in self.stitching_data[well][self.registration_channel][z_level]:
+                            tile_info = self.stitching_data[well][self.registration_channel][z_level][(row, col)]
+                            self.h_shift, self.v_shift = self.calculate_dynamic_shifts(well, self.registration_channel, z_level, row, col)
+
+                    # Now apply the same shifts to all channels
+                    for channel in self.channel_names:
+                        if (row, col) in self.stitching_data[well][channel][z_level]:
+                            tile_info = self.stitching_data[well][channel][z_level][(row, col)]
+                            tile = dask_imread(tile_info['filepath'])[0]
+                            #tile = tile[:, ::-1]
+                            if self.is_rgb[channel]:
+                                for color_idx, color in enumerate(['R', 'G', 'B']):
+                                    tile_color = tile[:, :, color_idx]
+                                    color_channel = f"{channel} {color}"
+                                    self.stitch_single_image(tile_color, z_level, self.mono_channel_names.index(color_channel), row, col)
+                                    processed_tiles += 1
+                            else:
+                                self.stitch_single_image(tile, z_level, self.mono_channel_names.index(channel), row, col)
+                                processed_tiles += 1
+                        if progress_callback is not None:
+                            progress_callback(processed_tiles, total_tiles)
+
+    def stitch_single_image(self, tile, z_level, channel_idx, row, col):
+        #print(tile.shape)
+        if self.apply_flatfield:
+            tile = (tile / self.flatfields[channel_idx]).clip(min=np.iinfo(self.dtype).min, 
+                                                              max=np.iinfo(self.dtype).max).astype(self.dtype)
+        # Determine crop for tile edges 
+        top_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row > 0 else 0
+        bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if row < self.num_rows - 1 else 0
+        left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col > 0 else 0
+        right_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if col < self.num_cols - 1 else 0
+
+        tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
+
+        # Initialize starting coordinates based on tile position and shift
+        y = row * (self.input_height + self.v_shift[0]) + top_crop
+        if self.h_shift[0] < 0:
+            y -= (self.num_cols - 1 - col) * self.h_shift[0]  # Moves up if negative
+        else:
+            y += col * self.h_shift[0]  # Moves down if positive
+
+        x = col * (self.input_width + self.h_shift[1]) + left_crop
+        if self.v_shift[1] < 0:
+            x -= (self.num_rows - 1 - row) * self.v_shift[1]  # Moves left if negative
+        else:
+            x += row * self.v_shift[1]  # Moves right if positive
+        
+        # Place cropped tile on the stitched image canvas
+        self.stitched_images[0, channel_idx, z_level, y:y+tile.shape[0], x:x+tile.shape[1]] = tile
+        # print(f" col:{col}, \trow:{row},\ty:{y}-{y+tile.shape[0]}, \tx:{x}-{x+tile.shape[-1]}")
+
+    def save_as_ome_tiff(self):
+        dz_um = self.acquisition_params.get("dz(um)", None)
+        sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
+        dims = "TCZYX"
+        # if self.is_rgb:
+        #     dims += "S"
+
+        ome_metadata = OmeTiffWriter.build_ome(
+            image_name=[os.path.basename(self.output_path)],
+            data_shapes=[self.stitched_images.shape],
+            data_types=[self.stitched_images.dtype],
+            dimension_order=[dims],
+            channel_names=[self.mono_channel_names],
+            physical_pixel_sizes=[types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um)],
+            #is_rgb=self.is_rgb
+            #channel colors
+        )
+        OmeTiffWriter.save(
+            data=self.stitched_images,
+            uri=self.output_path,
+            ome_xml=ome_metadata,
+            dimension_order=[dims]
+            #channel colors / names
+        )
+        self.stitched_images = None
+
+    def save_as_ome_zarr(self):
+        dz_um = self.acquisition_params.get("dz(um)", None)
+        sensor_pixel_size_um = self.acquisition_params.get("sensor_pixel_size_um", None)
+        dims = "TCZYX"
+        intensity_min = np.iinfo(self.dtype).min
+        intensity_max = np.iinfo(self.dtype).max
+        channel_minmax = [(intensity_min, intensity_max)] * self.num_c
+        for i in range(self.num_c):
+            print(f"Channel {i}:", self.mono_channel_names[i], " \tColor:", self.channel_colors[i], " \tPixel Range:", channel_minmax[i])
+
+        zarr_writer = OmeZarrWriter(self.output_path)
+        zarr_writer.build_ome(
+            size_z=self.num_z,
+            image_name=os.path.basename(self.output_path),
+            channel_names=self.mono_channel_names,
+            channel_colors=self.channel_colors,
+            channel_minmax=channel_minmax
+        )
+        zarr_writer.write_image(
+            image_data=self.stitched_images,
+            image_name=os.path.basename(self.output_path),
+            physical_pixel_sizes=types.PhysicalPixelSizes(dz_um, sensor_pixel_size_um, sensor_pixel_size_um),
+            channel_names=self.mono_channel_names,
+            channel_colors=self.channel_colors,
+            dimension_order=dims,
+            scale_num_levels=5,
+            chunk_dims=self.chunks
+        )
+        self.stitched_images = None
+
+    def create_complete_ome_zarr(self):
+        """ Creates a complete OME-ZARR with proper channel metadata. """
+        final_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
+        if len(self.time_points) == 1:
+            zarr_path = os.path.join(self.input_folder, f"0_stitched", self.output_name)
+            #final_path = zarr_path
+            shutil.copytree(zarr_path, final_path)
+        else:
+            store = ome_zarr.io.parse_url(final_path, mode="w").store
+            root_group = zarr.group(store=store)
+            intensity_min = np.iinfo(self.dtype).min
+            intensity_max = np.iinfo(self.dtype).max
+
+            data = self.load_and_merge_timepoints()
+            ome_zarr.writer.write_image(
+                image=data,
+                group=root_group,
+                axes="tczyx",
+                channel_names=self.mono_channel_names,
+                storage_options=dict(chunks=self.chunks)
+            )
+
+            channel_info = [{
+                "label": self.mono_channel_names[i],
+                "color": f"{self.channel_colors[i]:06X}",
+                "window": {"start": intensity_min, "end": intensity_max},
+                "active": True
+            } for i in range(self.num_c)]
+
+            # Assign the channel metadata to the image group
+            root_group.attrs["omero"] = {"channels": channel_info}
+
+            print(f"all data saved in HCS OME-ZARR format at: {final_path}")
+            root = zarr.open(final_path, mode='r')
+            print(root.tree())
+        self.finished_saving.emit(final_path, self.dtype)
+
+    def create_hcs_ome_zarr(self):
+        """Creates a hierarchical Zarr file in the HCS OME-ZARR format for visualization in napari."""
+        hcs_path = os.path.join(self.input_folder, self.output_name.replace(".ome.zarr","") + "_complete_acquisition.ome.zarr")
+        if len(self.time_points) == 1 and len(self.wells) == 1:
+            stitched_zarr_path = os.path.join(self.input_folder, f"0_stitched", f"{self.wells[0]}_{self.output_name}")
+            #hcs_path = stitched_zarr_path # replace next line with this if no copy wanted
+            shutil.copytree(stitched_zarr_path, hcs_path)
+        else:
+            store = ome_zarr.io.parse_url(hcs_path, mode="w").store
+            root_group = zarr.group(store=store)
+
+            # Retrieve row and column information for plate metadata
+            rows, columns = self.get_rows_and_columns()
+            well_paths = [f"{well_id[0]}/{well_id[1:]}" for well_id in sorted(self.wells)]
+            print(well_paths)
+            ome_zarr.writer.write_plate_metadata(root_group, rows, [str(col) for col in columns], well_paths)
+
+            # Loop over each well and save its data
+            for well_id in self.wells:
+                row, col = well_id[0], well_id[1:]
+                row_group = root_group.require_group(row)
+                well_group = row_group.require_group(col)
+                self.write_well_and_metadata(well_id, well_group)
+
+            print(f"All data saved in HCS OME-ZARR format at: {hcs_path}")
+            channel_info = []
+
+            root_group.attrs["omero"] = {"channels": channel_info}
+            root = zarr.open(hcs_path, mode='r')
+            print(root.tree())
+        self.finished_saving.emit(hcs_path, self.dtype)
+
+    def write_well_and_metadata(self, well_id, well_group):
+        """Process and save data for a single well across all timepoints."""
+        # Load data from precomputed Zarrs for each timepoint
+        data = self.load_and_merge_timepoints(well_id)
+        intensity_min = np.iinfo(self.dtype).min
+        intensity_max = np.iinfo(self.dtype).max
+        #dataset = well_group.create_dataset("data", data=data, chunks=(1, 1, 1, self.input_height, self.input_width), dtype=data.dtype)
+        field_paths = ["0"]  # Assuming single field of view
+        ome_zarr.writer.write_well_metadata(well_group, field_paths)
+        for fi, field in enumerate(field_paths):
+            image_group = well_group.require_group(str(field))
+            ome_zarr.writer.write_image(image=data,
+                                        group=image_group,
+                                        axes="tczyx",
+                                        channel_names=self.mono_channel_names,
+                                        storage_options=dict(chunks=self.chunks)
+                                        )
+            channel_info = [{
+                "label": self.mono_channel_names[c],
+                "color": f"{self.channel_colors[c]:06X}",
+                "window": {"start": intensity_min, "end": intensity_max},
+                "active": True
+            } for c in range(self.num_c)]
+
+            image_group.attrs["omero"] = {"channels": channel_info}
+
+    def pad_to_largest(self, array, target_shape):
+        if array.shape == target_shape:
+            return array
+        pad_widths = [(0, max(0, ts - s)) for s, ts in zip(array.shape, target_shape)]
+        return da.pad(array, pad_widths, mode='constant', constant_values=0)
+
+    def load_and_merge_timepoints(self, well_id=''):
+        """Load and merge data for a well from Zarr files for each timepoint."""
+        t_data = []
+        t_shapes = []
+        for t in self.time_points:
+            if IS_WELLPLATE:
+                filepath = f"{well_id}_{self.output_name}"
+            else:
+                filepath = f"{self.output_name}"
+            zarr_path = os.path.join(self.input_folder, f"{t}_stitched", filepath)
+            print("t:", t, "well:", well_id, "\t", zarr_path)
+            z = zarr.open(zarr_path, mode='r')
+            # Ensure that '0' contains the data and it matches expected dimensions
+            x_max = self.input_width + ((self.num_cols - 1) * (self.input_width + self.h_shift[1])) + abs((self.num_rows - 1) * self.v_shift[1])
+            y_max = self.input_height + ((self.num_rows - 1) * (self.input_height + self.v_shift[0])) + abs((self.num_cols - 1) * self.h_shift[0])
+            t_array = da.from_zarr(z['0'], chunks=self.chunks)
+            t_data.append(t_array)
+            t_shapes.append(t_array.shape)
+
+        # Concatenate arrays along the existing time axis if multiple timepoints are present
+        if len(t_data) > 1:
+            max_shape = tuple(max(s) for s in zip(*t_shapes))
+            padded_data = [self.pad_to_largest(t, max_shape) for t in t_data]
+            data = da.concatenate(padded_data, axis=0)
+            print(f"(merged timepoints, well:{well_id}) output shape: {data.shape}")
+            return data
+        elif len(t_data) == 1:
+            data = t_data[0]
+            return data
+        else:
+            raise ValueError("no data loaded from timepoints.")
+
+    def get_rows_and_columns(self):
+        """Utility to extract rows and columns from well identifiers."""
+        rows = set()
+        columns = set()
+        for well_id in self.wells:
+            rows.add(well_id[0])  # Assuming well_id like 'A1'
+            columns.add(int(well_id[1:]))
+        return sorted(rows), sorted(columns)
+
+    def run(self):
+        # Main stitching logic
+        try:
+            for time_point in self.time_points:
+                print(f"starting t:{time_point}...")
+                self.parse_filenames(time_point) # 
+
+                if self.apply_flatfield:
+                    print(f"getting flatfields...")
+                    self.getting_flatfields.emit()
+                    self.get_flatfields(progress_callback=self.update_progress.emit)
+
+                if self.use_registration:
+                    print(f"calculating shifts...")
+                    self.calculate_shifts()
+
+                for well in self.wells:
+                    self.starting_stitching.emit()
+                    print(f"stitching...")
+                    self.stitch_images(time_point, well, progress_callback=self.update_progress.emit)
+
+                    self.starting_saving.emit(not STITCH_COMPLETE_ACQUISITION)
+                    print(f"saving...")
+                    if ".ome.tiff" in self.output_path:
+                        self.save_as_ome_tiff()
+                    else:
+                        self.save_as_ome_zarr()
+                    if well != '0':
+                        print(f"...done saving well:{well}")
+                print(f"...finished t:{time_point}")
+
+            if STITCH_COMPLETE_ACQUISITION and ".ome.zarr" in self.output_name:
+                self.starting_saving.emit(True)
+                if IS_WELLPLATE:
+                    self.create_hcs_ome_zarr()
+                    print(f"...done saving complete hcs successfully")
+                else:
+                    self.create_complete_ome_zarr()
+                    print(f"...done saving complete successfully")
+            else:
+                self.finished_saving.emit(self.output_path, self.dtype)
+
+        except Exception as e:
+            print(f"error While Stitching: {e}")
 
 
 class ImageDisplayWindow(QMainWindow):
@@ -3055,6 +3824,9 @@ class ImageDisplayWindow(QMainWindow):
         self.DrawCrossHairs = False
         self.image_offset = np.array([0, 0])
 
+        # ## flag of setting scaling level 
+        # self.flag_image_scaling_level_init = False
+
         ## Layout
         layout = QGridLayout()
         if self.show_LUT:
@@ -3100,6 +3872,16 @@ class ImageDisplayWindow(QMainWindow):
             self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height()) 
 
     def display_image(self,image):
+        # def set_autoLevels_value():
+        #     if self.autoLevels is True:
+        #         self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+        #     else:
+        #         if self.flag_image_scaling_level_init is False:
+        #             self.graphics_widget.img.setImage(image, autoLevels = True)
+        #             self.flag_image_scaling_level_init = True
+        #         else:
+        #             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+
         if ENABLE_TRACKING:
             image = np.copy(image)
             self.image_height = image.shape[0],
@@ -3108,8 +3890,10 @@ class ImageDisplayWindow(QMainWindow):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
                 self.draw_rectangle = False
             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            # set_autoLevels_value()
         else:
             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
+            # set_autoLevels_value()
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
@@ -3366,12 +4150,12 @@ class ConfigurationManager(QObject):
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
             print('genenrate default config files')
-        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree = etree.parse(self.config_filename)
         self.config_xml_tree_root = self.config_xml_tree.getroot()
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations += 1
-            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
+            # print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),
