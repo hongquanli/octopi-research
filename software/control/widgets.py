@@ -1604,6 +1604,11 @@ class NavigationBarWidget(QWidget):
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
         self.btn_load_slide.setEnabled(True)
 
+    def replace_slide_controller(self, slidePositionController):
+        self.slidePositionController = slidePositionController
+        self.slidePositionController.signal_slide_loading_position_reached.connect(self.slot_slide_loading_position_reached)
+        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.slot_slide_scanning_position_reached)    
+
     def connect_signals(self):
         if self.navigationController is not None:
             self.checkbox_clickToMove.stateChanged.connect(self.navigationController.set_flag_click_to_move)
@@ -2994,8 +2999,8 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_usePiezo = QCheckBox('Piezo Z-Stack')
         self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
 
-        #self.checkbox_genFocusMap = QCheckBox('Focus Map')
-        self.checkbox_genFocusMap = QCheckBox('AF Map')
+        self.checkbox_genFocusMap = QCheckBox('Focus Map')
+        #self.checkbox_genFocusMap = QCheckBox('AF Map')
         self.checkbox_genFocusMap.setChecked(False)
 
         # Add a checkbox for coordinate-based acquisition
@@ -3053,21 +3058,21 @@ class MultiPointWidgetGrid(QFrame):
 
         # Z and T
         row_2_3_layout = QGridLayout()
-        row_2_3_layout.addWidget(self.set_minZ_button, 0, 0)
-        min_label = QLabel('Z-min')
-        min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter) # AlignRight
-        row_2_3_layout.addWidget(min_label, 0, 1)
-        row_2_3_layout.addWidget(self.entry_minZ, 0, 2)
+        row_2_3_layout.addWidget(self.set_maxZ_button, 0, 0)
+        max_label = QLabel('Z-max')
+        max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        row_2_3_layout.addWidget(max_label, 0, 1)
+        row_2_3_layout.addWidget(self.entry_maxZ, 0, 2)
         row_2_3_layout.addWidget(QLabel('dz'), 0, 4)
         row_2_3_layout.addWidget(self.entry_deltaZ, 0, 5)
         row_2_3_layout.addWidget(QLabel('Nz'), 0, 7)
         row_2_3_layout.addWidget(self.entry_NZ, 0, 8)
 
-        row_2_3_layout.addWidget(self.set_maxZ_button, 1, 0)
-        max_label = QLabel('Z-max')
-        max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        row_2_3_layout.addWidget(max_label, 1, 1)
-        row_2_3_layout.addWidget(self.entry_maxZ, 1, 2)
+        row_2_3_layout.addWidget(self.set_minZ_button, 1, 0)
+        min_label = QLabel('Z-min')
+        min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter) # AlignRight
+        row_2_3_layout.addWidget(min_label, 1, 1)
+        row_2_3_layout.addWidget(self.entry_minZ, 1, 2)
         row_2_3_layout.addWidget(QLabel('dt'), 1, 4)
         row_2_3_layout.addWidget(self.entry_dt, 1, 5)
         row_2_3_layout.addWidget(QLabel('Nt'), 1, 7)

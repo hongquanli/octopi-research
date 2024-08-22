@@ -396,7 +396,7 @@ class OctopiGUI(QMainWindow):
         if SINGLE_WINDOW:
             dock_display = dock.Dock('Image Display', autoOrientation = False)
             dock_display.showTitleBar()
-            
+
             dock_display.addWidget(self.imageDisplayTabs)
             dock_display.addWidget(self.navigationBarWidget)
             dock_display.setStretch(x=100,y=100)
@@ -738,6 +738,7 @@ class OctopiGUI(QMainWindow):
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
             self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
+            self.navigationBarWidget.replace_slide_controller(self.slidePositionController)
         else:
             self.toggleWellSelector(True)
             self.multipointController.inverted_objective = True
@@ -749,6 +750,7 @@ class OctopiGUI(QMainWindow):
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
             self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
+            self.navigationBarWidget.replace_slide_controller(self.slidePositionController)
 
             if format_ == 1536:
                 self.wellSelectionWidget.setParent(None)
