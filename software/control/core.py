@@ -426,8 +426,8 @@ class Configuration:
             self._pixel_format_options = self.pixel_format
         self.emission_filter_position = emission_filter_position
 
-class LiveController(QObject):
 
+class LiveController(QObject):
     def __init__(self,camera,microcontroller,configurationManager,parent=None,control_illumination=True,use_internal_timer_for_hardware_trigger=True,for_displacement_measurement=False):
         QObject.__init__(self)
         self.microscope = parent
@@ -514,7 +514,14 @@ class LiveController(QObject):
                 if 'DF LED matrix' in self.currentConfiguration.name:
                     self.led_array.set_illumination('df')
             else:
-                self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
+                if 'BF LED matrix full_R' in self.currentConfiguration.name:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100),g=0,b=0)
+                elif 'BF LED matrix full_G' in self.currentConfiguration.name:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=0,g=(intensity/100),b=0)
+                elif 'BF LED matrix full_B' in self.currentConfiguration.name:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=0,g=0,b=(intensity/100))
+                else:
+                    self.microcontroller.set_illumination_led_matrix(illumination_source,r=(intensity/100)*LED_MATRIX_R_FACTOR,g=(intensity/100)*LED_MATRIX_G_FACTOR,b=(intensity/100)*LED_MATRIX_B_FACTOR)
         else:
             # update illumination
             if USE_LDI_SERIAL_CONTROL and 'Fluorescence' in self.currentConfiguration.name:
@@ -646,7 +653,9 @@ class LiveController(QObject):
                 self._stop_triggerred_acquisition()
             # self.camera.reset_camera_acquisition_counter()
             self.camera.set_hardware_triggered_acquisition()
-            self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
+            self.reset_strobe_arugment()
+            self.camera.set_exposure_time(self.currentConfiguration.exposure_time)
+
             if self.is_live and self.use_internal_timer_for_hardware_trigger:
                 self._start_triggerred_acquisition()
         if mode == TriggerMode.CONTINUOUS:
@@ -698,7 +707,13 @@ class LiveController(QObject):
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
 
-
+    def reset_strobe_arugment(self):
+        # re-calculate the strobe_delay_us value
+        try:
+            self.camera.calculate_hardware_trigger_arguments()
+        except AttributeError:
+            pass
+        self.microcontroller.set_strobe_delay_us(self.camera.strobe_delay_us)
 
 
 class NavigationController(QObject):
@@ -1757,6 +1772,7 @@ class MultiPointWorker(QObject):
 
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
+        utils.create_done_file(current_path)
         self.navigationController.enable_joystick_button_action = True
         print(time.time())
         print(time.time()-start)
@@ -2001,6 +2017,7 @@ class MultiPointWorker(QObject):
                 self.undo_z_offset(config)
                 self.signal_region_progress.emit(current_image, self.total_scans)
 
+            '''
             # tiled preview
             if not USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW and 'BF LED matrix left half' in current_round_images:
                 # initialize the variable
@@ -2019,6 +2036,7 @@ class MultiPointWorker(QObject):
                 self.tiled_preview[i*height:(i+1)*height, j*width:(j+1)*width, ] = I
                 # emit the result
                 self.image_to_display_tiled_preview.emit(self.tiled_preview)
+            '''
 
             # real time processing
             acquired_image_configs = list(current_round_images.keys())
@@ -2857,6 +2875,7 @@ class MultiPointController(QObject):
             except:
                 pass
         print("total time for acquisition + processing + reset:", time.time() - self.recording_start_time)
+        utils.create_done_file(os.path.join(self.base_path,self.experiment_ID))
         self.acquisitionFinished.emit()
         if not self.abort_acqusition_requested:
             self.signal_stitcher.emit(os.path.join(self.base_path,self.experiment_ID))

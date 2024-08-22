@@ -31,6 +31,18 @@ elif CAMERA_TYPE == "Hamamatsu":
     except:
         print("Problem importing Hamamatsu camera, defaulting to default camera")
         import control.camera as camera
+elif CAMERA_TYPE == "iDS":
+    try:
+        import control.camera_ids as camera
+    except:
+        print("Problem importing iDS camera, defaulting to default camera")
+        import control.camera as camera
+elif CAMERA_TYPE == "Tucsen":
+    try:
+        import control.camera_tucsen as camera
+    except:
+        print("Problem importing Tucsen camera, defaulting to default camera")
+        import control.camera as camera
 else:
     import control.camera as camera
 
@@ -272,6 +284,10 @@ class OctopiGUI(QMainWindow):
         self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
+
+        # only toupcam need reset strobe argument when camera's argument change 
+        if CAMERA_TYPE == "Toupcam":
+            self.camera.set_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
 
         # load widgets
         if ENABLE_SPINNING_DISK_CONFOCAL:

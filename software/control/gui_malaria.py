@@ -152,8 +152,12 @@ class OctopiGUI(QMainWindow):
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
 
+        # only toupcam need reset strobe argument when camera's argument change 
+        if CAMERA_TYPE == "Toupcam":
+            self.camera.set_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
+
         # load widgets
-        self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera,include_gain_exposure_time=False)
+        self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='malaria')
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)

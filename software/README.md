@@ -63,6 +63,60 @@ sh ./install_hamamatsu.sh
 ```
 </details>
 
+<details>
+<summary>Installing drivers and libraries for iDS camera support</summary>
+- Software:
+
+Go to iDS's page for downloading their software (https://en.ids-imaging.com/download-details/1009877.html?os=linux&version=&bus=64&floatcalc=). Register and log in.
+
+Open the `software/drivers and libraries/ids` folder in terminal and run the following
+```
+sh ./install_ids.sh
+```
+
+You will be asked to enter sudo password.
+
+- Firmware (optional):
+
+If you would like to update the firmware of the camera (optional), download the Vision firmware update (GUF file) on the same page.
+
+Open the `software/drivers and libraries/ids/ids-peak_2.11.0.0-178_amd64/bin` folder in terminal and run the following
+```
+./ids_peak_cockpit
+```
+
+This will start the iDS peak Cockpit software. Then: 
+1. Open the camera manager by clicking on the camera manager icon in the main menu.
+2. Select the camera in the camera manager.
+3. Click on the firmware update icon in the menu to open the dialog for selecting the update file for the Vision firmware (*.guf).
+4. Select the update file.
+5. Click on "Open".
+
+The update is started and the camera is updated. Note: If you select an incorrect update file by mistake, you will see the message "The update file is incompatible".
+After the update is complete, you can close the iDS peak Cockpit software. (Reference: https://en.ids-imaging.com/tl_files/downloads/usb3-vision/firmware/ReadMe.html)
+
+</details>
+
+<details>
+<summary>Installing drivers and libraries for Tucsen camera support</summary>
+
+Open the `software/drivers and libraries/tucsen` folder in terminal and run the following to log in as a root user
+```
+sudo -s
+```
+
+The following steps should be run as root user
+```
+sh ./install_tucsen.sh
+```
+
+After installation, run the following to log out
+```
+exit
+```
+
+</details>
+
 ## Configuring the software
 Copy the .ini file associated with the microscope configuration to the software folder. Make modifications as needed (e.g. `camera_type`, `support_laser_autofocus`,`focus_camera_exposure_time_ms`)
 
