@@ -285,6 +285,7 @@ class OctopiGUI(QMainWindow):
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True,show_autolevel=True,autolevel=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration=f'{WELLPLATE_FORMAT} well plate')
+        self.navigationBarWidget = widgets.NavigationBarWidget(self.navigationController,self.slidePositionController,add_z_buttons=False)
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
@@ -365,19 +366,17 @@ class OctopiGUI(QMainWindow):
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
 
-        layout = QVBoxLayout()  #layout = QStackedLayout()
+        layout = QVBoxLayout()
         layout.addWidget(self.sampleSettingsWidget)
         if USE_NAPARI_FOR_LIVE_CONTROL:
             layout.addWidget(self.navigationWidget)
             layout.addWidget(self.cameraTabWidget)
         else:
             self.microscopeControlTabWidget = QTabWidget()
-            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
             self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
+            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
             layout.addWidget(self.microscopeControlTabWidget)
             layout.addWidget(self.cameraTabWidget)
-            #layout.addWidget(self.liveControlWidget)
-            #layout.addWidget(self.navigationWidget)
             
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
@@ -392,16 +391,27 @@ class OctopiGUI(QMainWindow):
         # transfer the layout to the central widget
         self.centralWidget = QWidget()
         self.centralWidget.setLayout(layout)
-        # self.centralWidget.setFixedSize(self.centralWidget.minimumSize())
-        # self.centralWidget.setFixedWidth(self.centralWidget.minimumWidth())
-        # self.centralWidget.setMaximumWidth(self.centralWidget.minimumWidth())
         self.centralWidget.setFixedWidth(self.centralWidget.minimumSizeHint().width())
 
         if SINGLE_WINDOW:
             dock_display = dock.Dock('Image Display', autoOrientation = False)
             dock_display.showTitleBar()
+            
             dock_display.addWidget(self.imageDisplayTabs)
+            dock_display.addWidget(self.navigationBarWidget)
             dock_display.setStretch(x=100,y=100)
+            # # Create a vertical layout for imageDisplayTabs and NavigationBarWidget
+            # display_layout = QVBoxLayout()
+            # display_layout.addWidget(self.imageDisplayTabs)
+            # display_layout.addWidget(self.navigationBarWidget)
+            
+            # # Create a widget to hold the layout
+            # display_widget = QWidget()
+            # display_widget.setLayout(display_layout)
+            
+            # # Add the combined widget to the dock
+            # dock_display.addWidget(display_widget)
+            # dock_display.setStretch(x=100,y=100)
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
             if not USE_NAPARI_WELL_SELECTION:
@@ -455,6 +465,9 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xPos.connect(lambda x:self.navigationWidget.label_Xpos.setText("{:.2f}".format(x) + " mm"))
         self.navigationController.yPos.connect(lambda x:self.navigationWidget.label_Ypos.setText("{:.2f}".format(x) + " mm"))
         self.navigationController.zPos.connect(lambda x:self.navigationWidget.label_Zpos.setText("{:.2f}".format(x) + " μm"))
+        self.navigationController.xPos.connect(self.navigationBarWidget.update_x_position)
+        self.navigationController.yPos.connect(self.navigationBarWidget.update_y_position)
+        self.navigationController.zPos.connect(self.navigationBarWidget.update_z_position)
         if ENABLE_TRACKING:
             self.navigationController.signal_joystick_button_pressed.connect(self.trackingControlWidget.slot_joystick_button_pressed)
         else:
@@ -512,12 +525,12 @@ class OctopiGUI(QMainWindow):
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
-            # new live control connections ?
-            self.napariLiveWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
-            self.napariLiveWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
-            # self.napariLiveWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.liveControlWidget.signal_live_configuration.connect(self.napariLiveWidget.set_live_configuration)
             self.napariLiveWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
+            if USE_NAPARI_FOR_LIVE_CONTROL:
+                self.napariLiveWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
+                self.napariLiveWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+                self.napariLiveWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
         else:
             self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
             self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image) # may connect streamHandler directly to imageDisplayWindow

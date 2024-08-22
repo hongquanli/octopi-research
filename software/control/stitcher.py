@@ -920,9 +920,10 @@ class CoordinateStitcher(QThread, QObject):
         self.num_c = len(self.mono_channel_names)
         self.channel_colors = [self.get_channel_color(name) for name in self.mono_channel_names]
 
-        print(f"FOV dimensions: {self.input_height}x{self.input_width}, Z levels: {self.num_z}, Time points: {self.num_t}")
-        print(f"{len(self.regions)} Regions: {self.regions}")
+        print(f"FOV dimensions: {self.input_height}x{self.input_width}")
+        print(f"{self.num_z} Z levels, {self.num_t} Time points")
         print(f"{self.num_c} Channels: {self.mono_channel_names}")
+        print(f"{len(self.regions)} Regions: {self.regions}")
 
     def get_channel_color(self, channel_name):
         color_map = {
@@ -935,11 +936,9 @@ class CoordinateStitcher(QThread, QObject):
             '_G': 0x00FF00,  # Green
             '_R': 0xFF0000  # Red
         }
-
         for key in color_map:
             if key in channel_name:
                 return color_map[key]
-
         return 0xFFFFFF  # Default to white if no match found
 
     def calculate_output_dimensions(self, region):
@@ -951,11 +950,7 @@ class CoordinateStitcher(QThread, QObject):
         self.x_positions = sorted(set(tile_info['x'] for tile_info in region_data))
         self.y_positions = sorted(set(tile_info['y'] for tile_info in region_data))
 
-
-
-        # Add extra space for shifts if registration is used
-        if self.use_registration:
-
+        if self.use_registration: # Add extra space for shifts 
             num_cols = len(self.x_positions)
             num_rows = len(self.y_positions)
 
@@ -968,8 +963,8 @@ class CoordinateStitcher(QThread, QObject):
             width_pixels += abs((num_rows - 1) * self.v_shift[1]) # horizontal shift from vertical registration
             height_pixels = int(self.input_height + ((num_rows - 1) * (self.input_height + self.v_shift[0]))) # vertical height with overlap
             height_pixels += abs((num_cols - 1) * max_h_shift[0]) # vertical shift from horizontal registration
-
-        else:
+ 
+        else: # Use coordinates shifts 
             width_mm = max(self.x_positions) - min(self.x_positions) + (self.input_width * self.pixel_size_um / 1000)
             height_mm = max(self.y_positions) - min(self.y_positions) + (self.input_height * self.pixel_size_um / 1000)
 
@@ -985,9 +980,7 @@ class CoordinateStitcher(QThread, QObject):
 
         # Calculate the number of pyramid levels
         self.num_pyramid_levels = math.ceil(np.log2(max(width_pixels, height_pixels) / 1024 * max_dimension))
-        print("num_pyramid_levels", self.num_pyramid_levels)
-
-        print(f"Calculated dimensions for region {region}: {width_pixels}x{height_pixels}")
+        print("# Pyramid levels:", self.num_pyramid_levels)
         return width_pixels, height_pixels
 
     def init_output(self, region):
@@ -1013,7 +1006,7 @@ class CoordinateStitcher(QThread, QObject):
                 progress_callback(channel_index + 1, self.num_c)
 
         for channel in self.channel_names:
-            print(f"Processing channel: {channel}")
+            print(f"Calculating {channel} flatfield...")
             images = []
             for t in self.time_points:
                 time_images = [dask_imread(tile['filepath'])[0] for key, tile in self.stitching_data.items() if tile['channel'] == channel and key[0] == int(t)]
@@ -1111,11 +1104,11 @@ class CoordinateStitcher(QThread, QObject):
             if center_tile is not None and right_tile is not None:
                 self.h_shift_rev = self.calculate_horizontal_shift(center_tile, right_tile, max_x_overlap)
                 self.h_shift_rev_odd = center_y_index % 2 == 0
-                print(f"Calculated rev shifts - Horizontal: {self.h_shift_rev}, Vertical: {self.v_shift}")
+                print(f"Bi-Directional Horizontal Shift - Reverse Horizontal: {self.h_shift_rev}")
             else:
-                print(f"Warning: Missing tiles for horizontal shift rev calculation in region {region}.")
+                print(f"Warning: Missing tiles for reverse horizontal shift calculation in region {region}.")
 
-        print(f"Calculated shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
+        print(f"Calculated Uni-Directional Shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
 
 
     def calculate_horizontal_shift(self, img1, img2, max_overlap):
@@ -1184,10 +1177,6 @@ class CoordinateStitcher(QThread, QObject):
             print(f"Saved {title}.png successfully")
         except Exception as e:
             print(f"Error in visualize_image: {e}")
-            print(f"img1 shape: {img1.shape}, dtype: {img1.dtype}")
-            print(f"img2 shape: {img2.shape}, dtype: {img2.dtype}")
-            print(f"combined_image shape: {combined_image.shape}, dtype: {combined_image.dtype}")
-            print(f"combined_image_uint8 shape: {combined_image_uint8.shape}, dtype: {combined_image_uint8.dtype}")
 
     def stitch_and_save_region(self, region, progress_callback=None):
         stitched_images = self.init_output(region)  # sets self.x_positions, self.y_positions
@@ -1216,15 +1205,15 @@ class CoordinateStitcher(QThread, QObject):
 
                 # Apply horizontal shift effect on y-coordinate
                 if h_shift[0] < 0:
-                    y_pixel += int((len(self.x_positions) - 1 - self.col_index) * abs(h_shift[0]))  # Moves up ->
+                    y_pixel += int((len(self.x_positions) - 1 - self.col_index) * abs(h_shift[0]))  # Fov moves up as cols go right
                 else:
-                    y_pixel += int(self.col_index * h_shift[0])  # Moves down ->
+                    y_pixel += int(self.col_index * h_shift[0])  # Fov moves down as cols go right
 
                 # Apply vertical shift effect on x-coordinate
                 if self.v_shift[1] < 0:
-                    x_pixel += int((len(self.y_positions) - 1 - self.row_index) * abs(self.v_shift[1]))  # Moves left V
+                    x_pixel += int((len(self.y_positions) - 1 - self.row_index) * abs(self.v_shift[1]))  # Fov moves left as rows go down
                 else:
-                    x_pixel += int(self.row_index * self.v_shift[1])  # Moves right V
+                    x_pixel += int(self.row_index * self.v_shift[1])   # Fov moves right as rows go down
 
             else:
                 # Calculate base position
@@ -1525,25 +1514,25 @@ class CoordinateStitcher(QThread, QObject):
 
     def run(self):
         stime = time.time()
-        try:
-            self.get_time_points()
-            self.parse_filenames()
+        # try:
+        self.get_time_points()
+        self.parse_filenames()
 
-            if self.apply_flatfield:
-                print("Calculating flatfields...")
-                self.getting_flatfields.emit()
-                self.get_flatfields(progress_callback=self.update_progress.emit)
-                print("time to apply flatfields", time.time() - stime)
+        if self.apply_flatfield:
+            print("Calculating flatfields...")
+            self.getting_flatfields.emit()
+            self.get_flatfields(progress_callback=self.update_progress.emit)
+            print("time to apply flatfields", time.time() - stime)
 
-            if self.num_fovs_per_region > 1:
-                self.run_regions()
-            else:
-                self.run_fovs() # only displays one fov per region even though all fovs are saved in zarr with metadata
+        if self.num_fovs_per_region > 1:
+            self.run_regions()
+        else:
+            self.run_fovs() # only displays one fov per region even though all fovs are saved in zarr with metadata
 
-        except Exception as e:
-            print("time before error", time.time() - stime)
-            print(f"Error while stitching: {e}")
-            raise
+        # except Exception as e:
+        #     print("time before error", time.time() - stime)
+        #     print(f"Error while stitching: {e}")
+        #     raise
 
 
     def run_regions(self):

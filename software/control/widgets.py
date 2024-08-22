@@ -1489,6 +1489,129 @@ class NavigationWidget(QFrame):
         self.btn_load_slide.setEnabled(False)
 
 
+class NavigationBarWidget(QWidget):
+    def __init__(self, navigationController=None, slidePositionController=None, add_z_buttons=True,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.navigationController = navigationController
+        self.slidePositionController = slidePositionController
+        self.add_z_buttons = add_z_buttons
+        self.initUI()
+
+    def initUI(self):
+        layout = QHBoxLayout()
+        layout.setSpacing(10)
+        #layout.setContentsMargins(5, 0, 5, 0)  # Reduce vertical margins to make it thinner
+
+        # Move to Loading Position button
+        self.btn_load_slide = QPushButton('Move To Loading Position')
+        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
+        self.btn_load_slide.clicked.connect(self.switch_position)
+        if self.slidePositionController is not None:
+            layout.addWidget(self.btn_load_slide)
+
+        # Home Z and Zero Z
+        if self.add_z_buttons:
+            self.btn_home_Z = QPushButton('Home Z')
+            self.btn_home_Z.clicked.connect(self.home_z)
+            layout.addWidget(self.btn_home_Z)
+
+            self.btn_zero_Z = QPushButton('Zero Z')
+            self.btn_zero_Z.clicked.connect(self.zero_z)
+            layout.addWidget(self.btn_zero_Z)
+
+        # Click to Move checkbox
+        self.checkbox_clickToMove = QCheckBox('Click to Move')
+        self.checkbox_clickToMove.setChecked(False)
+        if self.navigationController is not None:
+            layout.addWidget(self.checkbox_clickToMove)
+            
+        layout.addStretch(1)
+
+        # X position
+        x_label = QLabel('X:')
+        self.label_Xpos = QLabel('00.000 mm')
+        self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+
+        # Y position
+        y_label = QLabel('Y:')
+        self.label_Ypos = QLabel('00.000 mm')
+        self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+
+        # Z position
+        z_label = QLabel('Z:')
+        self.label_Zpos = QLabel('0000.000 μm')
+        self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+
+        # Add widgets to layout
+        layout.addWidget(x_label)
+        layout.addWidget(self.label_Xpos)
+        layout.addWidget(y_label)
+        layout.addWidget(self.label_Ypos)
+        layout.addWidget(z_label)
+        layout.addWidget(self.label_Zpos)
+
+        self.setLayout(layout)
+        self.setFixedHeight(self.sizeHint().height())  # Set fixed height to make it as thin as possible
+        self.connect_signals()
+
+    def update_x_position(self, x):
+        self.label_Xpos.setText(f"{x:.3f} mm")
+
+    def update_y_position(self, y):
+        self.label_Ypos.setText(f"{y:.3f} mm")
+
+    def update_z_position(self, z):
+        self.label_Zpos.setText(f"{z:.3f} μm")
+
+    def home_z(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setText("Confirm your action")
+        msg.setInformativeText("Click OK to run homing\n(Sets current Z to 0 μm)")
+        msg.setWindowTitle("Confirmation")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Cancel)
+        retval = msg.exec_()
+        if QMessageBox.Ok == retval:
+            self.navigationController.home_z()
+
+    def zero_z(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setText("Confirm your action")
+        msg.setInformativeText("Click OK to zero\n(Moves Z to 0 μm)")
+        msg.setWindowTitle("Confirmation")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Cancel)
+        retval = msg.exec_()
+        if QMessageBox.Ok == retval:
+            self.navigationController.zero_z()
+
+    def switch_position(self):
+        if self.btn_load_slide.text() == 'Move To Loading Position':
+            self.slidePositionController.move_to_slide_loading_position()
+        else:
+            self.slidePositionController.move_to_slide_scanning_position()
+        self.btn_load_slide.setEnabled(False)
+
+    def slot_slide_loading_position_reached(self):
+        self.btn_load_slide.setText('Move to Scanning Position')
+        self.btn_load_slide.setStyleSheet("background-color: #C2FFC2")
+        self.btn_load_slide.setEnabled(True)
+
+    def slot_slide_scanning_position_reached(self):
+        self.btn_load_slide.setText('Move To Loading Position')
+        self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
+        self.btn_load_slide.setEnabled(True)
+
+    def connect_signals(self):
+        if self.navigationController is not None:
+            self.checkbox_clickToMove.stateChanged.connect(self.navigationController.set_flag_click_to_move)
+        if self.slidePositionController is not None:
+            self.slidePositionController.signal_slide_loading_position_reached.connect(self.slot_slide_loading_position_reached)
+            self.slidePositionController.signal_slide_scanning_position_reached.connect(self.slot_slide_scanning_position_reached)
+        
+
 class DACControWidget(QFrame):
     def __init__(self, microcontroller ,*args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2222,15 +2345,15 @@ class MultiPointWidget2(QFrame):
         grid_line2.addWidget(QLabel('Nx'), 3, 3)
         grid_line2.addWidget(self.entry_NX, 3, 4)
 
-        grid_line2.addWidget(QLabel('dz'), 3, 6)
-        grid_line2.addWidget(self.entry_deltaZ, 3, 7)
-        grid_line2.addWidget(QLabel('Nz'), 3, 9)
-        grid_line2.addWidget(self.entry_NZ, 3, 10)
+        grid_line2.addWidget(QLabel('dy'), 3, 6)
+        grid_line2.addWidget(self.entry_deltaY, 3, 7)
+        grid_line2.addWidget(QLabel('Ny'), 3, 9)
+        grid_line2.addWidget(self.entry_NY, 3, 10)
 
-        grid_line2.addWidget(QLabel('dy'), 4, 0)
-        grid_line2.addWidget(self.entry_deltaY, 4, 1)
-        grid_line2.addWidget(QLabel('Ny'), 4, 3)
-        grid_line2.addWidget(self.entry_NY, 4, 4)
+        grid_line2.addWidget(QLabel('dz'), 4, 0)
+        grid_line2.addWidget(self.entry_deltaZ, 4, 1)
+        grid_line2.addWidget(QLabel('Nz'), 4, 3)
+        grid_line2.addWidget(self.entry_NZ, 4, 4)
 
         grid_line2.addWidget(QLabel('dt'), 4, 6)
         grid_line2.addWidget(self.entry_dt, 4, 7)
@@ -2548,7 +2671,7 @@ class MultiPointWidget2(QFrame):
         if self.scanCoordinates is not None:
             name = self.create_point_id()
 
-        if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
+        if not np.any(np.all(self.location_list[:, :2] == [round(x,3), round(y,3)], axis=1)):
             location_str = 'x:' + str(round(x,3)) + 'mm  y:' + str(round(y,3)) + 'mm  z:' + str(round(1000*z,1)) + 'μm'
             self.dropdown_location_list.addItem(location_str)
             index = self.dropdown_location_list.count() - 1
@@ -4388,7 +4511,6 @@ class NapariMultiChannelWidget(QWidget):
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def initLayers(self, image_height, image_width, image_dtype):
-        print(self.contrast_limits)
         """Initializes the full canvas for each channel based on the acquisition parameters."""
         if self.acquisition_initialized:
             for layer in list(self.viewer.layers):
@@ -4405,10 +4527,10 @@ class NapariMultiChannelWidget(QWidget):
         self.dtype = np.dtype(image_dtype)
         self.layers_initialized = True
         self.update_layer_count = 0
+        print("contrast limits:", self.contrast_limits)
 
     def updateLayers(self, image, i, j, k, channel_name):
         """Updates the appropriate slice of the canvas with the new image data."""
-        print("DTYPE:", image.dtype)
         rgb = len(image.shape) == 3
 
         # Check if the layer exists and has a different dtype
@@ -5928,8 +6050,8 @@ class WellSelectionWidget(QTableWidget):
         self.setFormat(format_)
 
     def setFormat(self, format_):
+        print("setting wellplate format to", str(format_) + " well plate" if format_ != 0 else "glass slide")
         self.format = format_
-        print("setting wellplate format")
         self.setupLayout(format_)
         self.initUI()
         self.setData()
@@ -5965,9 +6087,6 @@ class WellSelectionWidget(QTableWidget):
         row_header_width = self.verticalHeader().width()
         available_height = self.fixed_height - header_height
 
-        # Debugging prints for sizes
-        print(f"Initial widget width: {self.width()}, height: {self.height()}")
-
         # Calculate cell size based on the minimum of available height and width
         cell_size = available_height // self.rowCount()
 
@@ -6000,14 +6119,13 @@ class WellSelectionWidget(QTableWidget):
 
         # Debugging prints
         print(f"Rows: {self.rowCount()}, Columns: {self.columnCount()}")
-        print(f"Row header width: {row_header_width}, Header height: {header_height}")
         print(f"Total width: {total_width}, Total height: {self.fixed_height}")
 
         # Print actual row heights and column widths for debugging
         actual_row_height = self.rowHeight(0) if self.rowCount() > 0 else 0
         actual_column_width = self.columnWidth(0) if self.columnCount() > 0 else 0
-        print(f"Calculated cell size: {cell_size}")
-        print(f"Actual cell size: height={actual_row_height}, width={actual_column_width}")
+        print(f"Calculated cell size: {(cell_size, cell_size)}")
+        print(f"Actual cell size: {(actual_row_height, actual_column_width)}")
 
     def resizeEvent(self, event):
         self.initUI()
@@ -6067,7 +6185,6 @@ class WellSelectionWidget(QTableWidget):
         self.well_size_mm = well_size_mm
         self.spacing_mm = well_spacing_mm
         self.number_of_skip = number_of_skip
-        print(self.format, self.a1_x_mm, self.a1_y_mm, self.a1_x_pixel, self.a1_y_pixel, self.well_size_mm, self.spacing_mm, self.number_of_skip)
         self.setFormat(format_)
 
     def onDoubleClick(self,row,col):
@@ -6081,12 +6198,12 @@ class WellSelectionWidget(QTableWidget):
         else:
             self.signal_wellSelected.emit(False)
 
-    # def onSingleClick(self,row,col):
-    #     print("single click well", row, col)
-    #     if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
-    #         self.signal_wellSelected.emit(True)
-    #     else:
-    #         self.signal_wellSelected.emit(False)
+    def onSingleClick(self,row,col):
+        print("single click well", row, col)
+        if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
+            self.signal_wellSelected.emit(True)
+        else:
+            self.signal_wellSelected.emit(False)
 
     def onSelectionChanged(self):
         selected_cells = self.get_selected_cells()
@@ -6104,9 +6221,9 @@ class WellSelectionWidget(QTableWidget):
                (col >= 0 + self.number_of_skip and col <= self.columns - 1 - self.number_of_skip):
                 list_of_selected_cells.append((row, col))
         if list_of_selected_cells:
-            print("wells:",list_of_selected_cells)
+            print("cells:",list_of_selected_cells)
         else:
-            print("no wells")
+            print("no cells")
         return list_of_selected_cells
 
 
