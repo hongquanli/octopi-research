@@ -4024,7 +4024,51 @@ class NapariLiveWidget(QWidget):
         if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
             self.viewer.window._qt_viewer.layerButtons.hide()
 
+    # def updateHistogram(self, layer):
+    #     if self.histogram_widget is not None:
+    #         self.histogram_widget.setImageItem(layer.data)
+    def updateHistogram(self, layer):
+        if self.histogram_widget is not None and layer.data is not None:
+            self.pg_image_item.setImage(layer.data, autoLevels=False)
+            self.histogram_widget.setLevels(*layer.contrast_limits)
+            self.histogram_widget.setHistogramRange(layer.data.min(), layer.data.max())
+            
+            # Update colormap only if it has changed
+            if hasattr(self, 'last_colormap') and self.last_colormap != layer.colormap.name:
+                self.histogram_widget.gradient.setColorMap(self.createColorMap(layer.colormap))
+            self.last_colormap = layer.colormap.name
+
+    def createColorMap(self, colormap):
+        colors = colormap.colors
+        positions = np.linspace(0, 1, len(colors))
+        return pg.ColorMap(positions, colors)
+
     def initControlWidgets(self, show_trigger_options, show_display_options, show_autolevel, autolevel):
+
+        # self.pg_image_item = pg.ImageItem()
+        # self.histogram_widget = pg.HistogramLUTWidget(image=self.pg_image_item)
+        # self.histogram_widget.setHistogramRange(0, 255)  # Adjust based on your typical image range
+        
+        # histogram_view = pg.GraphicsView()
+        # histogram_view.setCentralItem(self.histogram_widget)
+        # histogram_view.setFixedWidth(150)  # Adjust width as needed
+        
+        # self.histogram_dock = self.viewer.window.add_dock_widget(
+        #     histogram_view, area='right', name="histogram"
+        # )
+        # self.histogram_dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        # self.histogram_dock.setTitleBarWidget(QWidget())
+
+        # Initialize histogram widget
+        self.pg_image_item = pg.ImageItem()
+        self.histogram_widget = pg.HistogramLUTWidget(image=self.pg_image_item)
+        self.histogram_widget.setFixedWidth(100)
+        self.histogram_dock = self.viewer.window.add_dock_widget(
+            self.histogram_widget, area='right', name="hist"
+        )
+        self.histogram_dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        self.histogram_dock.setTitleBarWidget(QWidget())
+
         # Microscope Configuration
         self.dropdown_modeSelection = QComboBox()
         for config in self.configurationManager.configurations:
@@ -4326,7 +4370,8 @@ class NapariLiveWidget(QWidget):
         layer.contrast_limits = self.contrast_limits.get(self.live_configuration.name, limits)
         layer.mouse_double_click_callbacks.append(self.onDoubleClick)
         layer.events.contrast_limits.connect(self.signalContrastLimits)
-        
+        self.updateHistogram(layer)
+
         if not self.init_scale:
             self.resetView()
             self.previous_scale = self.viewer.camera.zoom
@@ -4359,6 +4404,8 @@ class NapariLiveWidget(QWidget):
         layer = self.viewer.layers["Live View"]
         layer.data = image
         layer.contrast_limits = self.contrast_limits.get(self.live_configuration.name, self.getContrastLimits(self.dtype))
+        self.updateHistogram(layer)
+
         if from_autofocus:
             # save viewer scale
             if not self.last_was_autofocus:
