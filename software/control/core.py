@@ -2338,21 +2338,23 @@ class MultiPointWorker(QObject):
 
     def handle_acquisition_abort(self, current_path, region_id=0):
         if self.coordinate_dict is None:
-            self.liveController.turn_off_illumination()
-            self.navigationController.move_x_usteps(-self.dx_usteps)
-            self.wait_till_operation_is_completed()
-            self.navigationController.move_y_usteps(-self.dy_usteps)
-            self.wait_till_operation_is_completed()
+            # self.liveController.turn_off_illumination()
+            # self.navigationController.move_x_usteps(-self.dx_usteps)
+            # self.wait_till_operation_is_completed()
+            # self.navigationController.move_y_usteps(-self.dy_usteps)
+            # self.wait_till_operation_is_completed()
 
-            if self.navigationController.get_pid_control_flag(2) is False:
-                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.move_z_usteps(-self.dz_usteps-_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-            else:
-                self.navigationController.move_z_usteps(-self.dz_usteps)
-                self.wait_till_operation_is_completed()
+            # if self.navigationController.get_pid_control_flag(2) is False:
+            #     _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
+            #     self.navigationController.move_z_usteps(-self.dz_usteps-_usteps_to_clear_backlash)
+            #     self.wait_till_operation_is_completed()
+            #     self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
+            #     self.wait_till_operation_is_completed()
+            # else:
+            #     self.navigationController.move_z_usteps(-self.dz_usteps)
+            #     self.wait_till_operation_is_completed()
+            pass
+            # self.finish_grid_scan(len(self.scan_coordinates_mm), region_id)
         else:
             self.move_to_coordinate(self.scan_coordinates_mm[region_id])
 
@@ -2421,6 +2423,7 @@ class MultiPointWorker(QObject):
                 self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1)
 
     def finish_grid_scan(self, n_regions, region_id):
+        print("moving slide back")
         if SHOW_TILED_PREVIEW and IS_HCS:
             self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
 
