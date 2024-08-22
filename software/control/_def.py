@@ -436,7 +436,7 @@ CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritt
 ENABLE_STROBE_OUTPUT = False
 
 ACQUISITION_PATTERN = 'S-Pattern' # 'S-Pattern', 'Unidirectional'
-FOV_PATTERN = 'Unidirectional' # 'S-Pattern', 'Unidirectional'
+FOV_PATTERN = 'S-Pattern' # 'S-Pattern', 'Unidirectional'
 
 Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
 Z_STACKING_CONFIG_MAP = {

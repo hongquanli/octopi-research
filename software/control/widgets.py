@@ -4209,7 +4209,6 @@ class NapariLiveWidget(QWidget):
 
     def updateLiveLayer(self, image, from_autofocus=False):
         """Updates the canvas with the new image data."""
-        print("DTYPE:", image.dtype)
         if self.dtype != np.dtype(image.dtype):
             self.init_live = False
             self.init_live_rgb = False
@@ -4232,7 +4231,6 @@ class NapariLiveWidget(QWidget):
         layer = self.viewer.layers["Live View"]
         layer.data = image
         layer.contrast_limits = self.contrast_limits.get(self.live_configuration.name, self.getContrastLimits(self.dtype))
-        print(self.live_configuration.name, self.contrast_limits)
         if from_autofocus:
             # save viewer scale
             if not self.last_was_autofocus:
@@ -5900,6 +5898,10 @@ class WellplateFormatWidget(QWidget):
                 settings['well_size_mm'],
                 settings['well_spacing_mm'],
                 settings['number_of_skip']
+            )
+        elif wellplate_format == 0:
+            self.signalWellplateSettings.emit(
+                wellplate_format,0,0,0,0,0,0,0
             )
         else:
             print(f"Wellplate format {wellplate_format} not recognized")

@@ -783,7 +783,9 @@ class CoordinateStitcher(QThread, QObject):
         self.time_points = []
         self.regions = []
         self.overlap_percent = overlap_percent
+        self.scan_pattern = FOV_PATTERN
         self.init_stitching_parameters()
+
 
     def init_stitching_parameters(self):
         self.is_rgb = {}
@@ -798,6 +800,9 @@ class CoordinateStitcher(QThread, QObject):
         self.dtype = np.uint16
         self.chunks = None
         self.h_shift = (0, 0)
+        if self.scan_pattern == 'S-Pattern':
+            self.h_shift_rev = (0, 0)
+            self.h_shift_rev_odd = 0 # 0 reverse even rows, 1 reverse odd rows
         self.v_shift = (0, 0)
         self.x_positions = set()
         self.y_positions = set()
@@ -954,10 +959,15 @@ class CoordinateStitcher(QThread, QObject):
             num_cols = len(self.x_positions)
             num_rows = len(self.y_positions)
 
-            width_pixels = int(self.input_width + ((num_cols - 1) * (self.input_width + self.h_shift[1]))) # horizontal width with overlap
+            if self.scan_pattern == 'S-Pattern':
+                max_h_shift = (max(self.h_shift[0], self.h_shift_rev[0]), max(self.h_shift[1], self.h_shift_rev[1]))
+            else:
+                max_h_shift = self.h_shift
+
+            width_pixels = int(self.input_width + ((num_cols - 1) * (self.input_width + max_h_shift[1]))) # horizontal width with overlap
             width_pixels += abs((num_rows - 1) * self.v_shift[1]) # horizontal shift from vertical registration
             height_pixels = int(self.input_height + ((num_rows - 1) * (self.input_height + self.v_shift[0]))) # vertical height with overlap
-            height_pixels += abs((num_cols - 1) * self.h_shift[0]) # vertical shift from horizontal registration
+            height_pixels += abs((num_cols - 1) * max_h_shift[0]) # vertical shift from horizontal registration
 
         else:
             width_mm = max(self.x_positions) - min(self.x_positions) + (self.input_width * self.pixel_size_um / 1000)
@@ -1068,7 +1078,10 @@ class CoordinateStitcher(QThread, QObject):
         
         center_x = x_positions[center_x_index]
         center_y = y_positions[center_y_index]
-        
+
+        right_x = None
+        bottom_y = None
+
         # Calculate horizontal shift
         if center_x_index + 1 < len(x_positions):
             right_x = x_positions[center_x_index + 1]
@@ -1090,6 +1103,17 @@ class CoordinateStitcher(QThread, QObject):
                 self.v_shift = self.calculate_vertical_shift(center_tile, bottom_tile, max_y_overlap)
             else:
                 print(f"Warning: Missing tiles for vertical shift calculation in region {region}.")
+
+        if self.scan_pattern == 'S-Pattern' and right_x and bottom_y:
+            center_tile = self.get_tile(region, center_x, bottom_y, self.registration_channel, self.registration_z_level)
+            right_tile = self.get_tile(region, right_x, bottom_y, self.registration_channel, self.registration_z_level)
+
+            if center_tile is not None and right_tile is not None:
+                self.h_shift_rev = self.calculate_horizontal_shift(center_tile, right_tile, max_x_overlap)
+                self.h_shift_rev_odd = center_y_index % 2 == 0
+                print(f"Calculated rev shifts - Horizontal: {self.h_shift_rev}, Vertical: {self.v_shift}")
+            else:
+                print(f"Warning: Missing tiles for horizontal shift rev calculation in region {region}.")
 
         print(f"Calculated shifts - Horizontal: {self.h_shift}, Vertical: {self.v_shift}")
 
@@ -1177,20 +1201,24 @@ class CoordinateStitcher(QThread, QObject):
         for key, tile_info in region_data.items():
             t, _, fov, z_level, channel = key
             tile = dask_imread(tile_info['filepath'])[0]
-
             if self.use_registration:
                 self.col_index = self.x_positions.index(tile_info['x'])
                 self.row_index = self.y_positions.index(tile_info['y'])
 
+                if self.scan_pattern == 'S-Pattern' and self.row_index % 2 == self.h_shift_rev_odd:
+                    h_shift = self.h_shift_rev
+                else:
+                    h_shift = self.h_shift
+
                 # Initialize starting coordinates based on tile position and shift
-                x_pixel = int(self.col_index * (self.input_width + self.h_shift[1]))
+                x_pixel = int(self.col_index * (self.input_width + h_shift[1]))
                 y_pixel = int(self.row_index * (self.input_height + self.v_shift[0]))
 
                 # Apply horizontal shift effect on y-coordinate
-                if self.h_shift[0] < 0:
-                    y_pixel += int((len(self.x_positions) - 1 - self.col_index) * abs(self.h_shift[0]))  # Moves up ->
+                if h_shift[0] < 0:
+                    y_pixel += int((len(self.x_positions) - 1 - self.col_index) * abs(h_shift[0]))  # Moves up ->
                 else:
-                    y_pixel += int(self.col_index * self.h_shift[0])  # Moves down ->
+                    y_pixel += int(self.col_index * h_shift[0])  # Moves down ->
 
                 # Apply vertical shift effect on x-coordinate
                 if self.v_shift[1] < 0:
@@ -1243,11 +1271,16 @@ class CoordinateStitcher(QThread, QObject):
             tile = self.apply_flatfield_correction(tile, channel_idx)
 
         if self.use_registration:
+            if self.scan_pattern == 'S-Pattern' and self.row_index % 2 == self.h_shift_rev_odd:
+                h_shift = self.h_shift_rev
+            else:
+                h_shift = self.h_shift
+
             # Determine crop for tile edges
-            top_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if self.row_index > 0 else 0 # if y
-            bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(self.h_shift[0]) // 2) if self.row_index < len(self.y_positions) - 1 else 0
-            left_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if self.col_index > 0 else 0
-            right_crop = max(0, (-self.h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if self.col_index < len(self.x_positions) - 1 else 0
+            top_crop = max(0, (-self.v_shift[0] // 2) - abs(h_shift[0]) // 2) if self.row_index > 0 else 0 # if y
+            bottom_crop = max(0, (-self.v_shift[0] // 2) - abs(h_shift[0]) // 2) if self.row_index < len(self.y_positions) - 1 else 0
+            left_crop = max(0, (-h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if self.col_index > 0 else 0
+            right_crop = max(0, (-h_shift[1] // 2) - abs(self.v_shift[1]) // 2) if self.col_index < len(self.x_positions) - 1 else 0
 
             # Apply cropping to the tile
             tile = tile[top_crop:tile.shape[0]-bottom_crop, left_crop:tile.shape[1]-right_crop]
