@@ -137,8 +137,9 @@ class Camera(object):
         print('No camera with the specified serial number found')
 
     def close(self):
-        if self.callback_is_enabled:
-            self.disable_callback()
+        self.disable_callback()
+        self.terminate_read_temperature_thread = True
+        self.temperature_reading_thread.join()
         TUCAM_Buf_Release(self.TUCAMOPEN.hIdxTUCam)
         TUCAM_Dev_Close(self.TUCAMOPEN.hIdxTUCam)
         TUCAM_Api_Uninit()
@@ -200,7 +201,6 @@ class Camera(object):
         was_streaming = self.is_streaming
 
         self.stop_waiting = True
-        time.sleep(0.1)
         self.is_streaming = False
 
         if hasattr(self, 'callback_thread'):
@@ -218,7 +218,6 @@ class Camera(object):
     def set_temperature(self, temperature):
         t = temperature * 10 + 500
         result = TUCAM_Prop_SetValue(self.TUCAMOPEN.hIdxTUCam, TUCAM_IDPROP.TUIDP_TEMPERATURE.value, c_double(t), 0)
-        print(result)
 
     def get_temperature(self):
         t = c_double(0)
