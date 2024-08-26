@@ -42,6 +42,8 @@ class Camera(object):
         self.timestamp = 0
         self.trigger_mode = None
 
+        self.strobe_delay_us = None
+
         self.image_locked = False
         self.current_frame = None
         self.callback_is_enabled = False
@@ -76,6 +78,8 @@ class Camera(object):
         result = Dcamapi.init()
         self.dcam = Dcam(index)
         result = self.dcam.dev_open(index) and result
+        if result:
+            self.calculate_strobe_delay()
         print('Hamamatsu Camera opened: ' + str(result))
         
     def open_by_sn(self, sn):
@@ -86,6 +90,7 @@ class Camera(object):
                 d = Dcam(i)
                 if sn == d.dev_getstring(DCAM_IDSTR.CAMERAID):
                     self.dcam = d
+                    self.calculate_strobe_delay()
                     print(self.dcam.dev_open(index))
                 else:
                     unopened += 1
@@ -93,6 +98,8 @@ class Camera(object):
             print('Hamamatsu Camera open_by_sn: No camera is opened.')
 
     def close(self):
+        if self.is_streaming:
+            self.stop_streaming()
         self.disable_callback()
         result = self.dcam.dev_close() and Dcamapi.uninit()
         print('Hamamatsu Camera closed: ' + str(result))
@@ -101,6 +108,9 @@ class Camera(object):
         self.new_image_callback_external = function
 
     def enable_callback(self):
+        if self.callback_is_enabled:
+            return
+
         if not self.is_streaming:
             self.start_streaming()
 
@@ -130,6 +140,7 @@ class Camera(object):
             return
 
         self.current_frame = image
+
         self.frame_ID_software += 1
         self.frame_ID += 1 
 
@@ -151,6 +162,7 @@ class Camera(object):
             self.stop_streaming()
 
         self.stop_waiting = True
+        time.sleep(0.2)
         self.callback_thread.join()
         del self.callback_thread
         self.callback_is_enabled = False
@@ -166,17 +178,42 @@ class Camera(object):
             self.exposure_time = exposure_time
 
     def set_continuous_acquisition(self):
+        was_streaming = False
+        if self.is_streaming:
+            was_streaming = True
+            self.stop_streaming()
+
         if self.dcam.prop_setvalue(DCAM_IDPROP.TRIGGERSOURCE, DCAMPROP.TRIGGERSOURCE.INTERNAL):
-            self.trigger_mode = TriggerMode.SOFTWARE
+            self.trigger_mode = TriggerMode.CONTINUOUS
+
+        if was_streaming:
+            self.start_streaming()
 
     def set_software_triggered_acquisition(self):
+        was_streaming = False
+        if self.is_streaming:
+            was_streaming = True
+            self.stop_streaming()
+
         if self.dcam.prop_setvalue(DCAM_IDPROP.TRIGGERSOURCE, DCAMPROP.TRIGGERSOURCE.SOFTWARE):
             self.trigger_mode = TriggerMode.SOFTWARE
 
+        if was_streaming:
+            self.start_streaming()
+
     def set_hardware_triggered_acquisition(self):
+        was_streaming = False
+        if self.is_streaming:
+            was_streaming = True
+            self.stop_streaming()
+
+        self.dcam.prop_setvalue(DCAM_IDPROP.TRIGGERPOLARITY, DCAMPROP.TRIGGERPOLARITY.POSITIVE)
         if self.dcam.prop_setvalue(DCAM_IDPROP.TRIGGERSOURCE, DCAMPROP.TRIGGERSOURCE.EXTERNAL):
             self.frame_ID_offset_hardware_trigger = None
             self.trigger_mode = TriggerMode.HARDWARE
+
+        if was_streaming:
+            self.start_streaming()
 
     def set_pixel_format(self, pixel_format):
         was_streaming = False
@@ -217,7 +254,7 @@ class Camera(object):
 
             print('-NG: Dcam.wait_event() fails with error {}'.format(dcamerr))
         
-    def start_streaming(self, buffer_frame_num=1):
+    def start_streaming(self, buffer_frame_num=5):
         if self.is_streaming:
             return
         if self.dcam.buf_alloc(buffer_frame_num):
@@ -237,7 +274,48 @@ class Camera(object):
             print('Hamamatsu Camera cannot stop streaming')
 
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
-        pass
+        if offset_x is not None:
+            ROI_offset_x = 2*(offset_x//2)
+        else:
+            ROI_offset_x = self.ROI_offset_x
+
+        if offset_y is not None:
+            ROI_offset_y = 2*(offset_y//2)
+        else:
+            ROI_offset_y = self.ROI_offset_y
+
+        if width is not None:
+            ROI_width = max(16,2*(width//2))
+        else:
+            ROI_width = self.ROI_width
+
+        if height is not None:
+            ROI_height = max(16,2*(height//2))
+        else:
+            ROI_height = self.ROI_height
+
+        was_streaming = False
+        if self.is_streaming:
+            was_streaming = True
+            self.stop_streaming()
+
+        result = self.dcam.prop_setvalue(DCAM_IDPROP.SUBARRAYMODE, DCAMPROP.MODE.ON)
+
+        result = result and self.dcam.prop_setvalue(DCAM_IDPROP.SUBARRAYHPOS, ROI_offset_x)
+        result = result and self.dcam.prop_setvalue(DCAM_IDPROP.SUBARRAYHSIZE, ROI_width)
+        result = result and self.dcam.prop_setvalue(DCAM_IDPROP.SUBARRAYVPOS, ROI_offset_y)
+        result = result and self.dcam.prop_setvalue(DCAM_IDPROP.SUBARRAYVSIZE, ROI_height)
+
+        if result:
+            self.calculate_strobe_delay()
+        else:
+            print("Setting ROI failed.")
+
+        if was_streaming:
+            self.start_streaming()
+
+    def calculate_strobe_delay(self):
+        self.strobe_delay_us = int(self.dcam.prop_getvalue(DCAM_IDPROP.TIMING_GLOBALEXPOSUREDELAY) * 1000000)   # s to us
 
 
 class Camera_Simulation(object):
