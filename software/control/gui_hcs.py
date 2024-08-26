@@ -366,7 +366,9 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         if ENABLE_RECORDING:
-            self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording") 
+            self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        #self.recordTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.recordTabWidget)) # to readjust size by available space 
+        #self.resizeCurrentTab(self.recordTabWidget)
 
         self.cameraTabWidget = QTabWidget()
         if ENABLE_OBJECTIVE_PIEZO:
@@ -381,6 +383,8 @@ class OctopiGUI(QMainWindow):
         # self.cameraTabWidget.addTab(self.sampleSettingsWidget, "Sample")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
+        self.cameraTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.cameraTabWidget))
+        self.resizeCurrentTab(self.cameraTabWidget)
 
         layout = QVBoxLayout()
         layout.addWidget(self.sampleSettingsWidget)
@@ -401,8 +405,6 @@ class OctopiGUI(QMainWindow):
             layout.addWidget(self.stitcherWidget)
             self.stitcherWidget.hide()
         layout.addWidget(self.navigationViewer)
-        layout.addStretch()
-        # layout.addWidget(self.sampleSettingsWidget)
 
         # transfer the layout to the central widget
         self.centralWidget = QWidget()
@@ -416,18 +418,7 @@ class OctopiGUI(QMainWindow):
             dock_display.addWidget(self.imageDisplayTabs)
             dock_display.addWidget(self.navigationBarWidget)
             dock_display.setStretch(x=100,y=100)
-            # # Create a vertical layout for imageDisplayTabs and NavigationBarWidget
-            # display_layout = QVBoxLayout()
-            # display_layout.addWidget(self.imageDisplayTabs)
-            # display_layout.addWidget(self.navigationBarWidget)
-            
-            # # Create a widget to hold the layout
-            # display_widget = QWidget()
-            # display_widget.setLayout(display_layout)
-            
-            # # Add the combined widget to the dock
-            # dock_display.addWidget(display_widget)
-            # dock_display.setStretch(x=100,y=100)
+
             self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation = False)
             self.dock_wellSelection.showTitleBar()
             if not USE_NAPARI_WELL_SELECTION:
@@ -437,6 +428,7 @@ class OctopiGUI(QMainWindow):
             dock_controlPanel = dock.Dock('Controls', autoOrientation = False)
             # dock_controlPanel.showTitleBar()
             dock_controlPanel.addWidget(self.centralWidget)
+            #set central widget stretch 
             dock_controlPanel.setStretch(x=1,y=None)
             dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
 
@@ -457,7 +449,7 @@ class OctopiGUI(QMainWindow):
             self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
             self.tabbedImageDisplayWindow.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
             desktopWidget = QDesktopWidget()
-            width = 0.96*desktopWidget.height()
+            width = 0.96 * desktopWidget.height()
             height = width
             self.tabbedImageDisplayWindow.setFixedSize(int(width), int(height))
             self.tabbedImageDisplayWindow.show()
@@ -734,6 +726,15 @@ class OctopiGUI(QMainWindow):
             acquisitionWidget.emit_selected_channels()
         except AttributeError:
             pass
+
+    def resizeCurrentTab(self, tabWidget):
+        current_widget = tabWidget.currentWidget()
+        if current_widget:
+            total_height = current_widget.sizeHint().height()  + tabWidget.tabBar().height()
+            tabWidget.resize(tabWidget.width(), total_height)
+            tabWidget.setMinimumHeight(total_height)
+            tabWidget.updateGeometry()
+            self.updateGeometry()
 
     def onDisplayTabChanged(self, index):
         # activate the corresponding napari widget on tab changes

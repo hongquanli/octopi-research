@@ -75,7 +75,7 @@ class NL5Widget(QWidget):
         layout1.addWidget(self.line_speed_input)
         
         # FOV X control
-        layout1.addWidget(QLabel("FOV"))
+        layout1.addWidget(QLabel(" FOV"))
         # layout1.addWidget(QLabel("FOV X"))
         self.fov_x_input = QSpinBox()
         self.fov_x_input.setMaximum(4000)

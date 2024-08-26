@@ -336,7 +336,7 @@ class SpinningDiskConfocalWidget(QWidget):
             self.btn_toggle_widefield.setText("Switch to Widefield")
 
         if self.config_manager is not None:
-            if self.disk_position_state ==1:
+            if self.disk_position_state == 1:
                 self.config_manager.config_filename = "confocal_configurations.xml"
             else:
                 self.config_manager.config_filename = "widefield_configurations.xml"
@@ -350,18 +350,18 @@ class SpinningDiskConfocalWidget(QWidget):
         self.spinbox_illumination_iris.valueChanged.connect(self.update_illumination_iris)
         self.slider_emission_iris.valueChanged.connect(self.update_emission_iris)
         self.spinbox_emission_iris.valueChanged.connect(self.update_emission_iris)
-        self.dropdown_filter_slider.currentIndexChanged.connect(self.set_filter_slider)
+        self.dropdown_filter_slider.valueChanged.connect(self.set_filter_slider)
 
     def init_ui(self):
 
         emissionFilterLayout = QHBoxLayout()
-        emissionFilterLayout.addWidget(QLabel("Emission Filter Position"))
+        emissionFilterLayout.addWidget(QLabel("Emission Position"))
         self.dropdown_emission_filter = QComboBox(self)
         self.dropdown_emission_filter.addItems([str(i+1) for i in range(8)])
         emissionFilterLayout.addWidget(self.dropdown_emission_filter)
 
         dichroicLayout = QHBoxLayout()
-        dichroicLayout.addWidget(QLabel("Dichroic Filter Position"))
+        dichroicLayout.addWidget(QLabel("Dichroic Position"))
         self.dropdown_dichroic = QComboBox(self)
         self.dropdown_dichroic.addItems([str(i+1) for i in range(5)])
         dichroicLayout.addWidget(self.dropdown_dichroic)
@@ -385,24 +385,14 @@ class SpinningDiskConfocalWidget(QWidget):
         emissionIrisLayout.addWidget(self.spinbox_emission_iris)
 
         filterSliderLayout = QHBoxLayout()
-        filterSliderLayout.addWidget(QLabel("Filter Slider Position"))
-        self.dropdown_filter_slider = QComboBox(self)
-        self.dropdown_filter_slider.addItems(["0", "1", "2", "3"])
+        filterSliderLayout.addWidget(QLabel("Filter Slider"))
+        #self.dropdown_filter_slider = QComboBox(self)
+        #self.dropdown_filter_slider.addItems(["0", "1", "2", "3"])
+        self.dropdown_filter_slider = QSlider(Qt.Horizontal)
+        self.dropdown_filter_slider.setRange(0, 3)
+        self.dropdown_filter_slider.setTickPosition(QSlider.TicksBelow)
+        self.dropdown_filter_slider.setTickInterval(1)
         filterSliderLayout.addWidget(self.dropdown_filter_slider)
-
-        dropdownLayout = QVBoxLayout()
-
-        if self.xlight.has_dichroic_filters_wheel:
-            dropdownLayout.addLayout(dichroicLayout)
-        if self.xlight.has_emission_filters_wheel:
-            dropdownLayout.addLayout(emissionFilterLayout)
-        if self.xlight.has_dichroic_filter_slider:
-            dropdownLayout.addLayout(filterSliderLayout)
-        if self.xlight.has_illumination_iris_diaphragm:
-            dropdownLayout.addLayout(illuminationIrisLayout)
-        if self.xlight.has_emission_iris_diaphragm:
-            dropdownLayout.addLayout(emissionIrisLayout)
-        dropdownLayout.addStretch()
 
         self.btn_toggle_widefield = QPushButton("Switch to Confocal")
 
@@ -410,12 +400,31 @@ class SpinningDiskConfocalWidget(QWidget):
         self.btn_toggle_motor.setCheckable(True)
 
         layout = QGridLayout(self)
-        layout.addWidget(self.btn_toggle_motor,0,0)
 
-        layout.addWidget(self.btn_toggle_widefield,0,1)
-        layout.addLayout(dichroicLayout,1,0)
-        layout.addLayout(emissionFilterLayout,1,1)
+        # row 1
+        if self.xlight.has_dichroic_filter_slider:
+            layout.addLayout(filterSliderLayout,0,0,1,2)
+        layout.addWidget(self.btn_toggle_motor,0,2)
+        layout.addWidget(self.btn_toggle_widefield,0,3)
+
+        # row 2
+        if self.xlight.has_dichroic_filters_wheel:
+            layout.addWidget(QLabel("Dichroic Filter Wheel"),1,0)
+            layout.addWidget(self.dropdown_dichroic,1,1)
+        if self.xlight.has_illumination_iris_diaphragm:
+            layout.addLayout(illuminationIrisLayout,1,2,1,2)
+
+        # row 3
+        if self.xlight.has_emission_filters_wheel:
+            layout.addWidget(QLabel("Emission Filter Wheel"),2,0)
+            layout.addWidget(self.dropdown_emission_filter,2,1)
+        if self.xlight.has_emission_iris_diaphragm:
+            layout.addLayout(emissionIrisLayout,2,2,1,2)
+
+        layout.setColumnStretch(2,1)
+        layout.setColumnStretch(3,1)
         self.setLayout(layout)
+
 
     def disable_all_buttons(self):
         self.dropdown_emission_filter.setEnabled(False)
@@ -494,7 +503,7 @@ class SpinningDiskConfocalWidget(QWidget):
 
     def set_filter_slider(self, index):
         self.disable_all_buttons()
-        position = self.dropdown_filter_slider.currentText()
+        position = str(self.dropdown_filter_slider.value())
         self.xlight.set_filter_slider(position)
         self.enable_all_buttons()
 
@@ -729,7 +738,7 @@ class CameraSettingsWidget(QFrame):
             self.dropdown_res = QComboBox()
             self.dropdown_res.setEnabled(False)
             pass
-        format_line.addWidget(QLabel("FOV Resolution"),1)
+        format_line.addWidget(QLabel(" FOV Resolution"),1)
         format_line.addWidget(self.dropdown_res,1)
         format_line.addStretch()
         self.camera_layout.addLayout(format_line)
@@ -1570,56 +1579,69 @@ class NavigationBarWidget(QWidget):
 
     def initUI(self):
         layout = QHBoxLayout()
-        layout.setSpacing(10)
-        #layout.setContentsMargins(5, 0, 5, 0)  # Reduce vertical margins to make it thinner
+        layout.setContentsMargins(5, 2, 5, 5)  # Reduce vertical margins to make it thinner
 
         # Move to Loading Position button
         self.btn_load_slide = QPushButton('Move To Loading Position')
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
         self.btn_load_slide.clicked.connect(self.switch_position)
-        if self.slidePositionController is not None:
-            layout.addWidget(self.btn_load_slide)
-
-        # Home Z and Zero Z
-        if self.add_z_buttons:
-            self.btn_home_Z = QPushButton('Home Z')
-            self.btn_home_Z.clicked.connect(self.home_z)
-            layout.addWidget(self.btn_home_Z)
-
-            self.btn_zero_Z = QPushButton('Zero Z')
-            self.btn_zero_Z.clicked.connect(self.zero_z)
-            layout.addWidget(self.btn_zero_Z)
 
         # Click to Move checkbox
         self.checkbox_clickToMove = QCheckBox('Click to Move')
         self.checkbox_clickToMove.setChecked(False)
-        if self.navigationController is not None:
-            layout.addWidget(self.checkbox_clickToMove)
+
+        # Home Z and Zero Z
+        if self.add_z_buttons:
+            if self.slidePositionController is not None:
+                layout.addWidget(self.btn_load_slide)
+                layout.addSpacing(10)
+
+            self.btn_home_Z = QPushButton('Home Z')
+            self.btn_home_Z.clicked.connect(self.home_z)
+            layout.addWidget(self.btn_home_Z)
+            layout.addSpacing(20)
+
+            self.btn_zero_Z = QPushButton('Zero Z')
+            self.btn_zero_Z.clicked.connect(self.zero_z)
+            layout.addWidget(self.btn_zero_Z)
+            layout.addSpacing(20)
+
+            if self.navigationController is not None:
+                layout.addWidget(self.checkbox_clickToMove)
+                layout.addSpacing(10)
             
         layout.addStretch(1)
 
         # X position
         x_label = QLabel('X:')
         self.label_Xpos = QLabel('00.000 mm')
-        self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.label_Xpos.setFixedWidth(self.label_Xpos.sizeHint().width())
+        #self.label_Xpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
         # Y position
         y_label = QLabel('Y:')
         self.label_Ypos = QLabel('00.000 mm')
-        self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.label_Ypos.setFixedWidth(self.label_Ypos.sizeHint().width())
+        #self.label_Ypos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
         # Z position
         z_label = QLabel('Z:')
         self.label_Zpos = QLabel('0000.000 μm')
-        self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.label_Zpos.setFixedWidth(self.label_Zpos.sizeHint().width())
+        #self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
         # Add widgets to layout
+        layout.addSpacing(10)
         layout.addWidget(x_label)
         layout.addWidget(self.label_Xpos)
+        layout.addSpacing(10)
         layout.addWidget(y_label)
         layout.addWidget(self.label_Ypos)
+        layout.addSpacing(10)
         layout.addWidget(z_label)
         layout.addWidget(self.label_Zpos)
+        layout.addSpacing(10)
+        layout.addStretch(1)
 
         self.setLayout(layout)
         self.setFixedHeight(self.sizeHint().height())  # Set fixed height to make it as thin as possible
@@ -4095,14 +4117,14 @@ class NapariLiveWidget(QWidget):
         if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
             self.viewer.window._qt_viewer.layerButtons.hide()
 
-    # def updateHistogram(self, layer):
-    #     if self.histogram_widget is not None:
-    #         self.histogram_widget.setImageItem(layer.data)
     def updateHistogram(self, layer):
         if self.histogram_widget is not None and layer.data is not None:
             self.pg_image_item.setImage(layer.data, autoLevels=False)
             self.histogram_widget.setLevels(*layer.contrast_limits)
             self.histogram_widget.setHistogramRange(layer.data.min(), layer.data.max())
+            
+            # Set the histogram widget's region to match the layer's contrast limits
+            self.histogram_widget.region.setRegion(layer.contrast_limits)
             
             # Update colormap only if it has changed
             if hasattr(self, 'last_colormap') and self.last_colormap != layer.colormap.name:
@@ -4115,21 +4137,6 @@ class NapariLiveWidget(QWidget):
         return pg.ColorMap(positions, colors)
 
     def initControlWidgets(self, show_trigger_options, show_display_options, show_autolevel, autolevel):
-
-        # self.pg_image_item = pg.ImageItem()
-        # self.histogram_widget = pg.HistogramLUTWidget(image=self.pg_image_item)
-        # self.histogram_widget.setHistogramRange(0, 255)  # Adjust based on your typical image range
-        
-        # histogram_view = pg.GraphicsView()
-        # histogram_view.setCentralItem(self.histogram_widget)
-        # histogram_view.setFixedWidth(150)  # Adjust width as needed
-        
-        # self.histogram_dock = self.viewer.window.add_dock_widget(
-        #     histogram_view, area='right', name="histogram"
-        # )
-        # self.histogram_dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
-        # self.histogram_dock.setTitleBarWidget(QWidget())
-
         # Initialize histogram widget
         self.pg_image_item = pg.ImageItem()
         self.histogram_widget = pg.HistogramLUTWidget(image=self.pg_image_item)
@@ -4139,6 +4146,8 @@ class NapariLiveWidget(QWidget):
         )
         self.histogram_dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         self.histogram_dock.setTitleBarWidget(QWidget())
+        self.histogram_widget.region.sigRegionChanged.connect(self.on_histogram_region_changed)
+        self.histogram_widget.region.sigRegionChangeFinished.connect(self.on_histogram_region_change_finished)
 
         # Microscope Configuration
         self.dropdown_modeSelection = QComboBox()
@@ -4258,9 +4267,6 @@ class NapariLiveWidget(QWidget):
         control_layout = QVBoxLayout()
 
         # Add widgets to layout
-        # config_label = QLabel('Channel')
-        # top_row = make_row(config_label, self.dropdown_modeSelection)
-        # control_layout.addLayout(top_row)
         control_layout.addWidget(self.dropdown_modeSelection)
         control_layout.addWidget(self.btn_live)
         control_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -4340,6 +4346,17 @@ class NapariLiveWidget(QWidget):
         print("Items in window_menu:")
         for action in self.viewer.window.window_menu.actions():
             print(action.text())
+
+    def on_histogram_region_changed(self):
+        if self.live_configuration.name:
+            min_val, max_val = self.histogram_widget.region.getRegion()
+            self.updateContrastLimits(min_val, max_val)
+
+    def on_histogram_region_change_finished(self):
+        if self.live_configuration.name:
+            min_val, max_val = self.histogram_widget.region.getRegion()
+            self.updateContrastLimits(min_val, max_val)
+            self.signal_layer_contrast_limits.emit(self.live_configuration.name, min_val, max_val)
 
     def toggle_live(self, pressed):
         if pressed:
@@ -4461,7 +4478,7 @@ class NapariLiveWidget(QWidget):
             self.live_configuration.name = self.liveController.currentConfiguration.name
         rgb = len(image.shape) >= 3
 
-        if not rgb and not self.init_live:
+        if not rgb and not self.init_live or 'Live View' not in self.viewer.layers:
             self.initLiveLayer(self.live_configuration.name, image.shape[0], image.shape[1], image.dtype, rgb)
             self.init_live = True
             self.init_live_rgb = False
@@ -4531,6 +4548,11 @@ class NapariLiveWidget(QWidget):
         elif np.issubdtype(dtype, np.floating):
             return (0.0, 1.0)
         return (0,1)
+
+    def updateContrastLimits(self, min_val, max_val):
+        self.contrast_limits[self.live_configuration.name] = (min_val, max_val)
+        if "Live View" in self.viewer.layers:
+            self.viewer.layers["Live View"].contrast_limits = (min_val, max_val)
 
     def updateAllContrastLimits(self, image_dtype):
         old_max_limits = self.getContrastLimits(self.dtype)
