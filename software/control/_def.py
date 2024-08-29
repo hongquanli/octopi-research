@@ -588,115 +588,12 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
 OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 
-##########################################################
-#### start of loading machine specific configurations ####
-##########################################################
-CACHED_CONFIG_FILE_PATH = None
-
-# Piezo configuration items
-ENABLE_OBJECTIVE_PIEZO = False
-# the value of OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
-OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
-OBJECTIVE_PIEZO_RANGE_UM = 300
-OBJECTIVE_PIEZO_HOME_UM = 20
-
-MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = True
-MULTIPOINT_PIEZO_DELAY_MS = 20
-MULTIPOINT_PIEZO_UPDATE_DISPLAY = True
-
-AWB_RATIOS_R = 1.375
-AWB_RATIOS_G = 1
-AWB_RATIOS_B = 1.4141
-
-try:
-    with open("cache/config_file_path.txt", 'r') as file:
-        for line in file:
-            CACHED_CONFIG_FILE_PATH = line
-            break
-except FileNotFoundError:
-    CACHED_CONFIG_FILE_PATH = None
-
-config_files = glob.glob('.' + '/' + 'configuration*.ini')
-if config_files:
-    if len(config_files) > 1:
-        if CACHED_CONFIG_FILE_PATH in config_files:
-            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
-            config_files = [CACHED_CONFIG_FILE_PATH]
-        else:
-            print('multiple machine configuration files found, the program will exit')
-            sys.exit(1)
-    print('load machine-specific configuration')
-    #exec(open(config_files[0]).read())
-    cfp = ConfigParser()
-    cfp.read(config_files[0])
-    var_items = list(locals().keys())
-    for var_name in var_items:
-        if type(locals()[var_name]) is type:
-            continue
-        varnamelower = var_name.lower()
-        if varnamelower not in cfp.options("GENERAL"):
-            continue
-        value = cfp.get("GENERAL",varnamelower)
-        actualvalue = conf_attribute_reader(value)
-        locals()[var_name] = actualvalue
-    for classkey in var_items:
-        myclass = None
-        classkeyupper = classkey.upper()
-        pop_items = None
-        try:
-            pop_items = cfp.items(classkeyupper)
-        except:
-            continue
-        if type(locals()[classkey]) is not type:
-            continue
-        myclass = locals()[classkey]
-        populate_class_from_dict(myclass,pop_items)
-    with open("cache/config_file_path.txt", 'w') as file:
-        file.write(config_files[0])
-    CACHED_CONFIG_FILE_PATH = config_files[0]
-else:
-    print('configuration*.ini file not found, defaulting to legacy configuration')
-    config_files = glob.glob('.' + '/' + 'configuration*.txt')
-    if config_files:
-        if len(config_files) > 1:
-            print('multiple machine configuration files found, the program will exit')
-            sys.exit(1)
-        print('load machine-specific configuration')
-        exec(open(config_files[0]).read())
-    else:
-        print('machine-specific configuration not present, the program will exit')
-        sys.exit(1)
-##########################################################
-##### end of loading machine specific configurations #####
-##########################################################
-
-# objective piezo
-if ENABLE_OBJECTIVE_PIEZO == False:
-    MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = False
-
-# saving path
-if not (DEFAULT_SAVING_PATH.startswith(str(Path.home()))):
-    DEFAULT_SAVING_PATH = str(Path.home())+"/"+DEFAULT_SAVING_PATH.strip("/")
-
-# limit switch
-X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.X_HOME
-Y_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Y_HOME
-Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Z_HOME
-
-# home safety margin with (um) unit
-X_HOME_SAFETY_MARGIN_UM = 50
-Y_HOME_SAFETY_MARGIN_UM = 50
-Z_HOME_SAFETY_MARGIN_UM = 600 
-
-if ENABLE_TRACKING:
-    DEFAULT_DISPLAY_CROP = Tracking.DEFAULT_DISPLAY_CROP
-
 WELLPLATE_FORMAT_SETTINGS = {
     6: {
         'a1_x_mm': 24.55,
         'a1_y_mm': 23.01,
-        'a1_x_pixel': 340,
-        'a1_y_pixel': 318,
+        'a1_x_pixel': 290,
+        'a1_y_pixel': 273,
         'well_size_mm': 34.94,
         'well_spacing_mm': 39.2, # 39.2
         'number_of_skip': 0,
@@ -767,3 +664,125 @@ A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm'] # measured stag
 A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm'] # measured stage position - to update
 A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel'] # coordinate on the png
 A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel'] # coordinate on the png
+
+
+##########################################################
+#### start of loading machine specific configurations ####
+##########################################################
+CACHED_CONFIG_FILE_PATH = None
+
+# Piezo configuration items
+ENABLE_OBJECTIVE_PIEZO = False
+# the value of OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
+OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
+OBJECTIVE_PIEZO_RANGE_UM = 300
+OBJECTIVE_PIEZO_HOME_UM = 20
+
+MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = True
+MULTIPOINT_PIEZO_DELAY_MS = 20
+MULTIPOINT_PIEZO_UPDATE_DISPLAY = True
+
+AWB_RATIOS_R = 1.375
+AWB_RATIOS_G = 1
+AWB_RATIOS_B = 1.4141
+
+try:
+    with open("cache/config_file_path.txt", 'r') as file:
+        for line in file:
+            CACHED_CONFIG_FILE_PATH = line
+            break
+except FileNotFoundError:
+    CACHED_CONFIG_FILE_PATH = None
+
+config_files = glob.glob('.' + '/' + 'configuration*.ini')
+if config_files:
+    if len(config_files) > 1:
+        if CACHED_CONFIG_FILE_PATH in config_files:
+            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            config_files = [CACHED_CONFIG_FILE_PATH]
+        else:
+            print('multiple machine configuration files found, the program will exit')
+            sys.exit(1)
+    print('load machine-specific configuration')
+    #exec(open(config_files[0]).read())
+    cfp = ConfigParser()
+    cfp.read(config_files[0])
+    var_items = list(locals().keys())
+    for var_name in var_items:
+        if type(locals()[var_name]) is type:
+            continue
+        varnamelower = var_name.lower()
+        if varnamelower not in cfp.options("GENERAL"):
+            continue
+        value = cfp.get("GENERAL",varnamelower)
+        actualvalue = conf_attribute_reader(value)
+        locals()[var_name] = actualvalue
+    for classkey in var_items:
+        myclass = None
+        classkeyupper = classkey.upper()
+        pop_items = None
+        try:
+            pop_items = cfp.items(classkeyupper)
+        except:
+            continue
+        if type(locals()[classkey]) is not type:
+            continue
+        myclass = locals()[classkey]
+        populate_class_from_dict(myclass,pop_items)
+
+    if 'WELLPLATE_FORMAT_SETTINGS' in cfp.sections():
+        for key, value in cfp['WELLPLATE_FORMAT_SETTINGS'].items():
+            plate_size, setting = key.split('.')
+            plate_size = int(plate_size)
+            if plate_size in WELLPLATE_FORMAT_SETTINGS:
+                WELLPLATE_FORMAT_SETTINGS[plate_size][setting] = conf_attribute_reader(value)
+
+        # After processing the INI file, update the derived values:
+        if WELLPLATE_FORMAT in WELLPLATE_FORMAT_SETTINGS:
+            NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip']
+            WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
+            WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
+            A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm']
+            A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm']
+            A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel']
+            A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel']
+    
+    with open("cache/config_file_path.txt", 'w') as file:
+        file.write(config_files[0])
+    CACHED_CONFIG_FILE_PATH = config_files[0]
+else:
+    print('configuration*.ini file not found, defaulting to legacy configuration')
+    config_files = glob.glob('.' + '/' + 'configuration*.txt')
+    if config_files:
+        if len(config_files) > 1:
+            print('multiple machine configuration files found, the program will exit')
+            sys.exit(1)
+        print('load machine-specific configuration')
+        exec(open(config_files[0]).read())
+    else:
+        print('machine-specific configuration not present, the program will exit')
+        sys.exit(1)
+##########################################################
+##### end of loading machine specific configurations #####
+##########################################################
+
+# objective piezo
+if ENABLE_OBJECTIVE_PIEZO == False:
+    MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = False
+
+# saving path
+if not (DEFAULT_SAVING_PATH.startswith(str(Path.home()))):
+    DEFAULT_SAVING_PATH = str(Path.home())+"/"+DEFAULT_SAVING_PATH.strip("/")
+
+# limit switch
+X_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.X_HOME
+Y_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Y_HOME
+Z_HOME_SWITCH_POLARITY = LIMIT_SWITCH_POLARITY.Z_HOME
+
+# home safety margin with (um) unit
+X_HOME_SAFETY_MARGIN_UM = 50
+Y_HOME_SAFETY_MARGIN_UM = 50
+Z_HOME_SAFETY_MARGIN_UM = 600 
+
+if ENABLE_TRACKING:
+    DEFAULT_DISPLAY_CROP = Tracking.DEFAULT_DISPLAY_CROP

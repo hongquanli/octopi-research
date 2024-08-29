@@ -55,6 +55,7 @@ class Stitcher(QThread, QObject):
         print(self.is_reversed)
         self.is_wellplate = IS_HCS
         self.flexible = flexible
+        self.pixel_size_um = 1.0
         self.init_stitching_parameters()
         # self.overlap_percent = Acquisition.OVERLAP_PERCENT
 

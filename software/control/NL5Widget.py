@@ -64,7 +64,8 @@ class NL5Widget(QWidget):
         self.exposure_delay_input.setSuffix(' ms')
         self.exposure_delay_input.valueChanged.connect(self.update_exposure_delay)
         layout1.addWidget(self.exposure_delay_input)
-        
+        layout1.addStretch()
+
         # Line speed control
         layout1.addWidget(QLabel("Line Speed"))
         self.line_speed_input = QSpinBox()
@@ -73,9 +74,11 @@ class NL5Widget(QWidget):
         self.line_speed_input.setSuffix(' mrad/s')
         self.line_speed_input.valueChanged.connect(self.update_line_speed)
         layout1.addWidget(self.line_speed_input)
+        layout1.addStretch()
+
         
         # FOV X control
-        layout1.addWidget(QLabel(" FOV"))
+        layout1.addWidget(QLabel("FOV"))
         # layout1.addWidget(QLabel("FOV X"))
         self.fov_x_input = QSpinBox()
         self.fov_x_input.setMaximum(4000)

@@ -821,6 +821,10 @@ class NavigationController(QObject):
             self.move_y(delta_y)
             self.microcontroller.wait_till_operation_is_completed()
 
+    def move_from_click_mosaic(self, x_mm, y_mm):
+        if self.click_to_move:
+            self.move_to(x_mm, y_mm)
+
     def move_to_cached_position(self):
         if not os.path.isfile("cache/last_coords.txt"):
             return
@@ -2758,7 +2762,6 @@ class MultiPointController(QObject):
 
             elif USE_NAPARI_FOR_MOSAIC_DISPLAY and self.coordinate_dict is not None:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMosaicDisplayWidget)
-                # self.parent.imageDisplayTabs. # disable naparitileddisplaywidget tab
 
             elif USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariTiledDisplayWidget)

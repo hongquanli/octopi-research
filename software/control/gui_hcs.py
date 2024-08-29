@@ -327,7 +327,7 @@ class OctopiGUI(QMainWindow):
         # image display tabs
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.configurationManager, self.wellSelectionWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.wellSelectionWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -367,8 +367,8 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         if ENABLE_RECORDING:
             self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-        #self.recordTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.recordTabWidget)) # to readjust size by available space 
-        #self.resizeCurrentTab(self.recordTabWidget)
+        self.recordTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.recordTabWidget))
+        self.resizeCurrentTab(self.recordTabWidget)
 
         self.cameraTabWidget = QTabWidget()
         if ENABLE_OBJECTIVE_PIEZO:
@@ -377,25 +377,25 @@ class OctopiGUI(QMainWindow):
             self.cameraTabWidget.addTab(self.nl5Wdiget,"NL5")
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.cameraTabWidget.addTab(self.spinningDiskConfocalWidget,"Confocal")
-
-        self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
-        self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
-        # self.cameraTabWidget.addTab(self.sampleSettingsWidget, "Sample")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
+        self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
+        self.cameraTabWidget.addTab(self.navigationWidget,"Stages")
+        self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
         self.cameraTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.cameraTabWidget))
         self.resizeCurrentTab(self.cameraTabWidget)
 
         layout = QVBoxLayout()
-        layout.addWidget(self.sampleSettingsWidget)
+        #layout.addWidget(self.sampleSettingsWidget)
         if USE_NAPARI_FOR_LIVE_CONTROL:
             layout.addWidget(self.navigationWidget)
             layout.addWidget(self.cameraTabWidget)
         else:
-            self.microscopeControlTabWidget = QTabWidget()
-            self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
-            self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
-            layout.addWidget(self.microscopeControlTabWidget)
+            #self.microscopeControlTabWidget = QTabWidget()
+            #self.microscopeControlTabWidget.addTab(self.liveControlWidget,"Live Controls")
+            #self.microscopeControlTabWidget.addTab(self.navigationWidget,"Stages")
+            #layout.addWidget(self.microscopeControlTabWidget)
+            layout.addWidget(self.liveControlWidget)
             layout.addWidget(self.cameraTabWidget)
             
         if SHOW_DAC_CONTROL:
@@ -405,6 +405,7 @@ class OctopiGUI(QMainWindow):
             layout.addWidget(self.stitcherWidget)
             self.stitcherWidget.hide()
         layout.addWidget(self.navigationViewer)
+        layout.addWidget(self.sampleSettingsWidget)
 
         # transfer the layout to the central widget
         self.centralWidget = QWidget()
@@ -507,6 +508,7 @@ class OctopiGUI(QMainWindow):
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
+        self.liveControlWidget.signal_start_live.connect(self.onStartLive)
         self.liveControlWidget.update_camera_settings()
 
         # load vs scan position switching
@@ -593,7 +595,7 @@ class OctopiGUI(QMainWindow):
                 self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
 
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
-            self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_to)
+            self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
             self.napariMosaicDisplayWidget.signal_clear_viewer.connect(self.navigationViewer.clear_slide)
             # self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
 
@@ -636,7 +638,7 @@ class OctopiGUI(QMainWindow):
                 self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = True, include_camera_auto_wb_setting = False)
             else:
                 self.cameraSettingWidget_focus_camera = widgets.CameraSettingsWidget(self.camera_focus, include_gain_exposure_time = False, include_camera_temperature_setting = False, include_camera_auto_wb_setting = True)
-            self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera,show_display_options=True)
+            self.liveControlWidget_focus_camera = widgets.LiveControlWidget(self.streamHandler_focus_camera,self.liveController_focus_camera,self.configurationManager_focus_camera) #,show_display_options=True)
             self.waveformDisplay = widgets.WaveformDisplay(N=1000,include_x=True,include_y=False)
             self.displacementMeasurementWidget = widgets.DisplacementMeasurementWidget(self.displacementMeasurementController,self.waveformDisplay)
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
@@ -732,7 +734,7 @@ class OctopiGUI(QMainWindow):
         if current_widget:
             total_height = current_widget.sizeHint().height()  + tabWidget.tabBar().height()
             tabWidget.resize(tabWidget.width(), total_height)
-            tabWidget.setMinimumHeight(total_height)
+            tabWidget.setMaximumHeight(total_height)
             tabWidget.updateGeometry()
             self.updateGeometry()
 
@@ -830,6 +832,9 @@ class OctopiGUI(QMainWindow):
             self.stitcherWidget.show()
         else:
             self.stitcherWidget.hide()
+
+    def onStartLive(self):
+        self.imageDisplayTabs.setCurrentIndex(0)
 
     def startStitcher(self, acquisition_path):
         acquisitionWidget = self.recordTabWidget.currentWidget()
