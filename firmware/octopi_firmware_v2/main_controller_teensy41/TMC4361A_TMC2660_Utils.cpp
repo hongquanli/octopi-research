@@ -574,8 +574,6 @@ void tmc4361A_tmc2660_config(TMC4361ATypeDef *tmc4361A, float tmc2660_cscale, fl
 */
 void tmc4361A_enableLimitSwitch(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uint8_t which, uint8_t flipped) {
   polarity &= 1; // mask off unwanted bits
-  uint32_t pol_datagram;
-  uint32_t en_datagram;
   // Handle case where the switches are flipped
   if (flipped != 0) {
     tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_INVERT_STOP_DIRECTION_MASK);
@@ -584,19 +582,23 @@ void tmc4361A_enableLimitSwitch(TMC4361ATypeDef *tmc4361A, uint8_t polarity, uin
   switch (which) {
     case LEFT_SW:
       // Set whether they are low active (set bit to 0) or high active (1)
-      pol_datagram = (polarity << TMC4361A_POL_STOP_LEFT_SHIFT);
-      en_datagram = TMC4361A_STOP_LEFT_EN_MASK;
-      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, pol_datagram);
-      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, en_datagram);
+      if (polarity)
+      	tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, 1<<TMC4361A_POL_STOP_LEFT_SHIFT);
+      else
+      	tmc4361A_rstBits(tmc4361A, TMC4361A_REFERENCE_CONF, 1<<TMC4361A_POL_STOP_LEFT_SHIFT);
+
+      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_STOP_LEFT_EN_MASK);
       // store position when we hit left bound
       tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_LATCH_X_ON_ACTIVE_L_MASK);
       break;
     case RGHT_SW:
       // Set whether they are low active (set bit to 0) or high active (1)
-      pol_datagram = (polarity << TMC4361A_POL_STOP_RIGHT_SHIFT);
-      en_datagram = TMC4361A_STOP_RIGHT_EN_MASK;
-      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, pol_datagram);
-      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, en_datagram);
+      if (polarity)
+      	tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, 1<<TMC4361A_POL_STOP_RIGHT_SHIFT);
+      else
+      	tmc4361A_rstBits(tmc4361A, TMC4361A_REFERENCE_CONF, 1<<TMC4361A_POL_STOP_RIGHT_SHIFT);
+
+      tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_STOP_RIGHT_EN_MASK);
       // store position when we hit right bound
       tmc4361A_setBits(tmc4361A, TMC4361A_REFERENCE_CONF, TMC4361A_LATCH_X_ON_ACTIVE_R_MASK);
       break;
