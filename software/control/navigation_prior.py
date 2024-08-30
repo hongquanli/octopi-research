@@ -95,8 +95,8 @@ class NavigationController_PriorStage(QObject):
         print("pixel_sign_x, pixel_sign_y", pixel_sign_x, pixel_sign_y)
  
         # move to selected fov
-        self.move_x_to(self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x)
-        self.move_y_to(self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
+        self.move_to(self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x, 
+            self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
 
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -126,8 +126,7 @@ class NavigationController_PriorStage(QObject):
                 delta_x /= 2
                 delta_y /= 2
 
-            self.move_x(delta_x)
-            self.move_y(delta_y)
+            self.move_xy(delta_x, delta_y)
 
     def get_pixel_binning(self):
         try:
@@ -170,14 +169,20 @@ class NavigationController_PriorStage(QObject):
     def move_z(self,delta):
         pass
 
+    def move_xy(self, x_mm, y_mm):
+        self.stage.move_relative_mm(x_mm, y_mm)
+
     def move_x_to(self,delta):
-        self.stage.move_absolute_mm(delta, 0)
+        self.stage.move_absolute_x_mm(delta)
 
     def move_y_to(self,delta):
-        self.stage.move_absolute_mm(0, delta)
+        self.stage.move_absolute_y_mm(delta)
 
     def move_z_to(self,delta):
         pass
+
+    def move_to(self,x_mm,y_mm):
+        self.stage.move_absolute_mm(x_mm, y_mm)
 
     def move_x_usteps(self,usteps):
         self.stage.move_relative(usteps, 0)
@@ -189,10 +194,10 @@ class NavigationController_PriorStage(QObject):
         pass
 
     def move_x_to_usteps(self,usteps):
-        self.stage.move_absolute(usteps, 0)
+        self.stage.move_absolute_x(usteps)
 
     def move_y_to_usteps(self,usteps):
-        self.stage.move_absolute(0, usteps)
+        self.stage.move_absolute_y(usteps)
 
     def move_z_to_usteps(self,usteps):
         pass
@@ -265,10 +270,6 @@ class NavigationController_PriorStage(QObject):
 
     def set_z_limit_neg_mm(self,value_mm):
         pass
-    
-    def move_to(self,x_mm,y_mm):
-        self.move_x_to(x_mm)
-        self.move_y_to(y_mm)
 
     def configure_encoder(self, axis, transitions_per_revolution,flip_direction):
         pass

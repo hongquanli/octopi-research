@@ -4,9 +4,10 @@ import re
 import threading
 
 class PriorStage():
-    def __init__(self, sn, baudrate=9600, timeout=1, parent=None):
+    def __init__(self, sn, baudrate=9600, timeout=0.1, parent=None):
         port = [p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
-        self.serial = serial.Serial(port[0], baudrate=baudrate, timeout=timeout)
+        self.serial = serial.Serial(port[0], baudrate=9600, timeout=timeout)
+        self.current_baudrate = 9600
 
         # Position information
         self.x_pos = 0
@@ -38,9 +39,35 @@ class PriorStage():
         self.position_updating_event = threading.Event()
         self.position_updating_thread = threading.Thread(target=self.return_position_info, daemon=True)
 
+        self.set_baudrate(baudrate)
+
         self.initialize()
         self.position_updating_thread.start()
 
+    def set_baudrate(self, baud):
+        allowed_baudrates = [9600, 19200, 38400, 115400]
+        if baud not in allowed_baudrates:
+            return
+
+        baud_command = "BAUD " + str(baud)[:3]
+        print(baud_command)
+        self.send_command(baud_command)
+
+        self.serial.baudrate = baud
+        
+        try:
+            test_response = self.send_command("COMP")  # Send a simple query command
+            if not test_response:
+                raise Exception("No response received after changing baud rate")
+            else:
+                self.current_baudrate = baud
+        except Exception as e:
+            # If verification fails, try to revert to the original baud rate
+            self.serial.baudrate = self.current_baudrate
+            raise Exception(f"Failed to verify communication at new baud rate: {e}")
+
+        print(f"Baud rate successfully changed to {baud}")
+        
     def initialize(self):
         self.serial.write(b'\r')
         time.sleep(0.1)
@@ -158,17 +185,47 @@ class PriorStage():
         y_steps = self.mm_to_steps(y_mm)
         return self.move_absolute(x_steps, y_steps)
 
-    def move_relative(self, x, y):
+    def move_absolute_x_mm(self, x_mm):
+        x_steps = self.mm_to_steps(x_mm)
+        return self.move_absolute_x(x_steps)
+
+    def move_absolute_y_mm(self, y_mm):
+        y_steps = self.mm_to_steps(y_mm)
+        return self.move_absolute_y(y_steps)
+
+    def move_relative(self, x, y, blocking=True):
         x = x * self.x_direction
         y = y * self.y_direction
         self.send_command(f"GR {x},{y}")
-        self.wait_for_stop()
+        if blocking:
+            self.wait_for_stop()
+        else:
+            threading.Thread(target=self.wait_for_stop, daemon=True).start()
 
-    def move_absolute(self, x, y):
+    def move_absolute(self, x, y, blocking=True):
         x = x * self.x_direction
         y = y * self.y_direction
         self.send_command(f"G {x},{y}")
-        self.wait_for_stop()
+        if blocking:
+            self.wait_for_stop()
+        else:
+            threading.Thread(target=self.wait_for_stop, daemon=True).start()
+
+    def move_absolute_x(self, x, blocking=True):
+        x = x * self.x_direction
+        self.send_command(f"GX {x}")
+        if blocking:
+            self.wait_for_stop()
+        else:
+            threading.Thread(target=self.wait_for_stop, daemon=True).start()
+
+    def move_absolute_y(self, y, blocking=True):
+        y = y * self.y_direction
+        self.send_command(f"GY {y}")
+        if blocking:
+            self.wait_for_stop()
+        else:
+            threading.Thread(target=self.wait_for_stop, daemon=True).start()
 
     def enable_joystick(self):
         self.send_command("J")
@@ -182,6 +239,8 @@ class PriorStage():
         while True:
             status = int(self.send_command("$,S"))
             if status == 0:
+                self.get_pos()
+                print('xy position: ', self.x_pos, self.y_pos)
                 break
             time.sleep(0.05)
 
