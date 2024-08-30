@@ -100,9 +100,6 @@ class OctopiGUI(QMainWindow):
             if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
                 self.emission_filter_wheel = serial_peripherals.Optospin_Simulation(SN=None)
 
-            if USE_PRIOR_STAGE:
-                self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
-
             self.microcontroller = microcontroller.Microcontroller_Simulation()
         else:
             if ENABLE_SPINNING_DISK_CONFOCAL:
