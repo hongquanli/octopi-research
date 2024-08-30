@@ -1,0 +1,38 @@
+﻿<Page
+    x:Class="demouwp.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:demouwp"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="30*"></ColumnDefinition>
+            <ColumnDefinition Width="70*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Row="0" Grid.Column="0">
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="4,4,4,4">
+                <Button x:Name="start_" Content="Start" HorizontalAlignment="Stretch" Margin="4,4,4,4" Click="onClick_start"/>
+                <Button x:Name="snap_" Content="Snap" HorizontalAlignment="Stretch" Margin="4,4,4,4" Click="OnClick_snap"/>
+                <ComboBox x:Name="combo_" HorizontalAlignment="Stretch" Margin="4,4,4,4" SelectionChanged="onSelchange_combo"/>
+                <CheckBox x:Name="auto_exposure_" Content="Auto Exposure" HorizontalAlignment="Stretch" Margin="4,4,4,4" Click="onClick_auto_exposure"/>
+                <TextBlock x:Name="textblock_expotime_" Text="ExpoTime" HorizontalAlignment="Stretch" Margin="4,4,4,4"/>
+                <Slider x:Name="slider_expotime_" HorizontalAlignment="Stretch" Height="Auto" Margin="4,4,4,4" ValueChanged="onChanged_expotime"/>
+                <Button x:Name="white_balance_once_" Content="White Balance Once" HorizontalAlignment="Stretch" Margin="4,4,4,4" Click="onClick_whitebalanceonce"/>
+                <TextBlock x:Name="textblock_temp_" Text="Temp" HorizontalAlignment="Stretch" Margin="4,4,4,4"/>
+                <Slider x:Name="slider_temp_" HorizontalAlignment="Stretch" Margin="4,4,4,4" ValueChanged="onChanged_temptint"/>
+                <TextBlock x:Name="textblock_tint_" Text="Tint" HorizontalAlignment="Stretch" Margin="4,4,4,4"/>
+                <Slider x:Name="slider_tint_" HorizontalAlignment="Stretch" Margin="4,4,4,4" ValueChanged="onChanged_temptint"/>
+                <TextBlock x:Name="textblock_fps_" Text="0; fps = 0.0" HorizontalAlignment="Stretch" Margin="4,4,4,4"/>
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="0" Grid.Column="1">
+            <Image x:Name="image_" HorizontalAlignment="Stretch" Margin="10,10,10,10" VerticalAlignment="Stretch"/>
+        </Grid>
+    </Grid>
+</Page>

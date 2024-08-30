@@ -1,0 +1,66 @@
+[Version]
+Signature   = "$Windows NT$"
+Class       = NetService
+ClassGUID   = {4D36E974-E325-11CE-BFC1-08002BE10318}
+CatalogFile = gigepdrv.cat
+Provider    = %MFG%
+DriverVer   = 08/09/2024,1.0.0.26222
+
+[Manufacturer]
+%MFG% = MFG,NTx86,NTamd64
+
+[MFG.NTx86]
+%DescString% = Install, gigepdrv  ; This name can be used with netcfg.exe to install/uninstall the driver
+[MFG.NTamd64]
+%DescString% = Install, gigepdrv
+
+[Install]
+AddReg = InstallNdi
+Characteristics = 0x40000
+NetCfgInstanceId = "{814027c2-32bf-41e8-bbc4-eb0481908abe}"
+Copyfiles = copyfiles.sys
+
+[SourceDisksNames]
+1 = %DescString%,"",,
+
+[SourceDisksFiles.amd64]
+gigepdrv.sys = 1, x64
+
+[SourceDisksFiles.x86]
+gigepdrv.sys = 1, x86
+
+[DestinationDirs]
+DefaultDestDir = 12
+copyfiles.sys = 12
+
+[copyfiles.sys]
+gigepdrv.sys,,,2
+
+[InstallNdi]
+HKR, Ndi,Service,,"gigepdrv"
+HKR, Ndi,CoServices,0x00010000,"gigepdrv"
+HKR, Ndi,FilterClass,,custom
+HKR, Ndi,FilterType,0x00010001,2
+HKR, Ndi\Interfaces,UpperRange,,"noupper"
+HKR, Ndi\Interfaces,LowerRange,,"nolower"
+HKR, Ndi\Interfaces,FilterMediaTypes,,"ethernet"
+HKR, Ndi,FilterRunType,0x00010001,2
+
+[Install.Services]
+AddService = gigepdrv,,SvcDesc
+
+[SvcDesc]
+DisplayName    = %DescString%
+ServiceType    = 1 ;SERVICE_KERNEL_DRIVER
+StartType      = 1 ;SERVICE_SYSTEM_START
+ErrorControl   = 1 ;SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\gigepdrv.sys
+LoadOrderGroup = NDIS
+Description    = %DescString%
+
+[Install.Remove.Services]
+DelService = gigepdrv,0x200 ; SPSVCINST_STOPSERVICE
+
+[Strings]
+MFG = "GigE"
+DescString = "GigE Performance Driver"

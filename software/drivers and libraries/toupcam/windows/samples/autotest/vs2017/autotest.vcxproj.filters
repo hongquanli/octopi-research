@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Setting">
+      <UniqueIdentifier>{f7582f2f-4d0b-4392-b6f6-8d6c0586f72a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test">
+      <UniqueIdentifier>{4beb1220-795c-4915-8f1b-c8e6c86e57ce}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\AutoTest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\AutoTestDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\global.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CPreviewSnapPropertyPage.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CSettingPropertySheet.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CExposureGainPropertyPage.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CWhiteBalancePropertyPage.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CSamplingPropertyPage.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CROITestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CResTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CTestPropertySheet.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CSnapResTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CSnapTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CBitDepthTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CFlushTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CPauseTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CBitDepthPropertyPage.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\COpenCloseTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CTriggerTestPropertyPage.h">
+      <Filter>Test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CFrameRatePropertyPage.h">
+      <Filter>Setting</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\AutoTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\AutoTestDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\global.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CPreviewSnapPropertyPage.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CSettingPropertySheet.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CExposureGainPropertyPage.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CWhiteBalancePropertyPage.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CSamplingPropertyPage.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CROITestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CResTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CTestPropertySheet.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CSnapResTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CSnapTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CBitDepthTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CBitDepthPropertyPage.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CFlushTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CPauseTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\COpenCloseTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CTriggerTestPropertyPage.cpp">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CFrameRatePropertyPage.cpp">
+      <Filter>Setting</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\autotest.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\res\autotest.rc2">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\res\autotest.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+</Project>
