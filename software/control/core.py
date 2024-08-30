@@ -1975,6 +1975,11 @@ class MultiPointWorker(QObject):
 
     def acquire_at_position(self, region_id, current_path, fov, i=None, j=None):
 
+        if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
+            print('run custom multipoint')
+            multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+            return
+
         self.perform_autofocus(region_id)
 
         if self.NZ > 1:
@@ -2043,27 +2048,10 @@ class MultiPointWorker(QObject):
             '''
 
             # real time processing
-            acquired_image_configs = list(current_round_images.keys())
-            if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images and self.multiPointController.do_fluorescence_rtp:
-                try:
-                    print("real time processing", self.count_rtp)
-                    if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
-                        raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
-                    I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
-                    I_left = current_round_images['BF LED matrix left half']
-                    I_right = current_round_images['BF LED matrix right half']
-                    if len(I_left.shape) == 3:
-                        I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
-                    if len(I_right.shape) == 3:
-                        I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
-                    malaria_rtp(I_fluorescence, I_left, I_right, i, j, z_level, self,
-                                classification_test_mode=self.microscope.classification_test_mode,
-                                sort_during_multipoint=SORT_DURING_MULTIPOINT,
-                                disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
-                    self.count_rtp += 1
-                except AttributeError as e:
-                    print(repr(e))
+            if self.multiPointController.do_fluorescence_rtp:
+                self.run_real_time_processing(current_round_images, i, j, z_level)
 
+            # updates coordinates df
             if i is None or j is None:
                 self.update_coordinates_dataframe(region_id, z_level, fov)
             else:
@@ -2079,10 +2067,33 @@ class MultiPointWorker(QObject):
             self.af_fov_count = self.af_fov_count + 1
 
             if z_level < self.NZ - 1:
+                print("moving z - for stack")
                 self.move_z_for_stack()
 
         if self.NZ > 1:
             self.move_z_back_after_stack()
+
+    def run_real_time_processing(self, current_round_images, i, j, z_level):
+        acquired_image_configs = list(current_round_images.keys())
+        if 'BF LED matrix left half' in current_round_images and 'BF LED matrix right half' in current_round_images and 'Fluorescence 405 nm Ex' in current_round_images:
+            try:
+                print("real time processing", self.count_rtp)
+                if (self.microscope.model is None) or (self.microscope.device is None) or (self.microscope.classification_th is None) or (self.microscope.dataHandler is None):
+                    raise AttributeError('microscope missing model, device, classification_th, and/or dataHandler')
+                I_fluorescence = current_round_images['Fluorescence 405 nm Ex']
+                I_left = current_round_images['BF LED matrix left half']
+                I_right = current_round_images['BF LED matrix right half']
+                if len(I_left.shape) == 3:
+                    I_left = cv2.cvtColor(I_left,cv2.COLOR_RGB2GRAY)
+                if len(I_right.shape) == 3:
+                    I_right = cv2.cvtColor(I_right,cv2.COLOR_RGB2GRAY)
+                malaria_rtp(I_fluorescence, I_left, I_right, i, j, z_level, self,
+                            classification_test_mode=self.microscope.classification_test_mode,
+                            sort_during_multipoint=SORT_DURING_MULTIPOINT,
+                            disp_th_during_multipoint=DISP_TH_DURING_MULTIPOINT)
+                self.count_rtp += 1
+            except AttributeError as e:
+                print(repr(e))
 
     def perform_autofocus(self, region_id):
         if self.do_reflection_af == False:
@@ -2555,7 +2566,7 @@ class MultiPointController(QObject):
         self.counter = 0
         self.experiment_ID = None
         self.base_path = None
-        self.use_piezo = MULTIPOINT_USE_PIEZO_FOR_ZSTACKS #TODO: change to false and get value from widget
+        self.use_piezo = False # MULTIPOINT_USE_PIEZO_FOR_ZSTACKS
         self.selected_configurations = []
         self.usb_spectrometer = usb_spectrometer
         self.scanCoordinates = scanCoordinates

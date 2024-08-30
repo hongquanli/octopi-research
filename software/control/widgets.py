@@ -1652,8 +1652,6 @@ class NavigationBarWidget(QWidget):
             if self.navigationController is not None:
                 layout.addWidget(self.checkbox_clickToMove)
                 layout.addSpacing(10)
-            
-        layout.addStretch(1)
 
         # X position
         x_label = QLabel('X:')
@@ -1674,6 +1672,7 @@ class NavigationBarWidget(QWidget):
         #self.label_Zpos.setFrameStyle(QFrame.Panel | QFrame.Sunken)
 
         # Add widgets to layout
+        layout.addStretch(1)
         layout.addSpacing(10)
         layout.addWidget(x_label)
         layout.addWidget(self.label_Xpos)
@@ -3237,6 +3236,10 @@ class MultiPointWidgetGrid(QFrame):
         self.combobox_shape.addItems(['Square', 'Circle'])
         self.combobox_shape.setFixedWidth(btn_width)
 
+        self.checkbox_genFocusMap = QCheckBox('Focus Map')
+        #self.checkbox_genFocusMap = QCheckBox('AF Map')
+        self.checkbox_genFocusMap.setChecked(False)
+
         self.checkbox_withAutofocus = QCheckBox('Contrast AF')
         self.checkbox_withAutofocus.setChecked(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
         self.multipointController.set_af_flag(MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT)
@@ -3248,9 +3251,8 @@ class MultiPointWidgetGrid(QFrame):
         self.checkbox_usePiezo = QCheckBox('Piezo Z-Stack')
         self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
 
-        self.checkbox_genFocusMap = QCheckBox('Focus Map')
-        #self.checkbox_genFocusMap = QCheckBox('AF Map')
-        self.checkbox_genFocusMap.setChecked(False)
+        self.checkbox_set_z_range = QCheckBox('Set Z-range')
+        self.checkbox_set_z_range.toggled.connect(self.toggle_z_range_controls)
 
         # Add a checkbox for coordinate-based acquisition
         self.checkbox_useCoordinateAcquisition = QCheckBox('Use Coordinates')
@@ -3298,79 +3300,152 @@ class MultiPointWidgetGrid(QFrame):
         row_4_layout.addWidget(QLabel('Size'))
         row_4_layout.addWidget(self.entry_scan_size)
         row_4_layout.addStretch(1)
-        row_4_layout.addWidget(QLabel('FOV Overlap'))
+        row_4_layout.addWidget(QLabel('Overlap'))
         row_4_layout.addWidget(self.entry_overlap)
         row_4_layout.addStretch(1)
         row_4_layout.addWidget(QLabel('Well Coverage'))
         row_4_layout.addWidget(self.entry_well_coverage)
         main_layout.addLayout(row_4_layout)
 
-        # Z and T
-        row_2_3_layout = QGridLayout()
+    
+        grid = QGridLayout()
+        
+        # dz and Nz
+        dz_layout = QHBoxLayout()
+        dz_layout.addWidget(QLabel('dz'))
+        dz_layout.addWidget(self.entry_deltaZ)
+        dz_layout.addWidget(QLabel('Nz'))
+        dz_layout.addWidget(self.entry_NZ)
+        grid.addLayout(dz_layout, 0, 0)
 
-        # Z-min row
-        row_2_3_layout.addWidget(self.set_minZ_button, 0, 0)
+         # dt and Nt
+        dt_layout = QHBoxLayout()
+        dt_layout.addWidget(QLabel('dt'))
+        dt_layout.addWidget(self.entry_dt)
+        dt_layout.addWidget(QLabel('Nt'))
+        dt_layout.addWidget(self.entry_Nt)
+        grid.addLayout(dt_layout, 0, 2)
+        
+        # Z-min
+        self.z_min_layout = QHBoxLayout()
+        self.z_min_layout.addWidget(self.set_minZ_button)
         min_label = QLabel('Z-min')
         min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        
-        row_2_3_layout.addWidget(min_label, 0, 1)
-        row_2_3_layout.addWidget(self.entry_minZ, 0, 2)
+        self.z_min_layout.addWidget(min_label)
+        self.z_min_layout.addWidget(self.entry_minZ)
+        grid.addLayout(self.z_min_layout, 1, 0)
 
-        # Z-max row
-        row_2_3_layout.addWidget(self.set_maxZ_button, 1, 0)
+         # Z-max
+        self.z_max_layout = QHBoxLayout()
+        self.z_max_layout.addWidget(self.set_maxZ_button)
         max_label = QLabel('Z-max')
         max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        row_2_3_layout.addWidget(max_label, 1, 1)
-        row_2_3_layout.addWidget(self.entry_maxZ, 1, 2)
+        self.z_max_layout.addWidget(max_label)
+        self.z_max_layout.addWidget(self.entry_maxZ)
+        grid.addLayout(self.z_max_layout, 1, 2)
 
         w = max(min_label.sizeHint().width(), max_label.sizeHint().width())
         min_label.setFixedWidth(w)
         max_label.setFixedWidth(w)
-
-        # dz and Nz
-        row_2_3_layout.addWidget(QLabel('dz'), 0, 4)
-        row_2_3_layout.addWidget(self.entry_deltaZ, 0, 5)
-        row_2_3_layout.addWidget(QLabel('Nz'), 0, 7)
-        row_2_3_layout.addWidget(self.entry_NZ, 0, 8)
-
-        # dt and Nt
-        row_2_3_layout.addWidget(QLabel('dt'), 1, 4)
-        row_2_3_layout.addWidget(self.entry_dt, 1, 5)
-        row_2_3_layout.addWidget(QLabel('Nt'), 1, 7)
-        row_2_3_layout.addWidget(self.entry_Nt, 1, 8)
-
-        # Configuration list and options
-        row_2_3_layout.addWidget(self.list_configurations, 2, 0, 2, 3)
-
+        
+        # Configuration list
+        grid.addWidget(self.list_configurations, 2, 0)
+        
+        # Options and Start button
         options_layout = QVBoxLayout()
         options_layout.addWidget(self.checkbox_withAutofocus)
         if SUPPORT_LASER_AUTOFOCUS:
             options_layout.addWidget(self.checkbox_withReflectionAutofocus)
         options_layout.addWidget(self.checkbox_genFocusMap)
         options_layout.addWidget(self.checkbox_usePiezo)
+        options_layout.addWidget(self.checkbox_set_z_range)
         if ENABLE_STITCHER:
             options_layout.addWidget(self.checkbox_stitchOutput)
 
-        row_2_3_layout.addLayout(options_layout, 2, 4, 2, 2)
-        row_2_3_layout.addWidget(self.btn_startAcquisition, 2, 6, 2, 3)
+        bottom_right = QHBoxLayout()
+        bottom_right.addLayout(options_layout)
+        bottom_right.addSpacing(2)
+        bottom_right.addWidget(self.btn_startAcquisition)
 
-        # Add some spacing
+        grid.addLayout(bottom_right, 2, 2)
         spacer_widget = QWidget()
         spacer_widget.setFixedWidth(2)
-        row_2_3_layout.addWidget(spacer_widget, 0, 3)
+        grid.addWidget(spacer_widget, 0, 1)
+ 
+        # Set column stretches
+        grid.setColumnStretch(0, 1)  # Middle spacer
+        grid.setColumnStretch(1, 0)  # Middle spacer
+        grid.setColumnStretch(2, 1)  # Middle spacer
 
-        # Set column stretches to control widget sizes
-        row_2_3_layout.setColumnStretch(3, 1)
-        row_2_3_layout.setColumnStretch(6, 1)
+        # # Z and T
+        # row_2_layout = QHBoxLayout()
+        # # dz and Nz
+        # row_2_layout.addWidget(QLabel('dz'))
+        # row_2_layout.addWidget(self.entry_deltaZ)
+        # row_2_layout.addWidget(QLabel('Nz'))
+        # row_2_layout.addWidget(self.entry_NZ)
 
-        main_layout.addLayout(row_2_3_layout)
+        # # dt and Nt
+        # row_2_layout.addSpacing(5)
+        # row_2_layout.addWidget(QLabel('dt'))
+        # row_2_layout.addWidget(self.entry_dt)
+        # row_2_layout.addWidget(QLabel('Nt'))
+        # row_2_layout.addWidget(self.entry_Nt)
 
+        # self.row_z_layout = QHBoxLayout()
+        # # Z-min row
+        # self.row_z_layout.addWidget(self.set_minZ_button)
+        # min_label = QLabel('Z-min')
+        # min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        
+        # self.row_z_layout.addWidget(min_label)
+        # self.row_z_layout.addWidget(self.entry_minZ)
+
+        # # Z-max row
+        # self.row_z_layout.addSpacing(5)
+        # self.row_z_layout.addWidget(self.set_maxZ_button)
+        # max_label = QLabel('Z-max')
+        # max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        # self.row_z_layout.addWidget(max_label)
+        # self.row_z_layout.addWidget(self.entry_maxZ)
+
+        # w = max(min_label.sizeHint().width(), max_label.sizeHint().width())
+        # min_label.setFixedWidth(w)
+        # max_label.setFixedWidth(w)
+
+        # row_5_layout = QHBoxLayout()
+
+        # # Configuration list and options
+        # row_5_layout.addWidget(self.list_configurations, 2)
+
+        # options_layout = QVBoxLayout()
+        # options_layout.addWidget(self.checkbox_withAutofocus)
+        # if SUPPORT_LASER_AUTOFOCUS:
+        #     options_layout.addWidget(self.checkbox_withReflectionAutofocus)
+        # options_layout.addWidget(self.checkbox_genFocusMap)
+        # options_layout.addWidget(self.checkbox_usePiezo)
+        # options_layout.addWidget(self.checkbox_set_z_range)
+        # if ENABLE_STITCHER:
+        #     options_layout.addWidget(self.checkbox_stitchOutput)
+
+        # row_5_layout.addSpacing(5)
+        # row_5_layout.addLayout(options_layout, 1)
+        # row_5_layout.addWidget(self.btn_startAcquisition, 1)
+
+
+        # # Set column stretches to control widget sizes
+        # main_layout.addLayout(row_2_layout)
+        # main_layout.addLayout(self.row_z_layout)
+        # main_layout.addLayout(row_5_layout)
+
+        main_layout.addLayout(grid)
         # Row 5: Progress Bar
         row_progress_layout = QHBoxLayout()
         row_progress_layout.addWidget(self.progress_label)
         row_progress_layout.addWidget(self.progress_bar)
         row_progress_layout.addWidget(self.eta_label)
         main_layout.addLayout(row_progress_layout)
+        self.toggle_z_range_controls(self.checkbox_set_z_range.isChecked())
 
         # Connections
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
@@ -3480,6 +3555,29 @@ class MultiPointWidgetGrid(QFrame):
             self.acquisition_start_time = None
         else:
             self.eta_timer.stop()
+
+    def toggle_z_range_controls(self, is_visible):
+        # Hide/show widgets in z_min_layout
+        for i in range(self.z_min_layout.count()):
+            widget = self.z_min_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setVisible(is_visible)
+            widget = self.z_max_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setVisible(is_visible)
+        
+        # Enable/disable NZ entry based on the inverse of is_visible
+        self.entry_NZ.setEnabled(not is_visible)
+
+        if not is_visible:
+            # When Z-range is not specified, set Z-min and Z-max to current Z position
+            current_z = self.navigationController.z_pos_mm * 1000
+            self.entry_minZ.setValue(current_z)
+            self.entry_maxZ.setValue(current_z)
+
+        # Update the layout
+        self.updateGeometry()
+        self.update()
 
     def set_default_scan_size(self):
         self.set_default_shape()
@@ -3921,9 +4019,12 @@ class MultiPointWidgetGrid(QFrame):
                 self.multipointController.set_deltaX(dx_mm)
                 self.multipointController.set_deltaY(dy_mm)
 
-            minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
-            maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
-            self.multipointController.set_z_range(minZ, maxZ)
+            if self.checkbox_set_z_range.isChecked():
+                # Set Z-range (convert from μm to mm)
+                minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
+                maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
+                self.multipointController.set_z_range(minZ, maxZ)
+
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_deltat(self.entry_dt.value())

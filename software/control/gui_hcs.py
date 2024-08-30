@@ -386,7 +386,7 @@ class OctopiGUI(QMainWindow):
         self.resizeCurrentTab(self.cameraTabWidget)
 
         layout = QVBoxLayout()
-        #layout.addWidget(self.sampleSettingsWidget)
+        # layout.addWidget(self.sampleSettingsWidget) # at top 
         if USE_NAPARI_FOR_LIVE_CONTROL:
             layout.addWidget(self.navigationWidget)
             layout.addWidget(self.cameraTabWidget)
@@ -405,7 +405,7 @@ class OctopiGUI(QMainWindow):
             layout.addWidget(self.stitcherWidget)
             self.stitcherWidget.hide()
         layout.addWidget(self.navigationViewer)
-        layout.addWidget(self.sampleSettingsWidget)
+        layout.addWidget(self.sampleSettingsWidget) # at bottom
 
         # transfer the layout to the central widget
         self.centralWidget = QWidget()
