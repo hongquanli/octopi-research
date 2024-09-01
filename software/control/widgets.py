@@ -3299,17 +3299,16 @@ class MultiPointWidgetGrid(QFrame):
         row_4_layout = QHBoxLayout()
         row_4_layout.addWidget(QLabel('Size'))
         row_4_layout.addWidget(self.entry_scan_size)
-        row_4_layout.addStretch(1)
-        row_4_layout.addWidget(QLabel('Overlap'))
+        #row_4_layout.addStretch(1)
+        row_4_layout.addWidget(QLabel('FOV Overlap'))
         row_4_layout.addWidget(self.entry_overlap)
-        row_4_layout.addStretch(1)
+        #row_4_layout.addStretch(1)
         row_4_layout.addWidget(QLabel('Well Coverage'))
         row_4_layout.addWidget(self.entry_well_coverage)
         main_layout.addLayout(row_4_layout)
 
-    
         grid = QGridLayout()
-        
+
         # dz and Nz
         dz_layout = QHBoxLayout()
         dz_layout.addWidget(QLabel('dz'))
@@ -3376,67 +3375,6 @@ class MultiPointWidgetGrid(QFrame):
         grid.setColumnStretch(0, 1)  # Middle spacer
         grid.setColumnStretch(1, 0)  # Middle spacer
         grid.setColumnStretch(2, 1)  # Middle spacer
-
-        # # Z and T
-        # row_2_layout = QHBoxLayout()
-        # # dz and Nz
-        # row_2_layout.addWidget(QLabel('dz'))
-        # row_2_layout.addWidget(self.entry_deltaZ)
-        # row_2_layout.addWidget(QLabel('Nz'))
-        # row_2_layout.addWidget(self.entry_NZ)
-
-        # # dt and Nt
-        # row_2_layout.addSpacing(5)
-        # row_2_layout.addWidget(QLabel('dt'))
-        # row_2_layout.addWidget(self.entry_dt)
-        # row_2_layout.addWidget(QLabel('Nt'))
-        # row_2_layout.addWidget(self.entry_Nt)
-
-        # self.row_z_layout = QHBoxLayout()
-        # # Z-min row
-        # self.row_z_layout.addWidget(self.set_minZ_button)
-        # min_label = QLabel('Z-min')
-        # min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        
-        # self.row_z_layout.addWidget(min_label)
-        # self.row_z_layout.addWidget(self.entry_minZ)
-
-        # # Z-max row
-        # self.row_z_layout.addSpacing(5)
-        # self.row_z_layout.addWidget(self.set_maxZ_button)
-        # max_label = QLabel('Z-max')
-        # max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        # self.row_z_layout.addWidget(max_label)
-        # self.row_z_layout.addWidget(self.entry_maxZ)
-
-        # w = max(min_label.sizeHint().width(), max_label.sizeHint().width())
-        # min_label.setFixedWidth(w)
-        # max_label.setFixedWidth(w)
-
-        # row_5_layout = QHBoxLayout()
-
-        # # Configuration list and options
-        # row_5_layout.addWidget(self.list_configurations, 2)
-
-        # options_layout = QVBoxLayout()
-        # options_layout.addWidget(self.checkbox_withAutofocus)
-        # if SUPPORT_LASER_AUTOFOCUS:
-        #     options_layout.addWidget(self.checkbox_withReflectionAutofocus)
-        # options_layout.addWidget(self.checkbox_genFocusMap)
-        # options_layout.addWidget(self.checkbox_usePiezo)
-        # options_layout.addWidget(self.checkbox_set_z_range)
-        # if ENABLE_STITCHER:
-        #     options_layout.addWidget(self.checkbox_stitchOutput)
-
-        # row_5_layout.addSpacing(5)
-        # row_5_layout.addLayout(options_layout, 1)
-        # row_5_layout.addWidget(self.btn_startAcquisition, 1)
-
-
-        # # Set column stretches to control widget sizes
-        # main_layout.addLayout(row_2_layout)
-        # main_layout.addLayout(self.row_z_layout)
-        # main_layout.addLayout(row_5_layout)
 
         main_layout.addLayout(grid)
         # Row 5: Progress Bar
@@ -4024,6 +3962,7 @@ class MultiPointWidgetGrid(QFrame):
                 minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
                 maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
                 self.multipointController.set_z_range(minZ, maxZ)
+                print("Z-range", (minZ, maxZ))
 
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
@@ -4040,7 +3979,6 @@ class MultiPointWidgetGrid(QFrame):
                                                dx_mm, dy_mm, self.entry_deltaZ.value())
             print("Nx,Ny,Nz", Nx, Ny, self.entry_NZ.value())
             print("dx,dy,dz", dx_mm, dy_mm, self.entry_deltaZ.value())
-            print("Z-range", (minZ, maxZ))
             print("region coordinates:")
             for well_id, coords in self.region_coordinates.items():
                 print(f"{well_id}: {coords}")

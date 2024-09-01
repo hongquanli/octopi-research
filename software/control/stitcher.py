@@ -972,6 +972,10 @@ class CoordinateStitcher(QThread, QObject):
             width_pixels = int(np.ceil(width_mm * 1000 / self.pixel_size_um))
             height_pixels = int(np.ceil(height_mm * 1000 / self.pixel_size_um))
 
+        # Round up to the next multiple of 4
+        width_pixels = ((width_pixels + 3) & ~3) + 4
+        height_pixels = ((height_pixels + 3) & ~3) + 4
+
         # Get the number of rows and columns
         if len(self.regions) > 1:
             rows, columns = self.get_rows_and_columns()

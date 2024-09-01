@@ -2067,7 +2067,6 @@ class MultiPointWorker(QObject):
             self.af_fov_count = self.af_fov_count + 1
 
             if z_level < self.NZ - 1:
-                print("moving z - for stack")
                 self.move_z_for_stack()
 
         if self.NZ > 1:
@@ -2122,10 +2121,10 @@ class MultiPointWorker(QObject):
                         except:
                             print("failed update grid widget z")
                             pass
-
-        else:
+        else: 
             # initialize laser autofocus if it has not been done
             if self.microscope.laserAutofocusController.is_initialized==False:
+                print("init reflection af")
                 # initialize the reflection AF
                 self.microscope.laserAutofocusController.initialize_auto()
                 # do contrast AF for the first FOV (if contrast AF box is checked)
@@ -2138,6 +2137,7 @@ class MultiPointWorker(QObject):
                 # set the current plane as reference
                 self.microscope.laserAutofocusController.set_reference()
             else:
+                print("laser reflection af")
                 try:
                     if self.navigationController.get_pid_control_flag(2) is False:
                         self.microscope.laserAutofocusController.move_to_target(0)
