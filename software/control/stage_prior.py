@@ -6,8 +6,8 @@ import threading
 class PriorStage():
     def __init__(self, sn, baudrate=9600, timeout=0.1, parent=None):
         port = [p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
-        self.serial = serial.Serial(port[0], baudrate=9600, timeout=timeout)
-        self.current_baudrate = 9600
+        self.serial = serial.Serial(port[0], baudrate=baudrate, timeout=timeout)
+        self.current_baudrate = baudrate
 
         # Position information
         self.x_pos = 0
@@ -45,33 +45,41 @@ class PriorStage():
         self.position_updating_thread.start()
 
     def set_baudrate(self, baud):
-        allowed_baudrates = [9600, 19200, 38400, 115400]
+        allowed_baudrates = {9600: '96', 19200: '19', 38400: '38', 115400: '115'}
         if baud not in allowed_baudrates:
-            return
-
-        baud_command = "BAUD " + str(baud)[:3]
+            print('Baudrate not allowed. Setting baudrate to 9600')
+            baud_command = "BAUD 96"
+        else:
+            baud_command = "BAUD " + allowed_baudrates[baud]
         print(baud_command)
-        self.send_command(baud_command)
 
-        self.serial.baudrate = baud
+        for bd in allowed_baudrates:
+            self.serial.baudrate = bd
+            self.serial.write(b'\r')
+            time.sleep(0.1)
+            self.serial.flushInput()
+
+            self.send_command(baud_command)
+
+            self.serial.baudrate = baud
         
-        try:
-            test_response = self.send_command("COMP")  # Send a simple query command
-            if not test_response:
-                raise Exception("No response received after changing baud rate")
-            else:
-                self.current_baudrate = baud
-        except Exception as e:
-            # If verification fails, try to revert to the original baud rate
-            self.serial.baudrate = self.current_baudrate
-            raise Exception(f"Failed to verify communication at new baud rate: {e}")
+            try:
+                test_response = self.send_command("$")  # Send a simple query command
+                if not test_response:
+                    raise Exception("No response received after changing baud rate")
+                else:
+                    self.current_baudrate = baud
+                    print(f"Baud rate successfully changed to {baud}")
+                    return
+            except Exception as e:
+                # If verification fails, try to revert to the original baud rate
+                self.serial.baudrate = self.current_baudrate
+                print(f"Serial baudrate: {bd}")
+                print(f"Failed to verify communication at new baud rate: {e}")
 
-        print(f"Baud rate successfully changed to {baud}")
+        raise Exception("Failed to set baudrate.")
         
     def initialize(self):
-        self.serial.write(b'\r')
-        time.sleep(0.1)
-        self.serial.flushInput()
         self.send_command("COMP 0")  # Set to standard mode
         self.send_command("BLSH 1")  # Enable backlash correction
         self.send_command("RES,S," + str(self.resolution))  # Set resolution
