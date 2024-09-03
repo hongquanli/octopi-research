@@ -3519,7 +3519,7 @@ class MultiPointWidgetGrid(QFrame):
 
     def set_default_scan_size(self):
         self.set_default_shape()
-        if self.navigationViewer.sample == 'glass slide':
+        if 'glass slide' in self.navigationViewer.sample:
             self.entry_scan_size.setEnabled(True)
             self.entry_well_coverage.setEnabled(False)
         else:
@@ -3545,7 +3545,7 @@ class MultiPointWidgetGrid(QFrame):
         self.update_well_coordinates()
 
     def update_coverage_from_scan_size(self):
-        if self.navigationViewer.sample != 'glass slide' and hasattr(self.navigationViewer, 'well_size_mm'):
+        if 'glass slide' not in self.navigationViewer.sample and hasattr(self.navigationViewer, 'well_size_mm'):
             effective_well_size = self.get_effective_well_size()
             scan_size = self.entry_scan_size.value()
             coverage = round((scan_size / effective_well_size) * 100, 2)
@@ -3893,7 +3893,7 @@ class MultiPointWidgetGrid(QFrame):
             QMessageBox.warning(self, "Warning", "Please choose base saving directory first")
             return
 
-        if not self.use_coordinate_acquisition and self.navigationViewer.sample != 'glass slide' and not self.well_selected:
+        if not self.use_coordinate_acquisition and 'glass slide' in self.navigationViewer.sample and not self.well_selected:
         #if self.navigationViewer.sample != 'glass slide' and self.well_selected == False:
             self.btn_startAcquisition.setChecked(False)
             msg = QMessageBox()
@@ -6304,16 +6304,16 @@ class LaserAutofocusControlWidget(QFrame):
 
         self.grid = QGridLayout()
 
-        self.grid.addWidget(self.btn_set_reference,0,0)
-        self.grid.addWidget(self.btn_measure_displacement,0,1,1,2)
-        self.grid.addWidget(self.btn_move_to_target,0,3,1,2)
+        self.grid.addWidget(self.btn_initialize,0,0,1,2)
+        self.grid.addWidget(self.btn_set_reference,0,2,1,2)
 
-        self.grid.addWidget(self.btn_initialize,1,0)
-        self.grid.addWidget(QLabel('Displacement (um)'),1,1)
-        self.grid.addWidget(self.label_displacement,1,2)
-        self.grid.addWidget(QLabel('Target (um)'),1,3)
-        self.grid.addWidget(self.entry_target,1,4)
+        self.grid.addWidget(QLabel('Displacement (um)'),1,0)
+        self.grid.addWidget(self.label_displacement,1,1)
+        self.grid.addWidget(self.btn_measure_displacement,1,2,1,2)
 
+        self.grid.addWidget(QLabel('Target (um)'),2,0)
+        self.grid.addWidget(self.entry_target,2,1)
+        self.grid.addWidget(self.btn_move_to_target,2,2,1,2)
         self.setLayout(self.grid)
 
         # make connections
@@ -6744,8 +6744,8 @@ class SampleSettingsWidget(QFrame):
         self.objectivesWidget = ObjectivesWidget
         self.wellplateFormatWidget = WellplateFormatWidget
         top_row_layout = QGridLayout()
-        top_row_layout.setSpacing(4)
-        top_row_layout.setContentsMargins(2, 2, 2, 2)
+        top_row_layout.setSpacing(2)
+        top_row_layout.setContentsMargins(0, 2, 0, 2)
         top_row_layout.addWidget(self.objectivesWidget,0,0)
         top_row_layout.addWidget(self.wellplateFormatWidget,0,1)
         self.setLayout(top_row_layout)  # Set the layout on the frame

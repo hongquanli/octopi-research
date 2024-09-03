@@ -371,6 +371,7 @@ class OctopiGUI(QMainWindow):
         self.resizeCurrentTab(self.recordTabWidget)
 
         self.cameraTabWidget = QTabWidget()
+        self.cameraTabWidget.addTab(self.navigationWidget,"Stages")
         if ENABLE_OBJECTIVE_PIEZO:
             self.cameraTabWidget.addTab(self.piezoWidget,"Piezo")
         if ENABLE_NL5:
@@ -380,7 +381,6 @@ class OctopiGUI(QMainWindow):
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget,"Emission Filter")
         self.cameraTabWidget.addTab(self.cameraSettingWidget,'Camera')
-        self.cameraTabWidget.addTab(self.navigationWidget,"Stages")
         self.cameraTabWidget.addTab(self.autofocusWidget,"Contrast AF")
         self.cameraTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.cameraTabWidget))
         self.resizeCurrentTab(self.cameraTabWidget)
@@ -404,8 +404,9 @@ class OctopiGUI(QMainWindow):
         if ENABLE_STITCHER:
             layout.addWidget(self.stitcherWidget)
             self.stitcherWidget.hide()
+        layout.addWidget(self.sampleSettingsWidget) # at bottom above viewer
         layout.addWidget(self.navigationViewer)
-        layout.addWidget(self.sampleSettingsWidget) # at bottom
+        # layout.addWidget(self.sampleSettingsWidget) # at bottom
 
         # transfer the layout to the central widget
         self.centralWidget = QWidget()

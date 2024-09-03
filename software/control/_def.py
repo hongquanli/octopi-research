@@ -593,7 +593,7 @@ WELLPLATE_FORMAT_SETTINGS = {
         'a1_x_mm': 24.55,
         'a1_y_mm': 23.01,
         'a1_x_pixel': 290,
-        'a1_y_pixel': 273,
+        'a1_y_pixel': 272,
         'well_size_mm': 34.94,
         'well_spacing_mm': 39.2, # 39.2
         'number_of_skip': 0,
@@ -603,8 +603,8 @@ WELLPLATE_FORMAT_SETTINGS = {
     12: {
         'a1_x_mm': 24.75,
         'a1_y_mm': 16.86,
-        'a1_x_pixel': 299,
-        'a1_y_pixel': 200,
+        'a1_x_pixel': 293,
+        'a1_y_pixel': 198,
         'well_size_mm': 22.05,
         'well_spacing_mm': 26,
         'number_of_skip': 0,

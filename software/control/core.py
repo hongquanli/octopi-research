@@ -3541,6 +3541,7 @@ class NavigationViewer(QFrame):
     def load_background_image(self, sample):
         image_paths = {
             'glass slide': 'images/slide carrier_828x662.png',
+            '4 glass slide': 'images/4 slide carrier_1509x1010.png',
             '6 well plate': 'images/6 well plate_1509x1010.png',
             '12 well plate': 'images/12 well plate_1509x1010.png',
             '24 well plate': 'images/24 well plate_1509x1010.png',
@@ -3578,9 +3579,13 @@ class NavigationViewer(QFrame):
             self.mm_per_pixel = 0.1453
             self.origin_x_pixel = 200
             self.origin_y_pixel = 120
-            if IS_HCS:
-                self.view.invertX(True)
-                self.view.invertY(False)
+        elif sample == '4 glass slide':
+            self.location_update_threshold_mm = 0.2
+            self.mm_per_pixel = 0.084665
+            self.origin_x_pixel = 0
+            self.origin_y_pixel = 0
+            self.view.invertX(False)
+            self.view.invertY(True)
         else:
             self.location_update_threshold_mm = 0.05
             self.mm_per_pixel = 0.084665
@@ -3598,7 +3603,7 @@ class NavigationViewer(QFrame):
         self.clear_overlay()
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
-            if self.sample == 'glass slide':
+            if 'glass slide'in self.sample:
                 self.signal_draw_scan_grid.emit(self.x_mm, self.y_mm)
             self.draw_current_fov(self.x_mm, self.y_mm)
 
@@ -3607,9 +3612,13 @@ class NavigationViewer(QFrame):
 
     def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
         if sample_format == 0:
-            sample = 'glass slide'
+            if  IS_HCS:
+                sample = '4 glass slide'
+            else:
+                sample = 'glass slide'
         else:
             sample = f'{sample_format} well plate'
+
         self.sample = sample
         self.a1_x_mm = a1_x_mm
         self.a1_y_mm = a1_y_mm
@@ -3634,36 +3643,35 @@ class NavigationViewer(QFrame):
                 self.x_mm = x_mm
                 self.y_mm = y_mm
                 # update_live_scan_grid
-                if self.sample == 'glass slide' and not self.acquisition_started:
+                if 'glass slide'in self.sample and not self.acquisition_started:
                     self.signal_draw_scan_grid.emit(x_mm, y_mm)
         else:
             self.draw_current_fov(x_mm, y_mm)
             self.x_mm = x_mm
             self.y_mm = y_mm
             # update_live_scan_grid
-            if self.sample == 'glass slide' and not self.acquisition_started:
+            if 'glass slide'in self.sample and not self.acquisition_started:
                 self.signal_draw_scan_grid.emit(x_mm, y_mm)
 
     def get_FOV_pixel_coordinates(self, x_mm, y_mm):
         if self.sample == 'glass slide':
-            if INVERTED_OBJECTIVE:
-                current_FOV_top_left = (
-                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
-                )
-                current_FOV_bottom_right = (
-                    round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
-                )
-            else:
-                current_FOV_top_left = (
-                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
-                )
-                current_FOV_bottom_right = (
-                    round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                    round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
-                )
+            current_FOV_top_left = (
+                round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
+                round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+            )
+            current_FOV_bottom_right = (
+                round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
+                round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+            )
+        # elif self.sample == '4 glass slide':
+        #     current_FOV_top_left = (
+        #         round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)),
+        #         round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
+        #     )
+        #     current_FOV_bottom_right = (
+        #         round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)),
+        #         round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
+        #     )
         else:
             current_FOV_top_left = (
                 round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
