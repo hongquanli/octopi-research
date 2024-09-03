@@ -1622,7 +1622,7 @@ class NavigationBarWidget(QWidget):
 
     def initUI(self):
         layout = QHBoxLayout()
-        layout.setContentsMargins(5, 2, 5, 5)  # Reduce vertical margins to make it thinner
+        layout.setContentsMargins(5, 2, 5, 4)  # Reduce vertical margins to make it thinner
 
         # Move to Loading Position button
         self.btn_load_slide = QPushButton('Move To Loading Position')
@@ -2596,12 +2596,6 @@ class MultiPointWidget2(QFrame):
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
-
-        self.entry_minZ.valueChanged.connect(self.update_z_max)
-        self.entry_maxZ.valueChanged.connect(self.update_z_min)
-        self.entry_minZ.valueChanged.connect(self.update_Nz)
-        self.entry_maxZ.valueChanged.connect(self.update_Nz)
-        self.entry_deltaZ.valueChanged.connect(self.update_Nz)
         #self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
 
         self.multipointController.signal_acquisition_progress.connect(self.update_acquisition_progress)
@@ -2644,10 +2638,24 @@ class MultiPointWidget2(QFrame):
         self.entry_NZ.setEnabled(not is_visible)
 
         if not is_visible:
+            try:
+                self.entry_minZ.valueChanged.disconnect(self.update_z_max)
+                self.entry_maxZ.valueChanged.disconnect(self.update_z_min)
+                self.entry_minZ.valueChanged.disconnect(self.update_Nz)
+                self.entry_maxZ.valueChanged.disconnect(self.update_Nz)
+                self.entry_deltaZ.valueChanged.disconnect(self.update_Nz)
+            except:
+                pass
             # When Z-range is not specified, set Z-min and Z-max to current Z position
             current_z = self.navigationController.z_pos_mm * 1000
             self.entry_minZ.setValue(current_z)
             self.entry_maxZ.setValue(current_z)
+        else:
+            self.entry_minZ.valueChanged.connect(self.update_z_max)
+            self.entry_maxZ.valueChanged.connect(self.update_z_min)
+            self.entry_minZ.valueChanged.connect(self.update_Nz)
+            self.entry_maxZ.valueChanged.connect(self.update_Nz)
+            self.entry_deltaZ.valueChanged.connect(self.update_Nz)
 
         # Update the layout
         self.grid.update()
@@ -3413,11 +3421,6 @@ class MultiPointWidgetGrid(QFrame):
 
         self.navigationController.zPos.connect(self.update_z_min)
         self.navigationController.zPos.connect(self.update_z_max)
-        self.entry_minZ.valueChanged.connect(self.update_z_max)
-        self.entry_maxZ.valueChanged.connect(self.update_z_min)
-        self.entry_minZ.valueChanged.connect(self.update_Nz)
-        self.entry_maxZ.valueChanged.connect(self.update_Nz)
-        self.entry_deltaZ.valueChanged.connect(self.update_Nz)
         #self.entry_NZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
 
@@ -3506,12 +3509,26 @@ class MultiPointWidgetGrid(QFrame):
         
         # Enable/disable NZ entry based on the inverse of is_visible
         self.entry_NZ.setEnabled(not is_visible)
+        current_z = self.navigationController.z_pos_mm * 1000
+        self.entry_minZ.setValue(current_z)
+        self.entry_maxZ.setValue(current_z)
 
         if not is_visible:
             # When Z-range is not specified, set Z-min and Z-max to current Z position
-            current_z = self.navigationController.z_pos_mm * 1000
-            self.entry_minZ.setValue(current_z)
-            self.entry_maxZ.setValue(current_z)
+            try:
+                self.entry_minZ.valueChanged.disconnect(self.update_z_max)
+                self.entry_maxZ.valueChanged.disconnect(self.update_z_min)
+                self.entry_minZ.valueChanged.disconnect(self.update_Nz)
+                self.entry_maxZ.valueChanged.disconnect(self.update_Nz)
+                self.entry_deltaZ.valueChanged.disconnect(self.update_Nz)
+            except:
+                pass
+        else:
+            self.entry_minZ.valueChanged.connect(self.update_z_max)
+            self.entry_maxZ.valueChanged.connect(self.update_z_min)
+            self.entry_minZ.valueChanged.connect(self.update_Nz)
+            self.entry_maxZ.valueChanged.connect(self.update_Nz)
+            self.entry_deltaZ.valueChanged.connect(self.update_Nz)
 
         # Update the layout
         self.updateGeometry()
@@ -3963,6 +3980,9 @@ class MultiPointWidgetGrid(QFrame):
                 maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
                 self.multipointController.set_z_range(minZ, maxZ)
                 print("Z-range", (minZ, maxZ))
+            else:
+                z = self.navigationController.z_pos_mm
+                self.multipointController.set_z_range(z, z)
 
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
@@ -4011,7 +4031,6 @@ class MultiPointWidgetGrid(QFrame):
 
             if self.scanCoordinates.format == 0:
                 self.entry_well_coverage.setEnabled(False)
-            self.entry_NZ.setEnabled(False)
 
     def set_saving_dir(self):
         dialog = QFileDialog()
@@ -6310,7 +6329,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.grid.addWidget(QLabel('Displacement (um)'),1,0)
         self.grid.addWidget(self.label_displacement,1,1)
         self.grid.addWidget(self.btn_measure_displacement,1,2,1,2)
-
+        
         self.grid.addWidget(QLabel('Target (um)'),2,0)
         self.grid.addWidget(self.entry_target,2,1)
         self.grid.addWidget(self.btn_move_to_target,2,2,1,2)
