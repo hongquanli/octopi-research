@@ -2547,7 +2547,8 @@ class MultiPointWidget2(QFrame):
         if SUPPORT_LASER_AUTOFOCUS:
             grid_af.addWidget(self.checkbox_withReflectionAutofocus)
         grid_af.addWidget(self.checkbox_genFocusMap)
-        grid_af.addWidget(self.checkbox_usePiezo)
+        if ENABLE_OBJECTIVE_PIEZO:
+            grid_af.addWidget(self.checkbox_usePiezo)
         grid_af.addWidget(self.checkbox_set_z_range)
         if ENABLE_STITCHER:
             grid_af.addWidget(self.checkbox_stitchOutput)
@@ -3364,7 +3365,8 @@ class MultiPointWidgetGrid(QFrame):
         if SUPPORT_LASER_AUTOFOCUS:
             options_layout.addWidget(self.checkbox_withReflectionAutofocus)
         options_layout.addWidget(self.checkbox_genFocusMap)
-        options_layout.addWidget(self.checkbox_usePiezo)
+        if ENABLE_OBJECTIVE_PIEZO:
+            options_layout.addWidget(self.checkbox_usePiezo)
         options_layout.addWidget(self.checkbox_set_z_range)
         if ENABLE_STITCHER:
             options_layout.addWidget(self.checkbox_stitchOutput)
