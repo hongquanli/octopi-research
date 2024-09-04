@@ -562,6 +562,9 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 SHOW_TILED_PREVIEW = False
 PRVIEW_DOWNSAMPLE_FACTOR = 5
 
+# Navigation Bar (Stages)
+SHOW_NAVIGATION_BAR = False
+
 # Stitcher
 ENABLE_STITCHER = False
 IS_HCS = False
