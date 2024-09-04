@@ -2308,7 +2308,7 @@ class MultiPointWorker(QObject):
                 self.init_napari_layers = True
                 self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
             self.napari_layers_update.emit(image, i, j, k, config_name)
-        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+        if USE_NAPARI_FOR_MOSAIC_DISPLAY and k == 0:
             self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config_name)
 
     def handle_dpc_generation(self, current_round_images):
@@ -4034,7 +4034,6 @@ class ScanCoordinates(object):
             for column in columns:
                 x_mm = self.a1_x_mm + column*self.well_spacing_mm + self.wellplate_offset_x_mm
                 y_mm = self.a1_y_mm + row*self.well_spacing_mm + self.wellplate_offset_y_mm
-                print("Scan Coordinates:", (x_mm, y_mm))
                 self.coordinates_mm.append((x_mm,y_mm))
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing

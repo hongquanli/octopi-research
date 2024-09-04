@@ -6421,7 +6421,7 @@ class WellSelectionWidget(QTableWidget):
         self.a1_y_mm = A1_Y_MM
         self.a1_x_pixel = A1_X_PIXEL
         self.a1_y_pixel = A1_Y_PIXEL
-        self.fixed_height = 400
+        self.fixed_height = 408
         self.cellDoubleClicked.connect(self.onDoubleClick)
         # self.cellClicked.connect(self.onSingleClick)
         self.itemSelectionChanged.connect(self.onSelectionChanged)
@@ -6460,13 +6460,25 @@ class WellSelectionWidget(QTableWidget):
         self.setDragDropOverwriteMode(False)
         self.setMouseTracking(False)
 
+        if self.format == 1536:
+            font = QFont()
+            font.setPointSize(6)  # You can adjust this value as needed
+        else:
+            font = QFont()
+        self.horizontalHeader().setFont(font)
+        self.verticalHeader().setFont(font)
+
         # Calculate available space and cell size
         header_height = self.horizontalHeader().height()
-        row_header_width = self.verticalHeader().width()
         available_height = self.fixed_height - header_height
 
         # Calculate cell size based on the minimum of available height and width
         cell_size = available_height // self.rowCount()
+
+        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.verticalHeader().setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        row_header_width = self.verticalHeader().width()
 
         # Calculate total width based on cell size
         total_height = (self.rowCount() * cell_size) + header_height
@@ -6551,8 +6563,19 @@ class WellSelectionWidget(QTableWidget):
                     self.item(k, self.columns - 1 - i).setFlags(self.item(k, self.columns - 1 - i).flags() & ~Qt.ItemIsSelectable)
 
         # Update row headers
-        row_headers = [chr(ord('A') + i) for i in range(self.rows)]
+        row_headers = []
+        for i in range(self.rows):
+            if i < 26:
+                label = chr(ord('A') + i)
+            else:
+                first_letter = chr(ord('A') + (i // 26) - 1)
+                second_letter = chr(ord('A') + (i % 26))
+                label = first_letter + second_letter
+            row_headers.append(label)
         self.setVerticalHeaderLabels(row_headers)
+
+        # Adjust vertical header width after setting labels
+        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
     def updateWellplateSettings(self, format_, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
         self.format = format_
@@ -6607,6 +6630,7 @@ class WellSelectionWidget(QTableWidget):
 
 class Well1536SelectionWidget(QWidget):
 
+    signal_wellSelected = Signal(bool)
     signal_wellSelectedPos = Signal(float,float)
 
     def __init__(self):
@@ -6627,36 +6651,149 @@ class Well1536SelectionWidget(QWidget):
 
     def initUI(self):
         self.setWindowTitle('1536 Well Plate')
-        self.setGeometry(100, 100, 550, 400)
+        self.setGeometry(100, 100, 750, 400)  # Increased width to accommodate controls
 
-        self.a = 10
+        self.a = 11
+        image_width = 48 * self.a
+        image_height = 32 * self.a
 
-        self.image = QPixmap(48*self.a, 32*self.a)
+        self.image = QPixmap(image_width, image_height)
         self.image.fill(QColor('white'))
         self.label = QLabel()
         self.label.setPixmap(self.image)
+        self.label.setFixedSize(image_width, image_height)
+        self.label.setAlignment(Qt.AlignCenter)
 
         self.cell_input = QLineEdit(self)
+        self.cell_input.setPlaceholderText("e.g. AE12 or B4")
         go_button = QPushButton('Go to well', self)
         go_button.clicked.connect(self.go_to_cell)
-
         self.selection_input = QLineEdit(self)
-        select_button = QPushButton('Select wells', self)
-        select_button.clicked.connect(self.select_cells)
+        self.selection_input.setPlaceholderText("e.g. A1:E48, X1, AC24, Z2:AF6, ...")
+        self.selection_input.editingFinished.connect(self.select_cells)
 
-        layout = QGridLayout()
+        # Create navigation buttons
+        up_button = QPushButton('↑', self)
+        left_button = QPushButton('←', self)
+        right_button = QPushButton('→', self)
+        down_button = QPushButton('↓', self)
+        add_button = QPushButton('Select', self)
 
-        layout.addWidget(self.label,0,0,3,1)
+        # Connect navigation buttons to their respective functions
+        up_button.clicked.connect(self.move_up)
+        left_button.clicked.connect(self.move_left)
+        right_button.clicked.connect(self.move_right)
+        down_button.clicked.connect(self.move_down)
+        add_button.clicked.connect(self.add_current_well)
 
-        layout.addWidget(QLabel("Well Navigation"),1,1)
-        layout.addWidget(self.cell_input,1,2)
-        layout.addWidget(go_button,1,3)
+        layout = QHBoxLayout()
+        layout.addWidget(self.label)
 
-        layout.addWidget(QLabel("Well Selection"),2,1)
-        layout.addWidget(self.selection_input,2,2)
-        layout.addWidget(select_button,2,3)
+        layout_controls = QVBoxLayout()
+        layout_controls.addStretch(2)
 
+        # Add navigation buttons in a + sign layout
+        layout_move = QGridLayout()
+        layout_move.addWidget(up_button, 0, 2)
+        layout_move.addWidget(left_button, 1, 1)
+        layout_move.addWidget(add_button, 1, 2)
+        layout_move.addWidget(right_button, 1, 3)
+        layout_move.addWidget(down_button, 2, 2)
+        layout_move.setColumnStretch(0, 1)
+        layout_move.setColumnStretch(4, 1)
+        layout_controls.addLayout(layout_move)
+
+        layout_controls.addStretch(1)
+
+        layout_input = QGridLayout()
+        layout_input.addWidget(QLabel("Well Navigation"), 0, 0)
+        layout_input.addWidget(self.cell_input, 0, 1)
+        layout_input.addWidget(go_button, 0, 2)
+        layout_input.addWidget(QLabel("Well Selection"), 1, 0)
+        layout_input.addWidget(self.selection_input, 1, 1, 1, 2)
+        layout_controls.addLayout(layout_input)
+
+        control_widget = QWidget()
+        control_widget.setLayout(layout_controls)
+        control_widget.setFixedHeight(image_height)  # Set the height of controls to match the image
+
+        layout.addWidget(control_widget)
         self.setLayout(layout)
+
+    def move_up(self):
+        if self.current_cell:
+            row, col = self.current_cell
+            if row > 0:
+                self.current_cell = (row - 1, col)
+                self.update_current_cell()
+
+    def move_left(self):
+        if self.current_cell:
+            row, col = self.current_cell
+            if col > 0:
+                self.current_cell = (row, col - 1)
+                self.update_current_cell()
+
+    def move_right(self):
+        if self.current_cell:
+            row, col = self.current_cell
+            if col < self.columns - 1:
+                self.current_cell = (row, col + 1)
+                self.update_current_cell()
+
+    def move_down(self):
+        if self.current_cell:
+            row, col = self.current_cell
+            if row < self.rows - 1:
+                self.current_cell = (row + 1, col)
+                self.update_current_cell()
+
+    def add_current_well(self):
+        if self.current_cell:
+            row, col = self.current_cell
+            cell_name = f"{chr(65 + row)}{col + 1}"
+            
+            if (row, col) in self.selected_cells:
+                # If the well is already selected, remove it
+                del self.selected_cells[(row, col)]
+                self.remove_well_from_selection_input(cell_name)
+                print(f"Removed well {cell_name} from selection")
+            else:
+                # If the well is not selected, add it
+                self.selected_cells[(row, col)] = '#1f77b4'  # Add to selected cells with blue color
+                self.add_well_to_selection_input(cell_name)
+                print(f"Added well {cell_name} to selection")
+            
+            self.redraw_wells()
+            self.signal_wellSelected.emit(bool(self.selected_cells))
+
+    def add_well_to_selection_input(self, cell_name):
+        current_selection = self.selection_input.text()
+        if current_selection:
+            self.selection_input.setText(f"{current_selection}, {cell_name}")
+        else:
+            self.selection_input.setText(cell_name)
+
+    def remove_well_from_selection_input(self, cell_name):
+        current_selection = self.selection_input.text()
+        cells = [cell.strip() for cell in current_selection.split(',')]
+        if cell_name in cells:
+            cells.remove(cell_name)
+            self.selection_input.setText(', '.join(cells))
+
+    def update_current_cell(self):
+        self.redraw_wells()
+        row, col = self.current_cell
+        if row < 26:
+            row_label = chr(65 + row)
+        else:
+            row_label = chr(64 + (row // 26)) + chr(65 + (row % 26))
+        # Update cell_input with the correct label (e.g., A1, B2, AA1, etc.)
+        self.cell_input.setText(f"{row_label}{col + 1}")
+        
+        x_mm = col * self.spacing_mm + self.a1_x_mm + WELLPLATE_OFFSET_X_mm
+        y_mm = row * self.spacing_mm + self.a1_y_mm + WELLPLATE_OFFSET_Y_mm
+        self.signal_wellSelectedPos.emit(x_mm, y_mm)
 
     def redraw_wells(self):
         self.image.fill(QColor('white'))  # Clear the pixmap first
@@ -6668,9 +6805,10 @@ class Well1536SelectionWidget(QWidget):
             painter.drawRect(col * self.a, row * self.a, self.a, self.a)
         # Draw current cell in green
         if self.current_cell:
-            painter.setBrush(QColor('#ff7f0e'))
+            painter.setBrush(Qt.NoBrush)  # No fill
+            painter.setPen(QPen(QColor('red'), 2))  # Red outline, 2 pixels wide
             row, col = self.current_cell
-            painter.drawRect(col * self.a, row * self.a, self.a, self.a)
+            painter.drawRect(col * self.a+2, row * self.a+2, self.a-3, self.a-3)
         painter.end()
         self.label.setPixmap(self.image)
 
@@ -6709,6 +6847,8 @@ class Well1536SelectionWidget(QWidget):
                 else:  # It's a single cell
                     self.selected_cells[(start_row_index, start_col_index)] = '#1f77b4'
         self.redraw_wells()
+        if self.selected_cells:
+            self.signal_wellSelected.emit(True)
 
     def row_to_index(self, row):
         index = 0

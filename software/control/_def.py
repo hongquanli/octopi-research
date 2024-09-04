@@ -645,11 +645,11 @@ WELLPLATE_FORMAT_SETTINGS = {
         'cols': 24
     },
     1536: {
-        'a1_x_mm': 11.0,
-        'a1_y_mm': 7.86,
-        'a1_x_pixel': 144,
-        'a1_y_pixel': 108,
-        'well_size_mm': 1.5,
+        'a1_x_mm': 11.01,
+        'a1_y_mm': 7.87,
+        'a1_x_pixel': 130,
+        'a1_y_pixel': 93,
+        'well_size_mm': 1.53,
         'well_spacing_mm': 2.25,
         'number_of_skip': 0,
         'rows': 32,
