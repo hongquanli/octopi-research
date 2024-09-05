@@ -4900,7 +4900,7 @@ class NapariMultiChannelWidget(QWidget):
             self.viewer.layers.clear()
             self.acquisition_initialized = True
             if self.dtype != np.dtype(image_dtype) and not USE_NAPARI_FOR_LIVE_VIEW:
-                updateAllContrastLimits(image_dtype)
+                self.updateAllContrastLimits(image_dtype)
         
         self.image_width = image_width
         self.image_height = image_height
