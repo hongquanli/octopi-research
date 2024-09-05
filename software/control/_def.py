@@ -59,7 +59,7 @@ def populate_class_from_dict(myclass, options):
 class TriggerMode:
     SOFTWARE = 'Software Trigger'
     HARDWARE = 'Hardware Trigger'
-    CONTINUOUS = 'Continuous Acqusition'
+    CONTINUOUS = 'Continuous Acquisition'
 
 class Acquisition:
     CROP_WIDTH = 3000
@@ -419,7 +419,7 @@ AUTOLEVEL_DEFAULT_SETTING = False
 
 MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
 # MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix left half'
-MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
+MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
 # MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
@@ -435,7 +435,15 @@ CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritt
 
 ENABLE_STROBE_OUTPUT = False
 
+ACQUISITION_PATTERN = 'S-Pattern' # 'S-Pattern', 'Unidirectional'
+FOV_PATTERN = 'S-Pattern' # 'S-Pattern', 'Unidirectional'
+
 Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
+Z_STACKING_CONFIG_MAP = {
+    0: 'FROM BOTTOM',
+    1: 'FROM CENTER',
+    2: 'FROM TOP'
+}
 
 # plate format
 WELLPLATE_FORMAT = 384
@@ -536,6 +544,8 @@ USE_NAPARI_FOR_LIVE_VIEW = False
 USE_NAPARI_FOR_MULTIPOINT = True
 USE_NAPARI_FOR_TILED_DISPLAY = False
 USE_NAPARI_FOR_MOSAIC_DISPLAY = True
+USE_NAPARI_WELL_SELECTION = False
+USE_NAPARI_FOR_LIVE_CONTROL = False
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
@@ -551,6 +561,9 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 # Tiled preview
 SHOW_TILED_PREVIEW = False
 PRVIEW_DOWNSAMPLE_FACTOR = 5
+
+# Navigation Bar (Stages)
+SHOW_NAVIGATION_BAR = False
 
 # Stitcher
 ENABLE_STITCHER = False
@@ -577,6 +590,84 @@ FILTER_CONTROLLER_SERIAL_NUMBER = 'A10NG007'
 OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
 OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
+
+WELLPLATE_FORMAT_SETTINGS = {
+    6: {
+        'a1_x_mm': 24.55,
+        'a1_y_mm': 23.01,
+        'a1_x_pixel': 290,
+        'a1_y_pixel': 272,
+        'well_size_mm': 34.94,
+        'well_spacing_mm': 39.2, # 39.2
+        'number_of_skip': 0,
+        'rows': 2,
+        'cols': 3
+    },
+    12: {
+        'a1_x_mm': 24.75,
+        'a1_y_mm': 16.86,
+        'a1_x_pixel': 293,
+        'a1_y_pixel': 198,
+        'well_size_mm': 22.05,
+        'well_spacing_mm': 26,
+        'number_of_skip': 0,
+        'rows': 3,
+        'cols': 4
+    },
+    24: {
+        'a1_x_mm': 24.45,
+        'a1_y_mm': 22.07,
+        'a1_x_pixel': 233,
+        'a1_y_pixel': 210,
+        'well_size_mm': 15.54,
+        'well_spacing_mm': 19.3, # 18
+        'number_of_skip': 0,
+        'rows': 4,
+        'cols': 6
+    },
+    96: {
+        'a1_x_mm': 11.31,
+        'a1_y_mm': 10.75,
+        'a1_x_pixel': 171,
+        'a1_y_pixel': 135,
+        'well_size_mm': 6.21,
+        'well_spacing_mm': 9,
+        'number_of_skip': 0,
+        'rows': 8,
+        'cols': 12
+    },
+    384: {
+        'a1_x_mm': 12.05,
+        'a1_y_mm': 9.05,
+        'a1_x_pixel': 143,
+        'a1_y_pixel': 106,
+        'well_size_mm': 3.3,
+        'well_spacing_mm': 4.5,
+        'number_of_skip': 1,
+        'rows': 16,
+        'cols': 24
+    },
+    1536: {
+        'a1_x_mm': 11.01,
+        'a1_y_mm': 7.87,
+        'a1_x_pixel': 130,
+        'a1_y_pixel': 93,
+        'well_size_mm': 1.53,
+        'well_spacing_mm': 2.25,
+        'number_of_skip': 0,
+        'rows': 32,
+        'cols': 48
+    }
+}
+
+NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
+WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
+WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
+A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm'] # measured stage position - to update
+A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm'] # measured stage position - to update
+A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel'] # coordinate on the png
+A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel'] # coordinate on the png
+
 
 ##########################################################
 #### start of loading machine specific configurations ####
@@ -641,6 +732,24 @@ if config_files:
             continue
         myclass = locals()[classkey]
         populate_class_from_dict(myclass,pop_items)
+
+    if 'WELLPLATE_FORMAT_SETTINGS' in cfp.sections():
+        for key, value in cfp['WELLPLATE_FORMAT_SETTINGS'].items():
+            plate_size, setting = key.split('.')
+            plate_size = int(plate_size)
+            if plate_size in WELLPLATE_FORMAT_SETTINGS:
+                WELLPLATE_FORMAT_SETTINGS[plate_size][setting] = conf_attribute_reader(value)
+
+        # After processing the INI file, update the derived values:
+        if WELLPLATE_FORMAT in WELLPLATE_FORMAT_SETTINGS:
+            NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip']
+            WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
+            WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
+            A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm']
+            A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm']
+            A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel']
+            A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel']
+    
     with open("cache/config_file_path.txt", 'w') as file:
         file.write(config_files[0])
     CACHED_CONFIG_FILE_PATH = config_files[0]
@@ -680,52 +789,3 @@ Z_HOME_SAFETY_MARGIN_UM = 600
 
 if ENABLE_TRACKING:
     DEFAULT_DISPLAY_CROP = Tracking.DEFAULT_DISPLAY_CROP
-
-if WELLPLATE_FORMAT == 384:
-    WELL_SIZE_MM = 3.3
-    WELL_SPACING_MM = 4.5
-    NUMBER_OF_SKIP = 1
-    A1_X_MM = 12.05     # measured stage position - to update
-    A1_Y_MM = 9.05      # measured stage position - to update
-    A1_X_PIXEL = 144    # coordinate on the png
-    A1_Y_PIXEL = 108    # coordinate on the png
-elif WELLPLATE_FORMAT == 96:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 6.21
-    WELL_SPACING_MM = 9
-    A1_X_MM = 11.31      # measured stage position - to update
-    A1_Y_MM = 10.75     # measured stage position - to update
-    A1_X_PIXEL = 171    # coordinate on the png
-    A1_Y_PIXEL = 138    # coordinate on the png
-elif WELLPLATE_FORMAT == 24:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 15.54
-    WELL_SPACING_MM = 19.3
-    A1_X_MM = 17.05     # measured stage position - to update
-    A1_Y_MM = 13.67     # measured stage position - to update
-    A1_X_PIXEL = 144    # coordinate on the png - to update
-    A1_Y_PIXEL = 108    # coordinate on the png - to update
-elif WELLPLATE_FORMAT == 12:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 22.05
-    WELL_SPACING_MM = 26
-    A1_X_MM = 24.75     # measured stage position - to update
-    A1_Y_MM = 16.86     # measured stage position - to update
-    A1_X_PIXEL = 297    # coordinate on the png
-    A1_Y_PIXEL = 209    # coordinate on the png
-elif WELLPLATE_FORMAT == 6:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 34.94
-    WELL_SPACING_MM = 39.2
-    A1_X_MM = 24.55     # measured stage position - to update
-    A1_Y_MM = 23.01     # measured stage position - to update
-    A1_X_PIXEL = 297    # coordinate on the png - to update
-    A1_Y_PIXEL = 209    # coordinate on the png - to update
-elif WELLPLATE_FORMAT == 1536:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 1.5
-    WELL_SPACING_MM = 2.25
-    A1_X_MM = 11.0      # measured stage position - to update
-    A1_Y_MM = 7.86      # measured stage position - to update
-    A1_X_PIXEL = 144    # coordinate on the png - to update
-    A1_Y_PIXEL = 108    # coordinate on the png - to update
