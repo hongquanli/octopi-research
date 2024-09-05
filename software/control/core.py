@@ -2638,6 +2638,7 @@ class MultiPointController(QObject):
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
 
     def set_deltaZ(self,delta_um):
+        mm_per_ustep_Z = self.navigationController.get_mm_per_ustep_Z()
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
 
