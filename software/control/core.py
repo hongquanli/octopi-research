@@ -760,6 +760,15 @@ class NavigationController(QObject):
         # scan start position
         self.scan_begin_position_x = 0
         self.scan_begin_position_y = 0
+    
+    def get_mm_per_ustep_X(self):
+        return SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
+
+    def get_mm_per_ustep_Y(self):
+        return SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
+
+    def get_mm_per_ustep_Z(self):
+        return SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z)
 
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
@@ -847,22 +856,22 @@ class NavigationController(QObject):
             f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
 
     def move_x(self,delta):
-        self.microcontroller.move_x_usteps(int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        self.microcontroller.move_x_usteps(int(delta/self.get_mm_per_ustep_X()))
 
     def move_y(self,delta):
-        self.microcontroller.move_y_usteps(int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        self.microcontroller.move_y_usteps(int(delta/self.get_mm_per_ustep_Y()))
 
     def move_z(self,delta):
-        self.microcontroller.move_z_usteps(int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+        self.microcontroller.move_z_usteps(int(delta/self.get_mm_per_ustep_Z()))
 
     def move_x_to(self,delta):
-        self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+        self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/self.get_mm_per_ustep_X()))
 
     def move_y_to(self,delta):
-        self.microcontroller.move_y_to_usteps(STAGE_MOVEMENT_SIGN_Y*int(delta/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+        self.microcontroller.move_y_to_usteps(STAGE_MOVEMENT_SIGN_Y*int(delta/self.get_mm_per_ustep_Y()))
 
     def move_z_to(self,delta):
-        self.microcontroller.move_z_to_usteps(STAGE_MOVEMENT_SIGN_Z*int(delta/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+        self.microcontroller.move_z_to_usteps(STAGE_MOVEMENT_SIGN_Z*int(delta/self.get_mm_per_ustep_Z()))
 
     def move_x_usteps(self,usteps):
         self.microcontroller.move_x_usteps(usteps)
@@ -873,6 +882,15 @@ class NavigationController(QObject):
     def move_z_usteps(self,usteps):
         self.microcontroller.move_z_usteps(usteps)
 
+    def move_x_to_usteps(self,usteps):
+        self.microcontroller.move_x_to_usteps(usteps)
+
+    def move_y_to_usteps(self,usteps):
+        self.microcontroller.move_y_to_usteps(usteps)
+
+    def move_z_to_usteps(self,usteps):
+        self.microcontroller.move_z_to_usteps(usteps)
+
     def update_pos(self,microcontroller):
         # get position from the microcontroller
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
@@ -881,15 +899,15 @@ class NavigationController(QObject):
         if USE_ENCODER_X:
             self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
         else:
-            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
         if USE_ENCODER_Y:
             self.y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
         else:
-            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
         if USE_ENCODER_Z:
             self.z_pos_mm = z_pos*ENCODER_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
         else:
-            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*self.get_mm_per_ustep_Z()
         if USE_ENCODER_THETA:
             self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
         else:
@@ -932,46 +950,46 @@ class NavigationController(QObject):
         self.microcontroller.zero_z()
 
     def zero_theta(self):
-        self.microcontroller.zero_tehta()
+        self.microcontroller.zero_theta()
 
     def home(self):
         pass
 
     def set_x_limit_pos_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_X > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,int(value_mm/self.get_mm_per_ustep_X()))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/self.get_mm_per_ustep_X()))
 
     def set_x_limit_neg_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_X > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+            self.microcontroller.set_lim(LIMIT_CODE.X_NEGATIVE,int(value_mm/self.get_mm_per_ustep_X()))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/(SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X))))
+            self.microcontroller.set_lim(LIMIT_CODE.X_POSITIVE,STAGE_MOVEMENT_SIGN_X*int(value_mm/self.get_mm_per_ustep_X()))
 
     def set_y_limit_pos_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_Y > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,int(value_mm/self.get_mm_per_ustep_Y()))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,STAGE_MOVEMENT_SIGN_Y*int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,STAGE_MOVEMENT_SIGN_Y*int(value_mm/self.get_mm_per_ustep_Y()))
 
     def set_y_limit_neg_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_Y > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+            self.microcontroller.set_lim(LIMIT_CODE.Y_NEGATIVE,int(value_mm/self.get_mm_per_ustep_Y()))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,STAGE_MOVEMENT_SIGN_Y*int(value_mm/(SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y))))
+            self.microcontroller.set_lim(LIMIT_CODE.Y_POSITIVE,STAGE_MOVEMENT_SIGN_Y*int(value_mm/self.get_mm_per_ustep_Y()))
 
     def set_z_limit_pos_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_Z > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,int(value_mm/self.get_mm_per_ustep_Z()))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/self.get_mm_per_ustep_Z()))
 
     def set_z_limit_neg_mm(self,value_mm):
         if STAGE_MOVEMENT_SIGN_Z > 0:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+            self.microcontroller.set_lim(LIMIT_CODE.Z_NEGATIVE,int(value_mm/self.get_mm_per_ustep_Z()))
         else:
-            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/(SCREW_PITCH_Z_MM/(self.z_microstepping*FULLSTEPS_PER_REV_Z))))
+            self.microcontroller.set_lim(LIMIT_CODE.Z_POSITIVE,STAGE_MOVEMENT_SIGN_Z*int(value_mm/self.get_mm_per_ustep_Z()))
 
     def move_to(self,x_mm,y_mm):
         self.move_x_to(x_mm)
@@ -1192,12 +1210,12 @@ class SlidePositionControlWorker(QObject):
         if self.slidePositionController.objective_retracted:
             if self.navigationController.get_pid_control_flag(2) is False:
                 _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.microcontroller.move_z_to_usteps(self.slidePositionController.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
+                self.navigationController.move_z_to_usteps(self.slidePositionController.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             else:
-                self.navigationController.microcontroller.move_z_to_usteps(self.slidePositionController.z_pos)
+                self.navigationController.move_z_to_usteps(self.slidePositionController.z_pos)
                 self.wait_till_operation_is_completed(timestamp_start, SLIDE_POTISION_SWITCHING_TIMEOUT_LIMIT_S)
             self.slidePositionController.objective_retracted = False
             print('z position restored')
@@ -1423,7 +1441,7 @@ class AutoFocusController(QObject):
         self.N = N
 
     def set_deltaZ(self,deltaZ_um):
-        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep_Z = self.navigationController.get_mm_per_ustep_Z()
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
 
@@ -2481,7 +2499,7 @@ class MultiPointWorker(QObject):
             # move z back
             if self.navigationController.get_pid_control_flag(2) is False:
                 _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.microcontroller.move_z_to_usteps(self.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
+                self.navigationController.move_z_to_usteps(self.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
@@ -2543,9 +2561,9 @@ class MultiPointController(QObject):
         self.NY = 1
         self.NZ = 1
         self.Nt = 1
-        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
-        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
-        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep_X = self.navigationController.get_mm_per_ustep_X()
+        mm_per_ustep_Y = self.navigationController.get_mm_per_ustep_Y()
+        mm_per_ustep_Z = self.navigationController.get_mm_per_ustep_Z()
         self.deltaX = Acquisition.DX
         self.deltaX_usteps = round(self.deltaX/mm_per_ustep_X)
         self.deltaY = Acquisition.DY
@@ -2610,18 +2628,16 @@ class MultiPointController(QObject):
         self.Nt = N
 
     def set_deltaX(self,delta):
-        mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
+        mm_per_ustep_X = self.navigationController.get_mm_per_ustep_X()
         self.deltaX = delta
         self.deltaX_usteps = round(delta/mm_per_ustep_X)
 
     def set_deltaY(self,delta):
-        mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep_Y = self.navigationController.get_mm_per_ustep_Y()
         self.deltaY = delta
         self.deltaY_usteps = round(delta/mm_per_ustep_Y)
 
     def set_deltaZ(self,delta_um):
-        delta_um = 1.0 if delta_um == 0 else delta_um
-        mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = delta_um/1000
         self.deltaZ_usteps = round((delta_um/1000)/mm_per_ustep_Z)
 
@@ -3298,8 +3314,8 @@ class TrackingWorker(QObject):
 
             # move
             if self.trackingController.flag_stage_tracking_enabled:
-                x_correction_usteps = int(x_error_mm/(SCREW_PITCH_X_MM/FULLSTEPS_PER_REV_X/self.navigationController.x_microstepping))
-                y_correction_usteps = int(y_error_mm/(SCREW_PITCH_Y_MM/FULLSTEPS_PER_REV_Y/self.navigationController.y_microstepping))
+                x_correction_usteps = int(x_error_mm/self.navigationController.get_mm_per_ustep_X())
+                y_correction_usteps = int(y_error_mm/self.navigationController.get_mm_per_ustep_Y())
                 self.microcontroller.move_x_usteps(TRACKING_MOVEMENT_SIGN_X*x_correction_usteps)
                 self.microcontroller.move_y_usteps(TRACKING_MOVEMENT_SIGN_Y*y_correction_usteps)
 
@@ -3858,7 +3874,7 @@ class ConfigurationManager(QObject):
                 return color
         return None
 
-class PlateReaderNavigationController(QObject):
+class PlateReaderNavigationController(QObject):             # Not implemented for Prior stage
 
     signal_homing_complete = Signal()
     signal_current_well = Signal(str)

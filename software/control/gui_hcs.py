@@ -13,6 +13,9 @@ from qtpy.QtGui import *
 from control._def import *
 
 # app specific libraries
+import control.widgets as widgets
+import serial
+
 if CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera
@@ -61,9 +64,13 @@ elif FOCUS_CAMERA_TYPE == "FLIR":
 else:
     import control.camera as camera_fc
 
+if USE_PRIOR_STAGE:
+    from control.stage_prior import PriorStage
+    from control.navigation_prior import NavigationController_PriorStage
+
+
 import control.core as core
 import control.microcontroller as microcontroller
-import control.widgets as widgets
 import control.serial_peripherals as serial_peripherals
 
 if ENABLE_STITCHER:
@@ -143,6 +150,9 @@ class OctopiGUI(QMainWindow):
             if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
                 self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
 
+            if USE_PRIOR_STAGE:
+                self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
+
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION,sn=CONTROLLER_SN)
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
@@ -166,7 +176,10 @@ class OctopiGUI(QMainWindow):
         self.objectiveStore = core.ObjectiveStore(parent=self) # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager,parent=self)
-        self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)
+        if USE_PRIOR_STAGE:
+            self.navigationController = NavigationController_PriorStage(self.priorstage, self.microcontroller, self.objectiveStore, parent=self)
+        else:
+            self.navigationController = core.NavigationController(self.microcontroller, self.objectiveStore, parent=self)
         self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.scanCoordinates = core.ScanCoordinates()

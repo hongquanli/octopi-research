@@ -1523,15 +1523,15 @@ class NavigationWidget(QFrame):
         self.navigationController.move_z(-self.entry_dZ.value()/1000)
 
     def set_deltaX(self,value):
-        mm_per_ustep = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
+        mm_per_ustep = self.navigationController.get_mm_per_ustep_X()
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_dX.setValue(deltaX)
     def set_deltaY(self,value):
-        mm_per_ustep = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep = self.navigationController.get_mm_per_ustep_Y()
         deltaY = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_dY.setValue(deltaY)
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = self.navigationController.get_mm_per_ustep_Z()
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_dZ.setValue(deltaZ)
 
@@ -1881,7 +1881,7 @@ class AutoFocusWidget(QFrame):
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
 
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.autofocusController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = self.autofocusController.navigationController.get_mm_per_ustep_Z()
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_delta.setValue(deltaZ)
         self.autofocusController.set_deltaZ(deltaZ)
@@ -2157,19 +2157,19 @@ class MultiPointWidget(QFrame):
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
 
     def set_deltaX(self,value):
-        mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
+        mm_per_ustep = self.multipointController.navigationController.get_mm_per_ustep_X()
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaX.setValue(deltaX)
         self.multipointController.set_deltaX(deltaX)
 
     def set_deltaY(self,value):
-        mm_per_ustep = SCREW_PITCH_Y_MM/(self.multipointController.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep = self.multipointController.navigationController.get_mm_per_ustep_Y()
         deltaY = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaY.setValue(deltaY)
         self.multipointController.set_deltaY(deltaY)
 
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.multipointController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = self.multipointController.navigationController.get_mm_per_ustep_Z()
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_deltaZ.setValue(deltaZ)
         self.multipointController.set_deltaZ(deltaZ)
@@ -2769,19 +2769,19 @@ class MultiPointWidget2(QFrame):
             self.eta_timer.stop()
 
     def set_deltaX(self,value):
-        mm_per_ustep = SCREW_PITCH_X_MM/(self.multipointController.navigationController.x_microstepping*FULLSTEPS_PER_REV_X) # to implement a get_x_microstepping() in multipointController
+        mm_per_ustep = self.multipointController.navigationController.get_mm_per_ustep_X()
         deltaX = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaX.setValue(deltaX)
         self.multipointController.set_deltaX(deltaX)
 
     def set_deltaY(self,value):
-        mm_per_ustep = SCREW_PITCH_Y_MM/(self.multipointController.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
+        mm_per_ustep = self.multipointController.navigationController.get_mm_per_ustep_Y()
         deltaY = round(value/mm_per_ustep)*mm_per_ustep
         self.entry_deltaY.setValue(deltaY)
         self.multipointController.set_deltaY(deltaY)
 
     def set_deltaZ(self,value):
-        mm_per_ustep = SCREW_PITCH_Z_MM/(self.multipointController.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
+        mm_per_ustep = self.multipointController.navigationController.get_mm_per_ustep_Z()
         deltaZ = round(value/1000/mm_per_ustep)*mm_per_ustep*1000
         self.entry_deltaZ.setValue(deltaZ)
         self.multipointController.set_deltaZ(deltaZ)

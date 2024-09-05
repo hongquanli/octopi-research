@@ -591,6 +591,10 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
 OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 
+# Stage
+USE_PRIOR_STAGE = False
+PRIOR_STAGE_SN = ""
+
 WELLPLATE_FORMAT_SETTINGS = {
     6: {
         'a1_x_mm': 24.55,
@@ -667,7 +671,6 @@ A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm'] # measured stag
 A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm'] # measured stage position - to update
 A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel'] # coordinate on the png
 A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel'] # coordinate on the png
-
 
 ##########################################################
 #### start of loading machine specific configurations ####
