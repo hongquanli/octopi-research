@@ -1611,6 +1611,11 @@ class NavigationWidget(QFrame):
             self.slidePositionController.move_to_slide_scanning_position()
         self.btn_load_slide.setEnabled(False)
 
+    def replace_slide_controller(self, slidePositionController):
+        self.slidePositionController = slidePositionController
+        self.slidePositionController.signal_slide_loading_position_reached.connect(self.slot_slide_loading_position_reached)
+        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.slot_slide_scanning_position_reached)
+
 
 class NavigationBarWidget(QWidget):
     def __init__(self, navigationController=None, slidePositionController=None, add_z_buttons=True,*args, **kwargs):
