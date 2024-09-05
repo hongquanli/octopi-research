@@ -762,6 +762,7 @@ class OctopiGUI(QMainWindow):
             self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
             if SHOW_NAVIGATION_BAR:
                 self.navigationBarWidget.replace_slide_controller(self.slidePositionController)
+            self.navigationWidget.replace_slide_controller(self.slidePositionController)
         else:
             self.toggleWellSelector(True)
             self.multipointController.inverted_objective = True
@@ -775,6 +776,7 @@ class OctopiGUI(QMainWindow):
             self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
             if SHOW_NAVIGATION_BAR:
                 self.navigationBarWidget.replace_slide_controller(self.slidePositionController)
+            self.navigationWidget.replace_slide_controller(self.slidePositionController)
 
             if format_ == 1536:
                 self.wellSelectionWidget.setParent(None)
