@@ -797,8 +797,9 @@ class OctopiGUI(QMainWindow):
                 else:
                     self.dock_wellSelection.addWidget(self.wellSelectionWidget)
                 self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
-                self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
                 self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
+                self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
+                self.wellplateFormatWidget.setWellplateSettings(format_)
             
             if ENABLE_SCAN_GRID:
                 self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
