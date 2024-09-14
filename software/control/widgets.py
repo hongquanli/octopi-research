@@ -3127,8 +3127,9 @@ class MultiPointWidgetGrid(QFrame):
     signal_update_navigation_viewer = Signal()
     signal_stitcher_widget = Signal(bool)
     signal_z_stacking = Signal(int)
+    signal_draw_shape = Signal(bool)
 
-    def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, *args, **kwargs):
+    def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, napariMosaicWidget, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.objectiveStore = objectiveStore
         self.multipointController = multipointController
@@ -3136,6 +3137,7 @@ class MultiPointWidgetGrid(QFrame):
         self.navigationViewer = navigationViewer
         self.scanCoordinates = scanCoordinates
         self.configurationManager = configurationManager
+        self.napariMosaicWidget = napariMosaicWidget
         self.acquisition_pattern = ACQUISITION_PATTERN
         self.fov_pattern = FOV_PATTERN
         self.base_path_is_set = False
@@ -3145,6 +3147,7 @@ class MultiPointWidgetGrid(QFrame):
         self.region_coordinates = {}
         self.region_fov_coordinates_dict = {}
         self.acquisition_start_time = None
+        self.manual_shape = None
         self.eta_seconds = 0
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -3247,8 +3250,10 @@ class MultiPointWidgetGrid(QFrame):
 
         # Add a combo box for shape selection
         self.combobox_shape = QComboBox()
-        self.combobox_shape.addItems(['Square', 'Circle'])
+        self.combobox_shape.addItems(['Square', 'Circle', 'Manual'])
         self.combobox_shape.setFixedWidth(btn_width)
+        #self.combobox_shape.currentTextChanged.connect(self.on_shape_changed)
+        self.combobox_shape.model().item(2).setEnabled(False)
 
         self.checkbox_genFocusMap = QCheckBox('Focus Map')
         #self.checkbox_genFocusMap = QCheckBox('AF Map')
@@ -3410,26 +3415,33 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_scan_size.valueChanged.connect(self.update_coverage_from_scan_size)
         self.entry_well_coverage.valueChanged.connect(self.update_scan_size_from_coverage)
         self.combobox_shape.currentTextChanged.connect(self.on_set_shape)
-        self.entry_scan_size.valueChanged.connect(self.update_well_coordinates)
-        self.entry_overlap.valueChanged.connect(self.update_well_coordinates)
+        self.entry_scan_size.valueChanged.connect(self.update_coordinates)
+        self.entry_overlap.valueChanged.connect(self.update_coordinates)
         self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
         self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
         self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
         self.checkbox_usePiezo.stateChanged.connect(self.multipointController.set_use_piezo)
         self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.list_configurations.itemSelectionChanged.connect(self.emit_selected_channels)
-        self.navigationViewer.signal_draw_scan_grid.connect(self.set_live_scan_coordinates)
+        self.navigationViewer.signal_update_live_scan_grid.connect(self.set_live_scan_coordinates)
+        self.navigationViewer.signal_update_well_coordinates.connect(self.set_well_coordinates)
         self.multipointController.acquisitionFinished.connect(self.acquisition_is_finished)
         self.multipointController.signal_acquisition_progress.connect(self.update_acquisition_progress)
         self.multipointController.signal_region_progress.connect(self.update_region_progress)
         self.signal_acquisition_started.connect(self.display_progress_bar)
         self.eta_timer.timeout.connect(self.update_eta_display)
         self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
+        self.napariMosaicWidget.signal_layers_initialized.connect(self.enable_manual_ROI)
 
         self.navigationController.zPos.connect(self.update_z_min)
         self.navigationController.zPos.connect(self.update_z_max)
         #self.entry_NZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
+
+    def enable_manual_ROI(self, enable):
+        self.combobox_shape.model().item(2).setEnabled(enable)
+        if not enable:
+            self.set_default_shape()
 
     def update_region_progress(self, current_fov, num_fovs):
         self.progress_bar.setMaximum(num_fovs)
@@ -3565,8 +3577,29 @@ class MultiPointWidgetGrid(QFrame):
         return well_size
 
     def on_set_shape(self):
-        self.update_coverage_from_scan_size()
-        self.update_well_coordinates()
+        shape = self.combobox_shape.currentText()
+        if shape == 'Manual':
+            self.signal_draw_shape.emit(True)
+        else:
+            self.signal_draw_shape.emit(False)
+            self.update_coverage_from_scan_size()
+            self.update_coordinates()
+
+    def update_manual_shape(self, shapes_data_mm):
+        self.clear_regions()
+        if shapes_data_mm and len(shapes_data_mm) > 0:
+            self.manual_shapes = shapes_data_mm
+            print(f"Manual shapes updated with {len(self.manual_shapes)} shapes")
+        else:
+            self.manual_shapes = None
+            print("No valid shapes found, cleared manual shapes")
+        self.update_coordinates()
+
+    def convert_pixel_to_mm(self, pixel_coords):
+        # Convert pixel coordinates to millimeter coordinates
+        mm_coords = pixel_coords * self.napariMosaicWidget.viewer_pixel_size_mm
+        mm_coords += np.array([self.napariMosaicWidget.top_left_coordinate[1], self.napariMosaicWidget.top_left_coordinate[0]])
+        return mm_coords
 
     def update_coverage_from_scan_size(self):
         if 'glass slide' not in self.navigationViewer.sample and hasattr(self.navigationViewer, 'well_size_mm'):
@@ -3639,13 +3672,17 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_maxZ.blockSignals(False)
 
     def set_live_scan_coordinates(self, x_mm, y_mm):
-        if self.scanCoordinates.format == 0 and self.multipointController.parent.recordTabWidget.currentWidget() == self:
+        parent = self.multipointController.parent
+        is_current_widget = (parent is not None and hasattr(parent, 'recordTabWidget') and 
+                             parent.recordTabWidget.currentWidget() == self)
+        
+        if self.combobox_shape.currentText() != 'Manual' and self.scanCoordinates.format == 0 and (parent is None or is_current_widget):
+            
             if self.region_coordinates:
-                print("Clear live coordinates")
+                print("clearing old live coordinates")
                 self.clear_regions()
-            else:
-                print("No live coordinates")
-            print("Add current location")
+
+            print("add current location")
             self.add_region('current', x_mm, y_mm)
 
     def set_well_coordinates(self, selected):
@@ -3677,19 +3714,39 @@ class MultiPointWidgetGrid(QFrame):
                 print("Clear well coordinates")
                 self.clear_regions()
 
-    def update_well_coordinates(self):
-        if self.well_selected and self.multipointController.parent.recordTabWidget.currentWidget() == self:
-            if len(self.region_coordinates) > 0:
-                self.navigationViewer.clear_overlay()
-            for well_id, well_coord in self.region_coordinates.items():
-                self.add_region(well_id, well_coord[0], well_coord[1])
+    def update_coordinates(self):
+        shape = self.combobox_shape.currentText()
+        if shape == 'Manual':
+            self.region_fov_coordinates_dict.clear()
+            self.region_coordinates.clear()
+            if self.manual_shapes is not None:
+                # Handle manual shapes
+                for i, manual_shape in enumerate(self.manual_shapes):
+                    scan_coordinates = self.create_manual_region_coordinates(
+                        self.objectiveStore,
+                        manual_shape,
+                        overlap_percent=self.entry_overlap.value()
+                    )
+                    if scan_coordinates:
+                        if len(self.manual_shapes) <= 1:
+                            region_name = f'manual'
+                        else:
+                            region_name = f'manual_{i}'
+                        self.region_fov_coordinates_dict[region_name] = scan_coordinates
+                        # Set the region coordinates to the center of the manual shape
+                        center = np.mean(manual_shape, axis=0)
+                        self.region_coordinates[region_name] = [center[0], center[1]]
+            else:
+                print("No Manual ROI found")
 
-            self.signal_update_navigation_viewer.emit()
-            print(f"Updated region coordinates: {len(self.region_coordinates)} regions")
-        elif self.scanCoordinates.format == 0:
+        elif 'glass slide' in self.navigationViewer.sample:
             x = self.navigationController.x_pos_mm
             y = self.navigationController.y_pos_mm
             self.set_live_scan_coordinates(x, y)
+        else:
+            if len(self.region_coordinates) > 0:
+                self.clear_regions()
+            self.set_well_coordinates(True)
 
     def update_region_z_level(self, well_id, new_z):
         if len(self.region_coordinates[well_id]) == 3:
@@ -3738,6 +3795,9 @@ class MultiPointWidgetGrid(QFrame):
         print("Cleared all regions")
 
     def create_region_coordinates(self, objectiveStore, center_x, center_y, scan_size_mm=None, overlap_percent=10, shape='Square'):
+        if shape == 'Manual':
+            return self.create_manual_region_coordinates(objectiveStore, self.manual_shapes, overlap_percent)
+
         if scan_size_mm is None:
             scan_size_mm = self.scanCoordinates.well_size_mm
         pixel_size_um = objectiveStore.get_pixel_size()
@@ -3861,55 +3921,124 @@ class MultiPointWidgetGrid(QFrame):
         self.scanCoordinates.grid_skip_positions = region_skip_positions
         return steps, step_size_mm
 
-    def sort_coordinates(self):
-        def well_id_sort_key(well_id):
-            # Split the well_id into the row part and the column part
-            row_label = well_id[0]  # First character is the row label
-            col_number = int(well_id[1:])  # Remaining characters are the column number
-            return (row_label, col_number)
+    def create_manual_region_coordinates(self, objectiveStore, shape_coords, overlap_percent):
+        pixel_size_um = objectiveStore.get_pixel_size()
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
 
+        if shape_coords is None or len(shape_coords) < 3:
+            print("Invalid manual shape data")
+            return []
+
+        # Ensure shape_coords is a numpy array
+        shape_coords = np.array(shape_coords)
+
+        # Check if shape_coords is 2D, if not, try to reshape it
+        if shape_coords.ndim == 1:
+            shape_coords = shape_coords.reshape(-1, 2)
+        elif shape_coords.ndim > 2:
+            print(f"Unexpected shape of manual_shape: {shape_coords.shape}")
+            return []
+
+        # Now we can safely get min and max
+        x_min, y_min = np.min(shape_coords, axis=0)
+        x_max, y_max = np.max(shape_coords, axis=0)
+
+        # Create a grid of points within the bounding box of the shape
+        x_range = np.arange(x_min - fov_size_mm/2, x_max + fov_size_mm/2, step_size_mm)
+        y_range = np.arange(y_min - fov_size_mm/2, y_max + fov_size_mm/2, step_size_mm)
+
+        # Create a dictionary to store coordinates by row
+        rows = {}
+        for y in y_range:
+            row = []
+            for x in x_range:
+                if self.point_inside_polygon((x, y), shape_coords):
+                    row.append((x, y))
+                    self.navigationViewer.register_fov_to_image(x, y)
+            if row:
+                rows[y] = row
+        self.signal_update_navigation_viewer.emit()
+
+        # Sort rows from top to bottom
+        sorted_rows = sorted(rows.items(), reverse=False)
+        scan_coordinates = []
+        for i, (_, row) in enumerate(sorted_rows):
+            sorted_row = sorted(row, key=lambda coord: coord[0])  # Sort by x-coordinate
+            
+            if self.fov_pattern == 'S-Pattern' and i % 2 == 1:
+                sorted_row.reverse()
+            
+            scan_coordinates.extend(sorted_row)
+        return scan_coordinates
+
+    def point_inside_polygon(self, point, polygon):
+        x, y = point
+        n = len(polygon)
+        inside = False
+        p1x, p1y = polygon[0]
+        for i in range(n + 1):
+            p2x, p2y = polygon[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
+
+    def sort_coordinates(self):
         print(f"Acquisition pattern: {self.acquisition_pattern}")
         
-        if len(self.region_coordinates.keys()) <= 1:
-            ("no coordinates, using current")
+        if len(self.region_coordinates) <= 1:
+            print("No coordinates or using current")
             return
 
-        sorted_keys = sorted(self.region_coordinates.keys(), key=well_id_sort_key)
+        manual_coords = []
+        well_coords = []
         
-        if self.acquisition_pattern == 'S-Pattern':
-            # Determine number of columns based on the keys
-            num_columns = max(int(key[1:]) for key in sorted_keys)
-            
-            # Group keys by row
-            rows = {}
-            for key in sorted_keys:
-                row_label = key[0]
-                if row_label not in rows:
-                    rows[row_label] = []
-                rows[row_label].append(key)
-            
-            # Sort each row and apply the S-pattern
-            sorted_keys = []
-            for i, row_label in enumerate(sorted(rows.keys())):
-                row = sorted(rows[row_label], key=lambda x: int(x[1:]))  # Sort the row by column number
-                
-                if i % 2 == 1:  # Reverse every other row
+        for key, coord in self.region_coordinates.items():
+            if 'manual' in key:
+                manual_coords.append((key, coord))
+            else:
+                well_coords.append((key, coord))
+
+        def sort_manual_coords(coords):
+            sorted_coords = sorted(coords, key=lambda x: (x[1][1], x[1][0]))  # Sort by y, then x
+            y_coords = sorted(set(coord[1][1] for coord in coords), reverse=True)
+            sorted_items = []
+            for i, y in enumerate(y_coords):
+                row = [item for item in sorted_coords if item[1][1] == y]
+                if self.acquisition_pattern == 'S-Pattern' and i % 2 == 1:
                     row.reverse()
-                
-                sorted_keys.extend(row)
+                sorted_items.extend(row)
+            return sorted_items
 
-        elif self.acquisition_pattern == 'Unidirectional':
-            # Already sorted by well_id_sort_key
-            pass
-        else:
-            # No sorting for any other pattern
-            return
+        def sort_well_coords(coords):
+            rows = {}
+            for key, coord in coords:
+                rows.setdefault(key[0], []).append((key, coord))
+            sorted_items = []
+            for i, (_, row) in enumerate(sorted(rows.items())):
+                sorted_row = sorted(row, key=lambda x: int(x[0][1:]))
+                if self.acquisition_pattern == 'S-Pattern' and i % 2 == 1:
+                    sorted_row.reverse()
+                sorted_items.extend(sorted_row)
+            return sorted_items
 
-        # Create new dictionaries with sorted keys using dictionary comprehensions
-        self.region_coordinates = {key: self.region_coordinates[key] for key in sorted_keys}
-        self.region_fov_coordinates_dict = {key: self.region_fov_coordinates_dict[key] 
-                                            for key in sorted_keys 
-                                            if key in self.region_fov_coordinates_dict}
+        sorted_manual = sort_manual_coords(manual_coords)
+        sorted_wells = sort_well_coords(well_coords)
+
+        # Combine manual and well coordinates
+        sorted_items = sorted_manual + sorted_wells
+
+        # Update dictionaries efficiently
+        self.region_coordinates = dict(sorted_items)
+        self.region_fov_coordinates_dict = {k: self.region_fov_coordinates_dict[k] 
+                                            for k, _ in sorted_items 
+                                            if k in self.region_fov_coordinates_dict}
 
     def toggle_acquisition(self, pressed):
         if not self.base_path_is_set:
@@ -4026,6 +4155,8 @@ class MultiPointWidgetGrid(QFrame):
         self.signal_acquisition_started.emit(False)
         self.btn_startAcquisition.setChecked(False)
         self.set_well_coordinates(self.well_selected)
+        if self.combobox_shape.currentText() == 'Manual':
+            self.signal_draw_shape.emit(True)
         self.setEnabled_all(True)
 
     def setEnabled_all(self, enabled):
@@ -4303,7 +4434,7 @@ class NapariLiveWidget(QWidget):
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
 
-    def __init__(self, streamHandler, liveController, navigationController, configurationManager, wellSelectionWidget, show_trigger_options=True, show_display_options=True, show_autolevel=False, autolevel=False, parent=None):
+    def __init__(self, streamHandler, liveController, navigationController, configurationManager, wellSelectionWidget=None, show_trigger_options=True, show_display_options=True, show_autolevel=False, autolevel=False, parent=None):
         super().__init__(parent)
         self.streamHandler = streamHandler
         self.liveController = liveController
@@ -5252,17 +5383,23 @@ class NapariMosaicDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(float, float)  # x, y in mm
     signal_layer_contrast_limits = Signal(str, float, float)
-    signal_clear_viewer = Signal()
+    signal_update_viewer = Signal()
+    signal_layers_initialized = Signal(bool)
+    signal_shape_drawn = Signal(list)
 
     def __init__(self, objectiveStore, parent=None):
         super().__init__(parent)
         self.objectiveStore = objectiveStore
-        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR  # Initialize with a default downsample factor
+        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
         self.viewer = napari.Viewer(show=False)
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.viewer.window._qt_window)
+        self.layers_initialized = False
+        self.shape_layer = None
+        self.shapes_mm = []
+        self.is_drawing_shape = False
 
-        # Add button to clear all layers
+        # add clear button
         self.clear_button = QPushButton("Clear Mosaic View")
         self.clear_button.clicked.connect(self.clearAllLayers)
         self.layout.addWidget(self.clear_button)
@@ -5273,18 +5410,86 @@ class NapariMosaicDisplayWidget(QWidget):
         self.dz_um = None
         self.Nz = None
         self.channels = set()
-        self.viewer_extents = [] # [min_y, max_y, min_x, max_x]
+        self.viewer_extents = []  # [min_y, max_y, min_x, max_x]
         self.top_left_coordinate = None  # [y, x] in mm
         self.contrast_limits = {}
 
     def customizeViewer(self):
-        # Hide the status bar (which includes the activity button)
+        # hide status bar
         if hasattr(self.viewer.window, '_status_bar'):
             self.viewer.window._status_bar.hide()
 
-        # Hide the layer buttons
-        # if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
-        #     self.viewer.window._qt_viewer.layerButtons.hide()
+        self.viewer.bind_key('D', self.toggle_draw_mode)
+
+    def toggle_draw_mode(self, viewer):
+        self.is_drawing_shape = not self.is_drawing_shape
+        
+        if 'Manual Shape' not in self.viewer.layers:
+            self.shape_layer = self.viewer.add_shapes(name='Manual Shape', edge_width=20, edge_color='red', face_color='transparent')
+            self.shape_layer.events.data.connect(self.on_shape_change)
+        else:
+            self.shape_layer = self.viewer.layers['Manual Shape']
+        
+        if self.is_drawing_shape:
+            self.shape_layer.mode = 'add_polygon'
+        else:
+            self.shape_layer.mode = 'pan_zoom'
+        
+        self.on_shape_change()
+
+    def enable_shape_drawing(self, enable):
+        if enable:
+            self.toggle_draw_mode(self.viewer)
+        else:
+            self.is_drawing_shape = False
+            if self.shape_layer is not None:
+                self.shape_layer.mode = 'pan_zoom'
+
+    def on_shape_change(self, event=None):
+        if self.shape_layer is not None and len(self.shape_layer.data) > 0:
+            # convert shapes to mm coordinates
+            self.shapes_mm = [self.convert_shape_to_mm(shape) for shape in self.shape_layer.data]
+        else:
+            self.shapes_mm = []
+        self.signal_shape_drawn.emit(self.shapes_mm)
+
+    def convert_shape_to_mm(self, shape_data):
+        shape_data_mm = []
+        for point in shape_data:
+            coords = self.viewer.layers[0].world_to_data(point)
+            x_mm = self.top_left_coordinate[1] + coords[1] * self.viewer_pixel_size_mm
+            y_mm = self.top_left_coordinate[0] + coords[0] * self.viewer_pixel_size_mm
+            shape_data_mm.append([x_mm, y_mm])
+        return np.array(shape_data_mm)
+
+    def convert_mm_to_viewer_shapes(self, shapes_mm):
+        viewer_shapes = []
+        for shape_mm in shapes_mm:
+            viewer_shape = []
+            for point_mm in shape_mm:
+                x_data = (point_mm[0] - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm
+                y_data = (point_mm[1] - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm
+                world_coords = self.viewer.layers[0].data_to_world([y_data, x_data])
+                viewer_shape.append(world_coords)
+            viewer_shapes.append(viewer_shape)
+        return viewer_shapes
+
+    def update_shape_layer_position(self, prev_top_left, new_top_left):
+        if self.shape_layer is None or len(self.shapes_mm) == 0:
+            return
+        try:
+            # update top_left_coordinate
+            self.top_left_coordinate = new_top_left
+            
+            # convert mm coordinates to viewer coordinates
+            new_shapes = self.convert_mm_to_viewer_shapes(self.shapes_mm)
+            
+            # update shape layer data
+            self.shape_layer.data = new_shapes
+        except Exception as e:
+            print(f"Error updating shape layer position: {e}")
+            import traceback
+            traceback.print_exc()
 
     def initChannels(self, channels):
         self.channels = set(channels)
@@ -5294,63 +5499,63 @@ class NapariMosaicDisplayWidget(QWidget):
         self.dz_um = dz
 
     def extractWavelength(self, name):
-        # Split the string and find the wavelength number immediately after "Fluorescence"
+        # extract wavelength from channel name
         parts = name.split()
         if 'Fluorescence' in parts:
             index = parts.index('Fluorescence') + 1
             if index < len(parts):
-                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+                return parts[index].split()[0]
         for color in ['R', 'G', 'B']:
             if color in parts or f"full_{color}" in parts:
                 return color
         return None
 
     def generateColormap(self, channel_info):
-        """Convert a HEX value to a normalized RGB tuple."""
+        # generate colormap from hex value
         c0 = (0, 0, 0)
-        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
-             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
-             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,
+             (channel_info['hex'] & 0xFF) / 255)
         return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
 
     def updateMosaic(self, image, x_mm, y_mm, k, channel_name):
-        # Calculate the pixel size for this image
+        # calculate pixel size
         image_pixel_size_um = self.objectiveStore.get_pixel_size() * self.downsample_factor
         image_pixel_size_mm = image_pixel_size_um / 1000
         image_dtype = image.dtype
 
-        # Downsample the image
+        # downsample image
         if self.downsample_factor != 1:
             image = cv2.resize(image, (image.shape[1] // self.downsample_factor, image.shape[0] // self.downsample_factor), interpolation=cv2.INTER_AREA)
 
-        # Adjust x_mm and y_mm to be the center of the image
+        # adjust image position
         x_mm -= (image.shape[1] * image_pixel_size_mm) / 2
         y_mm -= (image.shape[0] * image_pixel_size_mm) / 2
 
         if not self.viewer.layers:
-            # This is the first image, so set the viewer_pixel_size_mm and dtype
+            # initialize first layer
+            self.layers_initialized = True
+            self.signal_layers_initialized.emit(self.layers_initialized)
             self.viewer_pixel_size_mm = image_pixel_size_mm
             self.viewer_extents = [y_mm, y_mm + image.shape[0] * image_pixel_size_mm,
                                    x_mm, x_mm + image.shape[1] * image_pixel_size_mm]
             self.top_left_coordinate = [y_mm, x_mm]
             self.dtype = image_dtype
         else:
-            # Convert the image to the same dtype as the existing mosaic
+            # convert image dtype and scale if necessary
             image = self.convertDtype(image, self.dtype)
-            # Scale the image to match the viewer's resolution if necessary
             if image_pixel_size_mm != self.viewer_pixel_size_mm:
                 scale_factor = image_pixel_size_mm / self.viewer_pixel_size_mm
                 image = cv2.resize(image, (int(image.shape[1] * scale_factor), int(image.shape[0] * scale_factor)), interpolation=cv2.INTER_LINEAR)
 
         if channel_name not in self.viewer.layers:
-            # Create a new layer for this channel
+            # create new layer for channel
             channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
             if channel_info['name'] in AVAILABLE_COLORMAPS:
                 color = AVAILABLE_COLORMAPS[channel_info['name']]
             else:
                 color = self.generateColormap(channel_info)
 
-            # Use the viewer's pixel size for all layers
             layer = self.viewer.add_image(
                 np.zeros_like(image), name=channel_name, rgb=len(image.shape) == 3, colormap=color,
                 visible=True, blending='additive', scale=(self.viewer_pixel_size_mm * 1000, self.viewer_pixel_size_mm * 1000)
@@ -5358,66 +5563,71 @@ class NapariMosaicDisplayWidget(QWidget):
             layer.mouse_double_click_callbacks.append(self.onDoubleClick)
             layer.events.contrast_limits.connect(self.signalContrastLimits)
 
-        # Get the layer for the channel
+        # get layer for channel
         layer = self.viewer.layers[channel_name]
 
-        # Update extents to include the new image
+        # update extents
         self.viewer_extents[0] = min(self.viewer_extents[0], y_mm)
         self.viewer_extents[1] = max(self.viewer_extents[1], y_mm + image.shape[0] * self.viewer_pixel_size_mm)
         self.viewer_extents[2] = min(self.viewer_extents[2], x_mm)
         self.viewer_extents[3] = max(self.viewer_extents[3], x_mm + image.shape[1] * self.viewer_pixel_size_mm)
 
-        # Store the previous top-left coordinate
-        prev_top_left = self.top_left_coordinate.copy()
+        # store previous top-left coordinate
+        prev_top_left = self.top_left_coordinate.copy() if self.top_left_coordinate else None
         self.top_left_coordinate = [self.viewer_extents[0], self.viewer_extents[2]]
 
-        # Call updateLayer to handle the layer update
+        # update layer
         self.updateLayer(layer, image, x_mm, y_mm, k, prev_top_left)
 
-        # Update contrast limits if necessary
+        # update contrast limits
         contrast_limits = self.contrast_limits.get(channel_name, self.getContrastLimits(self.dtype))
         scale = np.iinfo(self.dtype).max / np.iinfo(image_dtype).max
         layer.contrast_limits = (contrast_limits[0] * scale, contrast_limits[1] * scale)
         layer.refresh()
 
     def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
-        # Calculate new mosaic size and position
+        # calculate new mosaic size and position
         mosaic_height = int(math.ceil((self.viewer_extents[1] - self.viewer_extents[0]) / self.viewer_pixel_size_mm))
         mosaic_width = int(math.ceil((self.viewer_extents[3] - self.viewer_extents[2]) / self.viewer_pixel_size_mm))
 
         is_rgb = len(image.shape) == 3 and image.shape[2] == 3
         if layer.data.shape[:2] != (mosaic_height, mosaic_width):
+            # calculate offsets for existing data
+            y_offset = int(math.floor((prev_top_left[0] - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
+            x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
+
             for mosaic in self.viewer.layers:
-                if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
-                    new_data = np.zeros((mosaic_height, mosaic_width, 3), dtype=mosaic.data.dtype)
-                else:
-                    new_data = np.zeros((mosaic_height, mosaic_width), dtype=mosaic.data.dtype)
+                if mosaic.name != 'Manual Shape':
+                    if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
+                        new_data = np.zeros((mosaic_height, mosaic_width, 3), dtype=mosaic.data.dtype)
+                    else:
+                        new_data = np.zeros((mosaic_height, mosaic_width), dtype=mosaic.data.dtype)
 
-                # Calculate offsets for the existing data based on previous and new top-left coordinates
-                y_offset = int(math.floor((prev_top_left[0] - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
-                x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
+                    # ensure offsets don't exceed bounds
+                    y_end = min(y_offset + mosaic.data.shape[0], new_data.shape[0])
+                    x_end = min(x_offset + mosaic.data.shape[1], new_data.shape[1])
 
-                # Ensure the offsets do not exceed the bounds of the new data shape
-                y_end = min(y_offset + mosaic.data.shape[0], new_data.shape[0])
-                x_end = min(x_offset + mosaic.data.shape[1], new_data.shape[1])
+                    # shift existing data
+                    if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
+                        new_data[y_offset:y_end, x_offset:x_end, :] = mosaic.data[:y_end-y_offset, :x_end-x_offset, :]
+                    else:
+                        new_data[y_offset:y_end, x_offset:x_end] = mosaic.data[:y_end-y_offset, :x_end-x_offset]
+                    mosaic.data = new_data
 
-                # Shift existing data
-                if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
-                    new_data[y_offset:y_end, x_offset:x_end, :] = mosaic.data[:y_end-y_offset, :x_end-x_offset, :]
-                else:
-                    new_data[y_offset:y_end, x_offset:x_end] = mosaic.data[:y_end-y_offset, :x_end-x_offset]
-                mosaic.data = new_data
+            if 'Manual Shape' in self.viewer.layers:
+                self.update_shape_layer_position(prev_top_left, self.top_left_coordinate)
+
             self.resetView()
 
-        # Insert new image
+        # insert new image
         y_pos = int(math.floor((y_mm - self.top_left_coordinate[0]) / self.viewer_pixel_size_mm))
         x_pos = int(math.floor((x_mm - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
 
-        # Ensure the indices are within bounds
+        # ensure indices are within bounds
         y_end = min(y_pos + image.shape[0], layer.data.shape[0])
         x_end = min(x_pos + image.shape[1], layer.data.shape[1])
 
-        # Insert the image data
+        # insert image data
         if is_rgb:
             layer.data[y_pos:y_end, x_pos:x_end, :] = image[:y_end - y_pos, :x_end - x_pos, :]
         else:
@@ -5425,13 +5635,11 @@ class NapariMosaicDisplayWidget(QWidget):
         layer.refresh()
 
     def convertDtype(self, image, target_dtype):
-        """
-        Convert image to target dtype while preserving the relative intensities.
-        """
+        # convert image to target dtype
         if image.dtype == target_dtype:
             return image
 
-        # Get the full range of values for both dtypes
+        # get full range of values for both dtypes
         if np.issubdtype(image.dtype, np.integer):
             input_info = np.iinfo(image.dtype)
             input_min, input_max = input_info.min, input_info.max
@@ -5444,13 +5652,10 @@ class NapariMosaicDisplayWidget(QWidget):
         else:
             output_min, output_max = 0.0, 1.0
 
-        # Normalize the input image to [0, 1] range
+        # normalize and scale image
         image_normalized = (image.astype(np.float64) - input_min) / (input_max - input_min)
-
-        # Scale to the target dtype range
         image_scaled = image_normalized * (output_max - output_min) + output_min
 
-        # Convert to the target dtype
         return image_scaled.astype(target_dtype)
 
     def getContrastLimits(self, dtype):
@@ -5476,13 +5681,20 @@ class NapariMosaicDisplayWidget(QWidget):
         if coords is not None:
             x_mm = self.top_left_coordinate[1] + coords[-1] * self.viewer_pixel_size_mm
             y_mm = self.top_left_coordinate[0] + coords[-2] * self.viewer_pixel_size_mm
-            print("clicked x,y:", (x_mm, y_mm))
+            print(f"Clicked: world={event.position}, data={coords}, converted=({x_mm:.6f}, {y_mm:.6f})")
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
 
     def resetView(self):
         self.viewer.reset_view()
         for layer in self.viewer.layers:
             layer.refresh()
+
+    def clear_shape(self):
+        if self.shape_layer is not None:
+            self.viewer.layers.remove(self.shape_layer)
+            self.shape_layer = None
+            self.is_drawing_shape = False
+            self.signal_shape_drawn.emit([])
 
     def clearAllLayers(self):
         self.viewer.layers.clear()
@@ -5492,7 +5704,10 @@ class NapariMosaicDisplayWidget(QWidget):
         self.channels = set()
         self.dz_um = None
         self.Nz = None
-        self.signal_clear_viewer.emit()
+        self.layers_initialized = False
+        self.signal_layers_initialized.emit(self.layers_initialized)
+        self.clear_shape()
+        self.signal_update_viewer.emit()
 
     def activate(self):
         print("ACTIVATING NAPARI MOSAIC WIDGET")

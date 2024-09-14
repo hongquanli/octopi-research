@@ -1678,7 +1678,7 @@ class MultiPointWorker(QObject):
         self.af_fov_count = 0
         self.num_fovs = 0
         self.total_scans = 0
-        self.coordinate_dict = self.multiPointController.coordinate_dict
+        self.coordinate_dict = self.multiPointController.coordinate_dict.copy()
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
         self.scan_coordinates_name = self.multiPointController.scan_coordinates_name
@@ -2018,7 +2018,7 @@ class MultiPointWorker(QObject):
                 file_ID = f"{coordinate_name}_{fov}_{z_level}"
 
             metadata = dict(x = self.navigationController.x_pos_mm, y = self.navigationController.y_pos_mm, z = self.navigationController.z_pos_mm)
-            print("ID:", file_ID, "\nScan Coordinate:", metadata)
+            print(f"Acquiring image: ID={file_ID}, Metadata={metadata}")
 
             # laser af characterization mode
             if LASER_AF_CHARACTERIZATION_MODE:
@@ -2228,7 +2228,6 @@ class MultiPointWorker(QObject):
         # process the image -  @@@ to move to camera
         image = utils.crop_image(image,self.crop_width,self.crop_height)
         image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-
         image_to_display = utils.crop_image(image,round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling))
         self.image_to_display.emit(image_to_display)
         self.image_to_display_multi.emit(image_to_display,config.illumination_source)
@@ -2327,6 +2326,7 @@ class MultiPointWorker(QObject):
                 self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
             self.napari_layers_update.emit(image, i, j, k, config_name)
         if USE_NAPARI_FOR_MOSAIC_DISPLAY and k == 0:
+            print(f"Updating mosaic layers: x={self.navigationController.x_pos_mm:.6f}, y={self.navigationController.y_pos_mm:.6f}")
             self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config_name)
 
     def handle_dpc_generation(self, current_round_images):
@@ -3513,7 +3513,8 @@ class ImageDisplayWindow(QMainWindow):
 
 class NavigationViewer(QFrame):
 
-    signal_draw_scan_grid = Signal(float, float)
+    signal_update_live_scan_grid = Signal(float, float)
+    signal_update_well_coordinates = Signal(bool)
 
     def __init__(self, objectivestore, sample = 'glass slide', invertX = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3621,7 +3622,7 @@ class NavigationViewer(QFrame):
         self.update_fov_size()
         if self.x_mm is not None and self.y_mm is not None:
             if 'glass slide'in self.sample:
-                self.signal_draw_scan_grid.emit(self.x_mm, self.y_mm)
+                self.signal_update_live_scan_grid.emit(self.x_mm, self.y_mm)
             self.draw_current_fov(self.x_mm, self.y_mm)
 
     def on_acquisition_start(self, acquisition_started):
@@ -3629,7 +3630,7 @@ class NavigationViewer(QFrame):
 
     def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
         if sample_format == 0:
-            if  IS_HCS:
+            if IS_HCS:
                 sample = '4 glass slide'
             else:
                 sample = 'glass slide'
@@ -3661,14 +3662,14 @@ class NavigationViewer(QFrame):
                 self.y_mm = y_mm
                 # update_live_scan_grid
                 if 'glass slide'in self.sample and not self.acquisition_started:
-                    self.signal_draw_scan_grid.emit(x_mm, y_mm)
+                    self.signal_update_live_scan_grid.emit(x_mm, y_mm)
         else:
             self.draw_current_fov(x_mm, y_mm)
             self.x_mm = x_mm
             self.y_mm = y_mm
             # update_live_scan_grid
             if 'glass slide'in self.sample and not self.acquisition_started:
-                self.signal_draw_scan_grid.emit(x_mm, y_mm)
+                self.signal_update_live_scan_grid.emit(x_mm, y_mm)
 
     def get_FOV_pixel_coordinates(self, x_mm, y_mm):
         if self.sample == 'glass slide':
@@ -3726,8 +3727,13 @@ class NavigationViewer(QFrame):
     def clear_slide(self):
         self.background_image = self.background_image_copy.copy()
         self.background_item.setImage(self.background_image)
-        # self.clear_overlay()
         self.draw_current_fov(self.x_mm, self.y_mm)
+
+    def update_slide(self):
+        self.background_image = self.background_image_copy.copy()
+        self.background_item.setImage(self.background_image)
+        self.draw_current_fov(self.x_mm, self.y_mm)
+        self.signal_update_well_coordinates.emit(True)
 
     def clear_overlay(self):
         self.scan_overlay.fill(0)
