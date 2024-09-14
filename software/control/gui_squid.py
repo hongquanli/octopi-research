@@ -121,7 +121,13 @@ class OctopiGUI(QMainWindow):
         if is_simulation:
             self.loadSimulationObjects()
         else:
-            self.loadHardwareObjects()
+            try:
+                self.loadHardwareObjects()
+            except Exception as e:
+                print("\n---- !! ERROR CONNECTING TO HARDWARE !! ----")
+                print(e)
+                print("Falling back to simulation mode\n")
+                self.loadSimulationObjects()
 
         # Common object initialization
         self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
@@ -176,36 +182,75 @@ class OctopiGUI(QMainWindow):
     def loadHardwareObjects(self):
         # Initialize hardware objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
-            self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER, XLIGHT_SLEEP_TIME_FOR_WHEEL)
+            try:
+                self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER, XLIGHT_SLEEP_TIME_FOR_WHEEL)
+            except Exception as e:
+                raise Exception(f"Error initializing Spinning Disk Confocal: {e}")
+
         if ENABLE_NL5:
-            import control.NL5 as NL5
-            self.nl5 = NL5.NL5()
+            try:
+                import control.NL5 as NL5
+                self.nl5 = NL5.NL5()
+            except Exception as e:
+                raise Exception(f"Error initializing NL5: {e}")
+
         if ENABLE_CELLX:
-            self.cellx = serial_peripherals.CellX(CELLX_SN)
-            for channel in [1,2,3,4]:
-                self.cellx.set_modulation(channel, CELLX_MODULATION)
-                self.cellx.turn_on(channel)
+            try:
+                self.cellx = serial_peripherals.CellX(CELLX_SN)
+                for channel in [1,2,3,4]:
+                    self.cellx.set_modulation(channel, CELLX_MODULATION)
+                    self.cellx.turn_on(channel)
+            except Exception as e:
+                raise Exception(f"Error initializing CellX: {e}")
+
         if USE_LDI_SERIAL_CONTROL:
-            self.ldi = serial_peripherals.LDI()
-            self.ldi.run()
-            self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
-            self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
+            try:
+                self.ldi = serial_peripherals.LDI()
+                self.ldi.run()
+                self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
+                self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
+            except Exception as e:
+                raise Exception(f"Error initializing LDI: {e}")
+
         if SUPPORT_LASER_AUTOFOCUS:
-            sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
-            self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
-            self.camera_focus.open()
-            self.camera_focus.set_pixel_format('MONO8')
-        sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-        self.camera = camera.Camera(sn=sn_camera_main, rotate_image_angle=ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
-        self.camera.open()
-        self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+            try:
+                sn_camera_focus = camera_fc.get_sn_by_model(FOCUS_CAMERA_MODEL)
+                self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
+                self.camera_focus.open()
+                self.camera_focus.set_pixel_format('MONO8')
+            except Exception as e:
+                raise Exception(f"Error initializing Laser Autofocus Camera: {e}")
+
+        try:
+            sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
+            self.camera = camera.Camera(sn=sn_camera_main, rotate_image_angle=ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
+            self.camera.open()
+            self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
+        except Exception as e:
+            raise Exception(f"Error initializing Main Camera: {e}")
+
         if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            try:
+                self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            except Exception as e:
+                raise Exception(f"Error initializing Zaber Emission Filter Wheel: {e}")
+
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
+            try:
+                self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
+            except Exception as e:
+                raise Exception(f"Error initializing Optospin Emission Filter Wheel: {e}")
+
         if USE_PRIOR_STAGE:
-            self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
-        self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION, sn=CONTROLLER_SN)
+            try:
+                self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
+            except Exception as e:
+                raise Exception(f"Error initializing Prior Stage: {e}")
+
+        try:
+            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION, sn=CONTROLLER_SN)
+        except Exception as e:
+            raise Exception(f"Error initializing Microcontroller: {e}")
 
     def setupHardware(self):
         # Setup hardware components

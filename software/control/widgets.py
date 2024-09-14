@@ -3938,9 +3938,12 @@ class MultiPointWidgetGrid(QFrame):
         xx, yy = np.meshgrid(x_range, y_range)
         grid_points = np.column_stack((xx.ravel(), yy.ravel()))
 
-        # Use Delaunay triangulation for efficient point-in-polygon test
-        hull = Delaunay(shape_coords)
-        mask = hull.find_simplex(grid_points) >= 0
+        # # Use Delaunay triangulation for efficient point-in-polygon test
+        # hull = Delaunay(shape_coords)
+        # mask = hull.find_simplex(grid_points) >= 0
+
+        # Use Ray Casting for point-in-polygon test
+        mask = np.array([self.point_inside_polygon(x, y, shape_coords) for x, y in grid_points])
 
         # Filter points inside the polygon
         valid_points = grid_points[mask]
@@ -3962,6 +3965,22 @@ class MultiPointWidgetGrid(QFrame):
 
         self.signal_update_navigation_viewer.emit()
         return sorted_points.tolist()
+
+    def point_inside_polygon(self, x, y, poly):
+        n = len(poly)
+        inside = False
+        p1x, p1y = poly[0]
+        for i in range(n + 1):
+            p2x, p2y = poly[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
 
     def sort_coordinates(self):
         print(f"Acquisition pattern: {self.acquisition_pattern}")
