@@ -20,6 +20,9 @@ import math
 import locale
 import time
 from datetime import datetime
+import itertools
+import numpy as np
+from scipy.spatial import Delaunay
 
 from control._def import *
 
@@ -1061,7 +1064,7 @@ class LiveControlWidget(QFrame):
         if show_display_options:
             self.grid.addLayout(grid_line05)
 
-        #self.grid.addStretch()
+        self.grid.addStretch()
         self.setLayout(self.grid)
 
 
@@ -2729,21 +2732,18 @@ class MultiPointWidget2(QFrame):
             self.acquisition_start_time = time.time()
             self.num_regions = num_regions
         
-        progress_text = ""
-
+        progress_parts = []
         # Update timepoint progress if there are multiple timepoints and the timepoint has changed
         if self.entry_Nt.value() > 1:
-            progress_text += f" Time {current_time_point + 1}/{self.entry_Nt.value()} "
+            progress_parts.append(f"Time {current_time_point + 1}/{self.entry_Nt.value()}")
 
         # Update region progress if there are multiple regions
         if num_regions > 1:
-            progress_text += f" Region {current_region}/{num_regions} "
+            progress_parts.append(f"Region {current_region}/{num_regions}")
 
         # Set the progress label text, ensuring it's not empty
-        if progress_text.strip():
-            self.progress_label.setText(progress_text)
-        else:
-            self.progress_label.setText("Progress")
+        progress_text = "  ".join(progress_parts)
+        self.progress_label.setText(progress_text if progress_text else "Progress")
 
         self.progress_bar.setValue(0)
 
@@ -3473,20 +3473,18 @@ class MultiPointWidgetGrid(QFrame):
             self.acquisition_start_time = time.time()
             self.num_regions = num_regions
         
-        progress_text = ""
+        progress_parts = []
         # Update timepoint progress if there are multiple timepoints and the timepoint has changed
         if self.entry_Nt.value() > 1:
-            progress_text += f" Time {current_time_point + 1}/{self.entry_Nt.value()} "
+            progress_parts.append(f"Time {current_time_point + 1}/{self.entry_Nt.value()}")
 
         # Update region progress if there are multiple regions
         if num_regions > 1:
-            progress_text += f" Region {current_region}/{num_regions} "
+            progress_parts.append(f"Region {current_region}/{num_regions}")
 
         # Set the progress label text, ensuring it's not empty
-        if progress_text.strip():
-            self.progress_label.setText(progress_text)
-        else:
-            self.progress_label.setText("Progress")
+        progress_text = "  ".join(progress_parts)
+        self.progress_label.setText(progress_text if progress_text else "Progress")
 
         self.progress_bar.setValue(0)
 
@@ -3517,37 +3515,36 @@ class MultiPointWidgetGrid(QFrame):
             self.eta_timer.stop()
 
     def toggle_z_range_controls(self, is_visible):
-        # Hide/show widgets in z_min_layout
-        for i in range(self.z_min_layout.count()):
-            widget = self.z_min_layout.itemAt(i).widget()
-            if widget is not None:
-                widget.setVisible(is_visible)
-            widget = self.z_max_layout.itemAt(i).widget()
-            if widget is not None:
-                widget.setVisible(is_visible)
-        
+        # Efficiently set visibility for all widgets in both layouts
+        for layout in (self.z_min_layout, self.z_max_layout):
+            for i in range(layout.count()):
+                widget = layout.itemAt(i).widget()
+                if widget:
+                    widget.setVisible(is_visible)
+
         # Enable/disable NZ entry based on the inverse of is_visible
         self.entry_NZ.setEnabled(not is_visible)
         current_z = self.navigationController.z_pos_mm * 1000
         self.entry_minZ.setValue(current_z)
         self.entry_maxZ.setValue(current_z)
 
-        if not is_visible:
-            # When Z-range is not specified, set Z-min and Z-max to current Z position
-            try:
+        # Safely connect or disconnect signals
+        try:
+            if is_visible:
+                self.entry_minZ.valueChanged.connect(self.update_z_max)
+                self.entry_maxZ.valueChanged.connect(self.update_z_min)
+                self.entry_minZ.valueChanged.connect(self.update_Nz)
+                self.entry_maxZ.valueChanged.connect(self.update_Nz)
+                self.entry_deltaZ.valueChanged.connect(self.update_Nz)
+            else:
                 self.entry_minZ.valueChanged.disconnect(self.update_z_max)
                 self.entry_maxZ.valueChanged.disconnect(self.update_z_min)
                 self.entry_minZ.valueChanged.disconnect(self.update_Nz)
                 self.entry_maxZ.valueChanged.disconnect(self.update_Nz)
                 self.entry_deltaZ.valueChanged.disconnect(self.update_Nz)
-            except:
-                pass
-        else:
-            self.entry_minZ.valueChanged.connect(self.update_z_max)
-            self.entry_maxZ.valueChanged.connect(self.update_z_min)
-            self.entry_minZ.valueChanged.connect(self.update_Nz)
-            self.entry_maxZ.valueChanged.connect(self.update_Nz)
-            self.entry_deltaZ.valueChanged.connect(self.update_Nz)
+        except TypeError:
+            # Handle case where signals might not be connected/disconnected
+            pass
 
         # Update the layout
         self.updateGeometry()
@@ -3806,9 +3803,8 @@ class MultiPointWidgetGrid(QFrame):
 
         steps = math.floor(scan_size_mm / step_size_mm)
         if shape == 'Circle':
-            # check if corners of middle row/col all fit
+            tile_diagonal = math.sqrt(2) * fov_size_mm
             if steps % 2 == 1:  # for odd steps
-                tile_diagonal = math.sqrt(2) * fov_size_mm
                 actual_scan_size_mm = (steps - 1) * step_size_mm + tile_diagonal
             else:  # for even steps
                 actual_scan_size_mm = math.sqrt(((steps - 1) * step_size_mm + fov_size_mm)**2 + (step_size_mm + fov_size_mm)**2)
@@ -3820,49 +3816,43 @@ class MultiPointWidgetGrid(QFrame):
             actual_scan_size_mm = (steps - 1) * step_size_mm + fov_size_mm
 
         steps = max(1, steps)  # Ensure at least one step
-        print("steps:", steps, "step_size_mm:", step_size_mm)
-        print("scan size mm:", scan_size_mm)
-        print("actual scan size mm:", actual_scan_size_mm)
+        print(f"steps: {steps}, step_size_mm: {step_size_mm}")
+        print(f"scan size mm: {scan_size_mm}")
+        print(f"actual scan size mm: {actual_scan_size_mm}")
 
         scan_coordinates = []
+        half_steps = (steps - 1) / 2
+        radius_squared = (scan_size_mm / 2) ** 2
+        fov_size_mm_half = fov_size_mm / 2
+
         for i in range(steps):
             row = []
+            y = center_y + (i - half_steps) * step_size_mm
             for j in range(steps):
-                x = center_x + (j - (steps - 1) / 2) * step_size_mm
-                y = center_y + (i - (steps - 1) / 2) * step_size_mm
-                if shape == 'Square':
+                x = center_x + (j - half_steps) * step_size_mm
+                if shape == 'Square' or (shape == 'Circle' and self._is_in_circle(x, y, center_x, center_y, radius_squared, fov_size_mm_half)):
                     row.append((x, y))
-                    self.navigationViewer.register_fov_to_image(x,y)
-                elif shape == 'Circle':
-                    radius = scan_size_mm / 2
-                    x_rel = (j - (steps - 1) / 2) * step_size_mm
-                    y_rel = (i - (steps - 1) / 2) * step_size_mm
-                    corners = [
-                        (x_rel - fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-left
-                        (x_rel + fov_size_mm / 2, y_rel - fov_size_mm / 2),  # Top-right
-                        (x_rel - fov_size_mm / 2, y_rel + fov_size_mm / 2),  # Bottom-left
-                        (x_rel + fov_size_mm / 2, y_rel + fov_size_mm / 2)   # Bottom-right
-                    ]
-                    if all(math.sqrt(cx**2 + cy**2) <= radius for cx, cy in corners):
-                        row.append((x, y))
-                        self.navigationViewer.register_fov_to_image(x,y) ### if show full grid
-                else:
-                    raise ValueError(f"Unsupported shape: {shape}. Choose 'Square' or 'Circle'.")
+                    self.navigationViewer.register_fov_to_image(x, y)
 
-            if self.fov_pattern == 'S-Pattern' and i % 2 == 1:  # Reverse every other row
+            if self.fov_pattern == 'S-Pattern' and i % 2 == 1:
                 row.reverse()
-            elif self.fov_pattern == 'Unidirectional':
-                pass
-
             scan_coordinates.extend(row)
 
-        # Check if scan_coordinates is empty, and if so, add the center coordinate
         if not scan_coordinates and shape == 'Circle':
             scan_coordinates.append((center_x, center_y))
             self.navigationViewer.register_fov_to_image(center_x, center_y)
 
         self.signal_update_navigation_viewer.emit()
         return scan_coordinates
+
+    def _is_in_circle(self, x, y, center_x, center_y, radius_squared, fov_size_mm_half):
+        corners = [
+            (x - fov_size_mm_half, y - fov_size_mm_half),
+            (x + fov_size_mm_half, y - fov_size_mm_half),
+            (x - fov_size_mm_half, y + fov_size_mm_half),
+            (x + fov_size_mm_half, y + fov_size_mm_half)
+        ]
+        return all((cx - center_x)**2 + (cy - center_y)**2 <= radius_squared for cx, cy in corners)
 
     def create_scan_grid(self, objectiveStore, scan_size_mm=None, overlap_percent=10, shape='Square'):
         if scan_size_mm is None:
@@ -3922,72 +3912,56 @@ class MultiPointWidgetGrid(QFrame):
         return steps, step_size_mm
 
     def create_manual_region_coordinates(self, objectiveStore, shape_coords, overlap_percent):
-        pixel_size_um = objectiveStore.get_pixel_size()
-        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-
         if shape_coords is None or len(shape_coords) < 3:
             print("Invalid manual shape data")
             return []
 
+        pixel_size_um = objectiveStore.get_pixel_size()
+        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
+        step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
+
         # Ensure shape_coords is a numpy array
         shape_coords = np.array(shape_coords)
-
-        # Check if shape_coords is 2D, if not, try to reshape it
         if shape_coords.ndim == 1:
             shape_coords = shape_coords.reshape(-1, 2)
         elif shape_coords.ndim > 2:
             print(f"Unexpected shape of manual_shape: {shape_coords.shape}")
             return []
 
-        # Now we can safely get min and max
+        # Calculate bounding box
         x_min, y_min = np.min(shape_coords, axis=0)
         x_max, y_max = np.max(shape_coords, axis=0)
 
-        # Create a grid of points within the bounding box of the shape
-        x_range = np.arange(x_min - fov_size_mm/2, x_max + fov_size_mm/2, step_size_mm)
-        y_range = np.arange(y_min - fov_size_mm/2, y_max + fov_size_mm/2, step_size_mm)
+        # Create a grid of points within the bounding box
+        x_range = np.arange(x_min, x_max + step_size_mm, step_size_mm)
+        y_range = np.arange(y_min, y_max + step_size_mm, step_size_mm)
+        xx, yy = np.meshgrid(x_range, y_range)
+        grid_points = np.column_stack((xx.ravel(), yy.ravel()))
 
-        # Create a dictionary to store coordinates by row
-        rows = {}
-        for y in y_range:
-            row = []
-            for x in x_range:
-                if self.point_inside_polygon((x, y), shape_coords):
-                    row.append((x, y))
-                    self.navigationViewer.register_fov_to_image(x, y)
-            if row:
-                rows[y] = row
+        # Use Delaunay triangulation for efficient point-in-polygon test
+        hull = Delaunay(shape_coords)
+        mask = hull.find_simplex(grid_points) >= 0
+
+        # Filter points inside the polygon
+        valid_points = grid_points[mask]
+
+        # Sort points
+        sorted_indices = np.lexsort((valid_points[:, 0], valid_points[:, 1]))
+        sorted_points = valid_points[sorted_indices]
+
+        # Apply S-Pattern if needed
+        if self.fov_pattern == 'S-Pattern':
+            unique_y = np.unique(sorted_points[:, 1])
+            for i in range(1, len(unique_y), 2):
+                mask = sorted_points[:, 1] == unique_y[i]
+                sorted_points[mask] = sorted_points[mask][::-1]
+
+        # Register FOVs
+        for x, y in sorted_points:
+            self.navigationViewer.register_fov_to_image(x, y)
+
         self.signal_update_navigation_viewer.emit()
-
-        # Sort rows from top to bottom
-        sorted_rows = sorted(rows.items(), reverse=False)
-        scan_coordinates = []
-        for i, (_, row) in enumerate(sorted_rows):
-            sorted_row = sorted(row, key=lambda coord: coord[0])  # Sort by x-coordinate
-            
-            if self.fov_pattern == 'S-Pattern' and i % 2 == 1:
-                sorted_row.reverse()
-            
-            scan_coordinates.extend(sorted_row)
-        return scan_coordinates
-
-    def point_inside_polygon(self, point, polygon):
-        x, y = point
-        n = len(polygon)
-        inside = False
-        p1x, p1y = polygon[0]
-        for i in range(n + 1):
-            p2x, p2y = polygon[i % n]
-            if y > min(p1y, p2y):
-                if y <= max(p1y, p2y):
-                    if x <= max(p1x, p2x):
-                        if p1y != p2y:
-                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                        if p1x == p2x or x <= xinters:
-                            inside = not inside
-            p1x, p1y = p2x, p2y
-        return inside
+        return sorted_points.tolist()
 
     def sort_coordinates(self):
         print(f"Acquisition pattern: {self.acquisition_pattern}")
@@ -3996,46 +3970,28 @@ class MultiPointWidgetGrid(QFrame):
             print("No coordinates or using current")
             return
 
-        manual_coords = []
-        well_coords = []
-        
-        for key, coord in self.region_coordinates.items():
+        def sort_key(item):
+            key, coord = item
             if 'manual' in key:
-                manual_coords.append((key, coord))
+                return (0, coord[1], coord[0])  # Manual coords: sort by y, then x
             else:
-                well_coords.append((key, coord))
+                row, col = key[0], int(key[1:])
+                return (1, ord(row), col)  # Well coords: sort by row, then column
 
-        def sort_manual_coords(coords):
-            sorted_coords = sorted(coords, key=lambda x: (x[1][1], x[1][0]))  # Sort by y, then x
-            y_coords = sorted(set(coord[1][1] for coord in coords), reverse=True)
+        sorted_items = sorted(self.region_coordinates.items(), key=sort_key)
+
+        if self.acquisition_pattern == 'S-Pattern':
+            # Group by row and reverse alternate rows
+            rows = itertools.groupby(sorted_items, key=lambda x: x[1][1] if 'manual' in x[0] else x[0][0])
             sorted_items = []
-            for i, y in enumerate(y_coords):
-                row = [item for item in sorted_coords if item[1][1] == y]
-                if self.acquisition_pattern == 'S-Pattern' and i % 2 == 1:
+            for i, (_, group) in enumerate(rows):
+                row = list(group)
+                if i % 2 == 1:
                     row.reverse()
                 sorted_items.extend(row)
-            return sorted_items
-
-        def sort_well_coords(coords):
-            rows = {}
-            for key, coord in coords:
-                rows.setdefault(key[0], []).append((key, coord))
-            sorted_items = []
-            for i, (_, row) in enumerate(sorted(rows.items())):
-                sorted_row = sorted(row, key=lambda x: int(x[0][1:]))
-                if self.acquisition_pattern == 'S-Pattern' and i % 2 == 1:
-                    sorted_row.reverse()
-                sorted_items.extend(sorted_row)
-            return sorted_items
-
-        sorted_manual = sort_manual_coords(manual_coords)
-        sorted_wells = sort_well_coords(well_coords)
-
-        # Combine manual and well coordinates
-        sorted_items = sorted_manual + sorted_wells
 
         # Update dictionaries efficiently
-        self.region_coordinates = dict(sorted_items)
+        self.region_coordinates = {k: v for k, v in sorted_items}
         self.region_fov_coordinates_dict = {k: self.region_fov_coordinates_dict[k] 
                                             for k, _ in sorted_items 
                                             if k in self.region_fov_coordinates_dict}
