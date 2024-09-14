@@ -211,6 +211,15 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
 
+        frame = QFrame()
+        frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        # Creating the top row layout and adding widgets
+        top_row_layout = QHBoxLayout()
+        top_row_layout.addWidget(self.objectivesWidget)
+        top_row_layout.setContentsMargins(1, 1, 1, 1)
+        frame.setLayout(top_row_layout)  # Set the layout on the frame
+
+
         # layout widgets
         layout = QVBoxLayout()
         #layout.addWidget(self.cameraSettingWidget)
@@ -220,7 +229,7 @@ class OctopiGUI(QMainWindow):
             layout.addWidget(self.dacControlWidget)
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
-        layout.addWidget(self.objectivesWidget)
+        layout.addWidget(frame)
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
 
@@ -340,7 +349,7 @@ class OctopiGUI(QMainWindow):
 
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
-            self.napariMosaicDisplayWidget.signal_clear_viewer.connect(self.navigationViewer.clear_slide)
+            self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
