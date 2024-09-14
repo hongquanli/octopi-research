@@ -95,11 +95,11 @@ class OctopiGUI(QMainWindow):
         self.loadObjects(is_simulation)
 
         self.setupHardware()
-        
+
         self.loadWidgets()
-        
+
         self.setupLayout()
-        
+
         self.makeConnections()
 
         # Move to cached position
@@ -297,7 +297,7 @@ class OctopiGUI(QMainWindow):
         if ENABLE_NL5:
             import control.NL5Widget as NL5Widget
             self.nl5Wdiget = NL5Widget.NL5Widget(self.nl5)
-        
+
         if CAMERA_TYPE == "Toupcam":
             self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False, include_camera_temperature_setting=True, include_camera_auto_wb_setting=False)
         else:
@@ -307,10 +307,10 @@ class OctopiGUI(QMainWindow):
         self.navigationBarWidget = widgets.NavigationBarWidget(self.navigationController, self.slidePositionController, add_z_buttons=False)
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
-        
+
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
-        
+
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler, self.imageSaver)
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
@@ -343,12 +343,12 @@ class OctopiGUI(QMainWindow):
         self.wellplateFormatWidget = widgets.WellplateFormatWidget()
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget, self.wellplateFormatWidget)
-        
+
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController, self.configurationManager, show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         if ENABLE_STITCHER:
             self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
-        
+
         self.recordTabWidget = QTabWidget()
         self.setupRecordTabWidget()
 
@@ -366,14 +366,14 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True, show_LUT=True, autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
-        
+
         if USE_NAPARI_FOR_MULTIPOINT:
             self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore)
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
             self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-        
+
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
                 self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore)
@@ -381,7 +381,7 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
-        
+
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
             self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore)
             self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
@@ -449,23 +449,23 @@ class OctopiGUI(QMainWindow):
 
     def setupLayout(self):
         layout = QVBoxLayout()
-        
+
         if USE_NAPARI_FOR_LIVE_CONTROL:
             layout.addWidget(self.navigationWidget)
             layout.addWidget(self.cameraTabWidget)
         else:
             layout.addWidget(self.liveControlWidget)
             layout.addWidget(self.cameraTabWidget)
-        
+
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
-        
+
         layout.addWidget(self.recordTabWidget)
-        
+
         if ENABLE_STITCHER:
             layout.addWidget(self.stitcherWidget)
             self.stitcherWidget.hide()
-        
+
         layout.addWidget(self.sampleSettingsWidget)
         layout.addWidget(self.navigationViewer)
 
@@ -525,11 +525,11 @@ class OctopiGUI(QMainWindow):
     def makeConnections(self):
         self.streamHandler.signal_new_frame_received.connect(self.liveController.on_new_frame)
         self.streamHandler.packet_image_to_write.connect(self.imageSaver.enqueue)
-
+        # self.streamHandler.packet_image_for_tracking.connect(self.trackingController.on_new_frame)
         self.navigationController.xPos.connect(lambda x: self.navigationWidget.label_Xpos.setText("{:.2f}".format(x) + " mm"))
         self.navigationController.yPos.connect(lambda x: self.navigationWidget.label_Ypos.setText("{:.2f}".format(x) + " mm"))
         self.navigationController.zPos.connect(lambda x: self.navigationWidget.label_Zpos.setText("{:.2f}".format(x) + " μm"))
-        
+
         if SHOW_NAVIGATION_BAR:
             self.navigationController.xPos.connect(self.navigationBarWidget.update_x_position)
             self.navigationController.yPos.connect(self.navigationBarWidget.update_y_position)
@@ -542,7 +542,7 @@ class OctopiGUI(QMainWindow):
 
         self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
         self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
-        
+
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
             self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
@@ -897,7 +897,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayWindow.close()
             self.imageArrayDisplayWindow.close()
             self.tabbedImageDisplayWindow.close()
-       
+
         self.microcontroller.close()
         try:
             self.cswWindow.closeForReal(event)
