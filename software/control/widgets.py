@@ -2596,10 +2596,10 @@ class MultiPointWidget2(QFrame):
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
         self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
-        self.checkbox_genFocusMap.stateChanged.connect(self.multipointController.set_gen_focus_map_flag)
-        self.checkbox_withAutofocus.stateChanged.connect(self.multipointController.set_af_flag)
-        self.checkbox_withReflectionAutofocus.stateChanged.connect(self.multipointController.set_reflection_af_flag)
-        self.checkbox_usePiezo.stateChanged.connect(self.multipointController.set_use_piezo)
+        self.checkbox_genFocusMap.toggled.connect(self.multipointController.set_gen_focus_map_flag)
+        self.checkbox_withAutofocus.toggled.connect(self.multipointController.set_af_flag)
+        self.checkbox_withReflectionAutofocus.toggled.connect(self.multipointController.set_reflection_af_flag)
+        self.checkbox_usePiezo.toggled.connect(self.multipointController.set_use_piezo)
         self.checkbox_stitchOutput.toggled.connect(self.display_stitcher_widget)
         self.btn_setSavingDir.clicked.connect(self.set_saving_dir)
         self.btn_startAcquisition.clicked.connect(self.toggle_acquisition)
@@ -2630,6 +2630,7 @@ class MultiPointWidget2(QFrame):
         self.shortcut.activated.connect(self.btn_add.click)
 
         self.toggle_z_range_controls(False)
+        self.set_use_piezo(self.checkbox_usePiezo.isChecked())
 
     def toggle_z_range_controls(self, state):
         is_visible = bool(state)
@@ -2845,6 +2846,7 @@ class MultiPointWidget2(QFrame):
             self.multipointController.set_NY(self.entry_NY.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
             self.multipointController.set_Nt(self.entry_Nt.value())
+            self.multipointController.set_use_piezo(self.checkbox_usePiezo.isChecked())
             self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
             self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
             self.multipointController.set_base_path(self.lineEdit_savingDir.text())
