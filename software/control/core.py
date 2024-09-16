@@ -1716,6 +1716,10 @@ class MultiPointWorker(QObject):
             self.detection_stats["Positives per 5M RBC"] = 5e6*(self.detection_stats["Total Positives"]/self.detection_stats["Total RBC"])
         self.signal_detection_stats.emit(self.detection_stats)
 
+    def update_use_piezo(self, value):
+        self.use_piezo = value
+        print("MultiPointWorker: updated use_piezo to", value)
+
     def run(self):
         self.start_time = time.perf_counter_ns()
         if not self.camera.is_streaming:
@@ -2216,6 +2220,8 @@ class MultiPointWorker(QObject):
             else:
                 self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
                 image = self.camera.read_frame()
+        else: # continuous acquisition
+            image = self.camera.read_frame()
 
         if image is None:
             print('self.camera.read_frame() returned None')
@@ -2605,7 +2611,10 @@ class MultiPointController(QObject):
         self.z_stacking_config = Z_STACKING_CONFIG
 
     def set_use_piezo(self, checked):
-        self.use_piezo == checked
+        print("----- setting use_piezo to", checked)
+        self.use_piezo = checked
+        if hasattr(self, 'multiPointWorker'):
+            self.multiPointWorker.update_use_piezo(checked)
 
     def set_z_stacking_config(self, z_stacking_config_index):
         if z_stacking_config_index in Z_STACKING_CONFIG_MAP:
@@ -2844,6 +2853,7 @@ class MultiPointController(QObject):
             self.processingHandler.start_processing()
             self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
+        self.multiPointWorker.use_piezo = self.use_piezo
         # move the worker to the thread
         self.multiPointWorker.moveToThread(self.thread)
         # connect signals and slots
@@ -3818,7 +3828,6 @@ class ConfigurationManager(QObject):
         self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
     def read_configurations(self):
-        print('read config')
         if(os.path.isfile(self.config_filename)==False):
             utils_config.generate_default_configuration(self.config_filename)
             print('genenrate default config files')
@@ -3827,7 +3836,6 @@ class ConfigurationManager(QObject):
         self.num_configurations = 0
         for mode in self.config_xml_tree_root.iter('mode'):
             self.num_configurations += 1
-            print("name:", mode.get('Name'), "color:", self.get_channel_color(mode.get('Name')))
             self.configurations.append(
                 Configuration(
                     mode_id = mode.get('ID'),

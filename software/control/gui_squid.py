@@ -780,6 +780,7 @@ class OctopiGUI(QMainWindow):
                 self.replaceWellSelectionWidget(widgets.Well1536SelectionWidget())
             elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
                 self.replaceWellSelectionWidget(widgets.WellSelectionWidget(format_))
+                self.connectWellSelectionWidget()
 
         if ENABLE_FLEXIBLE_MULTIPOINT:
             self.multiPointWidget2.clear_only_location_list()
@@ -813,7 +814,6 @@ class OctopiGUI(QMainWindow):
             self.napariLiveWidget.replace_well_selector(self.wellSelectionWidget)
         else:
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
-        self.connectWellSelectionWidget()
 
     def connectWellSelectionWidget(self):
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
