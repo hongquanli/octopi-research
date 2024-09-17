@@ -2630,7 +2630,7 @@ class MultiPointWidget2(QFrame):
         self.shortcut.activated.connect(self.btn_add.click)
 
         self.toggle_z_range_controls(False)
-        self.set_use_piezo(self.checkbox_usePiezo.isChecked())
+        self.multipointController.set_use_piezo(self.checkbox_usePiezo.isChecked())
 
     def toggle_z_range_controls(self, state):
         is_visible = bool(state)
