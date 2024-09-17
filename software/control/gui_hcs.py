@@ -366,7 +366,7 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
         self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController,self.navigationViewer,self.multipointController,self.objectiveStore,self.configurationManager,self.scanCoordinates, self.napariMosaicDisplayWidget)
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        self.wellplateFormatWidget = widgets.WellplateFormatWidget()
+        self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer)        
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget,self.wellplateFormatWidget)
         if ENABLE_TRACKING:

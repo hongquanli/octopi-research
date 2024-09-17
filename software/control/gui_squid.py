@@ -385,7 +385,7 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController, self.navigationViewer, self.multipointController, self.configurationManager, scanCoordinates=None)
         self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates, self.napariMosaicDisplayWidget)
         self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        self.wellplateFormatWidget = widgets.WellplateFormatWidget()
+        self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer)
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget, self.wellplateFormatWidget)
 
@@ -706,6 +706,7 @@ class OctopiGUI(QMainWindow):
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.scanCoordinates.update_wellplate_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(lambda format_, *args: self.onWellplateChanged(format_))
+        self.wellplateFormatWidget.signalLaunchCalibration.connect(self.launchWellplateCalibration)
 
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
@@ -733,6 +734,12 @@ class OctopiGUI(QMainWindow):
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
             dialog = widgets.LedMatrixSettingsDialog(self.liveController.led_array)
             dialog.exec_()
+
+    def launchWellplateCalibration(self):
+        calibration_dialog = widgets.WellplateCalibration(self.wellplateFormatWidget, self.navigationController)
+        result = calibration_dialog.exec_()
+        if result == QDialog.Accepted:
+            self.wellplateFormatWidget.save_formats_to_csv()
 
     def onTabChanged(self, index):
         acquisitionWidget = self.recordTabWidget.widget(index)
