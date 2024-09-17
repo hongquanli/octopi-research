@@ -4393,7 +4393,6 @@ class StitcherWidget(QFrame):
 
 class NapariLiveWidget(QWidget):
     signal_coordinates_clicked = Signal(int, int, int, int)
-    signal_layer_contrast_limits = Signal(str, float, float)
     signal_newExposureTime = Signal(float)
     signal_newAnalogGain = Signal(float)
     signal_autoLevelSetting = Signal(bool)
@@ -4688,7 +4687,6 @@ class NapariLiveWidget(QWidget):
         if self.live_configuration.name:
             min_val, max_val = self.histogram_widget.region.getRegion()
             self.updateContrastLimits(self.live_configuration.name, min_val, max_val)
-            self.signal_layer_contrast_limits.emit(self.live_configuration.name, min_val, max_val)
 
     def toggle_live(self, pressed):
         if pressed:
@@ -4801,6 +4799,8 @@ class NapariLiveWidget(QWidget):
     def updateLiveLayer(self, image, from_autofocus=False):
         """Updates the canvas with the new image data."""
         if self.dtype != np.dtype(image.dtype):
+            self.contrastManager.scale_contrast_limits(np.dtype(image.dtype))
+            self.dtype = np.dtype(image.dtype)
             self.init_live = False
             self.init_live_rgb = False
 
@@ -4888,8 +4888,6 @@ class NapariLiveWidget(QWidget):
 
 
 class NapariMultiChannelWidget(QWidget):
-
-    signal_layer_contrast_limits = Signal(str, float, float)
 
     def __init__(self, objectiveStore, contrastManager, grid_enabled=False, parent=None):
         super().__init__(parent)
@@ -5068,11 +5066,6 @@ class NapariMultiChannelWidget(QWidget):
         layer.contrast_limits = self.contrastManager.get_limits(channel_name)
         layer.refresh()
 
-    def updateContrastLimits(self, channel, min_val, max_val):
-        self.contrastManager.update_limits(channel, min_val, max_val)
-        if channel in self.viewer.layers:
-            self.viewer.layers[channel].contrast_limits = (min_val, max_val)
-
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
@@ -5094,7 +5087,6 @@ class NapariMultiChannelWidget(QWidget):
 class NapariTiledDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(int, int, int, int, int, int, float, float)
-    signal_layer_contrast_limits = Signal(str, float, float)
 
     def __init__(self, objectiveStore, contrastManager, parent=None):
         super().__init__(parent)
@@ -5241,11 +5233,6 @@ class NapariTiledDisplayWidget(QWidget):
         layer.data = layer_data
         layer.refresh()
 
-    def updateContrastLimits(self, channel, min_val, max_val):
-        self.contrastManager.update_limits(channel, min_val, max_val)
-        if channel in self.viewer.layers:
-            self.viewer.layers[channel].contrast_limits = (min_val, max_val)
-
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
@@ -5281,7 +5268,6 @@ class NapariTiledDisplayWidget(QWidget):
 class NapariMosaicDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(float, float)  # x, y in mm
-    signal_layer_contrast_limits = Signal(str, float, float)
     signal_update_viewer = Signal()
     signal_layers_initialized = Signal(bool)
     signal_shape_drawn = Signal(list)
@@ -5443,7 +5429,7 @@ class NapariMosaicDisplayWidget(QWidget):
             self.mosaic_dtype = image_dtype
         else:
             # convert image dtype and scale if necessary
-            image = self.convertDtype(image, self.mosaic_dtype)
+            image = self.convertImageDtype(image, self.mosaic_dtype)
             if image_pixel_size_mm != self.viewer_pixel_size_mm:
                 scale_factor = image_pixel_size_mm / self.viewer_pixel_size_mm
                 image = cv2.resize(image, (int(image.shape[1] * scale_factor), int(image.shape[0] * scale_factor)), interpolation=cv2.INTER_LINEAR)
@@ -5480,8 +5466,10 @@ class NapariMosaicDisplayWidget(QWidget):
         self.updateLayer(layer, image, x_mm, y_mm, k, prev_top_left)
 
         # update contrast limits
-        min_val, max_val = self.contrastManager.get_scaled_limits(channel_name, self.mosaic_dtype)
-        layer.contrast_limits = (min_val, max_val)
+        min_val, max_val = self.contrastManager.get_limits(channel_name)
+        scaled_min = self.convertValue(min_val, self.contrastManager.acquisition_dtype, self.mosaic_dtype)
+        scaled_max = self.convertValue(max_val, self.contrastManager.acquisition_dtype, self.mosaic_dtype)
+        layer.contrast_limits = (scaled_min, scaled_max)
         layer.refresh()
 
     def updateLayer(self, layer, image, x_mm, y_mm, k, prev_top_left):
@@ -5533,7 +5521,7 @@ class NapariMosaicDisplayWidget(QWidget):
             layer.data[y_pos:y_end, x_pos:x_end] = image[:y_end - y_pos, :x_end - x_pos]
         layer.refresh()
 
-    def convertDtype(self, image, target_dtype):
+    def convertImageDtype(self, image, target_dtype):
         # convert image to target dtype
         if image.dtype == target_dtype:
             return image
@@ -5557,17 +5545,26 @@ class NapariMosaicDisplayWidget(QWidget):
 
         return image_scaled.astype(target_dtype)
 
-    def updateContrastLimits(self, channel, min_val, max_val):
-        self.contrastManager.update_limits(channel, min_val, max_val)
-        if channel in self.viewer.layers:
-            scaled_min, scaled_max = self.contrastManager.get_scaled_limits(channel, self.mosaic_dtype)
-            self.viewer.layers[channel].contrast_limits = (scaled_min, scaled_max)
+    def convertValue(self, value, from_dtype, to_dtype):
+        # Convert value from one dtype range to another
+        from_info = np.iinfo(from_dtype)
+        to_info = np.iinfo(to_dtype)
+        
+        # Normalize the value to [0, 1] range
+        normalized = (value - from_info.min) / (from_info.max - from_info.min)
+        
+        # Scale to the target dtype range
+        return normalized * (to_info.max - to_info.min) + to_info.min
 
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
-        # Convert scaled limits back to acquisition dtype
-        acquisition_min, acquisition_max = self.contrastManager.get_scaled_limits(layer.name, self.contrastManager.acquisition_dtype)
+        
+        # Convert the new limits from mosaic_dtype to acquisition_dtype
+        acquisition_min = self.convertValue(min_val, self.mosaic_dtype, self.contrastManager.acquisition_dtype)
+        acquisition_max = self.convertValue(max_val, self.mosaic_dtype, self.contrastManager.acquisition_dtype)
+        
+        # Update the ContrastManager with the new limits
         self.contrastManager.update_limits(layer.name, acquisition_min, acquisition_max)
 
     def getContrastLimits(self, dtype):
@@ -5661,7 +5658,8 @@ class ContrastManager:
             scaled_max = (max_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
 
             self.contrast_limits[channel] = (scaled_min, scaled_max)
-
+        
+        self.acquisition_dtype = target_dtype
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):

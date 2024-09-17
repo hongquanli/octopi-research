@@ -640,7 +640,7 @@ class OctopiGUI(QMainWindow):
             self.multipointController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
             self.napariLiveWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
             self.liveControlWidget.signal_live_configuration.connect(self.napariLiveWidget.set_live_configuration)
-            self.napariLiveWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
+
             if USE_NAPARI_FOR_LIVE_CONTROL:
                 self.napariLiveWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
                 self.napariLiveWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -665,7 +665,6 @@ class OctopiGUI(QMainWindow):
 
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-            self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
         else:
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
@@ -683,7 +682,6 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
-                self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
             else:
                 self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
@@ -703,7 +701,6 @@ class OctopiGUI(QMainWindow):
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
             self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
-            self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
 
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
@@ -893,18 +890,6 @@ class OctopiGUI(QMainWindow):
 
     def updateContrastLimits(self, channel, min_val, max_val):
         self.contrastManager.update_limits(channel, min_val, max_val)
-        # if USE_NAPARI_FOR_LIVE_VIEW:
-        #     self.napariLiveWidget.updateContrastLimits(channel, min_val, max_val)
-        # if USE_NAPARI_FOR_MULTIPOINT:
-        #     self.napariMultiChannelWidget.updateContrastLimits(channel, min_val, max_val)
-        # if USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW:
-        #     self.napariTiledDisplayWidget.updateContrastLimits(channel, min_val, max_val)
-        # if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-        #     scaled_min, scaled_max = self.contrastManager.get_scaled_limits(channel)
-        #     self.napariMosaicDisplayWidget.updateContrastLimits(channel, scaled_min, scaled_max)
-        # if ENABLE_STITCHER:
-        #     # Assuming stitcher uses the acquisition dtype
-        #     self.stitcherWidget.updateContrastLimits(channel, min_val, max_val)
 
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
