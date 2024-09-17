@@ -392,7 +392,7 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController, self.configurationManager, show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
         if ENABLE_STITCHER:
-            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
+            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager, self.contrastManager)
 
         self.recordTabWidget = QTabWidget()
         self.setupRecordTabWidget()
@@ -401,8 +401,10 @@ class OctopiGUI(QMainWindow):
         self.setupCameraTabWidget()
 
     def setupImageDisplayTabs(self):
+        self.contrastManager = widgets.ContrastManager()
+
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.wellSelectionWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.contrastManager, self.wellSelectionWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -413,7 +415,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
         if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore)
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, self.contrastManager)
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
@@ -421,14 +423,14 @@ class OctopiGUI(QMainWindow):
 
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore)
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore, self.contrastManager)
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
             else:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-            self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore)
+            self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore, self.contrastManager)
             self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
 
         if SUPPORT_LASER_AUTOFOCUS:
@@ -701,6 +703,7 @@ class OctopiGUI(QMainWindow):
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
             self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
+            self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
 
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
@@ -889,16 +892,19 @@ class OctopiGUI(QMainWindow):
         self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
 
     def updateContrastLimits(self, channel, min_val, max_val):
-        if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget.saveContrastLimits(channel, min_val, max_val)
-        if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget.saveContrastLimits(channel, min_val, max_val)
-        if USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW:
-            self.napariTiledDisplayWidget.saveContrastLimits(channel, min_val, max_val)
-        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-            self.napariMosaicDisplayWidget.saveContrastLimits(channel, min_val, max_val)
-        if ENABLE_STITCHER:
-            self.stitcherWidget.saveContrastLimits(channel, min_val, max_val)
+        self.contrastManager.update_limits(channel, min_val, max_val)
+        # if USE_NAPARI_FOR_LIVE_VIEW:
+        #     self.napariLiveWidget.updateContrastLimits(channel, min_val, max_val)
+        # if USE_NAPARI_FOR_MULTIPOINT:
+        #     self.napariMultiChannelWidget.updateContrastLimits(channel, min_val, max_val)
+        # if USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW:
+        #     self.napariTiledDisplayWidget.updateContrastLimits(channel, min_val, max_val)
+        # if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+        #     scaled_min, scaled_max = self.contrastManager.get_scaled_limits(channel)
+        #     self.napariMosaicDisplayWidget.updateContrastLimits(channel, scaled_min, scaled_max)
+        # if ENABLE_STITCHER:
+        #     # Assuming stitcher uses the acquisition dtype
+        #     self.stitcherWidget.updateContrastLimits(channel, min_val, max_val)
 
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
