@@ -358,8 +358,10 @@ OBJECTIVES = {
     '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
     '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180},
     '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
+    '50x':{'magnification':50, 'NA':0.8, 'tube_lens_f_mm':180},
     '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}
 }
+
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
 DEFAULT_OBJECTIVE = '10x (Mitutoyo)'

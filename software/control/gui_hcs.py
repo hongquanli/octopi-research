@@ -172,6 +172,7 @@ class OctopiGUI(QMainWindow):
         self.microcontroller.configure_actuators()
 
         print('load channel_configurations.xml')
+        # load objects
         self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
         self.objectiveStore = core.ObjectiveStore(parent=self) # todo: add widget to select/save objective save
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
@@ -188,7 +189,10 @@ class OctopiGUI(QMainWindow):
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         self.imageSaver = core.ImageSaver()
         self.imageDisplay = core.ImageDisplay()
-        self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=str(WELLPLATE_FORMAT)+' well plate')
+        if WELLPLATE_FORMAT == 0:
+            self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample='4 glass slide')
+        else:
+            self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=str(WELLPLATE_FORMAT)+' well plate')
         if HOMING_ENABLED_Z:
             # retract the objective
             self.navigationController.home_z()
@@ -320,17 +324,7 @@ class OctopiGUI(QMainWindow):
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler,self.imageSaver)
-        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
-        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController,self.navigationViewer,self.multipointController,self.objectiveStore,self.configurationManager,self.scanCoordinates)
-        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        self.wellplateFormatWidget = widgets.WellplateFormatWidget()
-        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
-        self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget,self.wellplateFormatWidget)
-        if ENABLE_TRACKING:
-            self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
-        if ENABLE_STITCHER:
-            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
+
         if WELLPLATE_FORMAT != 1536:
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
         else:
@@ -364,10 +358,21 @@ class OctopiGUI(QMainWindow):
             else:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
-
         if USE_NAPARI_FOR_MOSAIC_DISPLAY:
             self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore)
             self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
+
+        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController,self.navigationViewer,self.multipointController,self.configurationManager,scanCoordinates=None)
+        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController,self.navigationViewer,self.multipointController,self.objectiveStore,self.configurationManager,self.scanCoordinates, self.napariMosaicDisplayWidget)
+        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
+        self.wellplateFormatWidget = widgets.WellplateFormatWidget()
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
+        self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget,self.wellplateFormatWidget)
+        if ENABLE_TRACKING:
+            self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
+        if ENABLE_STITCHER:
+            self.stitcherWidget = widgets.StitcherWidget(self.configurationManager)
 
         # acquisition tabs
         self.recordTabWidget = QTabWidget()
@@ -458,6 +463,7 @@ class OctopiGUI(QMainWindow):
             height_min = 0.9*desktopWidget.height()
             width_min = 0.96*desktopWidget.width()
             self.setMinimumSize(int(width_min),int(height_min))
+            self.onTabChanged(self.recordTabWidget.currentIndex())
         else:
             self.setCentralWidget(self.centralWidget)
             self.tabbedImageDisplayWindow = QMainWindow()
@@ -469,6 +475,7 @@ class OctopiGUI(QMainWindow):
             height = width
             self.tabbedImageDisplayWindow.setFixedSize(int(width), int(height))
             self.tabbedImageDisplayWindow.show()
+
 
         '''
         try:
@@ -609,10 +616,12 @@ class OctopiGUI(QMainWindow):
             if ENABLE_SCAN_GRID:
                 self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
                 self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+                self.multiPointWidgetGrid.signal_draw_shape.connect(self.napariMosaicDisplayWidget.enable_shape_drawing)
+                self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
 
             self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
-            self.napariMosaicDisplayWidget.signal_clear_viewer.connect(self.navigationViewer.clear_slide)
+            self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
             # self.napariMosaicDisplayWidget.signal_layer_contrast_limits.connect(self.updateContrastLimits)
 
         # (double) click to move to a well
@@ -625,7 +634,7 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
         if ENABLE_SCAN_GRID:
             self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
-            self.objectivesWidget.signal_objective_changed.connect(self.multiPointWidgetGrid.update_well_coordinates)
+            self.objectivesWidget.signal_objective_changed.connect(self.multiPointWidgetGrid.update_coordinates)
             self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_current_location)
 
         # camera
