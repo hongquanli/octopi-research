@@ -352,13 +352,16 @@ class OctopiGUI(QMainWindow):
         self.navigationBarWidget = widgets.NavigationBarWidget(self.navigationController, self.slidePositionController, add_z_buttons=False)
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
+        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
 
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
 
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler, self.imageSaver)
+        self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer, self.streamHandler, self.liveController)
         if WELLPLATE_FORMAT != 1536:
-            self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT)
+            self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT, self.wellplateFormatWidget)
         else:
             self.wellSelectionWidget = widgets.Well1536SelectionWidget()
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
@@ -384,9 +387,6 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController, self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController, self.navigationViewer, self.multipointController, self.configurationManager, scanCoordinates=None)
         self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates, self.napariMosaicDisplayWidget)
-        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
-        self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer)
-        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
         self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget, self.wellplateFormatWidget)
 
         if ENABLE_TRACKING:
@@ -702,11 +702,9 @@ class OctopiGUI(QMainWindow):
             self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
             self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
 
-        self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.scanCoordinates.update_wellplate_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(lambda format_, *args: self.onWellplateChanged(format_))
-        self.wellplateFormatWidget.signalLaunchCalibration.connect(self.launchWellplateCalibration)
 
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
@@ -734,12 +732,6 @@ class OctopiGUI(QMainWindow):
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
             dialog = widgets.LedMatrixSettingsDialog(self.liveController.led_array)
             dialog.exec_()
-
-    def launchWellplateCalibration(self):
-        calibration_dialog = widgets.WellplateCalibration(self.wellplateFormatWidget, self.navigationController)
-        result = calibration_dialog.exec_()
-        if result == QDialog.Accepted:
-            self.wellplateFormatWidget.save_formats_to_csv()
 
     def onTabChanged(self, index):
         acquisitionWidget = self.recordTabWidget.widget(index)
@@ -772,6 +764,9 @@ class OctopiGUI(QMainWindow):
             current_widget.activate()
 
     def onWellplateChanged(self, format_):
+        if isinstance(format_, QVariant):
+            format_ = format_.value()
+
         if format_ == 0:
             self.toggleWellSelector(False)
             self.multipointController.inverted_objective = False
@@ -786,7 +781,7 @@ class OctopiGUI(QMainWindow):
             if format_ == 1536:
                 self.replaceWellSelectionWidget(widgets.Well1536SelectionWidget())
             elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
-                self.replaceWellSelectionWidget(widgets.WellSelectionWidget(format_))
+                self.replaceWellSelectionWidget(widgets.WellSelectionWidget(format_, self.wellplateFormatWidget))
                 self.connectWellSelectionWidget()
 
         if ENABLE_FLEXIBLE_MULTIPOINT:

@@ -3545,10 +3545,21 @@ class NavigationViewer(QFrame):
         self.x_mm = None
         self.y_mm = None
         self.acquisition_started = False
+        self.image_paths = {
+            'glass slide': 'images/slide carrier_828x662.png',
+            '4 glass slide': 'images/4 slide carrier_1509x1010.png',
+            '6 well plate': 'images/6 well plate_1509x1010.png',
+            '12 well plate': 'images/12 well plate_1509x1010.png',
+            '24 well plate': 'images/24 well plate_1509x1010.png',
+            '96 well plate': 'images/96 well plate_1509x1010.png',
+            '384 well plate': 'images/384 well plate_1509x1010.png',
+            '1536 well plate': 'images/1536 well plate_1509x1010.png'
+        }
 
         print("navigation viewer:", sample)
         self.init_ui(invertX)
-        self.load_background_image(sample)
+
+        self.load_background_image(self.image_paths.get(sample, 'images/slide carrier_828x662.png'))
         self.create_layers()
         self.update_display_properties(sample)
         # self.update_display()
@@ -3566,19 +3577,13 @@ class NavigationViewer(QFrame):
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
 
-    def load_background_image(self, sample):
-        image_paths = {
-            'glass slide': 'images/slide carrier_828x662.png',
-            '4 glass slide': 'images/4 slide carrier_1509x1010.png',
-            '6 well plate': 'images/6 well plate_1509x1010.png',
-            '12 well plate': 'images/12 well plate_1509x1010.png',
-            '24 well plate': 'images/24 well plate_1509x1010.png',
-            '96 well plate': 'images/96 well plate_1509x1010.png',
-            '384 well plate': 'images/384 well plate_1509x1010.png',
-            '1536 well plate': 'images/1536 well plate_1509x1010.png'
-        }
+    def load_background_image(self, image_path):
         self.view.clear()
-        self.background_image = cv2.imread(image_paths.get(sample, 'images/slide carrier_828x662.png'))
+        self.background_image = cv2.imread(image_path)
+        if self.background_image is None:
+            #raise ValueError(f"Failed to load image from {image_path}")
+             self.background_image = cv2.imread(self.image_paths.get('glass slide'))
+        
         if len(self.background_image.shape) == 2:  # Grayscale image
             self.background_image = cv2.cvtColor(self.background_image, cv2.COLOR_GRAY2RGBA)
         elif self.background_image.shape[2] == 3:  # BGR image
@@ -3638,14 +3643,19 @@ class NavigationViewer(QFrame):
     def on_acquisition_start(self, acquisition_started):
         self.acquisition_started = acquisition_started
 
-    def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
+    def update_wellplate_settings(self, sample_format, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip, rows, cols):
+        if isinstance(sample_format, QVariant):
+            sample_format = sample_format.value()
+
         if sample_format == 0:
             if IS_HCS:
                 sample = '4 glass slide'
             else:
                 sample = 'glass slide'
-        else:
+        elif isinstance(sample_format, int):
             sample = f'{sample_format} well plate'
+        else:  # Custom wellplate
+            sample = sample_format
 
         self.sample = sample
         self.a1_x_mm = a1_x_mm
@@ -3655,10 +3665,24 @@ class NavigationViewer(QFrame):
         self.well_size_mm = well_size_mm
         self.well_spacing_mm = well_spacing_mm
         self.number_of_skip = number_of_skip
-        self.load_background_image(sample)
+        self.rows = rows
+        self.cols = cols
+
+        # Try to find the image for the wellplate
+        image_path = self.image_paths.get(sample)
+        if image_path is None or not os.path.exists(image_path):
+            # Look for a custom wellplate image
+            custom_image_path = os.path.join('images', f'{sample.replace(" ", "_")}.png')
+            if os.path.exists(custom_image_path):
+                image_path = custom_image_path
+            else:
+                print(f"Warning: Image not found for {sample}. Using default image.")
+                image_path = self.image_paths.get('glass slide')  # Use a default image
+
+        self.load_background_image(image_path)
         self.create_layers()
         self.update_display_properties(sample)
-        self.draw_current_fov(self.x_mm,self.y_mm)
+        self.draw_current_fov(self.x_mm, self.y_mm)
 
     def update_current_location(self, x_mm=None, y_mm=None):
         if x_mm is None and y_mm is None:
@@ -3691,15 +3715,6 @@ class NavigationViewer(QFrame):
                 round(self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
                 round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
             )
-        # elif self.sample == '4 glass slide':
-        #     current_FOV_top_left = (
-        #         round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel)),
-        #         round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel)
-        #     )
-        #     current_FOV_bottom_right = (
-        #         round(self.image_width - (self.origin_x_pixel + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel)),
-        #         round(self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel)
-        #     )
         else:
             current_FOV_top_left = (
                 round(self.origin_x_pixel + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
