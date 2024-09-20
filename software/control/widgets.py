@@ -2122,19 +2122,21 @@ class MultiPointWidget(QFrame):
         grid_line2.setColumnStretch(5, 1)
         grid_line2.setColumnStretch(8, 1)
 
-        grid_af = QVBoxLayout()
-        grid_af.addWidget(self.checkbox_withAutofocus)
+        grid_af = QGridLayout()
+        grid_af.addItem(QSpacerItem(7, 1, QSizePolicy.Fixed, QSizePolicy.Minimum), 0, 0)
+        grid_af.addWidget(self.checkbox_withAutofocus,0,1)
         if SUPPORT_LASER_AUTOFOCUS:
-            grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        grid_af.addWidget(self.checkbox_genFocusMap)
+            grid_af.addWidget(self.checkbox_withReflectionAutofocus,1,1)
+        grid_af.addWidget(self.checkbox_genFocusMap,2,1)
         if ENABLE_STITCHER:
-            grid_af.addWidget(self.checkbox_stitchOutput)
+            grid_af.addWidget(self.checkbox_stitchOutput,3,1)
+        grid_af.addItem(QSpacerItem(6, 1, QSizePolicy.Fixed, QSizePolicy.Minimum), 0, 2)
 
         grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(self.list_configurations)
+        grid_line3.addWidget(self.list_configurations, 2)
         # grid_line3.addWidget(self.checkbox_withAutofocus)
-        grid_line3.addLayout(grid_af)
-        grid_line3.addWidget(self.btn_startAcquisition)
+        grid_line3.addLayout(grid_af, 1)
+        grid_line3.addWidget(self.btn_startAcquisition, 1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -3666,7 +3668,7 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
-        print("init Z-min/max:", self.entry_minZ.value())
+        print("init z-level:", self.entry_minZ.value())
 
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
@@ -3679,10 +3681,8 @@ class MultiPointWidgetGrid(QFrame):
         if self.combobox_shape.currentText() != 'Manual' and self.scanCoordinates.format == 0 and (parent is None or is_current_widget):
             
             if self.region_coordinates:
-                print("clearing old live coordinates")
                 self.clear_regions()
 
-            print("add current location")
             self.add_region('current', x_mm, y_mm)
 
     def set_well_coordinates(self, selected):
@@ -3773,9 +3773,9 @@ class MultiPointWidgetGrid(QFrame):
         self.region_fov_coordinates_dict[well_id] = scan_coordinates
 
         print(f"{action} Region: {well_id} - x={x:.3f}, y={y:.3f}") #, z={z:.3f}")
-        print("Size:", self.entry_scan_size.value())
-        print("Shape:", self.combobox_shape.currentText())
-        print("# fovs in region:", len(scan_coordinates))
+        # print("Size:", self.entry_scan_size.value())
+        # print("Shape:", self.combobox_shape.currentText())
+        # print("# fovs in region:", len(scan_coordinates))
 
     def remove_region(self, well_id):
         if well_id in self.region_coordinates:
@@ -3786,13 +3786,13 @@ class MultiPointWidgetGrid(QFrame):
                 for coord in region_scan_coordinates:
                     self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
 
-            print(f"Removed region: {well_id}")
+            print(f"Removed Region: {well_id}")
 
     def clear_regions(self):
         self.navigationViewer.clear_overlay()
         self.region_coordinates.clear()
         self.region_fov_coordinates_dict.clear()
-        print("Cleared all regions")
+        print("Cleared All Regions")
 
     def create_region_coordinates(self, objectiveStore, center_x, center_y, scan_size_mm=None, overlap_percent=10, shape='Square'):
         if shape == 'Manual':
@@ -3819,9 +3819,9 @@ class MultiPointWidgetGrid(QFrame):
             actual_scan_size_mm = (steps - 1) * step_size_mm + fov_size_mm
 
         steps = max(1, steps)  # Ensure at least one step
-        print(f"steps: {steps}, step_size_mm: {step_size_mm}")
-        print(f"scan size mm: {scan_size_mm}")
-        print(f"actual scan size mm: {actual_scan_size_mm}")
+        # print(f"steps: {steps}, step_size_mm: {step_size_mm}")
+        # print(f"scan size mm: {scan_size_mm}")
+        # print(f"actual scan size mm: {actual_scan_size_mm}")
 
         scan_coordinates = []
         half_steps = (steps - 1) / 2
@@ -3864,8 +3864,6 @@ class MultiPointWidgetGrid(QFrame):
         pixel_size_um = objectiveStore.get_pixel_size()
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        print("fov_size_mm:", fov_size_mm)
-        print("step_size_mm:", step_size_mm)
 
         steps = math.floor(scan_size_mm / step_size_mm)
         if shape == 'Circle':
@@ -3883,9 +3881,9 @@ class MultiPointWidgetGrid(QFrame):
             actual_scan_size_mm = (steps - 1) * step_size_mm + fov_size_mm
 
         steps = max(1, steps)  # Ensure at least one step
-        print("steps:", steps)
-        print("scan size mm:", scan_size_mm)
-        print("actual scan size mm:", actual_scan_size_mm)
+        # print("steps:", steps)
+        # print("scan size mm:", scan_size_mm)
+        # print("actual scan size mm:", actual_scan_size_mm)
 
         region_skip_positions = []
 
@@ -3903,13 +3901,11 @@ class MultiPointWidgetGrid(QFrame):
                     ]
                     if any(math.sqrt(cx**2 + cy**2) > radius for cx, cy in corners):
                         region_skip_positions.append((i, j))
-                        print(f"skipping {i}, {j}")
 
             # If all positions were skipped, clear the list and set steps to 1
             if len(region_skip_positions) == steps * steps:
                 region_skip_positions.clear()
                 steps = 1
-                print("All positions were outside the circle. Reverting to single central position.")
 
         self.scanCoordinates.grid_skip_positions = region_skip_positions
         return steps, step_size_mm
@@ -3989,7 +3985,6 @@ class MultiPointWidgetGrid(QFrame):
         print(f"Acquisition pattern: {self.acquisition_pattern}")
         
         if len(self.region_coordinates) <= 1:
-            print("No coordinates or using current")
             return
 
         def sort_key(item):
@@ -4093,7 +4088,7 @@ class MultiPointWidgetGrid(QFrame):
                 minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
                 maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
                 self.multipointController.set_z_range(minZ, maxZ)
-                print("Z-range", (minZ, maxZ))
+                print("set z-range", (minZ, maxZ))
             else:
                 z = self.navigationController.z_pos_mm
                 self.multipointController.set_z_range(z, z)
@@ -4112,11 +4107,6 @@ class MultiPointWidgetGrid(QFrame):
             self.signal_acquisition_started.emit(True)
             self.signal_acquisition_shape.emit(Nx, Ny, self.entry_NZ.value(),
                                                dx_mm, dy_mm, self.entry_deltaZ.value())
-            print("Nx,Ny,Nz", Nx, Ny, self.entry_NZ.value())
-            print("dx,dy,dz", dx_mm, dy_mm, self.entry_deltaZ.value())
-            print("region coordinates:")
-            for well_id, coords in self.region_coordinates.items():
-                print(f"{well_id}: {coords}")
 
             # Start acquisition
             if self.use_coordinate_acquisition:
@@ -5576,7 +5566,7 @@ class NapariMosaicDisplayWidget(QWidget):
         if coords is not None:
             x_mm = self.top_left_coordinate[1] + coords[-1] * self.viewer_pixel_size_mm
             y_mm = self.top_left_coordinate[0] + coords[-2] * self.viewer_pixel_size_mm
-            print(f"Clicked: world={event.position}, data={coords}, converted=({x_mm:.6f}, {y_mm:.6f})")
+            print(f"move from click: ({x_mm:.6f}, {y_mm:.6f})")
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
 
     def resetView(self):
@@ -6850,9 +6840,9 @@ class WellplateCalibration(QDialog):
             self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(0).widget().hide()  # Hide sensitivity label
             self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(1).widget().hide()  # Hide sensitivity slider
 
-    def updateCursorPosition(self, x, y):
-        x_mm = self.navigationController.x_pos_mm + (x - self.live_viewer.width() / 2) * self.navigationController.x_mm_per_pixel
-        y_mm = self.navigationController.y_pos_mm + (y - self.live_viewer.height() / 2) * self.navigationController.y_mm_per_pixel
+    # def updateCursorPosition(self, x, y):
+    #     x_mm = self.navigationController.x_pos_mm + (x - self.live_viewer.width() / 2) * self.navigationController.x_mm_per_pixel
+    #     y_mm = self.navigationController.y_pos_mm + (y - self.live_viewer.height() / 2) * self.navigationController.y_mm_per_pixel
 
     def moveStage(self, x, y):
         sensitivity = self.sensitivitySlider.value() / 50.0  # Normalize to 0-2 range
@@ -7168,9 +7158,8 @@ class CalibrationLiveViewer(QWidget):
         # Step 7: Ensure the crosshair is updated
         self.setCrosshairPosition()
 
-    def mouseMoveEvent(self, event):
-        print("calibration viewer location:", event.x(), event.y())
-        self.signal_mouse_moved.emit(event.x(), event.y())
+    # def mouseMoveEvent(self, event):
+    #     self.signal_mouse_moved.emit(event.x(), event.y())
 
     def onMouseClicked(self, event):
         # Map the scene position to view position
@@ -7180,7 +7169,6 @@ class CalibrationLiveViewer(QWidget):
 
             # Get the x, y coordinates
             x, y = int(scene_pos.x()), int(scene_pos.y())
-            print('viewer clicked', x , y)
             # Ensure the coordinates are within the image boundaries
             image_shape = self.img_item.image.shape
             if 0 <= x < image_shape[1] and 0 <= y < image_shape[0]:
@@ -7190,7 +7178,7 @@ class CalibrationLiveViewer(QWidget):
                 # Emit the signal with the clicked coordinates and image size
                 self.signal_calibration_viewer_click.emit(x_centered, y_centered, image_shape[1], image_shape[0])
             else:
-                print("Click was outside the image bounds.")
+                print("click was outside the image bounds.")
         else:
             print("single click only detected")
 
@@ -7611,12 +7599,12 @@ class Well1536SelectionWidget(QWidget):
                 # If the well is already selected, remove it
                 del self.selected_cells[(row, col)]
                 self.remove_well_from_selection_input(cell_name)
-                print(f"Removed well {cell_name} from selection")
+                print(f"Removed well {cell_name}")
             else:
                 # If the well is not selected, add it
                 self.selected_cells[(row, col)] = '#1f77b4'  # Add to selected cells with blue color
                 self.add_well_to_selection_input(cell_name)
-                print(f"Added well {cell_name} to selection")
+                print(f"Added well {cell_name}")
             
             self.redraw_wells()
             self.signal_wellSelected.emit(bool(self.selected_cells))

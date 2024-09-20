@@ -791,14 +791,11 @@ class NavigationController(QObject):
         print("click - (x, y):", (click_x, click_y))
         fov_col = click_x * Nx // image_width
         fov_row = click_y * Ny // image_height
-        print("image - (col, row):", (fov_col, fov_row))
         end_position_x = Ny % 2 # right side or left side
         fov_col = Nx - (fov_col + 1) if end_position_x else fov_col
         fov_row = fov_row
-        print("fov - (col, row):", fov_col, fov_row)
         pixel_sign_x = (-1)**end_position_x # inverted
         pixel_sign_y = -1 if INVERTED_OBJECTIVE else 1
-        print("pixel_sign_x, pixel_sign_y", pixel_sign_x, pixel_sign_y)
 
         # move to selected fov
         self.move_x_to(self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x)

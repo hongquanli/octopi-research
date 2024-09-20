@@ -211,6 +211,8 @@ class OctopiGUI(QMainWindow):
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        self.recordTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.recordTabWidget))
+        self.resizeCurrentTab(self.recordTabWidget)
 
         frame = QFrame()
         frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
@@ -356,6 +358,15 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
         self.navigationController.move_to_cached_position()
+
+    def resizeCurrentTab(self, tabWidget):
+        current_widget = tabWidget.currentWidget()
+        if current_widget:
+            total_height = current_widget.sizeHint().height() + tabWidget.tabBar().height()
+            tabWidget.resize(tabWidget.width(), total_height)
+            tabWidget.setMaximumHeight(total_height)
+            tabWidget.updateGeometry()
+            self.updateGeometry()
 
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
