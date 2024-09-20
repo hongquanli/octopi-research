@@ -6559,7 +6559,14 @@ class WellplateFormatWidget(QWidget):
             self.comboBox.addItem(f"{format_} well plate", int(format_))
         for name in self.custom_formats:
             self.comboBox.addItem(name, name)
-        self.comboBox.addItem("custom well plate", 'custom')
+        
+        # Add custom item and set its font to italic
+        self.comboBox.addItem("add format...", 'custom')
+        index = self.comboBox.count() - 1  # Get the index of the last item
+        font = QFont()
+        font.setItalic(True)
+        self.comboBox.setItemData(index, font, Qt.FontRole)
+
 
     def wellplateChanged(self, index):
         self.wellplate_format = self.comboBox.itemData(index)
@@ -6694,7 +6701,11 @@ class WellplateCalibration(QDialog):
         self.liveController = liveController
         self.was_live = self.liveController.is_live
         self.corners = [None, None, None]
+        self.show_virtual_joystick = True # FLAG 
         self.initUI()
+        # Initially allow click-to-move and hide the joystick controls
+        self.clickToMoveCheckbox.setChecked(True)
+        self.toggleVirtualJoystick(False)
 
     def initUI(self):
         layout = QHBoxLayout(self)  # Change to QHBoxLayout to have two columns
@@ -6744,11 +6755,15 @@ class WellplateCalibration(QDialog):
         points_layout = QGridLayout()
         self.cornerLabels = []
         self.setPointButtons = []
-        for i in range(3):
-            label = QLabel(f"Point {i+1}: N/A")
+        navigate_label = QLabel("Navigate to and Select\n3 Points on the Edge of Well A1")
+        navigate_label.setAlignment(Qt.AlignCenter)
+        # navigate_label.setStyleSheet("font-weight: bold;")
+        points_layout.addWidget(navigate_label, 0, 0, 1, 2)
+        for i in range(1, 4):
+            label = QLabel(f"Point {i}: N/A")
             button = QPushButton("Set Point")
             button.setFixedWidth(button.sizeHint().width())
-            button.clicked.connect(lambda checked, index=i: self.setCorner(index))
+            button.clicked.connect(lambda checked, index=i-1: self.setCorner(index))
             points_layout.addWidget(label, i, 0)
             points_layout.addWidget(button, i, 1)
             self.cornerLabels.append(label)
@@ -6756,6 +6771,16 @@ class WellplateCalibration(QDialog):
 
         points_layout.setColumnStretch(0,1)
         left_layout.addLayout(points_layout)
+
+        # Add 'Click to Move' checkbox
+        self.clickToMoveCheckbox = QCheckBox("Click to Move")
+        self.clickToMoveCheckbox.stateChanged.connect(self.toggleClickToMove)
+        left_layout.addWidget(self.clickToMoveCheckbox)
+
+        # Add 'Show Virtual Joystick' checkbox
+        self.showJoystickCheckbox = QCheckBox("Virtual Joystick")
+        self.showJoystickCheckbox.stateChanged.connect(self.toggleVirtualJoystick)
+        left_layout.addWidget(self.showJoystickCheckbox)
 
         self.calibrateButton = QPushButton("Calibrate")
         self.calibrateButton.clicked.connect(self.calibrate)
@@ -6765,29 +6790,92 @@ class WellplateCalibration(QDialog):
         # Add left column to main layout
         layout.addLayout(left_layout)
 
-        self.live_viewer = CalibrationLiveViewer()
+        self.live_viewer = CalibrationLiveViewer(parent=self)
         self.streamHandler.image_to_display.connect(self.live_viewer.display_image)
-        self.live_viewer.signal_coordinates_clicked.connect(self.navigationController.move_from_click)
+        #self.live_viewer.signal_calibration_viewer_click.connect(self.navigationController.move_from_click)
+
         if not self.was_live:
             self.liveController.start_live()
        
         # when the dialog closes i want to # self.liveController.stop_live() if live was stopped before. . . if it was on before, leave it on
         layout.addWidget(self.live_viewer)
         
-        self.joystick = JoystickWidget()
-        self.joystick.setFixedSize(200, 200)  # Set a fixed size, adjust as needed
+        # Right column for joystick and sensitivity controls
+        self.right_layout = QVBoxLayout()
+        self.right_layout.addStretch(1)
+        
+        self.joystick = Joystick(self)
         self.joystick.joystickMoved.connect(self.moveStage)
-        layout.addWidget(self.joystick, alignment=Qt.AlignCenter)
+        self.right_layout.addWidget(self.joystick, 0, Qt.AlignTop | Qt.AlignHCenter)
+        
+        self.right_layout.addStretch(1)
+        
+        # Create a container widget for sensitivity label and slider
+        sensitivity_layout = QVBoxLayout()
+        
+        sensitivityLabel = QLabel("Joystick Sensitivity")
+        sensitivityLabel.setAlignment(Qt.AlignCenter)
+        sensitivity_layout.addWidget(sensitivityLabel)
+        
+        self.sensitivitySlider = QSlider(Qt.Horizontal)
+        self.sensitivitySlider.setMinimum(1)
+        self.sensitivitySlider.setMaximum(100)
+        self.sensitivitySlider.setValue(50)
+        self.sensitivitySlider.setTickPosition(QSlider.TicksBelow)
+        self.sensitivitySlider.setTickInterval(10)
+        
+        label_width = sensitivityLabel.sizeHint().width()
+        self.sensitivitySlider.setFixedWidth(label_width)
+        
+        sensitivity_layout.addWidget(self.sensitivitySlider, 0, Qt.AlignHCenter)
+        
+        self.right_layout.addLayout(sensitivity_layout)
+        
+        layout.addLayout(self.right_layout)
 
+        if not self.was_live:
+            self.liveController.start_live()
+
+    def toggleVirtualJoystick(self, state):
+        if state:
+            self.joystick.show()
+            self.sensitivitySlider.show()
+            self.right_layout.itemAt(self.right_layout.indexOf(self.joystick)).widget().show()
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(0).widget().show()  # Show sensitivity label
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(1).widget().show()  # Show sensitivity slider
+        else:
+            self.joystick.hide()
+            self.sensitivitySlider.hide()
+            self.right_layout.itemAt(self.right_layout.indexOf(self.joystick)).widget().hide()
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(0).widget().hide()  # Hide sensitivity label
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(1).widget().hide()  # Hide sensitivity slider
+
+    def updateCursorPosition(self, x, y):
+        x_mm = self.navigationController.x_pos_mm + (x - self.live_viewer.width() / 2) * self.navigationController.x_mm_per_pixel
+        y_mm = self.navigationController.y_pos_mm + (y - self.live_viewer.height() / 2) * self.navigationController.y_mm_per_pixel
 
     def moveStage(self, x, y):
-        # Convert joystick values (-1 to 1) to stage movement
-        # You may need to adjust the scaling factor based on your requirements
-        scaling_factor = 0.01  # mm per update
-        dx = x * scaling_factor
-        dy = y * scaling_factor
+        sensitivity = self.sensitivitySlider.value() / 50.0  # Normalize to 0-2 range
+        max_speed = 0.1 * sensitivity
+        exponent = 2
+
+        dx = math.copysign(max_speed * abs(x)**exponent, x)
+        dy = math.copysign(max_speed * abs(y)**exponent, y)
+
         self.navigationController.move_x(dx)
         self.navigationController.move_y(dy)
+
+    def toggleClickToMove(self, state):
+        if state == Qt.Checked:
+            self.navigationController.set_flag_click_to_move(True)
+            self.live_viewer.signal_calibration_viewer_click.connect(self.viewerClicked)
+        else:
+            self.live_viewer.signal_calibration_viewer_click.disconnect(self.viewerClicked)
+            self.navigationController.set_flag_click_to_move(False)
+
+    def viewerClicked(self, x, y, width, height):
+        if self.clickToMoveCheckbox.isChecked():
+            self.navigationController.move_from_click(x, y, width, height)
 
     def setCorner(self, index):
         if self.corners[index] is None:
@@ -6829,16 +6917,11 @@ class WellplateCalibration(QDialog):
         a1_x_mm = center[0]
         a1_y_mm = center[1]
 
-        # Image dimensions
-        navigation_image_width = 1509
-        navigation_image_height = 1010
-
-        # Calculate scaling factors
-        scale = np.mean([navigation_image_width / plate_width_mm, navigation_image_height / plate_height_mm])
 
         # Calculate a1 position in pixels
-        a1_x_pixel = int(a1_x_mm * scale)
-        a1_y_pixel = int(a1_y_mm * scale)
+        scale = 1 / 0.084665
+        a1_x_pixel = round(a1_x_mm * scale)
+        a1_y_pixel = round(a1_y_mm * scale)
 
         new_format = {
             'a1_x_mm': a1_x_mm,
@@ -6856,13 +6939,19 @@ class WellplateCalibration(QDialog):
         print(self.wellplateFormatWidget.custom_formats)
         self.wellplateFormatWidget.save_formats_to_csv()
 
-        image_path = self.create_wellplate_image(name, new_format, scale)
+        image_path = self.create_wellplate_image(name, new_format, plate_width_mm, plate_height_mm)
         self.wellplateFormatWidget.setWellplateSettings(name)
         
         self.accept()
 
-    def create_wellplate_image(self, name, format_data, scale):
-        width, height = 1509, 1010
+    def create_wellplate_image(self, name, format_data, plate_width_mm, plate_height_mm):
+
+        scale = 1 / 0.084665
+        def mm_to_px(mm):
+            return round(mm * scale)
+
+        width = mm_to_px(plate_width_mm)
+        height = mm_to_px(plate_height_mm)
         image = Image.new('RGB', (width, height), color='white')
         draw = ImageDraw.Draw(image)
 
@@ -6870,9 +6959,6 @@ class WellplateCalibration(QDialog):
         well_spacing_mm = format_data['well_spacing_mm']
         well_size_mm = format_data['well_size_mm']
         a1_x_mm, a1_y_mm = format_data['a1_x_mm'], format_data['a1_y_mm']
-
-        def mm_to_px(mm):
-            return round(mm * scale)
 
         def draw_left_slanted_rectangle(draw, xy, slant, width=4, outline='black', fill=None):
             x1, y1, x2, y2 = xy
@@ -6921,7 +7007,7 @@ class WellplateCalibration(QDialog):
         for col in range(cols):
             label = str(col + 1)
             x = mm_to_px(a1_x_mm + col * well_spacing_mm)
-            y = mm_to_px(a1_y_mm / 2)
+            y = mm_to_px((a1_y_mm - well_size_mm/2) / 2)
             bbox = font.getbbox(label)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
@@ -6930,7 +7016,7 @@ class WellplateCalibration(QDialog):
         # Add row labels
         for row in range(rows):
             label = chr(65 + row) if row < 26 else chr(65 + row // 26 - 1) + chr(65 + row % 26)
-            x = mm_to_px(a1_x_mm / 2)
+            x = mm_to_px((a1_x_mm - well_size_mm/2 ) / 2)
             y = mm_to_px(a1_y_mm + row * well_spacing_mm)
             bbox = font.getbbox(label)
             text_height = bbox[3] - bbox[1]
@@ -6997,10 +7083,13 @@ class WellplateCalibration(QDialog):
 
 
 class CalibrationLiveViewer(QWidget):
-    signal_coordinates_clicked = Signal(int, int, int, int)
+
+    signal_calibration_viewer_click = Signal(int, int, int, int)
+    signal_mouse_moved = Signal(int, int)
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__()
+        self.parent = parent
         self.initial_zoom_set = False
         self.initUI()
 
@@ -7046,24 +7135,6 @@ class CalibrationLiveViewer(QWidget):
         self.crosshair_h.setPos(center.y())
         self.crosshair_v.setPos(center.x())
 
-    # def display_image(self, image):
-    #     # Step 1: Capture the current view range (x and y ranges)
-    #     current_range = self.viewbox.viewRect()
-
-    #     # Step 2: Update the image
-    #     self.img_item.setImage(image)
-
-    #     # Step 3: Set initial zoom if not set
-    #     if not self.initial_zoom_set:
-    #         self.viewbox.autoRange()  # This will fit the entire image into the view
-    #         self.initial_zoom_set = True  # Mark initial zoom as set
-
-    #     # Reapply the previous view range to maintain the zoom and panning position if already zoomed
-    #     else:
-    #         self.viewbox.setRange(current_range, padding=0)
-
-    #     # Ensure the crosshair is updated
-    #     self.setCrosshairPosition()
     def display_image(self, image):
         # Step 1: Update the image
         self.img_item.setImage(image)
@@ -7097,17 +7168,19 @@ class CalibrationLiveViewer(QWidget):
         # Step 7: Ensure the crosshair is updated
         self.setCrosshairPosition()
 
+    def mouseMoveEvent(self, event):
+        print("calibration viewer location:", event.x(), event.y())
+        self.signal_mouse_moved.emit(event.x(), event.y())
 
     def onMouseClicked(self, event):
-        # Check if it was a double-click
-        if event.double():
-            # Map the scene position to view position
+        # Map the scene position to view position
+        if event.double(): # double click to move
             pos = event.pos()
             scene_pos = self.viewbox.mapSceneToView(pos)
 
             # Get the x, y coordinates
             x, y = int(scene_pos.x()), int(scene_pos.y())
-
+            print('viewer clicked', x , y)
             # Ensure the coordinates are within the image boundaries
             image_shape = self.img_item.image.shape
             if 0 <= x < image_shape[1] and 0 <= y < image_shape[0]:
@@ -7115,11 +7188,11 @@ class CalibrationLiveViewer(QWidget):
                 x_centered = x - image_shape[1] // 2
                 y_centered = y - image_shape[0] // 2
                 # Emit the signal with the clicked coordinates and image size
-                self.signal_coordinates_clicked.emit(x_centered, y_centered, image_shape[1], image_shape[0])
+                self.signal_calibration_viewer_click.emit(x_centered, y_centered, image_shape[1], image_shape[0])
             else:
                 print("Click was outside the image bounds.")
         else:
-            print("Single click detected.")
+            print("single click only detected")
 
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0:
@@ -7143,55 +7216,54 @@ class CalibrationLiveViewer(QWidget):
         self.setCrosshairPosition()
 
 
-class JoystickWidget(QWidget):
+class Joystick(QWidget):
     joystickMoved = Signal(float, float)  # Emits x and y values between -1 and 1
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(100, 100)
-        self.center_x = self.width() // 2
-        self.center_y = self.height() // 2
-        self.max_distance = min(self.width(), self.height()) // 2
+        self.setFixedSize(200, 200)
+        self.inner_radius = 40
+        self.max_distance = self.width() // 2 - self.inner_radius
+        self.outer_radius = int(self.width() * 3 / 8)
         self.current_x = 0
         self.current_y = 0
         self.is_pressed = False
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_position)
-        self.timer.start(50)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-
+        
+        # Calculate the painting area
+        paint_rect = QRectF(0, 0, 200, 200)
+        
         # Draw outer circle
-        painter.setPen(QPen(QColor(200, 200, 200), 2))
-        painter.drawEllipse(self.rect().adjusted(2, 2, -2, -2))
-
+        painter.setBrush(QColor(230, 230, 230))  # Light grey fill
+        painter.setPen(QPen(QColor(100, 100, 100), 2))  # Dark grey outline
+        painter.drawEllipse(paint_rect.center(), self.outer_radius, self.outer_radius)
+        
         # Draw inner circle (joystick position)
         painter.setBrush(QColor(100, 100, 100))
         painter.setPen(Qt.NoPen)
-        joystick_x = self.center_x + self.current_x * self.max_distance
-        joystick_y = self.center_y + self.current_y * self.max_distance
-        painter.drawEllipse(int(joystick_x - 10), int(joystick_y - 10), 20, 20)
-
-    def resizeEvent(self, event):
-        self.center_x = self.width() // 2
-        self.center_y = self.height() // 2
-        self.max_distance = min(self.width(), self.height()) // 2 - 10
+        joystick_x = paint_rect.center().x() + self.current_x * self.max_distance
+        joystick_y = paint_rect.center().y() + self.current_y * self.max_distance
+        painter.drawEllipse(QPointF(joystick_x, joystick_y), self.inner_radius, self.inner_radius)
 
     def mousePressEvent(self, event):
-        self.is_pressed = True
-        self.updateJoystickPosition(event.pos())
+        if QRectF(0, 0, 200, 200).contains(event.pos()):
+            self.is_pressed = True
+            self.updateJoystickPosition(event.pos())
+            self.timer.timeout.connect(self.update_position)
+            self.timer.start(10)
 
     def mouseMoveEvent(self, event):
-        if self.is_pressed:
+        if self.is_pressed and QRectF(0, 0, 200, 200).contains(event.pos()):
             self.updateJoystickPosition(event.pos())
 
     def mouseReleaseEvent(self, event):
         self.is_pressed = False
-        self.current_x = 0
-        self.current_y = 0
-        self.update()
+        self.updateJoystickPosition(QPointF(100, 100))  # Center position
+        self.timer.timeout.disconnect(self.update_position)
         self.joystickMoved.emit(0, 0)
 
     def update_position(self):
@@ -7199,8 +7271,9 @@ class JoystickWidget(QWidget):
             self.joystickMoved.emit(self.current_x, -self.current_y)
 
     def updateJoystickPosition(self, pos):
-        dx = pos.x() - self.center_x
-        dy = pos.y() - self.center_y
+        center = QPointF(100, 100)
+        dx = pos.x() - center.x()
+        dy = pos.y() - center.y()
         distance = math.sqrt(dx**2 + dy**2)
         
         if distance > self.max_distance:
@@ -7210,7 +7283,6 @@ class JoystickWidget(QWidget):
         self.current_x = dx / self.max_distance
         self.current_y = dy / self.max_distance
         self.update()
-        self.joystickMoved.emit(self.current_x, -self.current_y)  # Invert y-axis
 
 
 class WellSelectionWidget(QTableWidget):
