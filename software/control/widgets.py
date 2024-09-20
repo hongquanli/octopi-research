@@ -23,8 +23,9 @@ from datetime import datetime
 import itertools
 import numpy as np
 from scipy.spatial import Delaunay
-
+import shutil
 from control._def import *
+from PIL import Image, ImageDraw, ImageFont
 
 
 class WrapperWindow(QMainWindow):
@@ -2121,19 +2122,21 @@ class MultiPointWidget(QFrame):
         grid_line2.setColumnStretch(5, 1)
         grid_line2.setColumnStretch(8, 1)
 
-        grid_af = QVBoxLayout()
-        grid_af.addWidget(self.checkbox_withAutofocus)
+        grid_af = QGridLayout()
+        grid_af.addItem(QSpacerItem(7, 1, QSizePolicy.Fixed, QSizePolicy.Minimum), 0, 0)
+        grid_af.addWidget(self.checkbox_withAutofocus,0,1)
         if SUPPORT_LASER_AUTOFOCUS:
-            grid_af.addWidget(self.checkbox_withReflectionAutofocus)
-        grid_af.addWidget(self.checkbox_genFocusMap)
+            grid_af.addWidget(self.checkbox_withReflectionAutofocus,1,1)
+        grid_af.addWidget(self.checkbox_genFocusMap,2,1)
         if ENABLE_STITCHER:
-            grid_af.addWidget(self.checkbox_stitchOutput)
+            grid_af.addWidget(self.checkbox_stitchOutput,3,1)
+        grid_af.addItem(QSpacerItem(6, 1, QSizePolicy.Fixed, QSizePolicy.Minimum), 0, 2)
 
         grid_line3 = QHBoxLayout()
-        grid_line3.addWidget(self.list_configurations)
+        grid_line3.addWidget(self.list_configurations, 2)
         # grid_line3.addWidget(self.checkbox_withAutofocus)
-        grid_line3.addLayout(grid_af)
-        grid_line3.addWidget(self.btn_startAcquisition)
+        grid_line3.addLayout(grid_af, 1)
+        grid_line3.addWidget(self.btn_startAcquisition, 1)
 
         self.grid = QGridLayout()
         self.grid.addLayout(grid_line0,0,0)
@@ -3588,10 +3591,10 @@ class MultiPointWidgetGrid(QFrame):
         self.clear_regions()
         if shapes_data_mm and len(shapes_data_mm) > 0:
             self.manual_shapes = shapes_data_mm
-            print(f"Manual shapes updated with {len(self.manual_shapes)} shapes")
+            print(f"Manual ROIs updated with {len(self.manual_shapes)} shapes")
         else:
             self.manual_shapes = None
-            print("No valid shapes found, cleared manual shapes")
+            print("No valid shapes found, cleared manual ROIs")
         self.update_coordinates()
 
     def convert_pixel_to_mm(self, pixel_coords):
@@ -3665,7 +3668,7 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
-        print("init Z-min/max:", self.entry_minZ.value())
+        print("init z-level:", self.entry_minZ.value())
 
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
@@ -3678,10 +3681,8 @@ class MultiPointWidgetGrid(QFrame):
         if self.combobox_shape.currentText() != 'Manual' and self.scanCoordinates.format == 0 and (parent is None or is_current_widget):
             
             if self.region_coordinates:
-                print("clearing old live coordinates")
                 self.clear_regions()
 
-            print("add current location")
             self.add_region('current', x_mm, y_mm)
 
     def set_well_coordinates(self, selected):
@@ -3719,7 +3720,7 @@ class MultiPointWidgetGrid(QFrame):
             self.region_fov_coordinates_dict.clear()
             self.region_coordinates.clear()
             if self.manual_shapes is not None:
-                # Handle manual shapes
+                # Handle manual ROIs
                 for i, manual_shape in enumerate(self.manual_shapes):
                     scan_coordinates = self.create_manual_region_coordinates(
                         self.objectiveStore,
@@ -3732,7 +3733,7 @@ class MultiPointWidgetGrid(QFrame):
                         else:
                             region_name = f'manual_{i}'
                         self.region_fov_coordinates_dict[region_name] = scan_coordinates
-                        # Set the region coordinates to the center of the manual shape
+                        # Set the region coordinates to the center of the manual ROI
                         center = np.mean(manual_shape, axis=0)
                         self.region_coordinates[region_name] = [center[0], center[1]]
             else:
@@ -3772,9 +3773,9 @@ class MultiPointWidgetGrid(QFrame):
         self.region_fov_coordinates_dict[well_id] = scan_coordinates
 
         print(f"{action} Region: {well_id} - x={x:.3f}, y={y:.3f}") #, z={z:.3f}")
-        print("Size:", self.entry_scan_size.value())
-        print("Shape:", self.combobox_shape.currentText())
-        print("# fovs in region:", len(scan_coordinates))
+        # print("Size:", self.entry_scan_size.value())
+        # print("Shape:", self.combobox_shape.currentText())
+        # print("# fovs in region:", len(scan_coordinates))
 
     def remove_region(self, well_id):
         if well_id in self.region_coordinates:
@@ -3785,13 +3786,13 @@ class MultiPointWidgetGrid(QFrame):
                 for coord in region_scan_coordinates:
                     self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
 
-            print(f"Removed region: {well_id}")
+            print(f"Removed Region: {well_id}")
 
     def clear_regions(self):
         self.navigationViewer.clear_overlay()
         self.region_coordinates.clear()
         self.region_fov_coordinates_dict.clear()
-        print("Cleared all regions")
+        print("Cleared All Regions")
 
     def create_region_coordinates(self, objectiveStore, center_x, center_y, scan_size_mm=None, overlap_percent=10, shape='Square'):
         if shape == 'Manual':
@@ -3818,9 +3819,9 @@ class MultiPointWidgetGrid(QFrame):
             actual_scan_size_mm = (steps - 1) * step_size_mm + fov_size_mm
 
         steps = max(1, steps)  # Ensure at least one step
-        print(f"steps: {steps}, step_size_mm: {step_size_mm}")
-        print(f"scan size mm: {scan_size_mm}")
-        print(f"actual scan size mm: {actual_scan_size_mm}")
+        # print(f"steps: {steps}, step_size_mm: {step_size_mm}")
+        # print(f"scan size mm: {scan_size_mm}")
+        # print(f"actual scan size mm: {actual_scan_size_mm}")
 
         scan_coordinates = []
         half_steps = (steps - 1) / 2
@@ -3863,8 +3864,6 @@ class MultiPointWidgetGrid(QFrame):
         pixel_size_um = objectiveStore.get_pixel_size()
         fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent / 100)
-        print("fov_size_mm:", fov_size_mm)
-        print("step_size_mm:", step_size_mm)
 
         steps = math.floor(scan_size_mm / step_size_mm)
         if shape == 'Circle':
@@ -3882,9 +3881,9 @@ class MultiPointWidgetGrid(QFrame):
             actual_scan_size_mm = (steps - 1) * step_size_mm + fov_size_mm
 
         steps = max(1, steps)  # Ensure at least one step
-        print("steps:", steps)
-        print("scan size mm:", scan_size_mm)
-        print("actual scan size mm:", actual_scan_size_mm)
+        # print("steps:", steps)
+        # print("scan size mm:", scan_size_mm)
+        # print("actual scan size mm:", actual_scan_size_mm)
 
         region_skip_positions = []
 
@@ -3902,20 +3901,18 @@ class MultiPointWidgetGrid(QFrame):
                     ]
                     if any(math.sqrt(cx**2 + cy**2) > radius for cx, cy in corners):
                         region_skip_positions.append((i, j))
-                        print(f"skipping {i}, {j}")
 
             # If all positions were skipped, clear the list and set steps to 1
             if len(region_skip_positions) == steps * steps:
                 region_skip_positions.clear()
                 steps = 1
-                print("All positions were outside the circle. Reverting to single central position.")
 
         self.scanCoordinates.grid_skip_positions = region_skip_positions
         return steps, step_size_mm
 
     def create_manual_region_coordinates(self, objectiveStore, shape_coords, overlap_percent):
         if shape_coords is None or len(shape_coords) < 3:
-            print("Invalid manual shape data")
+            print("Invalid manual ROI data")
             return []
 
         pixel_size_um = objectiveStore.get_pixel_size()
@@ -3988,7 +3985,6 @@ class MultiPointWidgetGrid(QFrame):
         print(f"Acquisition pattern: {self.acquisition_pattern}")
         
         if len(self.region_coordinates) <= 1:
-            print("No coordinates or using current")
             return
 
         def sort_key(item):
@@ -4092,7 +4088,7 @@ class MultiPointWidgetGrid(QFrame):
                 minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
                 maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
                 self.multipointController.set_z_range(minZ, maxZ)
-                print("Z-range", (minZ, maxZ))
+                print("set z-range", (minZ, maxZ))
             else:
                 z = self.navigationController.z_pos_mm
                 self.multipointController.set_z_range(z, z)
@@ -4111,11 +4107,6 @@ class MultiPointWidgetGrid(QFrame):
             self.signal_acquisition_started.emit(True)
             self.signal_acquisition_shape.emit(Nx, Ny, self.entry_NZ.value(),
                                                dx_mm, dy_mm, self.entry_deltaZ.value())
-            print("Nx,Ny,Nz", Nx, Ny, self.entry_NZ.value())
-            print("dx,dy,dz", dx_mm, dy_mm, self.entry_deltaZ.value())
-            print("region coordinates:")
-            for well_id, coords in self.region_coordinates.items():
-                print(f"{well_id}: {coords}")
 
             # Start acquisition
             if self.use_coordinate_acquisition:
@@ -5310,11 +5301,11 @@ class NapariMosaicDisplayWidget(QWidget):
     def toggle_draw_mode(self, viewer):
         self.is_drawing_shape = not self.is_drawing_shape
         
-        if 'Manual Shape' not in self.viewer.layers:
-            self.shape_layer = self.viewer.add_shapes(name='Manual Shape', edge_width=20, edge_color='red', face_color='transparent')
+        if 'Manual ROI' not in self.viewer.layers:
+            self.shape_layer = self.viewer.add_shapes(name='Manual ROI', edge_width=40, edge_color='red', face_color='transparent')
             self.shape_layer.events.data.connect(self.on_shape_change)
         else:
-            self.shape_layer = self.viewer.layers['Manual Shape']
+            self.shape_layer = self.viewer.layers['Manual ROI']
         
         if self.is_drawing_shape:
             self.shape_layer.mode = 'add_polygon'
@@ -5484,7 +5475,7 @@ class NapariMosaicDisplayWidget(QWidget):
             x_offset = int(math.floor((prev_top_left[1] - self.top_left_coordinate[1]) / self.viewer_pixel_size_mm))
 
             for mosaic in self.viewer.layers:
-                if mosaic.name != 'Manual Shape':
+                if mosaic.name != 'Manual ROI':
                     if len(mosaic.data.shape) == 3 and mosaic.data.shape[2] == 3:
                         new_data = np.zeros((mosaic_height, mosaic_width, 3), dtype=mosaic.data.dtype)
                     else:
@@ -5501,7 +5492,7 @@ class NapariMosaicDisplayWidget(QWidget):
                         new_data[y_offset:y_end, x_offset:x_end] = mosaic.data[:y_end-y_offset, :x_end-x_offset]
                     mosaic.data = new_data
 
-            if 'Manual Shape' in self.viewer.layers:
+            if 'Manual ROI' in self.viewer.layers:
                 self.update_shape_layer_position(prev_top_left, self.top_left_coordinate)
 
             self.resetView()
@@ -5575,7 +5566,7 @@ class NapariMosaicDisplayWidget(QWidget):
         if coords is not None:
             x_mm = self.top_left_coordinate[1] + coords[-1] * self.viewer_pixel_size_mm
             y_mm = self.top_left_coordinate[0] + coords[-2] * self.viewer_pixel_size_mm
-            print(f"Clicked: world={event.position}, data={coords}, converted=({x_mm:.6f}, {y_mm:.6f})")
+            print(f"move from click: ({x_mm:.6f}, {y_mm:.6f})")
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
 
     def resetView(self):
@@ -6329,7 +6320,7 @@ class PlotWidget(pg.GraphicsLayoutWidget):
         self.N = N
 
     def plot(self,x,y,label,color,clear=False):
-        self.plotWidget.plot(x[-self.N:],y[-self.N:],pen=pg.mkPen(color=color,width=2),name=label,clear=clear)
+        self.plotWidget.plot(x[-self.N:],y[-self.N:],pen=pg.mkPen(color=color,width=4),name=label,clear=clear)
 
     def update_N(self,N):
         self.N = N
@@ -6523,26 +6514,26 @@ class LaserAutofocusControlWidget(QFrame):
 
 
 class WellplateFormatWidget(QWidget):
+    
+    signalWellplateSettings = Signal(QVariant, float, float, int, int, float, float, int, int, int)
 
-    signalWellplateSettings = Signal(int, float, float, int, int, float, float, int)
-
-    def __init__(self):
+    def __init__(self, navigationController, navigationViewer, streamHandler, liveController):
         super().__init__()
-        # Initialize default values
-        self.wellplate_format = WELLPLATE_FORMAT  # Default format
+        self.navigationController = navigationController
+        self.navigationViewer = navigationViewer
+        self.streamHandler = streamHandler
+        self.liveController = liveController
+        self.wellplate_format = WELLPLATE_FORMAT
+        self.custom_formats = {}
+        self.csv_path = SAMPLE_FORMATS_CSV_PATH # 'sample_formats.csv'
+        self.load_formats_from_csv()
         self.initUI()
 
     def initUI(self):
         layout = QHBoxLayout(self)
         self.label = QLabel("Sample Format", self)
         self.comboBox = QComboBox(self)
-        self.comboBox.addItem("glass slide", 0)
-        self.comboBox.addItem("6 well plate", 6)
-        self.comboBox.addItem("12 well plate", 12)
-        self.comboBox.addItem("24 well plate", 24)
-        self.comboBox.addItem("96 well plate", 96)
-        self.comboBox.addItem("384 well plate", 384)
-        self.comboBox.addItem("1536 well plate", 1536)
+        self.populate_combo_box()
         self.comboBox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout.addWidget(self.label)
         layout.addWidget(self.comboBox)
@@ -6551,29 +6542,735 @@ class WellplateFormatWidget(QWidget):
         if index >= 0:
             self.comboBox.setCurrentIndex(index)
 
+    def populate_combo_box(self):
+        self.comboBox.clear()
+        self.comboBox.addItem("glass slide", 0)
+        for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
+            self.comboBox.addItem(f"{format_} well plate", int(format_))
+        for name in self.custom_formats:
+            self.comboBox.addItem(name, name)
+        
+        # Add custom item and set its font to italic
+        self.comboBox.addItem("add format...", 'custom')
+        index = self.comboBox.count() - 1  # Get the index of the last item
+        font = QFont()
+        font.setItalic(True)
+        self.comboBox.setItemData(index, font, Qt.FontRole)
+
+
     def wellplateChanged(self, index):
         self.wellplate_format = self.comboBox.itemData(index)
-        self.setWellplateSettings(self.wellplate_format)
+        if self.wellplate_format == "custom":
+            calibration_dialog = WellplateCalibration(self, self.navigationController, self.navigationViewer, self.streamHandler, self.liveController)
+            result = calibration_dialog.exec_()
+            if result == QDialog.Rejected:
+                # If the dialog was closed without adding a new format, revert to the previous selection
+                prev_index = self.comboBox.findData(self.wellplate_format)
+                self.comboBox.setCurrentIndex(prev_index)
+        else:
+            self.setWellplateSettings(self.wellplate_format)
 
     def setWellplateSettings(self, wellplate_format):
         if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
             settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
-            self.signalWellplateSettings.emit(
-                wellplate_format,
-                settings['a1_x_mm'],
-                settings['a1_y_mm'],
-                settings['a1_x_pixel'],
-                settings['a1_y_pixel'],
-                settings['well_size_mm'],
-                settings['well_spacing_mm'],
-                settings['number_of_skip']
-            )
+        elif isinstance(wellplate_format, str) and wellplate_format in self.custom_formats:
+            settings = self.custom_formats[wellplate_format]
         elif wellplate_format == 0:
-            self.signalWellplateSettings.emit(
-                wellplate_format,0,0,0,0,0,0,0
-            )
+            self.signalWellplateSettings.emit(QVariant(0), 0, 0, 0, 0, 0, 0, 0, 1, 1)
+            return
         else:
             print(f"Wellplate format {wellplate_format} not recognized")
+            return
+
+        self.signalWellplateSettings.emit(
+            QVariant(wellplate_format),
+            settings['a1_x_mm'],
+            settings['a1_y_mm'],
+            settings['a1_x_pixel'],
+            settings['a1_y_pixel'],
+            settings['well_size_mm'],
+            settings['well_spacing_mm'],
+            settings['number_of_skip'],
+            settings['rows'],
+            settings['cols']
+        )
+
+    def getWellplateSettings(self, wellplate_format):
+        if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
+            settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
+        elif isinstance(wellplate_format, str) and wellplate_format in self.custom_formats:
+            settings = self.custom_formats[wellplate_format]
+        elif wellplate_format == 0:
+            settings = {
+                'format': 0,
+                'a1_x_mm': 0,
+                'a1_y_mm': 0,
+                'a1_x_pixel': 0,
+                'a1_y_pixel': 0,
+                'well_size_mm': 0,
+                'well_spacing_mm': 0,
+                'number_of_skip': 0,
+                'rows': 1,
+                'cols': 1
+            }
+        else:
+            return None
+        return settings
+
+    def add_custom_format(self, name, settings):
+        self.custom_formats[name] = settings
+        self.populate_combo_box()
+        index = self.comboBox.findData(name)
+        if index >= 0:
+            self.comboBox.setCurrentIndex(index)
+        self.wellplateChanged(index)
+
+    def load_formats_from_csv(self):
+        cache_path = os.path.join('cache', self.csv_path)
+        config_path = os.path.join('configurations', self.csv_path)
+        
+        if os.path.exists(cache_path):
+            pass
+        elif os.path.exists(config_path):
+            os.makedirs('cache', exist_ok=True)
+            shutil.copy(config_path, cache_path)
+        else:
+            print(f"CSV file not found in cache or configurations: {config_path}")
+            return
+        try:
+            with open(cache_path, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    format_ = row['format']
+                    if format_.isdigit():
+                        format_ = int(format_)
+                        if format_ not in WELLPLATE_FORMAT_SETTINGS:
+                            WELLPLATE_FORMAT_SETTINGS[format_] = self.parse_csv_row(row)
+                    else:
+                        self.custom_formats[format_] = self.parse_csv_row(row)
+        except FileNotFoundError:
+            print(f"CSV file not found: {cache_path}")
+
+    def save_formats_to_csv(self):
+        cache_path = os.path.join('cache', self.csv_path)
+        os.makedirs('cache', exist_ok=True)
+        
+        fieldnames = ['format', 'a1_x_mm', 'a1_y_mm', 'a1_x_pixel', 'a1_y_pixel', 'well_size_mm', 'well_spacing_mm', 'number_of_skip', 'rows', 'cols']
+        with open(cache_path, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
+                writer.writerow({**{'format': format_}, **settings})
+            for name, settings in self.custom_formats.items():
+                writer.writerow({**{'format': name}, **settings})
+
+    @staticmethod
+    def parse_csv_row(row):
+        return {
+            'a1_x_mm': float(row['a1_x_mm']),
+            'a1_y_mm': float(row['a1_y_mm']),
+            'a1_x_pixel': int(row['a1_x_pixel']),
+            'a1_y_pixel': int(row['a1_y_pixel']),
+            'well_size_mm': float(row['well_size_mm']),
+            'well_spacing_mm': float(row['well_spacing_mm']),
+            'number_of_skip': int(row['number_of_skip']),
+            'rows': int(row['rows']),
+            'cols': int(row['cols'])
+        }
+
+
+class WellplateCalibration(QDialog):
+
+    def __init__(self, wellplateFormatWidget, navigationController, navigationViewer, streamHandler, liveController):
+        super().__init__()
+        self.setWindowTitle("Well Plate Calibration")
+        self.wellplateFormatWidget = wellplateFormatWidget
+        self.navigationController = navigationController
+        self.navigationViewer = navigationViewer
+        self.streamHandler = streamHandler
+        self.liveController = liveController
+        self.was_live = self.liveController.is_live
+        self.corners = [None, None, None]
+        self.show_virtual_joystick = True # FLAG 
+        self.initUI()
+        # Initially allow click-to-move and hide the joystick controls
+        self.clickToMoveCheckbox.setChecked(True)
+        self.toggleVirtualJoystick(False)
+
+    def initUI(self):
+        layout = QHBoxLayout(self)  # Change to QHBoxLayout to have two columns
+        
+        # Left column for existing controls
+        left_layout = QVBoxLayout()
+        
+        form_layout = QFormLayout()
+        
+        self.nameInput = QLineEdit(self)
+        self.nameInput.setPlaceholderText("custom well plate")
+        form_layout.addRow("Sample Name:", self.nameInput)
+
+        self.rowsInput = QSpinBox(self)
+        self.rowsInput.setRange(1, 100)
+        self.rowsInput.setValue(8)
+        form_layout.addRow("# Rows:", self.rowsInput)
+
+        self.colsInput = QSpinBox(self)
+        self.colsInput.setRange(1, 100)
+        self.colsInput.setValue(12)
+        form_layout.addRow("# Columns:", self.colsInput)
+
+        # Add new inputs for plate dimensions
+        self.plateWidthInput = QDoubleSpinBox(self)
+        self.plateWidthInput.setRange(10, 500)  # Adjust range as needed
+        self.plateWidthInput.setValue(127.76)  # Default value for a standard 96-well plate
+        self.plateWidthInput.setSuffix(' mm')
+        form_layout.addRow("Plate Width:", self.plateWidthInput)
+
+        self.plateHeightInput = QDoubleSpinBox(self)
+        self.plateHeightInput.setRange(10, 500)  # Adjust range as needed
+        self.plateHeightInput.setValue(85.48)  # Default value for a standard 96-well plate
+        self.plateHeightInput.setSuffix(' mm')
+        form_layout.addRow("Plate Height:", self.plateHeightInput)
+
+        self.wellSpacingInput = QDoubleSpinBox(self)
+        self.wellSpacingInput.setRange(0.1, 100)
+        self.wellSpacingInput.setValue(9)
+        self.wellSpacingInput.setSingleStep(0.1)
+        self.wellSpacingInput.setDecimals(2)
+        self.wellSpacingInput.setSuffix(' mm')
+        form_layout.addRow("Well Spacing:", self.wellSpacingInput)
+
+        left_layout.addLayout(form_layout)
+
+        points_layout = QGridLayout()
+        self.cornerLabels = []
+        self.setPointButtons = []
+        navigate_label = QLabel("Navigate to and Select\n3 Points on the Edge of Well A1")
+        navigate_label.setAlignment(Qt.AlignCenter)
+        # navigate_label.setStyleSheet("font-weight: bold;")
+        points_layout.addWidget(navigate_label, 0, 0, 1, 2)
+        for i in range(1, 4):
+            label = QLabel(f"Point {i}: N/A")
+            button = QPushButton("Set Point")
+            button.setFixedWidth(button.sizeHint().width())
+            button.clicked.connect(lambda checked, index=i-1: self.setCorner(index))
+            points_layout.addWidget(label, i, 0)
+            points_layout.addWidget(button, i, 1)
+            self.cornerLabels.append(label)
+            self.setPointButtons.append(button)
+
+        points_layout.setColumnStretch(0,1)
+        left_layout.addLayout(points_layout)
+
+        # Add 'Click to Move' checkbox
+        self.clickToMoveCheckbox = QCheckBox("Click to Move")
+        self.clickToMoveCheckbox.stateChanged.connect(self.toggleClickToMove)
+        left_layout.addWidget(self.clickToMoveCheckbox)
+
+        # Add 'Show Virtual Joystick' checkbox
+        self.showJoystickCheckbox = QCheckBox("Virtual Joystick")
+        self.showJoystickCheckbox.stateChanged.connect(self.toggleVirtualJoystick)
+        left_layout.addWidget(self.showJoystickCheckbox)
+
+        self.calibrateButton = QPushButton("Calibrate")
+        self.calibrateButton.clicked.connect(self.calibrate)
+        self.calibrateButton.setEnabled(False)
+        left_layout.addWidget(self.calibrateButton)
+
+        # Add left column to main layout
+        layout.addLayout(left_layout)
+
+        self.live_viewer = CalibrationLiveViewer(parent=self)
+        self.streamHandler.image_to_display.connect(self.live_viewer.display_image)
+        #self.live_viewer.signal_calibration_viewer_click.connect(self.navigationController.move_from_click)
+
+        if not self.was_live:
+            self.liveController.start_live()
+       
+        # when the dialog closes i want to # self.liveController.stop_live() if live was stopped before. . . if it was on before, leave it on
+        layout.addWidget(self.live_viewer)
+        
+        # Right column for joystick and sensitivity controls
+        self.right_layout = QVBoxLayout()
+        self.right_layout.addStretch(1)
+        
+        self.joystick = Joystick(self)
+        self.joystick.joystickMoved.connect(self.moveStage)
+        self.right_layout.addWidget(self.joystick, 0, Qt.AlignTop | Qt.AlignHCenter)
+        
+        self.right_layout.addStretch(1)
+        
+        # Create a container widget for sensitivity label and slider
+        sensitivity_layout = QVBoxLayout()
+        
+        sensitivityLabel = QLabel("Joystick Sensitivity")
+        sensitivityLabel.setAlignment(Qt.AlignCenter)
+        sensitivity_layout.addWidget(sensitivityLabel)
+        
+        self.sensitivitySlider = QSlider(Qt.Horizontal)
+        self.sensitivitySlider.setMinimum(1)
+        self.sensitivitySlider.setMaximum(100)
+        self.sensitivitySlider.setValue(50)
+        self.sensitivitySlider.setTickPosition(QSlider.TicksBelow)
+        self.sensitivitySlider.setTickInterval(10)
+        
+        label_width = sensitivityLabel.sizeHint().width()
+        self.sensitivitySlider.setFixedWidth(label_width)
+        
+        sensitivity_layout.addWidget(self.sensitivitySlider, 0, Qt.AlignHCenter)
+        
+        self.right_layout.addLayout(sensitivity_layout)
+        
+        layout.addLayout(self.right_layout)
+
+        if not self.was_live:
+            self.liveController.start_live()
+
+    def toggleVirtualJoystick(self, state):
+        if state:
+            self.joystick.show()
+            self.sensitivitySlider.show()
+            self.right_layout.itemAt(self.right_layout.indexOf(self.joystick)).widget().show()
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(0).widget().show()  # Show sensitivity label
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(1).widget().show()  # Show sensitivity slider
+        else:
+            self.joystick.hide()
+            self.sensitivitySlider.hide()
+            self.right_layout.itemAt(self.right_layout.indexOf(self.joystick)).widget().hide()
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(0).widget().hide()  # Hide sensitivity label
+            self.right_layout.itemAt(self.right_layout.count() - 1).layout().itemAt(1).widget().hide()  # Hide sensitivity slider
+
+    # def updateCursorPosition(self, x, y):
+    #     x_mm = self.navigationController.x_pos_mm + (x - self.live_viewer.width() / 2) * self.navigationController.x_mm_per_pixel
+    #     y_mm = self.navigationController.y_pos_mm + (y - self.live_viewer.height() / 2) * self.navigationController.y_mm_per_pixel
+
+    def moveStage(self, x, y):
+        sensitivity = self.sensitivitySlider.value() / 50.0  # Normalize to 0-2 range
+        max_speed = 0.1 * sensitivity
+        exponent = 2
+
+        dx = math.copysign(max_speed * abs(x)**exponent, x)
+        dy = math.copysign(max_speed * abs(y)**exponent, y)
+
+        self.navigationController.move_x(dx)
+        self.navigationController.move_y(dy)
+
+    def toggleClickToMove(self, state):
+        if state == Qt.Checked:
+            self.navigationController.set_flag_click_to_move(True)
+            self.live_viewer.signal_calibration_viewer_click.connect(self.viewerClicked)
+        else:
+            self.live_viewer.signal_calibration_viewer_click.disconnect(self.viewerClicked)
+            self.navigationController.set_flag_click_to_move(False)
+
+    def viewerClicked(self, x, y, width, height):
+        if self.clickToMoveCheckbox.isChecked():
+            self.navigationController.move_from_click(x, y, width, height)
+
+    def setCorner(self, index):
+        if self.corners[index] is None:
+            x = self.navigationController.x_pos_mm
+            y = self.navigationController.y_pos_mm
+            
+            # Check if the new point is different from existing points
+            if any(corner is not None and np.allclose([x, y], corner) for corner in self.corners):
+                QMessageBox.warning(self, "Duplicate Point", "This point is too close to an existing point. Please choose a different location.")
+                return
+
+            self.corners[index] = (x, y)
+            self.cornerLabels[index].setText(f"Point {index+1}: ({x:.2f}, {y:.2f})")
+            self.setPointButtons[index].setText("Clear Point")
+        else:
+            self.corners[index] = None
+            self.cornerLabels[index].setText(f"Point {index+1}: Not set")
+            self.setPointButtons[index].setText("Set Point")
+
+        self.calibrateButton.setEnabled(all(corner is not None for corner in self.corners))
+
+    def calibrate(self):
+        if not self.nameInput.text() or not all(self.corners):
+            QMessageBox.warning(self, "Incomplete Information", "Please fill in all fields and set 3 corner points before calibrating.")
+            return
+
+        name = self.nameInput.text()
+        rows = self.rowsInput.value()
+        cols = self.colsInput.value()
+        well_spacing_mm = self.wellSpacingInput.value()
+        plate_width_mm = self.plateWidthInput.value()
+        plate_height_mm = self.plateHeightInput.value()
+        
+        center, radius = self.calculate_circle(self.corners)
+        
+        well_size_mm = radius * 2
+        
+        # Calculate a1 position in mm
+        a1_x_mm = center[0]
+        a1_y_mm = center[1]
+
+
+        # Calculate a1 position in pixels
+        scale = 1 / 0.084665
+        a1_x_pixel = round(a1_x_mm * scale)
+        a1_y_pixel = round(a1_y_mm * scale)
+
+        new_format = {
+            'a1_x_mm': a1_x_mm,
+            'a1_y_mm': a1_y_mm,
+            'a1_x_pixel': a1_x_pixel,
+            'a1_y_pixel': a1_y_pixel,
+            'well_size_mm': well_size_mm,
+            'well_spacing_mm': well_spacing_mm,
+            'number_of_skip': 0,
+            'rows': rows,
+            'cols': cols,
+        }
+
+        self.wellplateFormatWidget.add_custom_format(name, new_format)
+        print(self.wellplateFormatWidget.custom_formats)
+        self.wellplateFormatWidget.save_formats_to_csv()
+
+        image_path = self.create_wellplate_image(name, new_format, plate_width_mm, plate_height_mm)
+        self.wellplateFormatWidget.setWellplateSettings(name)
+        
+        self.accept()
+
+    def create_wellplate_image(self, name, format_data, plate_width_mm, plate_height_mm):
+
+        scale = 1 / 0.084665
+        def mm_to_px(mm):
+            return round(mm * scale)
+
+        width = mm_to_px(plate_width_mm)
+        height = mm_to_px(plate_height_mm)
+        image = Image.new('RGB', (width, height), color='white')
+        draw = ImageDraw.Draw(image)
+
+        rows, cols = format_data['rows'], format_data['cols']
+        well_spacing_mm = format_data['well_spacing_mm']
+        well_size_mm = format_data['well_size_mm']
+        a1_x_mm, a1_y_mm = format_data['a1_x_mm'], format_data['a1_y_mm']
+
+        def draw_left_slanted_rectangle(draw, xy, slant, width=4, outline='black', fill=None):
+            x1, y1, x2, y2 = xy
+            
+            # Define the polygon points
+            points = [
+                (x1 + slant, y1),  # Top-left after slant
+                (x2, y1),          # Top-right
+                (x2, y2),          # Bottom-right
+                (x1 + slant, y2),  # Bottom-left after slant
+                (x1, y2 - slant),  # Bottom of left slant
+                (x1, y1 + slant)   # Top of left slant
+            ]
+            
+            # Draw the filled polygon with outline
+            draw.polygon(points, fill=fill, outline=outline, width=width)
+
+        # Draw the outer rectangle with rounded corners
+        corner_radius = 20
+        draw.rounded_rectangle([0, 0, width-1, height-1], radius=corner_radius, outline='black', width=4, fill='grey')
+
+        # Draw the inner rectangle with left slanted corners
+        margin = 20
+        slant = 40
+        draw_left_slanted_rectangle(draw, 
+                                    [margin, margin, width-margin, height-margin],
+                                    slant, width=4, outline='black', fill='lightgrey')
+
+        # Function to draw a circle
+        def draw_circle(x, y, diameter):
+            radius = diameter / 2
+            draw.ellipse([x-radius, y-radius, x+radius, y+radius], outline='black', width=4, fill='white')
+
+        # Draw the wells
+        for row in range(rows):
+            for col in range(cols):
+                x = mm_to_px(a1_x_mm + col * well_spacing_mm)
+                y = mm_to_px(a1_y_mm + row * well_spacing_mm)
+                draw_circle(x, y, mm_to_px(well_size_mm))
+
+        # Load a default font
+        font_size = 30
+        font = ImageFont.load_default().font_variant(size=font_size)
+
+        # Add column labels
+        for col in range(cols):
+            label = str(col + 1)
+            x = mm_to_px(a1_x_mm + col * well_spacing_mm)
+            y = mm_to_px((a1_y_mm - well_size_mm/2) / 2)
+            bbox = font.getbbox(label)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            draw.text((x - text_width/2, y), label, fill="black", font=font)
+
+        # Add row labels
+        for row in range(rows):
+            label = chr(65 + row) if row < 26 else chr(65 + row // 26 - 1) + chr(65 + row % 26)
+            x = mm_to_px((a1_x_mm - well_size_mm/2 ) / 2)
+            y = mm_to_px(a1_y_mm + row * well_spacing_mm)
+            bbox = font.getbbox(label)
+            text_height = bbox[3] - bbox[1]
+            text_width = bbox[2] - bbox[0]
+            draw.text((x + 20 - text_width/2, y - text_height + 1), label, fill="black", font=font)
+
+        image_path = os.path.join('images', f'{name.replace(" ", "_")}.png')
+        image.save(image_path)
+        print(f"Wellplate image saved as {image_path}")
+        return image_path
+
+    @staticmethod
+    def calculate_circle(points):
+        # Convert points to numpy array
+        points = np.array(points)
+        
+        # Calculate the center and radius of the circle
+        A = np.array([points[1] - points[0], points[2] - points[0]])
+        b = np.sum(A * (points[1:3] + points[0]) / 2, axis=1)
+        center = np.linalg.solve(A, b)
+        
+        # Calculate the radius
+        radius = np.mean(np.linalg.norm(points - center, axis=1))
+        
+        return center, radius
+
+    def closeEvent(self, event):
+        # Stop live view if it wasn't initially on
+        if not self.was_live:
+            self.liveController.stop_live()
+        super().closeEvent(event)
+
+    def accept(self):
+        # Stop live view if it wasn't initially on
+        if not self.was_live:
+            self.liveController.stop_live()
+        super().accept()
+
+    def reject(self):
+        # This method is called when the dialog is closed without accepting
+        if not self.was_live:
+            self.liveController.stop_live()
+        sample = self.navigationViewer.sample
+        
+        # Convert sample string to format int
+        if 'glass slide' in sample:
+            sample_format = 0
+        else:
+            try:
+                sample_format = int(sample.split()[0])
+            except (ValueError, IndexError):
+                print(f"Unable to parse sample format from '{sample}'. Defaulting to 0.")
+                sample_format = 0
+
+        # Set dropdown to the current sample format
+        index = self.wellplateFormatWidget.comboBox.findData(sample_format)
+        if index >= 0:
+            self.wellplateFormatWidget.comboBox.setCurrentIndex(index)
+
+        # Update wellplate settings
+        self.wellplateFormatWidget.setWellplateSettings(sample_format)
+        
+        super().reject()
+
+
+class CalibrationLiveViewer(QWidget):
+
+    signal_calibration_viewer_click = Signal(int, int, int, int)
+    signal_mouse_moved = Signal(int, int)
+
+    def __init__(self, parent=None):
+        super().__init__()
+        self.parent = parent
+        self.initial_zoom_set = False
+        self.initUI()
+
+    def initUI(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.view = pg.GraphicsLayoutWidget()
+        self.viewbox = self.view.addViewBox()
+        self.viewbox.setAspectLocked(True)
+        self.viewbox.invertY(True)
+
+        # Set appropriate panning limits based on the acquisition image or plate size
+        xmax = int(Acquisition.CROP_WIDTH * Acquisition.IMAGE_DISPLAY_SCALING_FACTOR)
+        ymax = int(Acquisition.CROP_HEIGHT * Acquisition.IMAGE_DISPLAY_SCALING_FACTOR)
+        self.viewbox.setLimits(xMin=0, xMax=xmax, yMin=0, yMax=ymax)
+
+        self.img_item = pg.ImageItem()
+        self.viewbox.addItem(self.img_item)
+
+        # Add fixed crosshair
+        pen = QPen(QColor(255, 0, 0))  # Red color
+        pen.setWidth(4)
+
+        self.crosshair_h = pg.InfiniteLine(angle=0, movable=False, pen=pen)
+        self.crosshair_v = pg.InfiniteLine(angle=90, movable=False, pen=pen)
+        self.viewbox.addItem(self.crosshair_h)
+        self.viewbox.addItem(self.crosshair_v)
+
+        layout.addWidget(self.view)
+
+        # Connect double-click event
+        self.view.scene().sigMouseClicked.connect(self.onMouseClicked)
+
+        # Set fixed size for the viewer
+        self.setFixedSize(400, 400)
+
+        # Initialize with a blank image
+        self.display_image(np.zeros((xmax, ymax)))
+
+    def setCrosshairPosition(self):
+        center = self.viewbox.viewRect().center()
+        self.crosshair_h.setPos(center.y())
+        self.crosshair_v.setPos(center.x())
+
+    def display_image(self, image):
+        # Step 1: Update the image
+        self.img_item.setImage(image)
+
+        # Step 2: Get the image dimensions
+        image_width = image.shape[1]
+        image_height = image.shape[0]
+
+        # Step 3: Calculate the center of the image
+        image_center_x = image_width / 2
+        image_center_y = image_height / 2
+
+        # Step 4: Calculate the current view range
+        current_view_range = self.viewbox.viewRect()
+
+        # Step 5: If it's the first image or initial zoom hasn't been set, center the image
+        if not self.initial_zoom_set:
+            self.viewbox.setRange(xRange=(0, image_width), yRange=(0, image_height), padding=0)
+            self.initial_zoom_set = True  # Mark initial zoom as set
+
+        # Step 6: Always center the view around the image center (for seamless transitions)
+        else:
+            self.viewbox.setRange(
+                xRange=(image_center_x - current_view_range.width() / 2,
+                        image_center_x + current_view_range.width() / 2),
+                yRange=(image_center_y - current_view_range.height() / 2,
+                        image_center_y + current_view_range.height() / 2),
+                padding=0
+            )
+
+        # Step 7: Ensure the crosshair is updated
+        self.setCrosshairPosition()
+
+    # def mouseMoveEvent(self, event):
+    #     self.signal_mouse_moved.emit(event.x(), event.y())
+
+    def onMouseClicked(self, event):
+        # Map the scene position to view position
+        if event.double(): # double click to move
+            pos = event.pos()
+            scene_pos = self.viewbox.mapSceneToView(pos)
+
+            # Get the x, y coordinates
+            x, y = int(scene_pos.x()), int(scene_pos.y())
+            # Ensure the coordinates are within the image boundaries
+            image_shape = self.img_item.image.shape
+            if 0 <= x < image_shape[1] and 0 <= y < image_shape[0]:
+                # Adjust the coordinates to be relative to the center of the image
+                x_centered = x - image_shape[1] // 2
+                y_centered = y - image_shape[0] // 2
+                # Emit the signal with the clicked coordinates and image size
+                self.signal_calibration_viewer_click.emit(x_centered, y_centered, image_shape[1], image_shape[0])
+            else:
+                print("click was outside the image bounds.")
+        else:
+            print("single click only detected")
+
+    def wheelEvent(self, event):
+        if event.angleDelta().y() > 0:
+            scale_factor = 0.9
+        else:
+            scale_factor = 1.1
+
+        # Get the center of the viewbox
+        center = self.viewbox.viewRect().center()
+
+        # Scale the view
+        self.viewbox.scaleBy((scale_factor, scale_factor), center)
+
+        # Update crosshair position after scaling
+        self.setCrosshairPosition()
+
+        event.accept()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.setCrosshairPosition()
+
+
+class Joystick(QWidget):
+    joystickMoved = Signal(float, float)  # Emits x and y values between -1 and 1
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(200, 200)
+        self.inner_radius = 40
+        self.max_distance = self.width() // 2 - self.inner_radius
+        self.outer_radius = int(self.width() * 3 / 8)
+        self.current_x = 0
+        self.current_y = 0
+        self.is_pressed = False
+        self.timer = QTimer(self)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Calculate the painting area
+        paint_rect = QRectF(0, 0, 200, 200)
+        
+        # Draw outer circle
+        painter.setBrush(QColor(230, 230, 230))  # Light grey fill
+        painter.setPen(QPen(QColor(100, 100, 100), 2))  # Dark grey outline
+        painter.drawEllipse(paint_rect.center(), self.outer_radius, self.outer_radius)
+        
+        # Draw inner circle (joystick position)
+        painter.setBrush(QColor(100, 100, 100))
+        painter.setPen(Qt.NoPen)
+        joystick_x = paint_rect.center().x() + self.current_x * self.max_distance
+        joystick_y = paint_rect.center().y() + self.current_y * self.max_distance
+        painter.drawEllipse(QPointF(joystick_x, joystick_y), self.inner_radius, self.inner_radius)
+
+    def mousePressEvent(self, event):
+        if QRectF(0, 0, 200, 200).contains(event.pos()):
+            self.is_pressed = True
+            self.updateJoystickPosition(event.pos())
+            self.timer.timeout.connect(self.update_position)
+            self.timer.start(10)
+
+    def mouseMoveEvent(self, event):
+        if self.is_pressed and QRectF(0, 0, 200, 200).contains(event.pos()):
+            self.updateJoystickPosition(event.pos())
+
+    def mouseReleaseEvent(self, event):
+        self.is_pressed = False
+        self.updateJoystickPosition(QPointF(100, 100))  # Center position
+        self.timer.timeout.disconnect(self.update_position)
+        self.joystickMoved.emit(0, 0)
+
+    def update_position(self):
+        if self.is_pressed:
+            self.joystickMoved.emit(self.current_x, -self.current_y)
+
+    def updateJoystickPosition(self, pos):
+        center = QPointF(100, 100)
+        dx = pos.x() - center.x()
+        dy = pos.y() - center.y()
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        if distance > self.max_distance:
+            dx = dx * self.max_distance / distance
+            dy = dy * self.max_distance / distance
+
+        self.current_x = dx / self.max_distance
+        self.current_y = dy / self.max_distance
+        self.update()
 
 
 class WellSelectionWidget(QTableWidget):
@@ -6581,39 +7278,32 @@ class WellSelectionWidget(QTableWidget):
     signal_wellSelected = Signal(bool)
     signal_wellSelectedPos = Signal(float, float)
 
-    def __init__(self, format_, *args, **kwargs):
-        super(WellSelectionWidget, self).__init__(*args, **kwargs)  # Initialize the base QTableWidget
-        self.well_size_mm = WELL_SIZE_MM
-        self.spacing_mm = WELL_SPACING_MM
-        self.number_of_skip = NUMBER_OF_SKIP
-        self.a1_x_mm = A1_X_MM
-        self.a1_y_mm = A1_Y_MM
-        self.a1_x_pixel = A1_X_PIXEL
-        self.a1_y_pixel = A1_Y_PIXEL
-        self.fixed_height = 408
+    def __init__(self, format_, wellplateFormatWidget, *args, **kwargs):
+        super(WellSelectionWidget, self).__init__(*args, **kwargs)
+        self.wellplateFormatWidget = wellplateFormatWidget
+        self.wellplateFormatWidget.signalWellplateSettings.connect(self.updateWellplateSettings)
         self.cellDoubleClicked.connect(self.onDoubleClick)
-        # self.cellClicked.connect(self.onSingleClick)
         self.itemSelectionChanged.connect(self.onSelectionChanged)
+        self.fixed_height = 400
         self.setFormat(format_)
 
     def setFormat(self, format_):
-        print("setting wellplate format to", str(format_) + " well plate" if format_ != 0 else "glass slide")
         self.format = format_
-        self.setupLayout(format_)
-        self.initUI()
-        self.setData()
-
-    def setupLayout(self, format_):
-        if format_ == 0:
-            self.rows, self.columns, self.spacing_mm = (1, 1, 0)
-        else:
-            self.rows = WELLPLATE_FORMAT_SETTINGS[format_].get('rows', 1)
-            self.columns = WELLPLATE_FORMAT_SETTINGS[format_].get('cols', 1)
-            self.spacing_mm = WELLPLATE_FORMAT_SETTINGS[format_].get('well_spacing_mm', 0)
+        settings = self.getWellplateSettings(self.format)
+        self.rows = settings['rows']
+        self.columns = settings['cols']
+        self.spacing_mm = settings['well_spacing_mm']
+        self.number_of_skip = settings['number_of_skip']
+        self.a1_x_mm = settings['a1_x_mm']
+        self.a1_y_mm = settings['a1_y_mm']
+        self.a1_x_pixel = settings['a1_x_pixel']
+        self.a1_y_pixel = settings['a1_y_pixel']
+        self.well_size_mm = settings['well_size_mm']
+        
         self.setRowCount(self.rows)
         self.setColumnCount(self.columns)
-        if format_ == 0:
-            self.signal_wellSelected.emit(True)
+        self.initUI()
+        self.setData()
 
     def initUI(self):
         # Disable editing, scrollbars, and other interactions
@@ -6637,27 +7327,16 @@ class WellSelectionWidget(QTableWidget):
         self.horizontalHeader().setFont(font)
         self.verticalHeader().setFont(font)
 
+        self.setLayout()
+
+    def setLayout(self):
         # Calculate available space and cell size
         header_height = self.horizontalHeader().height()
-        available_height = self.fixed_height - header_height
+        available_height = self.fixed_height - header_height  # Fixed height of 408 pixels
 
         # Calculate cell size based on the minimum of available height and width
         cell_size = available_height // self.rowCount()
 
-        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.verticalHeader().setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        row_header_width = self.verticalHeader().width()
-
-        # Calculate total width based on cell size
-        total_height = (self.rowCount() * cell_size) + header_height
-        total_width = (self.columnCount() * cell_size) + row_header_width
-
-        # Set the widget's fixed size
-        self.setFixedHeight(total_height)
-        self.setFixedWidth(total_width)
-
-        # Set section resize mode and default section size
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.verticalHeader().setDefaultSectionSize(cell_size)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -6669,48 +7348,27 @@ class WellSelectionWidget(QTableWidget):
         self.horizontalHeader().setMinimumSectionSize(cell_size)
         self.horizontalHeader().setMaximumSectionSize(cell_size)
 
-        if USE_NAPARI_WELL_SELECTION:
-            self.set_white_boundaries_style()
+        row_header_width = self.verticalHeader().width()
+
+        # Calculate total width and height
+        total_height = (self.rowCount() * cell_size) + header_height
+        total_width = (self.columnCount() * cell_size) + row_header_width
+
+        # Set the widget's fixed size
+        self.setFixedHeight(total_height)
+        self.setFixedWidth(total_width)
 
         # Force the widget to update its layout
         self.updateGeometry()
         self.viewport().update()
 
-        # Debugging prints
-        print(f"Rows: {self.rowCount()}, Columns: {self.columnCount()}")
-        print(f"Total width: {total_width}, Total height: {self.fixed_height}")
+    def getWellplateSettings(self, wellplate_format):
+        return self.wellplateFormatWidget.getWellplateSettings(wellplate_format)
 
-        # Print actual row heights and column widths for debugging
-        actual_row_height = self.rowHeight(0) if self.rowCount() > 0 else 0
-        actual_column_width = self.columnWidth(0) if self.columnCount() > 0 else 0
-        print(f"Calculated cell size: {(cell_size, cell_size)}")
-        print(f"Actual cell size: {(actual_row_height, actual_column_width)}")
-
-    def resizeEvent(self, event):
-        self.initUI()
-        super().resizeEvent(event)
-
-    def wheelEvent(self, event):
-        # Ignore wheel events to prevent scrolling
-        event.ignore()
-
-    def scrollTo(self, index, hint=QAbstractItemView.EnsureVisible):
-        pass
-
-    def set_white_boundaries_style(self):
-        style = """
-        QTableWidget {
-            gridline-color: white;
-            border: 1px solid white;
-        }
-        QHeaderView::section {
-            color: white;
-        }
-        """
-        # QTableWidget::item {
-        #     border: 1px solid white;
-        # }
-        self.setStyleSheet(style)
+    def updateWellplateSettings(self, format_, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip, rows, cols):
+        if isinstance(format_, QVariant):
+            format_ = format_.value()
+        self.setFormat(format_)
 
     def setData(self):
         for i in range(self.rowCount()):
@@ -6722,7 +7380,7 @@ class WellSelectionWidget(QTableWidget):
                 # Reset to selectable by default
                 item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
-        if self.number_of_skip > 0:
+        if self.number_of_skip > 0 and self.format != 0:
             for i in range(self.number_of_skip):
                 for j in range(self.columns):  # Apply to rows
                     self.item(i, j).setFlags(self.item(i, j).flags() & ~Qt.ItemIsSelectable)
@@ -6746,18 +7404,7 @@ class WellSelectionWidget(QTableWidget):
         # Adjust vertical header width after setting labels
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
-    def updateWellplateSettings(self, format_, a1_x_mm, a1_y_mm, a1_x_pixel, a1_y_pixel, well_size_mm, well_spacing_mm, number_of_skip):
-        self.format = format_
-        self.a1_x_mm = a1_x_mm
-        self.a1_y_mm = a1_y_mm
-        self.a1_x_pixel = a1_x_pixel
-        self.a1_y_pixel = a1_y_pixel
-        self.well_size_mm = well_size_mm
-        self.spacing_mm = well_spacing_mm
-        self.number_of_skip = number_of_skip
-        self.setFormat(format_)
-
-    def onDoubleClick(self,row,col):
+    def onDoubleClick(self, row, col):
         print("double click well", row, col)
         if (row >= 0 + self.number_of_skip and row <= self.rows-1-self.number_of_skip ) and ( col >= 0 + self.number_of_skip and col <= self.columns-1-self.number_of_skip ):
             x_mm = col*self.spacing_mm + self.a1_x_mm + WELLPLATE_OFFSET_X_mm
@@ -6791,10 +7438,36 @@ class WellSelectionWidget(QTableWidget):
                (col >= 0 + self.number_of_skip and col <= self.columns - 1 - self.number_of_skip):
                 list_of_selected_cells.append((row, col))
         if list_of_selected_cells:
-            print("cells:",list_of_selected_cells)
+            print("cells:", list_of_selected_cells)
         else:
             print("no cells")
         return list_of_selected_cells
+
+    def resizeEvent(self, event):
+        self.initUI()
+        super().resizeEvent(event)
+
+    def wheelEvent(self, event):
+        # Ignore wheel events to prevent scrolling
+        event.ignore()
+
+    def scrollTo(self, index, hint=QAbstractItemView.EnsureVisible):
+        pass
+
+    def set_white_boundaries_style(self):
+        style = """
+        QTableWidget {
+            gridline-color: white;
+            border: 1px solid white;
+        }
+        QHeaderView::section {
+            color: white;
+        }
+        """
+        # QTableWidget::item {
+        #     border: 1px solid white;
+        # }
+        self.setStyleSheet(style)
 
 
 class Well1536SelectionWidget(QWidget):
@@ -6926,12 +7599,12 @@ class Well1536SelectionWidget(QWidget):
                 # If the well is already selected, remove it
                 del self.selected_cells[(row, col)]
                 self.remove_well_from_selection_input(cell_name)
-                print(f"Removed well {cell_name} from selection")
+                print(f"Removed well {cell_name}")
             else:
                 # If the well is not selected, add it
                 self.selected_cells[(row, col)] = '#1f77b4'  # Add to selected cells with blue color
                 self.add_well_to_selection_input(cell_name)
-                print(f"Added well {cell_name} to selection")
+                print(f"Added well {cell_name}")
             
             self.redraw_wells()
             self.signal_wellSelected.emit(bool(self.selected_cells))

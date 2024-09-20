@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 from configparser import ConfigParser
 import json
+import csv
 
 def conf_attribute_reader(string_value):
     """
@@ -349,18 +350,6 @@ class PLATE_READER:
 DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
-OBJECTIVES = {
-    '2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
-    '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
-    '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
-    '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
-    '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
-    '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
-    '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180},
-    '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
-    '50x':{'magnification':50, 'NA':0.8, 'tube_lens_f_mm':180},
-    '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}
-}
 
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
@@ -597,74 +586,44 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 USE_PRIOR_STAGE = False
 PRIOR_STAGE_SN = ""
 
-WELLPLATE_FORMAT_SETTINGS = {
-    6: {
-        'a1_x_mm': 24.55,
-        'a1_y_mm': 23.01,
-        'a1_x_pixel': 290,
-        'a1_y_pixel': 272,
-        'well_size_mm': 34.94,
-        'well_spacing_mm': 39.2, # 39.2
-        'number_of_skip': 0,
-        'rows': 2,
-        'cols': 3
-    },
-    12: {
-        'a1_x_mm': 24.75,
-        'a1_y_mm': 16.86,
-        'a1_x_pixel': 293,
-        'a1_y_pixel': 198,
-        'well_size_mm': 22.05,
-        'well_spacing_mm': 26,
-        'number_of_skip': 0,
-        'rows': 3,
-        'cols': 4
-    },
-    24: {
-        'a1_x_mm': 24.45,
-        'a1_y_mm': 22.07,
-        'a1_x_pixel': 233,
-        'a1_y_pixel': 210,
-        'well_size_mm': 15.54,
-        'well_spacing_mm': 19.3, # 18
-        'number_of_skip': 0,
-        'rows': 4,
-        'cols': 6
-    },
-    96: {
-        'a1_x_mm': 11.31,
-        'a1_y_mm': 10.75,
-        'a1_x_pixel': 171,
-        'a1_y_pixel': 135,
-        'well_size_mm': 6.21,
-        'well_spacing_mm': 9,
-        'number_of_skip': 0,
-        'rows': 8,
-        'cols': 12
-    },
-    384: {
-        'a1_x_mm': 12.05,
-        'a1_y_mm': 9.05,
-        'a1_x_pixel': 143,
-        'a1_y_pixel': 106,
-        'well_size_mm': 3.3,
-        'well_spacing_mm': 4.5,
-        'number_of_skip': 1,
-        'rows': 16,
-        'cols': 24
-    },
-    1536: {
-        'a1_x_mm': 11.01,
-        'a1_y_mm': 7.87,
-        'a1_x_pixel': 130,
-        'a1_y_pixel': 93,
-        'well_size_mm': 1.53,
-        'well_spacing_mm': 2.25,
-        'number_of_skip': 0,
-        'rows': 32,
-        'cols': 48
-    }
-}
+def read_objectives_csv(file_path):
+    objectives = {}
+    with open(file_path, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            objectives[row['name']] = {
+                'magnification': float(row['magnification']),
+                'NA': float(row['NA']),
+                'tube_lens_f_mm': float(row['tube_lens_f_mm'])
+            }
+            #print(f"{row['name']}: {objectives[row['name']]}")
+    return objectives
+
+def read_sample_formats_csv(file_path):
+    sample_formats = {}
+    with open(file_path, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            format_key = int(row['format'])
+            sample_formats[format_key] = {
+                'a1_x_mm': float(row['a1_x_mm']),
+                'a1_y_mm': float(row['a1_y_mm']),
+                'a1_x_pixel': int(row['a1_x_pixel']),
+                'a1_y_pixel': int(row['a1_y_pixel']),
+                'well_size_mm': float(row['well_size_mm']),
+                'well_spacing_mm': float(row['well_spacing_mm']),
+                'number_of_skip': int(row['number_of_skip']),
+                'rows': int(row['rows']),
+                'cols': int(row['cols'])
+            }
+            #print(format_key, "well plate settings:", sample_formats[format_key])
+    return sample_formats
+
+OBJECTIVES_CSV_PATH = 'objectives.csv'
+SAMPLE_FORMATS_CSV_PATH = 'sample_formats.csv'
+
+OBJECTIVES = read_objectives_csv(os.path.join('configurations', OBJECTIVES_CSV_PATH))
+WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('configurations', SAMPLE_FORMATS_CSV_PATH))
 
 NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
 WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
@@ -737,23 +696,6 @@ if config_files:
             continue
         myclass = locals()[classkey]
         populate_class_from_dict(myclass,pop_items)
-
-    if 'WELLPLATE_FORMAT_SETTINGS' in cfp.sections():
-        for key, value in cfp['WELLPLATE_FORMAT_SETTINGS'].items():
-            plate_size, setting = key.split('.')
-            plate_size = int(plate_size)
-            if plate_size in WELLPLATE_FORMAT_SETTINGS:
-                WELLPLATE_FORMAT_SETTINGS[plate_size][setting] = conf_attribute_reader(value)
-
-        # After processing the INI file, update the derived values:
-        if WELLPLATE_FORMAT in WELLPLATE_FORMAT_SETTINGS:
-            NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip']
-            WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
-            WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
-            A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm']
-            A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm']
-            A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel']
-            A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel']
     
     with open("cache/config_file_path.txt", 'w') as file:
         file.write(config_files[0])
