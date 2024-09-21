@@ -89,8 +89,10 @@ class OctopiGUI(QMainWindow):
 
     fps_software_trigger = 100
 
-    def __init__(self, is_simulation=False, *args, **kwargs):
+    def __init__(self, is_simulation=False, performance_mode=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.performance_mode = performance_mode or PERFORMANCE_MODE
 
         self.loadObjects(is_simulation)
 
@@ -130,8 +132,9 @@ class OctopiGUI(QMainWindow):
                 self.loadSimulationObjects()
 
         # Common object initialization
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
         self.objectiveStore = core.ObjectiveStore(parent=self)
+        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        self.contrastManager = core.ContrastManager()
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera, self.microcontroller, self.configurationManager, parent=self)
         if USE_PRIOR_STAGE:
@@ -382,7 +385,17 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
         self.imageDisplayTabs = QTabWidget()
-        self.setupImageDisplayTabs()
+        if self.performance_mode:
+            if ENABLE_TRACKING:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow.show_ROI_selector()
+            else:
+                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True, show_LUT=True, autoLevels=True)
+            #self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
+            self.imageDisplayTabs = self.imageDisplayWindow.widget
+            self.napariMosaicDisplayWidget = None
+        else:
+            self.setupImageDisplayTabs()
 
         self.multiPointWidget = widgets.MultiPointWidget(self.multipointController, self.configurationManager)
         self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController, self.navigationViewer, self.multipointController, self.configurationManager, scanCoordinates=None)
@@ -401,8 +414,6 @@ class OctopiGUI(QMainWindow):
         self.setupCameraTabWidget()
 
     def setupImageDisplayTabs(self):
-        self.contrastManager = widgets.ContrastManager()
-
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.contrastManager, self.wellSelectionWidget)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
@@ -478,7 +489,8 @@ class OctopiGUI(QMainWindow):
         self.resizeCurrentTab(self.recordTabWidget)
 
     def setupCameraTabWidget(self):
-        self.cameraTabWidget.addTab(self.navigationWidget, "Stages")
+        if not USE_NAPARI_FOR_LIVE_CONTROL or self.performance_mode:
+            self.cameraTabWidget.addTab(self.navigationWidget, "Stages")
         if ENABLE_OBJECTIVE_PIEZO:
             self.cameraTabWidget.addTab(self.piezoWidget, "Piezo")
         if ENABLE_NL5:
@@ -496,13 +508,13 @@ class OctopiGUI(QMainWindow):
 
     def setupLayout(self):
         layout = QVBoxLayout()
-
-        if USE_NAPARI_FOR_LIVE_CONTROL:
+        
+        if USE_NAPARI_FOR_LIVE_CONTROL and not self.performance_mode:
             layout.addWidget(self.navigationWidget)
-            layout.addWidget(self.cameraTabWidget)
         else:
             layout.addWidget(self.liveControlWidget)
-            layout.addWidget(self.cameraTabWidget)
+
+        layout.addWidget(self.cameraTabWidget)
 
         if SHOW_DAC_CONTROL:
             layout.addWidget(self.dacControlWidget)
@@ -526,28 +538,27 @@ class OctopiGUI(QMainWindow):
             self.setupMultiWindowLayout()
 
     def setupSingleWindowLayout(self):
+        main_dockArea = dock.DockArea()
+
         dock_display = dock.Dock('Image Display', autoOrientation=False)
         dock_display.showTitleBar()
         dock_display.addWidget(self.imageDisplayTabs)
         if SHOW_NAVIGATION_BAR:
             dock_display.addWidget(self.navigationBarWidget)
         dock_display.setStretch(x=100, y=100)
+        main_dockArea.addDock(dock_display)
 
         self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation=False)
         self.dock_wellSelection.showTitleBar()
-        if not USE_NAPARI_WELL_SELECTION:
+        if not USE_NAPARI_WELL_SELECTION or self.performance_mode:
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
-        self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
+            self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
+            main_dockArea.addDock(self.dock_wellSelection, 'bottom')
 
         dock_controlPanel = dock.Dock('Controls', autoOrientation=False)
         dock_controlPanel.addWidget(self.centralWidget)
         dock_controlPanel.setStretch(x=1, y=None)
         dock_controlPanel.setFixedWidth(dock_controlPanel.minimumSizeHint().width())
-
-        main_dockArea = dock.DockArea()
-        main_dockArea.addDock(dock_display)
-        if not USE_NAPARI_WELL_SELECTION:
-            main_dockArea.addDock(self.dock_wellSelection, 'bottom')
         main_dockArea.addDock(dock_controlPanel, 'right')
         self.setCentralWidget(main_dockArea)
 
@@ -614,7 +625,8 @@ class OctopiGUI(QMainWindow):
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
-        self.liveControlWidget.signal_start_live.connect(self.onStartLive)
+        if not self.performance_mode:
+            self.liveControlWidget.signal_start_live.connect(self.onStartLive)
         self.liveControlWidget.update_camera_settings()
 
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
@@ -631,9 +643,10 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidgetGrid.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
 
         self.recordTabWidget.currentChanged.connect(self.onTabChanged)
-        self.imageDisplayTabs.currentChanged.connect(self.onDisplayTabChanged)
+        if not self.performance_mode:
+            self.imageDisplayTabs.currentChanged.connect(self.onDisplayTabChanged)
 
-        if USE_NAPARI_FOR_LIVE_VIEW:
+        if USE_NAPARI_FOR_LIVE_VIEW and not self.performance_mode:
             self.multipointController.signal_current_configuration.connect(self.napariLiveWidget.set_microscope_mode)
             self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
@@ -653,54 +666,55 @@ class OctopiGUI(QMainWindow):
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
-        if USE_NAPARI_FOR_MULTIPOINT:
-            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-            if ENABLE_FLEXIBLE_MULTIPOINT:
-                self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-                self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-            if ENABLE_SCAN_GRID:
-                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-                self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-
-            self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
-            self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-        else:
-            self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
-
-        if SHOW_TILED_PREVIEW:
-            if USE_NAPARI_FOR_TILED_DISPLAY:
-                self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
-                self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+        if not self.performance_mode:
+            if USE_NAPARI_FOR_MULTIPOINT:
+                self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
                 if ENABLE_FLEXIBLE_MULTIPOINT:
-                    self.multiPointWidget2.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
-                    self.multiPointWidget2.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                    self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                    self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
                 if ENABLE_SCAN_GRID:
-                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
-                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
 
-                self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
-                self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
-                self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+                self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+                self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
             else:
-                self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
-                self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
+                self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
-        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
-            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
-            if ENABLE_FLEXIBLE_MULTIPOINT:
-                self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
-                self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
-            if ENABLE_SCAN_GRID:
-                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
-                self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
-                self.multiPointWidgetGrid.signal_draw_shape.connect(self.napariMosaicDisplayWidget.enable_shape_drawing)
-                self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
+            if SHOW_TILED_PREVIEW:
+                if USE_NAPARI_FOR_TILED_DISPLAY:
+                    self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                    self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                    if ENABLE_FLEXIBLE_MULTIPOINT:
+                        self.multiPointWidget2.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                        self.multiPointWidget2.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+                    if ENABLE_SCAN_GRID:
+                        self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+                        self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
 
-            self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
-            self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
-            self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
+                    self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
+                    self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
+                    self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+                else:
+                    self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
+                    self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
+
+            if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+                self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+                self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+                if ENABLE_FLEXIBLE_MULTIPOINT:
+                    self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+                    self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+                if ENABLE_SCAN_GRID:
+                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+                    self.multiPointWidgetGrid.signal_draw_shape.connect(self.napariMosaicDisplayWidget.enable_shape_drawing)
+                    self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
+
+                self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
+                self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
+                self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
 
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.scanCoordinates.update_wellplate_settings)
@@ -812,7 +826,7 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.deleteLater()
         self.wellSelectionWidget = new_widget
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-        if USE_NAPARI_WELL_SELECTION:
+        if USE_NAPARI_WELL_SELECTION and not self.performance_mode:
             self.napariLiveWidget.replace_well_selector(self.wellSelectionWidget)
         else:
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
@@ -825,7 +839,7 @@ class OctopiGUI(QMainWindow):
             self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
 
     def toggleWellSelector(self, show):
-        if USE_NAPARI_WELL_SELECTION:
+        if USE_NAPARI_WELL_SELECTION and not self.performance_mode:
             self.napariLiveWidget.toggle_well_selector(show)
         else:
             self.dock_wellSelection.setVisible(show)

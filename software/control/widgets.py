@@ -1054,7 +1054,7 @@ class LiveControlWidget(QFrame):
                 grid_line05.addWidget(QLabel('Display FPS'))
                 grid_line05.addWidget(self.entry_displayFPS)
             else:
-                grid_line05.addWidget(self.label_resolutionScaling)  
+                grid_line05.addWidget(self.label_resolutionScaling)
 
         self.grid = QVBoxLayout()
         if show_trigger_options:
@@ -1137,7 +1137,7 @@ class PiezoWidget(QFrame):
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setMinimum(0)
         self.slider.setMaximum(int(OBJECTIVE_PIEZO_RANGE_UM * 100))  # Multiplied by 100 for 0.01 precision
-        
+
         self.spinBox = QDoubleSpinBox(self)
         self.spinBox.setRange(0.0, OBJECTIVE_PIEZO_RANGE_UM)
         self.spinBox.setDecimals(2)
@@ -1751,7 +1751,7 @@ class NavigationBarWidget(QWidget):
     def replace_slide_controller(self, slidePositionController):
         self.slidePositionController = slidePositionController
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.slot_slide_loading_position_reached)
-        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.slot_slide_scanning_position_reached)    
+        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.slot_slide_scanning_position_reached)
 
     def connect_signals(self):
         if self.navigationController is not None:
@@ -1759,7 +1759,7 @@ class NavigationBarWidget(QWidget):
         if self.slidePositionController is not None:
             self.slidePositionController.signal_slide_loading_position_reached.connect(self.slot_slide_loading_position_reached)
             self.slidePositionController.signal_slide_scanning_position_reached.connect(self.slot_slide_scanning_position_reached)
-        
+
 
 class DACControWidget(QFrame):
     def __init__(self, microcontroller ,*args, **kwargs):
@@ -2547,10 +2547,10 @@ class MultiPointWidget2(QFrame):
         self.z_max_layout.addWidget(self.set_maxZ_button)
         self.z_max_layout.addWidget(QLabel('Z-max'))
         self.z_max_layout.addWidget(self.entry_maxZ)
-        
-        grid_line2.addLayout(self.z_min_layout, 5, 0, 1, 5) # hide this in toggle 
-        grid_line2.addLayout(self.z_max_layout, 5, 6, 1, 5) # hide this in toggle 
-        
+
+        grid_line2.addLayout(self.z_min_layout, 5, 0, 1, 5) # hide this in toggle
+        grid_line2.addLayout(self.z_max_layout, 5, 6, 1, 5) # hide this in toggle
+
         #grid_line2.addLayout(self.z_range_layout, 5, 0, 1, 10)
 
         grid_af = QVBoxLayout()
@@ -2637,7 +2637,7 @@ class MultiPointWidget2(QFrame):
 
     def toggle_z_range_controls(self, state):
         is_visible = bool(state)
-        
+
         # Hide/show widgets in z_min_layout
         for i in range(self.z_min_layout.count()):
             widget = self.z_min_layout.itemAt(i).widget()
@@ -2646,7 +2646,7 @@ class MultiPointWidget2(QFrame):
             widget = self.z_max_layout.itemAt(i).widget()
             if widget is not None:
                 widget.setVisible(is_visible)
-        
+
         # Enable/disable NZ entry based on the inverse of is_visible
         self.entry_NZ.setEnabled(not is_visible)
 
@@ -2735,7 +2735,7 @@ class MultiPointWidget2(QFrame):
         if self.current_region == 1 and self.current_time_point == 0:  # First region
             self.acquisition_start_time = time.time()
             self.num_regions = num_regions
-        
+
         progress_parts = []
         # Update timepoint progress if there are multiple timepoints and the timepoint has changed
         if self.entry_Nt.value() > 1:
@@ -3134,7 +3134,7 @@ class MultiPointWidgetGrid(QFrame):
     signal_z_stacking = Signal(int)
     signal_draw_shape = Signal(bool)
 
-    def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, napariMosaicWidget, *args, **kwargs):
+    def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager, scanCoordinates, napariMosaicWidget=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.objectiveStore = objectiveStore
         self.multipointController = multipointController
@@ -3142,7 +3142,11 @@ class MultiPointWidgetGrid(QFrame):
         self.navigationViewer = navigationViewer
         self.scanCoordinates = scanCoordinates
         self.configurationManager = configurationManager
-        self.napariMosaicWidget = napariMosaicWidget
+        if napariMosaicWidget is None:
+            self.performance_mode = True
+        else:
+            self.napariMosaicWidget = napariMosaicWidget
+            self.performance_mode = False
         self.acquisition_pattern = ACQUISITION_PATTERN
         self.fov_pattern = FOV_PATTERN
         self.base_path_is_set = False
@@ -3255,10 +3259,13 @@ class MultiPointWidgetGrid(QFrame):
 
         # Add a combo box for shape selection
         self.combobox_shape = QComboBox()
-        self.combobox_shape.addItems(['Square', 'Circle', 'Manual'])
+        if self.performance_mode:
+            self.combobox_shape.addItems(['Square', 'Circle'])
+        else:
+            self.combobox_shape.addItems(['Square', 'Circle', 'Manual'])
+            self.combobox_shape.model().item(2).setEnabled(False)
         self.combobox_shape.setFixedWidth(btn_width)
         #self.combobox_shape.currentTextChanged.connect(self.on_shape_changed)
-        self.combobox_shape.model().item(2).setEnabled(False)
 
         self.checkbox_genFocusMap = QCheckBox('Focus Map')
         #self.checkbox_genFocusMap = QCheckBox('AF Map')
@@ -3348,7 +3355,7 @@ class MultiPointWidgetGrid(QFrame):
         dt_layout.addWidget(QLabel('Nt'))
         dt_layout.addWidget(self.entry_Nt)
         grid.addLayout(dt_layout, 0, 2)
-        
+
         # Z-min
         self.z_min_layout = QHBoxLayout()
         self.z_min_layout.addWidget(self.set_minZ_button)
@@ -3370,10 +3377,10 @@ class MultiPointWidgetGrid(QFrame):
         w = max(min_label.sizeHint().width(), max_label.sizeHint().width())
         min_label.setFixedWidth(w)
         max_label.setFixedWidth(w)
-        
+
         # Configuration list
         grid.addWidget(self.list_configurations, 2, 0)
-        
+
         # Options and Start button
         options_layout = QVBoxLayout()
         options_layout.addWidget(self.checkbox_withAutofocus)
@@ -3395,7 +3402,7 @@ class MultiPointWidgetGrid(QFrame):
         spacer_widget = QWidget()
         spacer_widget.setFixedWidth(2)
         grid.addWidget(spacer_widget, 0, 1)
- 
+
         # Set column stretches
         grid.setColumnStretch(0, 1)  # Middle spacer
         grid.setColumnStretch(1, 0)  # Middle spacer
@@ -3436,7 +3443,8 @@ class MultiPointWidgetGrid(QFrame):
         self.signal_acquisition_started.connect(self.display_progress_bar)
         self.eta_timer.timeout.connect(self.update_eta_display)
         self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
-        self.napariMosaicWidget.signal_layers_initialized.connect(self.enable_manual_ROI)
+        if not self.performance_mode:
+            self.napariMosaicWidget.signal_layers_initialized.connect(self.enable_manual_ROI)
 
         self.navigationController.zPos.connect(self.update_z_min)
         self.navigationController.zPos.connect(self.update_z_max)
@@ -3477,7 +3485,7 @@ class MultiPointWidgetGrid(QFrame):
         if self.current_region == 1 and self.current_time_point == 0:  # First region
             self.acquisition_start_time = time.time()
             self.num_regions = num_regions
-        
+
         progress_parts = []
         # Update timepoint progress if there are multiple timepoints and the timepoint has changed
         if self.entry_Nt.value() > 1:
@@ -3675,11 +3683,11 @@ class MultiPointWidgetGrid(QFrame):
 
     def set_live_scan_coordinates(self, x_mm, y_mm):
         parent = self.multipointController.parent
-        is_current_widget = (parent is not None and hasattr(parent, 'recordTabWidget') and 
+        is_current_widget = (parent is not None and hasattr(parent, 'recordTabWidget') and
                              parent.recordTabWidget.currentWidget() == self)
-        
+
         if self.combobox_shape.currentText() != 'Manual' and self.scanCoordinates.format == 0 and (parent is None or is_current_widget):
-            
+
             if self.region_coordinates:
                 self.clear_regions()
 
@@ -3983,7 +3991,7 @@ class MultiPointWidgetGrid(QFrame):
 
     def sort_coordinates(self):
         print(f"Acquisition pattern: {self.acquisition_pattern}")
-        
+
         if len(self.region_coordinates) <= 1:
             return
 
@@ -4009,8 +4017,8 @@ class MultiPointWidgetGrid(QFrame):
 
         # Update dictionaries efficiently
         self.region_coordinates = {k: v for k, v in sorted_items}
-        self.region_fov_coordinates_dict = {k: self.region_fov_coordinates_dict[k] 
-                                            for k, _ in sorted_items 
+        self.region_fov_coordinates_dict = {k: self.region_fov_coordinates_dict[k]
+                                            for k, _ in sorted_items
                                             if k in self.region_fov_coordinates_dict}
 
     def toggle_acquisition(self, pressed):
@@ -4438,10 +4446,10 @@ class NapariLiveWidget(QWidget):
             self.pg_image_item.setImage(layer.data, autoLevels=False)
             self.histogram_widget.setLevels(*layer.contrast_limits)
             self.histogram_widget.setHistogramRange(layer.data.min(), layer.data.max())
-            
+
             # Set the histogram widget's region to match the layer's contrast limits
             self.histogram_widget.region.setRegion(layer.contrast_limits)
-            
+
             # Update colormap only if it has changed
             if hasattr(self, 'last_colormap') and self.last_colormap != layer.colormap.name:
                 self.histogram_widget.gradient.setColorMap(self.createColorMap(layer.colormap))
@@ -4477,23 +4485,23 @@ class NapariLiveWidget(QWidget):
         self.btn_live.setCheckable(True)
         gradient_style = """
             QPushButton {
-                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,
                                                   stop:0 #D6D6FF, stop:1 #C2C2FF);
                 border-radius: 5px;
                 color: black;
                 border: 1px solid #A0A0A0;
             }
             QPushButton:checked {
-                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,
                                                   stop:0 #FFD6D6, stop:1 #FFC2C2);
                 border: 1px solid #A0A0A0;
             }
             QPushButton:hover {
-                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,
                                                   stop:0 #E0E0FF, stop:1 #D0D0FF);
             }
             QPushButton:pressed {
-                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, 
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,
                                                   stop:0 #9090C0, stop:1 #8080B0);
             }
         """
@@ -4896,7 +4904,7 @@ class NapariMultiChannelWidget(QWidget):
         self.acquisition_initialized = False
         self.viewer_scale_initialized = False
         self.update_layer_count = 0
-        self.grid_enabled = grid_enabled        
+        self.grid_enabled = grid_enabled
 
         # Initialize a napari Viewer without showing its standalone window.
         self.initNapariViewer()
@@ -4964,7 +4972,7 @@ class NapariMultiChannelWidget(QWidget):
             self.acquisition_initialized = True
             if self.dtype != np.dtype(image_dtype) and not USE_NAPARI_FOR_LIVE_VIEW:
                 self.scale_contrast_limits(image_dtype)
-        
+
         self.image_width = image_width
         self.image_height = image_height
         self.dtype = np.dtype(image_dtype)
@@ -5047,7 +5055,7 @@ class NapariMultiChannelWidget(QWidget):
                     color = self.generateColormap(channel_info)
                 canvas = np.zeros((self.image_height, self.image_width), dtype=self.dtype)
 
-            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, colormap=color, 
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb, colormap=color,
                                         blending='additive', contrast_limits=self.getContrastLimits(self.dtype))
             layer.events.contrast_limits.connect(self.signalContrastLimits)
             self.resetView()
@@ -5160,7 +5168,7 @@ class NapariTiledDisplayWidget(QWidget):
         else:
             self.viewer.layers.clear()
             self.acquisition_initialized = True
-        
+
         self.image_width = image_width // self.downsample_factor
         self.image_height = image_height // self.downsample_factor
         self.dtype = np.dtype(image_dtype)
@@ -5300,18 +5308,18 @@ class NapariMosaicDisplayWidget(QWidget):
 
     def toggle_draw_mode(self, viewer):
         self.is_drawing_shape = not self.is_drawing_shape
-        
+
         if 'Manual ROI' not in self.viewer.layers:
             self.shape_layer = self.viewer.add_shapes(name='Manual ROI', edge_width=40, edge_color='red', face_color='transparent')
             self.shape_layer.events.data.connect(self.on_shape_change)
         else:
             self.shape_layer = self.viewer.layers['Manual ROI']
-        
+
         if self.is_drawing_shape:
             self.shape_layer.mode = 'add_polygon'
         else:
             self.shape_layer.mode = 'pan_zoom'
-        
+
         self.on_shape_change()
 
     def enable_shape_drawing(self, enable):
@@ -5357,10 +5365,10 @@ class NapariMosaicDisplayWidget(QWidget):
         try:
             # update top_left_coordinate
             self.top_left_coordinate = new_top_left
-            
+
             # convert mm coordinates to viewer coordinates
             new_shapes = self.convert_mm_to_viewer_shapes(self.shapes_mm)
-            
+
             # update shape layer data
             self.shape_layer.data = new_shapes
         except Exception as e:
@@ -5540,21 +5548,21 @@ class NapariMosaicDisplayWidget(QWidget):
         # Convert value from one dtype range to another
         from_info = np.iinfo(from_dtype)
         to_info = np.iinfo(to_dtype)
-        
+
         # Normalize the value to [0, 1] range
         normalized = (value - from_info.min) / (from_info.max - from_info.min)
-        
+
         # Scale to the target dtype range
         return normalized * (to_info.max - to_info.min) + to_info.min
 
     def signalContrastLimits(self, event):
         layer = event.source
         min_val, max_val = map(float, layer.contrast_limits)
-        
+
         # Convert the new limits from mosaic_dtype to acquisition_dtype
         acquisition_min = self.convertValue(min_val, self.mosaic_dtype, self.contrastManager.acquisition_dtype)
         acquisition_max = self.convertValue(max_val, self.mosaic_dtype, self.contrastManager.acquisition_dtype)
-        
+
         # Update the ContrastManager with the new limits
         self.contrastManager.update_limits(layer.name, acquisition_min, acquisition_max)
 
@@ -5598,59 +5606,6 @@ class NapariMosaicDisplayWidget(QWidget):
         print("ACTIVATING NAPARI MOSAIC WIDGET")
         self.viewer.window.activate()
 
-
-class ContrastManager:
-    def __init__(self):
-        self.contrast_limits = {}
-        self.acquisition_dtype = None
-
-    def update_limits(self, channel, min_val, max_val):
-        self.contrast_limits[channel] = (min_val, max_val)
-
-    def get_limits(self, channel, dtype=None):
-        if dtype is not None:
-            self.update_acquisition_dtype(dtype)
-        return self.contrast_limits.get(channel, self.get_default_limits())
-
-    def update_acquisition_dtype(self, new_dtype):
-        self.acquisition_dtype = new_dtype
-
-    def get_default_limits(self):
-        if self.acquisition_dtype is None:
-            return (0, 1)
-        elif np.issubdtype(self.acquisition_dtype, np.integer):
-            info = np.iinfo(self.acquisition_dtype)
-            return (info.min, info.max)
-        elif np.issubdtype(self.acquisition_dtype, np.floating):
-            return (0.0, 1.0)
-        else:
-            return (0, 1)
-
-    def get_scaled_limits(self, channel, target_dtype):
-        min_val, max_val = self.get_limits(channel)
-        if self.acquisition_dtype == target_dtype:
-            return min_val, max_val
-
-        source_info = np.iinfo(self.acquisition_dtype)
-        target_info = np.iinfo(target_dtype)
-
-        scaled_min = (min_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
-        scaled_max = (max_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
-
-        return scaled_min, scaled_max
-
-    def scale_contrast_limits(self, target_dtype):
-        for channel in self.contrast_limits.keys():
-            min_val, max_val = self.get_limits(channel)
-            source_info = np.iinfo(self.acquisition_dtype)
-            target_info = np.iinfo(target_dtype)
-
-            scaled_min = (min_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
-            scaled_max = (max_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
-
-            self.contrast_limits[channel] = (scaled_min, scaled_max)
-        
-        self.acquisition_dtype = target_dtype
 
 class TrackingControllerWidget(QFrame):
     def __init__(self, trackingController, configurationManager, show_configurations = True, main=None, *args, **kwargs):
@@ -6489,7 +6444,7 @@ class LaserAutofocusControlWidget(QFrame):
         self.grid.addWidget(QLabel('Displacement (um)'),1,0)
         self.grid.addWidget(self.label_displacement,1,1)
         self.grid.addWidget(self.btn_measure_displacement,1,2,1,2)
-        
+
         self.grid.addWidget(QLabel('Target (um)'),2,0)
         self.grid.addWidget(self.entry_target,2,1)
         self.grid.addWidget(self.btn_move_to_target,2,2,1,2)
@@ -6514,7 +6469,7 @@ class LaserAutofocusControlWidget(QFrame):
 
 
 class WellplateFormatWidget(QWidget):
-    
+
     signalWellplateSettings = Signal(QVariant, float, float, int, int, float, float, int, int, int)
 
     def __init__(self, navigationController, navigationViewer, streamHandler, liveController):
@@ -6549,7 +6504,7 @@ class WellplateFormatWidget(QWidget):
             self.comboBox.addItem(f"{format_} well plate", int(format_))
         for name in self.custom_formats:
             self.comboBox.addItem(name, name)
-        
+
         # Add custom item and set its font to italic
         self.comboBox.addItem("add format...", 'custom')
         index = self.comboBox.count() - 1  # Get the index of the last item
@@ -6628,7 +6583,7 @@ class WellplateFormatWidget(QWidget):
     def load_formats_from_csv(self):
         cache_path = os.path.join('cache', self.csv_path)
         config_path = os.path.join('configurations', self.csv_path)
-        
+
         if os.path.exists(cache_path):
             pass
         elif os.path.exists(config_path):
@@ -6654,7 +6609,7 @@ class WellplateFormatWidget(QWidget):
     def save_formats_to_csv(self):
         cache_path = os.path.join('cache', self.csv_path)
         os.makedirs('cache', exist_ok=True)
-        
+
         fieldnames = ['format', 'a1_x_mm', 'a1_y_mm', 'a1_x_pixel', 'a1_y_pixel', 'well_size_mm', 'well_spacing_mm', 'number_of_skip', 'rows', 'cols']
         with open(cache_path, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -6691,7 +6646,7 @@ class WellplateCalibration(QDialog):
         self.liveController = liveController
         self.was_live = self.liveController.is_live
         self.corners = [None, None, None]
-        self.show_virtual_joystick = True # FLAG 
+        self.show_virtual_joystick = True # FLAG
         self.initUI()
         # Initially allow click-to-move and hide the joystick controls
         self.clickToMoveCheckbox.setChecked(True)
@@ -6699,12 +6654,12 @@ class WellplateCalibration(QDialog):
 
     def initUI(self):
         layout = QHBoxLayout(self)  # Change to QHBoxLayout to have two columns
-        
+
         # Left column for existing controls
         left_layout = QVBoxLayout()
-        
+
         form_layout = QFormLayout()
-        
+
         self.nameInput = QLineEdit(self)
         self.nameInput.setPlaceholderText("custom well plate")
         form_layout.addRow("Sample Name:", self.nameInput)
@@ -6786,41 +6741,41 @@ class WellplateCalibration(QDialog):
 
         if not self.was_live:
             self.liveController.start_live()
-       
+
         # when the dialog closes i want to # self.liveController.stop_live() if live was stopped before. . . if it was on before, leave it on
         layout.addWidget(self.live_viewer)
-        
+
         # Right column for joystick and sensitivity controls
         self.right_layout = QVBoxLayout()
         self.right_layout.addStretch(1)
-        
+
         self.joystick = Joystick(self)
         self.joystick.joystickMoved.connect(self.moveStage)
         self.right_layout.addWidget(self.joystick, 0, Qt.AlignTop | Qt.AlignHCenter)
-        
+
         self.right_layout.addStretch(1)
-        
+
         # Create a container widget for sensitivity label and slider
         sensitivity_layout = QVBoxLayout()
-        
+
         sensitivityLabel = QLabel("Joystick Sensitivity")
         sensitivityLabel.setAlignment(Qt.AlignCenter)
         sensitivity_layout.addWidget(sensitivityLabel)
-        
+
         self.sensitivitySlider = QSlider(Qt.Horizontal)
         self.sensitivitySlider.setMinimum(1)
         self.sensitivitySlider.setMaximum(100)
         self.sensitivitySlider.setValue(50)
         self.sensitivitySlider.setTickPosition(QSlider.TicksBelow)
         self.sensitivitySlider.setTickInterval(10)
-        
+
         label_width = sensitivityLabel.sizeHint().width()
         self.sensitivitySlider.setFixedWidth(label_width)
-        
+
         sensitivity_layout.addWidget(self.sensitivitySlider, 0, Qt.AlignHCenter)
-        
+
         self.right_layout.addLayout(sensitivity_layout)
-        
+
         layout.addLayout(self.right_layout)
 
         if not self.was_live:
@@ -6871,7 +6826,7 @@ class WellplateCalibration(QDialog):
         if self.corners[index] is None:
             x = self.navigationController.x_pos_mm
             y = self.navigationController.y_pos_mm
-            
+
             # Check if the new point is different from existing points
             if any(corner is not None and np.allclose([x, y], corner) for corner in self.corners):
                 QMessageBox.warning(self, "Duplicate Point", "This point is too close to an existing point. Please choose a different location.")
@@ -6898,11 +6853,11 @@ class WellplateCalibration(QDialog):
         well_spacing_mm = self.wellSpacingInput.value()
         plate_width_mm = self.plateWidthInput.value()
         plate_height_mm = self.plateHeightInput.value()
-        
+
         center, radius = self.calculate_circle(self.corners)
-        
+
         well_size_mm = radius * 2
-        
+
         # Calculate a1 position in mm
         a1_x_mm = center[0]
         a1_y_mm = center[1]
@@ -6931,7 +6886,7 @@ class WellplateCalibration(QDialog):
 
         image_path = self.create_wellplate_image(name, new_format, plate_width_mm, plate_height_mm)
         self.wellplateFormatWidget.setWellplateSettings(name)
-        
+
         self.accept()
 
     def create_wellplate_image(self, name, format_data, plate_width_mm, plate_height_mm):
@@ -6952,7 +6907,7 @@ class WellplateCalibration(QDialog):
 
         def draw_left_slanted_rectangle(draw, xy, slant, width=4, outline='black', fill=None):
             x1, y1, x2, y2 = xy
-            
+
             # Define the polygon points
             points = [
                 (x1 + slant, y1),  # Top-left after slant
@@ -6962,7 +6917,7 @@ class WellplateCalibration(QDialog):
                 (x1, y2 - slant),  # Bottom of left slant
                 (x1, y1 + slant)   # Top of left slant
             ]
-            
+
             # Draw the filled polygon with outline
             draw.polygon(points, fill=fill, outline=outline, width=width)
 
@@ -6973,7 +6928,7 @@ class WellplateCalibration(QDialog):
         # Draw the inner rectangle with left slanted corners
         margin = 20
         slant = 40
-        draw_left_slanted_rectangle(draw, 
+        draw_left_slanted_rectangle(draw,
                                     [margin, margin, width-margin, height-margin],
                                     slant, width=4, outline='black', fill='lightgrey')
 
@@ -7022,15 +6977,15 @@ class WellplateCalibration(QDialog):
     def calculate_circle(points):
         # Convert points to numpy array
         points = np.array(points)
-        
+
         # Calculate the center and radius of the circle
         A = np.array([points[1] - points[0], points[2] - points[0]])
         b = np.sum(A * (points[1:3] + points[0]) / 2, axis=1)
         center = np.linalg.solve(A, b)
-        
+
         # Calculate the radius
         radius = np.mean(np.linalg.norm(points - center, axis=1))
-        
+
         return center, radius
 
     def closeEvent(self, event):
@@ -7050,7 +7005,7 @@ class WellplateCalibration(QDialog):
         if not self.was_live:
             self.liveController.stop_live()
         sample = self.navigationViewer.sample
-        
+
         # Convert sample string to format int
         if 'glass slide' in sample:
             sample_format = 0
@@ -7068,7 +7023,7 @@ class WellplateCalibration(QDialog):
 
         # Update wellplate settings
         self.wellplateFormatWidget.setWellplateSettings(sample_format)
-        
+
         super().reject()
 
 
@@ -7221,15 +7176,15 @@ class Joystick(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        
+
         # Calculate the painting area
         paint_rect = QRectF(0, 0, 200, 200)
-        
+
         # Draw outer circle
         painter.setBrush(QColor(230, 230, 230))  # Light grey fill
         painter.setPen(QPen(QColor(100, 100, 100), 2))  # Dark grey outline
         painter.drawEllipse(paint_rect.center(), self.outer_radius, self.outer_radius)
-        
+
         # Draw inner circle (joystick position)
         painter.setBrush(QColor(100, 100, 100))
         painter.setPen(Qt.NoPen)
@@ -7263,7 +7218,7 @@ class Joystick(QWidget):
         dx = pos.x() - center.x()
         dy = pos.y() - center.y()
         distance = math.sqrt(dx**2 + dy**2)
-        
+
         if distance > self.max_distance:
             dx = dx * self.max_distance / distance
             dy = dy * self.max_distance / distance
@@ -7299,7 +7254,7 @@ class WellSelectionWidget(QTableWidget):
         self.a1_x_pixel = settings['a1_x_pixel']
         self.a1_y_pixel = settings['a1_y_pixel']
         self.well_size_mm = settings['well_size_mm']
-        
+
         self.setRowCount(self.rows)
         self.setColumnCount(self.columns)
         self.initUI()
@@ -7594,7 +7549,7 @@ class Well1536SelectionWidget(QWidget):
         if self.current_cell:
             row, col = self.current_cell
             cell_name = f"{chr(65 + row)}{col + 1}"
-            
+
             if (row, col) in self.selected_cells:
                 # If the well is already selected, remove it
                 del self.selected_cells[(row, col)]
@@ -7605,7 +7560,7 @@ class Well1536SelectionWidget(QWidget):
                 self.selected_cells[(row, col)] = '#1f77b4'  # Add to selected cells with blue color
                 self.add_well_to_selection_input(cell_name)
                 print(f"Added well {cell_name}")
-            
+
             self.redraw_wells()
             self.signal_wellSelected.emit(bool(self.selected_cells))
 
@@ -7632,7 +7587,7 @@ class Well1536SelectionWidget(QWidget):
             row_label = chr(64 + (row // 26)) + chr(65 + (row % 26))
         # Update cell_input with the correct label (e.g., A1, B2, AA1, etc.)
         self.cell_input.setText(f"{row_label}{col + 1}")
-        
+
         x_mm = col * self.spacing_mm + self.a1_x_mm + WELLPLATE_OFFSET_X_mm
         y_mm = row * self.spacing_mm + self.a1_y_mm + WELLPLATE_OFFSET_Y_mm
         self.signal_wellSelectedPos.emit(x_mm, y_mm)
@@ -7751,4 +7706,4 @@ class SampleSettingsWidget(QFrame):
         top_row_layout.addWidget(self.wellplateFormatWidget,0,1)
         self.setLayout(top_row_layout)  # Set the layout on the frame
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        
+
