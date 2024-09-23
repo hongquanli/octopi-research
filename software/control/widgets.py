@@ -4471,7 +4471,7 @@ class NapariLiveWidget(QWidget):
         self.histogram_dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         self.histogram_dock.setTitleBarWidget(QWidget())
         self.histogram_widget.region.sigRegionChanged.connect(self.on_histogram_region_changed)
-        self.histogram_widget.region.sigRegionChangeFinished.connect(self.on_histogram_region_change_finished)
+        self.histogram_widget.region.sigRegionChangeFinished.connect(self.on_histogram_region_changed)
 
         # Microscope Configuration
         self.dropdown_modeSelection = QComboBox()
@@ -4678,11 +4678,6 @@ class NapariLiveWidget(QWidget):
             print(action.text())
 
     def on_histogram_region_changed(self):
-        if self.live_configuration.name:
-            min_val, max_val = self.histogram_widget.region.getRegion()
-            self.updateContrastLimits(self.live_configuration.name, min_val, max_val)
-
-    def on_histogram_region_change_finished(self):
         if self.live_configuration.name:
             min_val, max_val = self.histogram_widget.region.getRegion()
             self.updateContrastLimits(self.live_configuration.name, min_val, max_val)

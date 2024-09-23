@@ -387,10 +387,10 @@ class OctopiGUI(QMainWindow):
         self.imageDisplayTabs = QTabWidget()
         if self.performance_mode:
             if ENABLE_TRACKING:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True)
                 self.imageDisplayWindow.show_ROI_selector()
             else:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True, show_LUT=True, autoLevels=True)
+                self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True, show_LUT=True, autoLevels=True)
             #self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
             self.imageDisplayTabs = self.imageDisplayWindow.widget
             self.napariMosaicDisplayWidget = None
@@ -419,10 +419,10 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True)
+                self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True)
                 self.imageDisplayWindow.show_ROI_selector()
             else:
-                self.imageDisplayWindow = core.ImageDisplayWindow(draw_crosshairs=True, show_LUT=True, autoLevels=True)
+                self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True, show_LUT=True, autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
         if USE_NAPARI_FOR_MULTIPOINT:
