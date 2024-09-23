@@ -898,8 +898,8 @@ class Camera_Simulation(object):
 
         self.pixel_format = 'MONO16'
 
-        self.Width = 3000
-        self.Height = 3000
+        self.Width = Acquisition.CROP_WIDTH
+        self.Height = Acquisition.CROP_HEIGHT
         self.WidthMax = 4000
         self.HeightMax = 3000
         self.OffsetX = 0
@@ -983,15 +983,15 @@ class Camera_Simulation(object):
         self.timestamp = time.time()
         if self.frame_ID == 1:
             if self.pixel_format == 'MONO8':
-                self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
-                self.current_frame[901:1100,901:1100] = 200
+                self.current_frame = np.random.randint(255,size=(self.Height,self.Width),dtype=np.uint8)
+                self.current_frame[self.Height//2-99:self.Height//2+100,self.Width//2-99:self.Width//2+100] = 200
             elif self.pixel_format == 'MONO12':
-                self.current_frame = np.random.randint(4095,size=(2000,2000),dtype=np.uint16)
-                self.current_frame[901:1100,901:1100] = 200*16
+                self.current_frame = np.random.randint(4095,size=(self.Height,self.Width),dtype=np.uint16)
+                self.current_frame[self.Height//2-99:self.Height//2+100,self.Width//2-99:self.Width//2+100] = 200*16
                 self.current_frame = self.current_frame << 4
             elif self.pixel_format == 'MONO16':
-                self.current_frame = np.random.randint(65535,size=(2000,2000),dtype=np.uint16)
-                self.current_frame[901:1100,901:1100] = 200*256
+                self.current_frame = np.random.randint(65535,size=(self.Height,self.Width),dtype=np.uint16)
+                self.current_frame[self.Height//2-99:self.Height//2+100,self.Width//2-99:self.Width//2+100] = 200*256
         else:
             self.current_frame = np.roll(self.current_frame,10,axis=0)
             pass 

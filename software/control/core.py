@@ -1675,7 +1675,10 @@ class MultiPointWorker(QObject):
         self.af_fov_count = 0
         self.num_fovs = 0
         self.total_scans = 0
-        self.coordinate_dict = self.multiPointController.coordinate_dict.copy()
+        if self.multiPointController.coordinate_dict is not None:
+            self.coordinate_dict = self.multiPointController.coordinate_dict.copy()
+        else:
+            self.coordinate_dict = None
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
         self.scan_coordinates_name = self.multiPointController.scan_coordinates_name
@@ -2784,7 +2787,7 @@ class MultiPointController(QObject):
                 self.usb_spectrometer_was_streaming = False
 
         # set current tabs
-        if self.parent is not None:
+        if self.parent is not None and not self.parent.performance_mode:
             configs = [config.name for config in self.selected_configurations]
             print(configs)
             if DO_FLUORESCENCE_RTP and 'BF LED matrix left half' in configs and 'BF LED matrix right half' in configs and 'Fluorescence 405 nm Ex' in configs:
@@ -3361,8 +3364,10 @@ class ImageDisplayWindow(QMainWindow):
 
     image_click_coordinates = Signal(int, int, int, int)
 
-    def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
+    def __init__(self, liveController=None, contrastManager=None, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
         super().__init__()
+        self.liveController = liveController
+        self.contrastManager = contrastManager
         self.setWindowTitle(window_title)
         self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
@@ -3387,6 +3392,9 @@ class ImageDisplayWindow(QMainWindow):
             self.graphics_widget.img.setBorder('w')
             self.graphics_widget.view.ui.roiBtn.hide()
             self.graphics_widget.view.ui.menuBtn.hide()
+            self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
+            self.LUTWidget.region.sigRegionChanged.connect(self.update_contrast_limits)
+            self.LUTWidget.region.sigRegionChangeFinished.connect(self.update_contrast_limits)
             # self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
             # self.LUTWidget.autoHistogramRange()
             # self.graphics_widget.view.autolevels()
@@ -3463,17 +3471,7 @@ class ImageDisplayWindow(QMainWindow):
             y_pixel_centered = int(image_coord.y() - self.graphics_widget.img.height()/2)
             self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height())
 
-    def display_image(self,image):
-        # def set_autoLevels_value():
-        #     if self.autoLevels is True:
-        #         self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-        #     else:
-        #         if self.flag_image_scaling_level_init is False:
-        #             self.graphics_widget.img.setImage(image, autoLevels = True)
-        #             self.flag_image_scaling_level_init = True
-        #         else:
-        #             self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-
+    def display_image(self, image):
         if ENABLE_TRACKING:
             image = np.copy(image)
             self.image_height = image.shape[0],
@@ -3481,11 +3479,33 @@ class ImageDisplayWindow(QMainWindow):
             if(self.draw_rectangle):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
                 self.draw_rectangle = False
-            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-            # set_autoLevels_value()
+
+        if self.liveController is not None and self.contrastManager is not None:
+            channel_name = self.liveController.currentConfiguration.name
+            if self.contrastManager.acquisition_dtype != None and self.contrastManager.acquisition_dtype != np.dtype(image.dtype):
+                self.contrastManager.scale_contrast_limits(np.dtype(image.dtype))
+            min_val, max_val = self.contrastManager.get_limits(channel_name, image.dtype)
         else:
-            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-            # set_autoLevels_value()
+            min_val, max_val = None, None # use full range
+
+        if self.show_LUT:
+            self.graphics_widget.view.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
+            self.LUTWidget.setLevels(min_val, max_val)
+            self.LUTWidget.setHistogramRange(image.min(), image.max())
+            self.LUTWidget.region.setRegion((min_val, max_val))
+        else:
+            self.graphics_widget.img.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
+
+        if not self.autoLevels and min_val is not None and max_val is not None:
+            if self.show_LUT:
+                self.graphics_widget.view.setLevels(min_val, max_val)
+            else:
+                self.graphics_widget.img.setLevels(min_val, max_val)
+
+    def update_contrast_limits(self):
+        if self.show_LUT and self.contrastManager and self.contrastManager.acquisition_dtype:
+            min_val, max_val = self.LUTWidget.region.getRegion()
+            self.contrastManager.update_limits(self.liveController.currentConfiguration.name, min_val, max_val)
 
     def update_ROI(self):
         self.roi_pos = self.ROI.pos()
@@ -3900,6 +3920,55 @@ class ConfigurationManager(QObject):
             if color in parts or "full_" + color in parts:
                 return color
         return None
+
+
+class ContrastManager:
+    def __init__(self):
+        self.contrast_limits = {}
+        self.acquisition_dtype = None
+
+    def update_limits(self, channel, min_val, max_val):
+        self.contrast_limits[channel] = (min_val, max_val)
+
+    def get_limits(self, channel, dtype=None):
+        if dtype is not None:
+            if self.acquisition_dtype is None:
+                self.acquisition_dtype = dtype
+            elif self.acquisition_dtype != dtype:
+                self.scale_contrast_limits(dtype)
+        return self.contrast_limits.get(channel, self.get_default_limits())
+
+    def get_default_limits(self):
+        if self.acquisition_dtype is None:
+            return (0, 1)
+        elif np.issubdtype(self.acquisition_dtype, np.integer):
+            info = np.iinfo(self.acquisition_dtype)
+            return (info.min, info.max)
+        elif np.issubdtype(self.acquisition_dtype, np.floating):
+            return (0.0, 1.0)
+        else:
+            return (0, 1)
+
+    def get_scaled_limits(self, channel, target_dtype):
+        min_val, max_val = self.get_limits(channel)
+        if self.acquisition_dtype == target_dtype:
+            return min_val, max_val
+
+        source_info = np.iinfo(self.acquisition_dtype)
+        target_info = np.iinfo(target_dtype)
+
+        scaled_min = (min_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
+        scaled_max = (max_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
+
+        return scaled_min, scaled_max
+
+    def scale_contrast_limits(self, target_dtype):
+        print(f"{self.acquisition_dtype} -> {target_dtype}")
+        for channel in self.contrast_limits.keys():
+            self.contrast_limits[channel] = self.get_scaled_limits(channel, target_dtype)
+        
+        self.acquisition_dtype = target_dtype
+
 
 class PlateReaderNavigationController(QObject):             # Not implemented for Prior stage
 
