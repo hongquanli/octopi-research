@@ -3482,7 +3482,7 @@ class ImageDisplayWindow(QMainWindow):
 
         if self.liveController is not None and self.contrastManager is not None:
             channel_name = self.liveController.currentConfiguration.name
-            if self.contrastManager.acquisition_dtype != np.dtype(image.dtype):
+            if self.contrastManager.acquisition_dtype != None and self.contrastManager.acquisition_dtype != np.dtype(image.dtype):
                 self.contrastManager.scale_contrast_limits(np.dtype(image.dtype))
             min_val, max_val = self.contrastManager.get_limits(channel_name, image.dtype)
         else:
@@ -3503,7 +3503,7 @@ class ImageDisplayWindow(QMainWindow):
                 self.graphics_widget.img.setLevels(min_val, max_val)
 
     def update_contrast_limits(self):
-        if self.show_LUT and self.contrastManager:
+        if self.show_LUT and self.contrastManager and self.contrastManager.acquisition_dtype:
             min_val, max_val = self.LUTWidget.region.getRegion()
             self.contrastManager.update_limits(self.liveController.currentConfiguration.name, min_val, max_val)
 
