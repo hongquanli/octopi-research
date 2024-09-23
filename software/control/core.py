@@ -1675,7 +1675,10 @@ class MultiPointWorker(QObject):
         self.af_fov_count = 0
         self.num_fovs = 0
         self.total_scans = 0
-        self.coordinate_dict = self.multiPointController.coordinate_dict.copy()
+        if self.multiPointController.coordinate_dict is not None:
+            self.coordinate_dict = self.multiPointController.coordinate_dict.copy()
+        else:
+            self.coordinate_dict = None
         self.use_scan_coordinates = self.multiPointController.use_scan_coordinates
         self.scan_coordinates_mm = self.multiPointController.scan_coordinates_mm
         self.scan_coordinates_name = self.multiPointController.scan_coordinates_name
@@ -3943,15 +3946,9 @@ class ContrastManager:
         return scaled_min, scaled_max
 
     def scale_contrast_limits(self, target_dtype):
+        print(f"{self.acquisition_dtype} -> {target_dtype}")
         for channel in self.contrast_limits.keys():
-            min_val, max_val = self.get_limits(channel)
-            source_info = np.iinfo(self.acquisition_dtype)
-            target_info = np.iinfo(target_dtype)
-
-            scaled_min = (min_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
-            scaled_max = (max_val - source_info.min) / (source_info.max - source_info.min) * (target_info.max - target_info.min) + target_info.min
-
-            self.contrast_limits[channel] = (scaled_min, scaled_max)
+            self.contrast_limits[channel] = self.get_scaled_limits(channel, target_dtype)
         
         self.acquisition_dtype = target_dtype
 

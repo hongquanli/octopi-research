@@ -508,7 +508,7 @@ class OctopiGUI(QMainWindow):
 
     def setupLayout(self):
         layout = QVBoxLayout()
-        
+
         if USE_NAPARI_FOR_LIVE_CONTROL and not self.performance_mode:
             layout.addWidget(self.navigationWidget)
         else:
