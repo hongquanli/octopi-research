@@ -3474,10 +3474,9 @@ class ImageDisplayWindow(QMainWindow):
     def display_image(self, image):
         if ENABLE_TRACKING:
             image = np.copy(image)
-            self.image_height = image.shape[0],
-            self.image_width = image.shape[1]
-            if(self.draw_rectangle):
-                cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
+            self.image_height, self.image_width = image.shape[:2]
+            if self.draw_rectangle:
+                cv2.rectangle(image, self.ptRect1, self.ptRect2, (255,255,255), 4)
                 self.draw_rectangle = False
 
         if self.liveController is not None and self.contrastManager is not None:
@@ -3486,21 +3485,23 @@ class ImageDisplayWindow(QMainWindow):
                 self.contrastManager.scale_contrast_limits(np.dtype(image.dtype))
             min_val, max_val = self.contrastManager.get_limits(channel_name, image.dtype)
         else:
-            min_val, max_val = None, None # use full range
+            info = np.iinfo(image.dtype) if np.issubdtype(image.dtype, np.integer) else np.finfo(image.dtype)
+            min_val, max_val = info.min, info.max
 
-        if self.show_LUT:
-            self.graphics_widget.view.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
-            self.LUTWidget.setLevels(min_val, max_val)
-            self.LUTWidget.setHistogramRange(image.min(), image.max())
-            self.LUTWidget.region.setRegion((min_val, max_val))
-        else:
-            self.graphics_widget.img.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
+        self.graphics_widget.img.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
 
-        if not self.autoLevels and min_val is not None and max_val is not None:
+        if not self.autoLevels:
             if self.show_LUT:
                 self.graphics_widget.view.setLevels(min_val, max_val)
             else:
                 self.graphics_widget.img.setLevels(min_val, max_val)
+
+        if self.show_LUT:
+            self.LUTWidget.setLevels(min_val, max_val)
+            self.LUTWidget.setHistogramRange(image.min(), image.max())
+            self.LUTWidget.region.setRegion((min_val, max_val))
+
+        self.graphics_widget.img.updateImage()
 
     def update_contrast_limits(self):
         if self.show_LUT and self.contrastManager and self.contrastManager.acquisition_dtype:
