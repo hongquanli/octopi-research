@@ -2734,7 +2734,7 @@ class MultiPointController(QObject):
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
-            self.scan_coordinates_mm = location_list÷?;l;;;;;;;;;;;;;;;;;;;;k
+            self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = list(coordinate_dict.keys()) # list(coordinate_dict.keys()) if not wellplate
         elif location_list is not None:
             print('Using location list acquisition')
