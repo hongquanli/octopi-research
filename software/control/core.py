@@ -1999,7 +1999,7 @@ class MultiPointWorker(QObject):
 
         if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
             print('run custom multipoint')
-            multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+            multipoint_custom_script_entry(self,self.time_point,current_path,region_id,fov,i,j)
             return
 
         self.perform_autofocus(region_id)
@@ -2734,7 +2734,7 @@ class MultiPointController(QObject):
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
-            self.scan_coordinates_mm = location_list
+            self.scan_coordinates_mm = location_list÷?;l;;;;;;;;;;;;;;;;;;;;k
             self.scan_coordinates_name = list(coordinate_dict.keys()) # list(coordinate_dict.keys()) if not wellplate
         elif location_list is not None:
             print('Using location list acquisition')
@@ -3479,14 +3479,14 @@ class ImageDisplayWindow(QMainWindow):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2, (255,255,255), 4)
                 self.draw_rectangle = False
 
+        info = np.iinfo(image.dtype) if np.issubdtype(image.dtype, np.integer) else np.finfo(image.dtype)
+        min_val, max_val = info.min, info.max
+
         if self.liveController is not None and self.contrastManager is not None:
             channel_name = self.liveController.currentConfiguration.name
             if self.contrastManager.acquisition_dtype != None and self.contrastManager.acquisition_dtype != np.dtype(image.dtype):
                 self.contrastManager.scale_contrast_limits(np.dtype(image.dtype))
             min_val, max_val = self.contrastManager.get_limits(channel_name, image.dtype)
-        else:
-            info = np.iinfo(image.dtype) if np.issubdtype(image.dtype, np.integer) else np.finfo(image.dtype)
-            min_val, max_val = info.min, info.max
 
         self.graphics_widget.img.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
 
@@ -3498,7 +3498,7 @@ class ImageDisplayWindow(QMainWindow):
 
         if self.show_LUT:
             self.LUTWidget.setLevels(min_val, max_val)
-            self.LUTWidget.setHistogramRange(image.min(), image.max())
+            self.LUTWidget.setHistogramRange(info.min, info.max)
             self.LUTWidget.region.setRegion((min_val, max_val))
 
         self.graphics_widget.img.updateImage()
