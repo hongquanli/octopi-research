@@ -30,7 +30,8 @@ class SerialDevice:
                     break
         if SN is not None:
             for d in list_ports.comports():
-                if d.serial_number == SN:
+                if d.serial_number is not None and int(d.serial_number) == self.SN:
+                    print("found port", d, d.device, d.serial_number)
                     self.port = d.device
                     break
 
@@ -402,12 +403,12 @@ class SciMicroscopyLEDArray:
         Provide serial number
         """
         self.serial_connection = SerialDevice(SN=SN,baudrate=115200,
-                bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
-                parity=serial.PARITY_NONE, 
-                xonxoff=False,rtscts=False,dsrdtr=False)
+            bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
+            parity=serial.PARITY_NONE, 
+            xonxoff=False,rtscts=False,dsrdtr=False)
         self.serial_connection.open_ser()
         self.check_about()
-        self.set_distance(array_distance)
+        self.set_distance(int(array_distance))
         self.set_brightness(1)
 
         self.illumination = None

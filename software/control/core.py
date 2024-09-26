@@ -464,7 +464,7 @@ class LiveController(QObject):
 
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
             # to do: add error handling
-            self.led_array = serial_peripherals.SciMicroscopyLEDArray(SCIMICROSCOPY_LED_ARRAY_SN,SCIMICROSCOPY_LED_ARRAY_DISTANCE,SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY)
+            self.led_array = serial_peripherals.SciMicroscopyLEDArray(SCIMICROSCOPY_LED_ARRAY_SN, array_distance=SCIMICROSCOPY_LED_ARRAY_DISTANCE, turn_on_delay=SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY)
             self.led_array.set_NA(SCIMICROSCOPY_LED_ARRAY_DEFAULT_NA)
 
     # illumination control
