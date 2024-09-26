@@ -159,7 +159,7 @@ class OctopiGUI(QMainWindow):
             self.streamHandler_focus_camera = core.StreamHandler()
             self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera, self, control_illumination=False,for_displacement_measurement=True)
             self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
-            self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
+            self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True, show_LUT=False, autoLevels=False)
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP,look_for_cache=False)
 
