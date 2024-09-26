@@ -1065,7 +1065,7 @@ class LiveControlWidget(QFrame):
         if show_display_options:
             self.grid.addLayout(grid_line05)
 
-        self.grid.addStretch()
+        # self.grid.addStretch()
         self.setLayout(self.grid)
 
 

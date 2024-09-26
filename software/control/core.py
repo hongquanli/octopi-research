@@ -3479,27 +3479,25 @@ class ImageDisplayWindow(QMainWindow):
                 cv2.rectangle(image, self.ptRect1, self.ptRect2, (255,255,255), 4)
                 self.draw_rectangle = False
 
+        info = np.iinfo(image.dtype) if np.issubdtype(image.dtype, np.integer) else np.finfo(image.dtype)
+        min_val, max_val = info.min, info.max
+
         if self.liveController is not None and self.contrastManager is not None:
             channel_name = self.liveController.currentConfiguration.name
             if self.contrastManager.acquisition_dtype != None and self.contrastManager.acquisition_dtype != np.dtype(image.dtype):
                 self.contrastManager.scale_contrast_limits(np.dtype(image.dtype))
             min_val, max_val = self.contrastManager.get_limits(channel_name, image.dtype)
-        else:
-            info = np.iinfo(image.dtype) if np.issubdtype(image.dtype, np.integer) else np.finfo(image.dtype)
-            min_val, max_val = info.min, info.max
 
         self.graphics_widget.img.setImage(image, autoLevels=self.autoLevels, levels=(min_val, max_val))
 
         if not self.autoLevels:
             if self.show_LUT:
                 self.graphics_widget.view.setLevels(min_val, max_val)
+                self.LUTWidget.setLevels(min_val, max_val)
+                self.LUTWidget.setHistogramRange(info.min, info.max)
+                self.LUTWidget.region.setRegion((min_val, max_val))
             else:
                 self.graphics_widget.img.setLevels(min_val, max_val)
-
-        if self.show_LUT:
-            self.LUTWidget.setLevels(min_val, max_val)
-            self.LUTWidget.setHistogramRange(image.min(), image.max())
-            self.LUTWidget.region.setRegion((min_val, max_val))
 
         self.graphics_widget.img.updateImage()
 

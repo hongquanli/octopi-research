@@ -55,7 +55,8 @@ class Microcontroller():
             controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
         else:
             if sn is not None:
-                controller_ports = [ p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
+                controller_ports = [p.device for p in serial.tools.list_ports.comports() if p.serial_number is not None and sn == int(p.serial_number)]
+                print('CONTROLLER SN', sn, controller_ports[0])
             else:
                 if sys.platform == 'win32':
                     controller_ports = [ p.device for p in serial.tools.list_ports.comports() if p.manufacturer == 'Microsoft']

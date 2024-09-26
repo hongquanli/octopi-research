@@ -31,7 +31,7 @@ class SerialDevice:
         if SN is not None:
             for d in list_ports.comports():
                 if d.serial_number is not None and int(d.serial_number) == self.SN:
-                    print("found port", d, d.device, d.serial_number)
+                    print("SERIAL DEVICE SN", d.serial_number, d.device)
                     self.port = d.device
                     break
 
