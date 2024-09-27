@@ -579,12 +579,30 @@ class Camera(object):
         if reset_image_ready_flag:
             self.image_is_ready = False
         timestamp_t0 = time.time()
-        while (time.time() - timestamp_t0) <= (self.exposure_time/1000)*1.02 + 4:
-            time.sleep(0.005)
-            if self.image_is_ready:
-                self.image_is_ready = False
-                return self.current_frame
-        print('read frame timed out')
+        max_retries = 10
+        retry_delay = 0.1
+        for attempt in range(max_retries):
+            while (time.time() - timestamp_t0) <= (self.exposure_time/1000)*1.02 + 4:
+                time.sleep(0.005)
+                if self.image_is_ready:
+                    self.image_is_ready = False
+                    return self.current_frame
+            print(f'read frame timed out (attempt {attempt + 1}/{max_retries})')
+            print("image is ready?", self.image_is_ready)
+            if attempt < max_retries - 1:
+                print(f'restarting camera stream and retrying in {2 * retry_delay} seconds...')
+                try:
+                    self.stop_streaming()
+                except Exception as e:
+                    print(f"error stopping stream: {e}")
+                time.sleep(retry_delay)
+                try:
+                    self.start_streaming()
+                except Exception as e:
+                    print(f"error starting stream: {e}")
+                time.sleep(retry_delay)
+
+        print('ERROR: max camera_toupcam read_frame() attempts reached! unable to read frame!')
         return None
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
