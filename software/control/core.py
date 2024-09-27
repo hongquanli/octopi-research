@@ -3492,10 +3492,8 @@ class ImageDisplayWindow(QMainWindow):
 
         if not self.autoLevels:
             if self.show_LUT:
-                self.graphics_widget.view.setLevels((min_val, max_val))
-                self.LUTWidget.setLevels((min_val, max_val))
+                self.LUTWidget.setLevels(min_val, max_val)
                 self.LUTWidget.setHistogramRange(info.min, info.max)
-                self.LUTWidget.region.setRegion((min_val, max_val))
             else:
                 self.graphics_widget.img.setLevels((min_val, max_val))
 
