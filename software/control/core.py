@@ -1999,7 +1999,7 @@ class MultiPointWorker(QObject):
 
         if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
             print('run custom multipoint')
-            multipoint_custom_script_entry(self,self.time_point,current_path,coordinate_id,coordiante_name,i,j)
+            multipoint_custom_script_entry(self,self.time_point,current_path,region_id,fov,i,j)
             return
 
         self.perform_autofocus(region_id)
@@ -3492,12 +3492,12 @@ class ImageDisplayWindow(QMainWindow):
 
         if not self.autoLevels:
             if self.show_LUT:
-                self.graphics_widget.view.setLevels(min_val, max_val)
-                self.LUTWidget.setLevels(min_val, max_val)
+                self.graphics_widget.view.setLevels((min_val, max_val))
+                self.LUTWidget.setLevels((min_val, max_val))
                 self.LUTWidget.setHistogramRange(info.min, info.max)
                 self.LUTWidget.region.setRegion((min_val, max_val))
             else:
-                self.graphics_widget.img.setLevels(min_val, max_val)
+                self.graphics_widget.img.setLevels((min_val, max_val))
 
         self.graphics_widget.img.updateImage()
 
