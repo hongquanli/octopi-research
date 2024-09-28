@@ -875,7 +875,7 @@ class LiveControlWidget(QFrame):
     signal_live_configuration = Signal(object)
     signal_start_live = Signal()
 
-    def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=False, show_autolevel = False, autolevel=False, main=None, *args, **kwargs):
+    def __init__(self, streamHandler, liveController, configurationManager=None, show_trigger_options=True, show_display_options=False, show_autolevel = False, autolevel=False, stretch=True, main=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.liveController = liveController
         self.streamHandler = streamHandler
@@ -889,13 +889,13 @@ class LiveControlWidget(QFrame):
         # note that this references the object in self.configurationManager.configurations
         self.currentConfiguration = self.configurationManager.configurations[0]
 
-        self.add_components(show_trigger_options,show_display_options,show_autolevel,autolevel)
+        self.add_components(show_trigger_options,show_display_options,show_autolevel,autolevel,stretch)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.update_microscope_mode_by_name(self.currentConfiguration.name)
 
         self.is_switching_mode = False # flag used to prevent from settings being set by twice - from both mode change slot and value change slot; another way is to use blockSignals(True)
 
-    def add_components(self,show_trigger_options,show_display_options,show_autolevel,autolevel):
+    def add_components(self,show_trigger_options,show_display_options,show_autolevel,autolevel,stretch):
         # line 0: trigger mode
         self.triggerMode = None
         self.dropdown_triggerManu = QComboBox()
@@ -1013,7 +1013,7 @@ class LiveControlWidget(QFrame):
         self.entry_illuminationIntensity.valueChanged.connect(self.update_config_illumination_intensity)
         self.entry_illuminationIntensity.valueChanged.connect(lambda x: self.slider_illuminationIntensity.setValue(int(x)))
         self.slider_illuminationIntensity.valueChanged.connect(self.entry_illuminationIntensity.setValue)
-        self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
+        self.btn_autolevel.toggled.connect(self.signal_autoLevelSetting.emit)
 
         # layout
         grid_line1 = QHBoxLayout()
@@ -1064,8 +1064,8 @@ class LiveControlWidget(QFrame):
         self.grid.addLayout(grid_line4)
         if show_display_options:
             self.grid.addLayout(grid_line05)
-
-        # self.grid.addStretch()
+        if not stretch:
+            self.grid.addStretch()
         self.setLayout(self.grid)
 
 
@@ -1077,6 +1077,9 @@ class LiveControlWidget(QFrame):
         else:
             self.liveController.stop_live()
             self.btn_live.setText('Start Live')
+
+    def toggle_autolevel(self,autolevel_on):
+        self.btn_autolevel.setChecked(autolevel_on)
 
     def update_camera_settings(self):
         self.signal_newAnalogGain.emit(self.entry_analogGain.value())
@@ -1883,8 +1886,8 @@ class AutoFocusWidget(QFrame):
         self.setLayout(self.grid)
 
         # connections
-        self.btn_autofocus.clicked.connect(lambda : self.autofocusController.autofocus(False))
-        self.btn_autolevel.clicked.connect(self.signal_autoLevelSetting.emit)
+        self.btn_autofocus.toggled.connect(lambda : self.autofocusController.autofocus(False))
+        self.btn_autolevel.toggled.connect(self.signal_autoLevelSetting.emit)
         self.entry_delta.valueChanged.connect(self.set_deltaZ)
         self.entry_N.valueChanged.connect(self.autofocusController.set_N)
         self.autofocusController.autofocusFinished.connect(self.autofocus_is_finished)
