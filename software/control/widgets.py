@@ -4303,7 +4303,6 @@ class StitcherWidget(QFrame):
         if self.stitcherThread is not None:
             self.stitcherThread.quit()
             self.stitcherThread.deleteLater()
-            self.stitcherThread = None
         self.statusLabel.setVisible(False)
         self.progressBar.setVisible(False)
         self.viewOutputButton.setVisible(True)
@@ -4316,7 +4315,6 @@ class StitcherWidget(QFrame):
         self.viewOutputButton.clicked.connect(self.viewOutputNapari)
 
         self.output_path = output_path
-        self.contrastManager.update_acquisition_dtype(dtype)
 
     def extractWavelength(self, name):
         # Split the string and find the wavelength number immediately after "Fluorescence"
