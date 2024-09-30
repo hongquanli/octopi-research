@@ -534,6 +534,8 @@ class LiveController(QObject):
                         # set intensity for active channel
                         print('set intensity')
                         self.ldi.set_intensity(int(illumination_source),intensity)
+                if LDI_SHUTTER_MODE == "EXT" or LDI_INTENSITY_MODE == "EXT":
+                    self.microcontroller.set_illumination(illumination_source,intensity)
             elif ENABLE_NL5 and NL5_USE_DOUT and 'Fluorescence' in self.currentConfiguration.name:
                 wavelength = int(self.currentConfiguration.name[13:16])
                 self.microscope.nl5.set_active_channel(NL5_WAVENLENGTH_MAP[wavelength])
