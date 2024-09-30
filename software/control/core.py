@@ -1021,6 +1021,10 @@ class NavigationController(QObject):
     def set_axis_PID_arguments(self, axis, pid_p, pid_i, pid_d):
         self.microcontroller.set_pid_arguments(axis, pid_p, pid_i, pid_d)
 
+    def set_piezo_um(self, z_piezo_um):
+        dac = int(65535 * (z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
+        dac = 65535 - dac if OBJECTIVE_PIEZO_FLIP_DIR else dac
+        self.microcontroller.analog_write_onboard_DAC(7, dac)
 
 class SlidePositionControlWorker(QObject):
 
@@ -1825,8 +1829,7 @@ class MultiPointWorker(QObject):
         # reset piezo to home position
         if self.use_piezo:
             self.z_piezo_um = OBJECTIVE_PIEZO_HOME_UM
-            dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
-            self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+            self.navigationController.set_piezo_um(self.z_piezo_um)
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
                 time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
             if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
@@ -2435,8 +2438,7 @@ class MultiPointWorker(QObject):
     def move_z_for_stack(self):
         if self.use_piezo:
             self.z_piezo_um += self.deltaZ*1000
-            dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
-            self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+            self.navigationController.set_piezo_um(self.z_piezo_um)
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
                 time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
             if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
@@ -2450,8 +2452,7 @@ class MultiPointWorker(QObject):
     def move_z_back_after_stack(self):
         if self.use_piezo:
             self.z_piezo_um = OBJECTIVE_PIEZO_HOME_UM
-            dac = int(65535 * (self.z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
-            self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+            self.navigationController.set_piezo_um(self.z_piezo_um)
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE: # for hardware trigger, delay is in waiting for the last row to start exposure
                 time.sleep(MULTIPOINT_PIEZO_DELAY_MS/1000)
             if MULTIPOINT_PIEZO_UPDATE_DISPLAY:
