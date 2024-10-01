@@ -128,6 +128,10 @@ class NavigationController_PriorStage(QObject):
 
             self.move_xy(delta_x, delta_y)
 
+    def move_from_click_mosaic(self, x_mm, y_mm):
+        if self.click_to_move:
+            self.move_to(x_mm, y_mm)
+
     def get_pixel_binning(self):
         try:
             highest_res = max(self.parent.camera.res_list, key=lambda res: res[0] * res[1])
@@ -289,3 +293,8 @@ class NavigationController_PriorStage(QObject):
 
     def set_axis_PID_arguments(self, axis, pid_p, pid_i, pid_d):
         pass
+
+    def set_piezo_um(self, z_piezo_um):
+        dac = int(65535 * (z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
+        dac = 65535 - dac if OBJECTIVE_PIEZO_FLIP_DIR else dac
+        self.microcontroller.analog_write_onboard_DAC(7, dac)
