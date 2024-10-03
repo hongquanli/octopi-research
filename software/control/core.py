@@ -23,7 +23,7 @@ import control.tracking as tracking
 import control.serial_peripherals as serial_peripherals
 
 try:
-    from control.multipoint_custom_script_entry import *
+    from control.multipoint_custom_script_entry_v2 import *
     print('custom multipoint script found')
 except:
     pass
@@ -2004,7 +2004,7 @@ class MultiPointWorker(QObject):
 
         if RUN_CUSTOM_MULTIPOINT and "multipoint_custom_script_entry" in globals():
             print('run custom multipoint')
-            multipoint_custom_script_entry(self,self.time_point,current_path,region_id,fov,i,j)
+            multipoint_custom_script_entry(self,current_path,region_id,fov,i,j)
             return
 
         self.perform_autofocus(region_id)
@@ -2040,7 +2040,7 @@ class MultiPointWorker(QObject):
             for config_idx, config in enumerate(self.selected_configurations):
 
                 current_image = (fov * self.NZ * len(self.selected_configurations) + z_level * len(self.selected_configurations) + config_idx + 1)
-                self.handle_z_offset(config)
+                self.handle_z_offset(config, True)
 
                 # acquire image
                 if 'USB Spectrometer' not in config.name and 'RGB' not in config.name:
@@ -2050,7 +2050,7 @@ class MultiPointWorker(QObject):
                 else:
                     self.acquire_spectrometer_data(config, file_ID, current_path, i, j, z_level)
 
-                self.undo_z_offset(config)
+                self.handle_z_offset(config, False)
                 self.signal_region_progress.emit(current_image, self.total_scans)
 
             '''
@@ -2190,19 +2190,12 @@ class MultiPointWorker(QObject):
         self.wait_till_operation_is_completed()
         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-    def handle_z_offset(self, config):
+    def handle_z_offset(self, config, todo):
         if config.z_offset is not None:  # perform z offset for config, assume z_offset is in um
             if config.z_offset != 0.0:
-                print("Moving to Z offset "+str(config.z_offset))
-                self.navigationController.move_z(config.z_offset/1000)
-                self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-
-    def undo_z_offset(self, config):
-        if config.z_offset is not None:  # undo Z offset, assume z_offset is in um
-            if config.z_offset != 0.0:
-                print("Moving back from Z offset "+str(config.z_offset))
-                self.navigationController.move_z(-config.z_offset/1000)
+                direction = 1 if todo else -1
+                print("Moving Z offset" + str(config.z_offset * direction))
+                self.navigationController.move_z(config.z_offset/1000*direction)
                 self.wait_till_operation_is_completed()
                 time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
