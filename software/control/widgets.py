@@ -5586,6 +5586,7 @@ class NapariMosaicDisplayWidget(QWidget):
             self.signal_shape_drawn.emit([])
 
     def clearAllLayers(self):
+        self.clear_shape()
         self.viewer.layers.clear()
         self.viewer_extents = None
         self.top_left_coordinate = None
@@ -5595,7 +5596,6 @@ class NapariMosaicDisplayWidget(QWidget):
         self.Nz = None
         self.layers_initialized = False
         self.signal_layers_initialized.emit(self.layers_initialized)
-        self.clear_shape()
         self.signal_update_viewer.emit()
 
     def activate(self):
