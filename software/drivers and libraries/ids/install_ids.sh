@@ -2,9 +2,9 @@
 wget https://en.ids-imaging.com/files/downloads/ids-peak/software/linux-desktop/ids-peak_2.11.0.0-178_amd64.tgz
 tar -xvzf ids-peak_2.11.0.0-178_amd64.tgz
 sudo sh ids-peak_2.11.0.0-178_amd64/local/scripts/ids_install_udev_rule.sh
-python -m pip install ids_peak_ipl
-python -m pip install ids_peak
-python -m pip install ids_peak_afl
+python3 -m pip install ids_peak_ipl
+python3 -m pip install ids_peak
+python3 -m pip install ids_peak_afl
 
 # Define the content to add to .bashrc
 content="
