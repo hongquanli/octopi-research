@@ -5770,8 +5770,9 @@ class TrackingControllerWidget(QFrame):
         self.btn_setSavingDir.setEnabled(enabled)
         self.lineEdit_savingDir.setEnabled(enabled)
         self.lineEdit_experimentID.setEnabled(enabled)
-        self.dropdown_tracker
-        self.dropdown_objective
+        # self.dropdown_tracker
+        # self.dropdown_objective
+        self.checkbox_set_z_range.setEnabled(enabled)
         self.list_configurations.setEnabled(enabled)
 
     def update_tracker(self, index):
@@ -6877,134 +6878,99 @@ class WellplateCalibration(QDialog):
                 self.form_layout.itemAt(i, QFormLayout.FieldRole).widget().hide()
                 self.form_layout.itemAt(i, QFormLayout.LabelRole).widget().hide()
 
-    # def calibrate(self):
-    #     if not self.nameInput.text() or not all(self.corners):
-    #         QMessageBox.warning(self, "Incomplete Information", "Please fill in all fields and set 3 corner points before calibrating.")
-    #         return
-
-    #     name = self.nameInput.text()
-    #     rows = self.rowsInput.value()
-    #     cols = self.colsInput.value()
-    #     well_spacing_mm = self.wellSpacingInput.value()
-    #     plate_width_mm = self.plateWidthInput.value()
-    #     plate_height_mm = self.plateHeightInput.value()
-
-    #     center, radius = self.calculate_circle(self.corners)
-
-    #     well_size_mm = radius * 2
-
-    #     # Calculate a1 position in mm
-    #     a1_x_mm = center[0]
-    #     a1_y_mm = center[1]
-
-
-    #     # Calculate a1 position in pixels
-    #     scale = 1 / 0.084665
-    #     a1_x_pixel = round(a1_x_mm * scale)
-    #     a1_y_pixel = round(a1_y_mm * scale)
-
-    #     new_format = {
-    #         'a1_x_mm': a1_x_mm,
-    #         'a1_y_mm': a1_y_mm,
-    #         'a1_x_pixel': a1_x_pixel,
-    #         'a1_y_pixel': a1_y_pixel,
-    #         'well_size_mm': well_size_mm,
-    #         'well_spacing_mm': well_spacing_mm,
-    #         'number_of_skip': 0,
-    #         'rows': rows,
-    #         'cols': cols,
-    #     }
-
-    #     self.wellplateFormatWidget.add_custom_format(name, new_format)
-    #     print(self.wellplateFormatWidget.custom_formats)
-    #     self.wellplateFormatWidget.save_formats_to_csv()
-
-    #     image_path = self.create_wellplate_image(name, new_format, plate_width_mm, plate_height_mm)
-    #     self.wellplateFormatWidget.setWellplateSettings(name)
-
-    #     self.accept()
     def calibrate(self):
-        if self.new_format_radio.isChecked():
-            if not self.nameInput.text() or not all(self.corners):
-                QMessageBox.warning(self, "Incomplete Information", "Please fill in all fields and set 3 corner points before calibrating.")
-                return
+        try:
+            if self.new_format_radio.isChecked():
+                if not self.nameInput.text() or not all(self.corners):
+                    QMessageBox.warning(self, "Incomplete Information", "Please fill in all fields and set 3 corner points before calibrating.")
+                    return
 
-            name = self.nameInput.text()
-            rows = self.rowsInput.value()
-            cols = self.colsInput.value()
-            well_spacing_mm = self.wellSpacingInput.value()
+                name = self.nameInput.text()
+                rows = self.rowsInput.value()
+                cols = self.colsInput.value()
+                well_spacing_mm = self.wellSpacingInput.value()
+                plate_width_mm = self.plateWidthInput.value()
+                plate_height_mm = self.plateHeightInput.value()
 
-            center, radius = self.calculate_circle(self.corners)
-            well_size_mm = radius * 2
-            a1_x_mm, a1_y_mm = center
-            scale = 1 / 0.084665
-            a1_x_pixel = round(a1_x_mm * scale)
-            a1_y_pixel = round(a1_y_mm * scale)
+                center, radius = self.calculate_circle(self.corners)
+                well_size_mm = radius * 2
+                a1_x_mm, a1_y_mm = center
+                scale = 1 / 0.084665
+                a1_x_pixel = round(a1_x_mm * scale)
+                a1_y_pixel = round(a1_y_mm * scale)
 
-            new_format = {
-                'a1_x_mm': a1_x_mm,
-                'a1_y_mm': a1_y_mm,
-                'a1_x_pixel': a1_x_pixel,
-                'a1_y_pixel': a1_y_pixel,
-                'well_size_mm': well_size_mm,
-                'well_spacing_mm': well_spacing_mm,
-                'number_of_skip': 0,
-                'rows': rows,
-                'cols': cols,
-            }
+                new_format = {
+                    'a1_x_mm': a1_x_mm,
+                    'a1_y_mm': a1_y_mm,
+                    'a1_x_pixel': a1_x_pixel,
+                    'a1_y_pixel': a1_y_pixel,
+                    'well_size_mm': well_size_mm,
+                    'well_spacing_mm': well_spacing_mm,
+                    'number_of_skip': 0,
+                    'rows': rows,
+                    'cols': cols,
+                }
 
-            self.wellplateFormatWidget.add_custom_format(name, new_format)
-            self.wellplateFormatWidget.save_formats_to_csv()
-            self.wellplateFormatWidget.setWellplateSettings(name)
+                self.wellplateFormatWidget.add_custom_format(name, new_format)
+                self.wellplateFormatWidget.save_formats_to_csv()
+                self.create_wellplate_image(name, new_format, plate_width_mm, plate_height_mm)
+                self.wellplateFormatWidget.setWellplateSettings(name)
+                success_message = f"New format '{name}' has been successfully created and calibrated."
 
-        else:
-            selected_format = self.existing_format_combo.currentData()
-            if not all(self.corners):
-                QMessageBox.warning(self, "Incomplete Information", "Please set 3 corner points before calibrating.")
-                return
-
-            center, radius = self.calculate_circle(self.corners)
-            well_size_mm = radius * 2
-            a1_x_mm, a1_y_mm = center
-
-            # Get the existing format settings
-            if isinstance(selected_format, int):
-                existing_settings = WELLPLATE_FORMAT_SETTINGS[selected_format]
             else:
-                existing_settings = self.wellplateFormatWidget.custom_formats[selected_format]
+                selected_format = self.existing_format_combo.currentData()
+                if not all(self.corners):
+                    QMessageBox.warning(self, "Incomplete Information", "Please set 3 corner points before calibrating.")
+                    return
 
-            # Calculate the offset between the original 0,0 pixel and 0,0 mm
-            original_offset_x = existing_settings['a1_x_mm'] - (existing_settings['a1_x_pixel'] * 0.084665)
-            original_offset_y = existing_settings['a1_y_mm'] - (existing_settings['a1_y_pixel'] * 0.084665)
+                center, radius = self.calculate_circle(self.corners)
+                well_size_mm = radius * 2
+                a1_x_mm, a1_y_mm = center
 
-            # Calculate new pixel coordinates using the original offset
-            a1_x_pixel = round((a1_x_mm - original_offset_x) / 0.084665)
-            a1_y_pixel = round((a1_y_mm - original_offset_y) / 0.084665)
+                # Get the existing format settings
+                if isinstance(selected_format, int):
+                    existing_settings = WELLPLATE_FORMAT_SETTINGS[selected_format]
+                else:
+                    existing_settings = self.wellplateFormatWidget.custom_formats[selected_format]
 
-            print(f"Updating existing format {selected_format} well plate")
-            updated_settings = {
-                'a1_x_mm': a1_x_mm,
-                'a1_y_mm': a1_y_mm,
-                'a1_x_pixel': a1_x_pixel,
-                'a1_y_pixel': a1_y_pixel,
-                'well_size_mm': well_size_mm,
-            }
+                # Calculate the offset between the original 0,0 pixel and 0,0 mm
+                original_offset_x = existing_settings['a1_x_mm'] - (existing_settings['a1_x_pixel'] * 0.084665)
+                original_offset_y = existing_settings['a1_y_mm'] - (existing_settings['a1_y_pixel'] * 0.084665)
 
-            if isinstance(selected_format, int):
-                WELLPLATE_FORMAT_SETTINGS[selected_format].update(updated_settings)
-            else:
-                self.wellplateFormatWidget.custom_formats[selected_format].update(updated_settings)
+                # Calculate new pixel coordinates using the original offset
+                a1_x_pixel = round((a1_x_mm - original_offset_x) / 0.084665)
+                a1_y_pixel = round((a1_y_mm - original_offset_y) / 0.084665)
 
-            self.wellplateFormatWidget.save_formats_to_csv()
-            self.wellplateFormatWidget.setWellplateSettings(selected_format)
+                print(f"Updating existing format {selected_format} well plate")
+                updated_settings = {
+                    'a1_x_mm': a1_x_mm,
+                    'a1_y_mm': a1_y_mm,
+                    'a1_x_pixel': a1_x_pixel,
+                    'a1_y_pixel': a1_y_pixel,
+                    'well_size_mm': well_size_mm,
+                }
 
-        # Update the WellplateFormatWidget's combo box to reflect the newly calibrated format
-        self.wellplateFormatWidget.populate_combo_box()
-        index = self.wellplateFormatWidget.comboBox.findData(selected_format if self.calibrate_format_radio.isChecked() else name)
-        if index >= 0:
-            self.wellplateFormatWidget.comboBox.setCurrentIndex(index)
+                if isinstance(selected_format, int):
+                    WELLPLATE_FORMAT_SETTINGS[selected_format].update(updated_settings)
+                else:
+                    self.wellplateFormatWidget.custom_formats[selected_format].update(updated_settings)
 
-        self.accept()
+                self.wellplateFormatWidget.save_formats_to_csv()
+                self.wellplateFormatWidget.setWellplateSettings(selected_format)
+                success_message = f"Format '{selected_format} well plate' has been successfully recalibrated."
+
+            # Update the WellplateFormatWidget's combo box to reflect the newly calibrated format
+            self.wellplateFormatWidget.populate_combo_box()
+            index = self.wellplateFormatWidget.comboBox.findData(selected_format if self.calibrate_format_radio.isChecked() else name)
+            if index >= 0:
+                self.wellplateFormatWidget.comboBox.setCurrentIndex(index)
+
+            # Display success message
+            QMessageBox.information(self, "Calibration Successful", success_message)
+            self.accept()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Calibration Error", f"An error occurred during calibration: {str(e)}")
 
     def create_wellplate_image(self, name, format_data, plate_width_mm, plate_height_mm):
 
