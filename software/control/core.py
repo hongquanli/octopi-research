@@ -1891,13 +1891,11 @@ class MultiPointWorker(QObject):
         print("moving to coordinate", coordinate_mm)
         x_mm = coordinate_mm[0]
         self.navigationController.move_x_to(x_mm)
-        self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
         y_mm = coordinate_mm[1]
         self.navigationController.move_y_to(y_mm)
+
         self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
 
         # check if z is included in the coordinate
         if len(coordinate_mm) == 3:
@@ -1919,7 +1917,6 @@ class MultiPointWorker(QObject):
                 self.wait_till_operation_is_completed()
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
     def run_grid_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
