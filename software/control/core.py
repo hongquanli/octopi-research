@@ -2203,7 +2203,6 @@ class MultiPointWorker(QObject):
     def acquire_camera_image(self, config, file_ID, current_path, current_round_images, i, j, k):
         # update the current configuration
         self.signal_current_configuration.emit(config)
-        self.wait_till_operation_is_completed()
 
         # trigger acquisition (including turning on the illumination) and read frame
         if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
@@ -2255,7 +2254,6 @@ class MultiPointWorker(QObject):
             if config_.name in rgb_channels:
                 # update the current configuration
                 self.signal_current_configuration.emit(config_)
-                self.wait_till_operation_is_completed()
 
                 # trigger acquisition (including turning on the illumination)
                 if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
@@ -3248,7 +3246,6 @@ class TrackingWorker(QObject):
             # switch to the tracking config
             config = self.selected_configurations[0]
             self.signal_current_configuration.emit(config)
-            self.wait_till_operation_is_completed()
 
             # do autofocus
             if self.trackingController.flag_AF_enabled and tracking_frame_counter > 1:
@@ -3267,7 +3264,6 @@ class TrackingWorker(QObject):
             config = self.selected_configurations[0]
             if(self.number_of_selected_configurations > 1):
                 self.signal_current_configuration.emit(config)
-                self.wait_till_operation_is_completed()
                 self.liveController.turn_on_illumination()        # keep illumination on for single configuration acqusition
             t = time.time()
             self.camera.send_trigger()
@@ -3285,7 +3281,6 @@ class TrackingWorker(QObject):
             # image the rest configurations
             for config_ in self.selected_configurations[1:]:
                 self.signal_current_configuration.emit(config_)
-                self.wait_till_operation_is_completed()
                 self.liveController.turn_on_illumination()
                 self.camera.send_trigger()
                 image_ = self.camera.read_frame()
