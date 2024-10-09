@@ -459,9 +459,9 @@ void tmc4361A_tmc2660_init(TMC4361ATypeDef *tmc4361A, uint32_t clk_Hz_TMC4361) {
   // SPI configuration
   tmc4361A_writeInt(tmc4361A, TMC4361A_SPIOUT_CONF, 0x4440108A);
   // cover datagram for TMC2660
-  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000900C3);
-  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000A0000);
-  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000C000A);
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000900C3); // CHOPCONF
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000A0000); // SMARTEN
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000C000A); // SGCSCON
   tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000E00A1); // SDOFF = 1 -> SPI mode
   // current scaling
   tmc4361A_cScaleInit(tmc4361A);
@@ -469,6 +469,56 @@ void tmc4361A_tmc2660_init(TMC4361ATypeDef *tmc4361A, uint32_t clk_Hz_TMC4361) {
   tmc4361A_writeMicrosteps(tmc4361A);
   tmc4361A_writeSPR(tmc4361A);
   return;
+}
+
+/*
+  -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_tmc2660_disable_driver() shut off driver MOSFETs 
+
+  OPERATION:   shut off the driver MOSFETs to make axis to disable status
+
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+
+  RETURNS: None
+
+  LOCAL VARIABLES: None
+
+  SHARED VARIABLES:
+      TMC4361ATypeDef *tmc4361A: Values are read from the struct
+
+  GLOBAL VARIABLES: None
+
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+void tmc4361A_tmc2660_disable_driver(TMC4361ATypeDef *tmc4361A) {
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000900C0); // CHOPCONF
+}
+
+/*
+  -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_tmc2660_enable_driver() enable driver MOSFETs to init argument value
+
+  OPERATION:   enable the driver MOSFETs to make axis to enable status
+
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+
+  RETURNS: None
+
+  LOCAL VARIABLES: None
+
+  SHARED VARIABLES:
+      TMC4361ATypeDef *tmc4361A: Values are read from the struct
+
+  GLOBAL VARIABLES: None
+
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+void tmc4361A_tmc2660_enable_driver(TMC4361ATypeDef *tmc4361A) {
+  tmc4361A_writeInt(tmc4361A, TMC4361A_COVER_LOW_WR, 0x000900C3); // CHOPCONF
 }
 
 /*
