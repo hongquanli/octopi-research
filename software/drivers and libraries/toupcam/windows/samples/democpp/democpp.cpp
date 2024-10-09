@@ -141,26 +141,36 @@ private:
 	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 	{
 		CenterWindow(GetParent());
-
-		unsigned nMin = 0, nMax = 0, nDef = 0, nTime = 0;
-		if (SUCCEEDED(Toupcam_get_ExpTimeRange(m_hcam, &nMin, &nMax, &nDef)))
-		{
-			CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
-			ctrl.SetRangeMin(nMin);
-			ctrl.SetRangeMax(nMax);
-
-			if (SUCCEEDED(Toupcam_get_ExpoTime(m_hcam, &nTime)))
-				ctrl.SetPos(nTime);
-		}
-		
 		return TRUE;
 	}
 
 	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		CTrackBarCtrl ctrl(GetDlgItem(IDC_SLIDER1));
-		Toupcam_put_ExpoTime(m_hcam, ctrl.GetPos());
+		CString str;
+		GetDlgItemText(IDC_EDIT1, str);
 
+		wchar_t* endptr = NULL;
+		const double d = _tcstod(str.GetString(), &endptr);
+		if (endptr && *endptr)
+		{
+			GotoDlgCtrl(GetDlgItem(IDC_EDIT1));
+			AtlMessageBox(m_hWnd, L"Bad format.");
+			return 0;
+		}
+
+		const unsigned nTime = (unsigned)(d * 1000);
+		unsigned nMin = 0, nMax = 0, nDef = 0;
+		if (SUCCEEDED(Toupcam_get_ExpTimeRange(m_hcam, &nMin, &nMax, &nDef)))
+		{
+			if ((nTime < nMin) || (nTime >= nMax))
+			{
+				GotoDlgCtrl(GetDlgItem(IDC_EDIT1));
+				AtlMessageBox(m_hWnd, L"Out of range.");
+				return 0;
+			}
+		}
+
+		Toupcam_put_ExpoTime(m_hcam, nTime);
 		EndDialog(wID);
 		return 0;
 	}
@@ -1654,8 +1664,6 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	int				m_nSnapType; // 0-> not snaping, 1 -> single snap, 2 -> multiple snap
 	unsigned		m_nSnapSeq;
 	unsigned		m_nSnapFile;
-	unsigned		m_nFrameCount;
-	DWORD			m_dwStartTick, m_dwLastTick;
 
 	wchar_t			m_szFilePath[MAX_PATH];
 
@@ -1678,6 +1686,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 		MESSAGE_HANDLER(WM_DESTROY, OnWmDestroy)
 		MESSAGE_HANDLER(MSG_CAMEVENT, OnMsgCamEvent)
 		MESSAGE_HANDLER(MSG_CAMENUM, OnMsgCamEnum)
+		MSG_WM_TIMER(OnTimer)
 		MSG_WM_DEVICECHANGE(OnWmDeviceChange)
 		COMMAND_RANGE_HANDLER_EX(ID_DEVICE_DEVICE0, ID_DEVICE_DEVICEF, OnOpenDevice)
 		COMMAND_RANGE_HANDLER_EX(ID_PREVIEW_RESOLUTION0, ID_PREVIEW_RESOLUTION4, OnPreviewResolution)
@@ -1767,7 +1776,7 @@ class CMainFrame : public CFrameWindowImpl<CMainFrame>, public CUpdateUI<CMainFr
 	END_UPDATE_UI_MAP()
 public:
 	CMainFrame()
-	: m_hcam(NULL), m_bPaused(FALSE), m_nSnapType(0), m_nSnapSeq(0), m_nSnapFile(0), m_nFrameCount(0), m_dwStartTick(0), m_dwLastTick(0), m_pWmvRecord(NULL), m_pData(NULL), m_view(this)
+	: m_hcam(NULL), m_bPaused(FALSE), m_nSnapType(0), m_nSnapSeq(0), m_nSnapFile(0), m_pWmvRecord(NULL), m_pData(NULL), m_view(this)
 	{
 		m_bTriggerMode = false;
 		m_nTriggerNumber = 1;
@@ -1826,6 +1835,12 @@ private:
 		return 0;
 	}
 
+	void OnTimer(UINT_PTR nIDEvent)
+	{
+		if (1 == nIDEvent)
+			UpdateFrameText();
+	}
+
 	BOOL OnWmDeviceChange(UINT nEventType, DWORD_PTR dwData)
 	{
 		if ((DBT_DEVNODES_CHANGED == nEventType) || (DBT_DEVICEARRIVAL == nEventType) || (DBT_DEVICEREMOVECOMPLETE == nEventType))
@@ -1870,7 +1885,7 @@ private:
 		CreateSimpleStatusBar();
 
 		{
-			int iWidth[] = { 150, 400, 600, -1 };
+			int iWidth[] = { 150, 450, 650, 850, -1 };
 			CStatusBarCtrl statusbar(m_hWndStatusBar);
 			statusbar.SetParts(_countof(iWidth), iWidth);
 		}
@@ -1878,7 +1893,7 @@ private:
 		m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, WS_EX_CLIENTEDGE);
 		
 		OnDeviceChanged();
-
+		SetTimer(1, 1000);
 		return 0;
 	}
 
@@ -2244,8 +2259,6 @@ private:
 					m_nSnapType = 0;
 					m_nSnapSeq = 0;
 					UISetCheck(ID_ACTION_PAUSE, FALSE);
-					m_nFrameCount = 0;
-					m_dwStartTick = m_dwLastTick = 0;
 
 					Toupcam_put_eSize(m_hcam, nID - ID_PREVIEW_RESOLUTION0);
 					for (unsigned i = 0; i < m_dev.model->preview; ++i)
@@ -2254,7 +2267,8 @@ private:
 					if (SUCCEEDED(Toupcam_get_Size(m_hcam, (int*)&m_header.biWidth, (int*)&m_header.biHeight)))
 					{
 						UpdateResolutionText();
-						UpdateFrameText(L"");
+						UpdateStatusText(3, L"");
+						UpdateStatusText(4, L"");
 						UpdateExposureTimeText();
 
 						m_header.biSizeImage = TDIBWIDTHBYTES(m_header.biWidth * m_header.biBitCount) * m_header.biHeight;
@@ -2324,8 +2338,6 @@ private:
 		m_nSnapType = 0;
 		m_nSnapSeq = 0;
 		UISetCheck(ID_ACTION_PAUSE, FALSE);
-		m_nFrameCount = 0;
-		m_dwStartTick = m_dwLastTick = 0;
 		const int idx = nID - ID_DEVICE_DEVICE0;
 		m_hcam = Toupcam_Open(m_arrDev[idx].id);
 		if (m_hcam)
@@ -2351,7 +2363,8 @@ private:
 			}
 
 			OnDeviceChanged();
-			UpdateFrameText(L"");
+			UpdateStatusText(3, L"");
+			UpdateStatusText(4, L"");
 
 			if ((m_header.biWidth > 0) && (m_header.biHeight > 0))
 			{
@@ -2415,14 +2428,9 @@ private:
 		if ((info.v3.width != m_header.biWidth) || (info.v3.height != m_header.biHeight))
 			return;
 
-		++m_nFrameCount;
-		if (0 == m_dwStartTick)
-			m_dwLastTick = m_dwStartTick = GetTickCount();
-		else
-			m_dwLastTick = GetTickCount();
 		m_view.Invalidate();
 
-		UpdateFrameText(info);
+		UpdateFrameInfoText(info);
 		if (m_pWmvRecord)
 			m_pWmvRecord->WriteSample(m_pData);
 	}
@@ -2500,24 +2508,22 @@ private:
 
 	void OnEventTemptint()
 	{
-		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		int nTemp = TOUPCAM_TEMP_DEF, nTint = TOUPCAM_TINT_DEF;
 		Toupcam_get_TempTint(m_hcam, &nTemp, &nTint);
 		swprintf(res, L"Temp = %d, Tint = %d", nTemp, nTint);
-		statusbar.SetText(2, res);
+		UpdateStatusText(2, res);
 	}
 
 	void OnEventExpo()
 	{
-		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		unsigned nTime = 0;
 		unsigned short Gain = 0;
 		if (SUCCEEDED(Toupcam_get_ExpoTime(m_hcam, &nTime)) && SUCCEEDED(Toupcam_get_ExpoAGain(m_hcam, &Gain)))
 		{
 			swprintf(res, L"ExposureTime = %u, Gain = %hu", nTime, Gain);
-			statusbar.SetText(1, res);
+			UpdateStatusText(1, res);
 		}
 	}
 
@@ -2567,6 +2573,7 @@ private:
 			statusbar.SetText(1, L"");
 			statusbar.SetText(2, L"");
 			statusbar.SetText(3, L"");
+			statusbar.SetText(4, L"");
 
 			UIEnable(ID_CONFIG_EXPOSURETIME, FALSE);
 		}
@@ -2687,52 +2694,51 @@ private:
 
 	void UpdateResolutionText()
 	{
-		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		unsigned xOffset = 0, yOffset = 0, nWidth = 0, nHeight = 0;
 		if (SUCCEEDED(Toupcam_get_Roi(m_hcam, &xOffset, &yOffset, &nWidth, &nHeight)))
 		{
 			swprintf(res, L"%u, %u, %u * %u", xOffset, yOffset, nWidth, nHeight);
-			statusbar.SetText(0, res);
+			UpdateStatusText(0, res);
 		}
 	}
 
-	void UpdateFrameText(const wchar_t* str)
+	void UpdateStatusText(int nPane, const wchar_t* str)
 	{
 		CStatusBarCtrl statusbar(m_hWndStatusBar);
-		statusbar.SetText(3, str);
+		statusbar.SetText(nPane, str);
 	}
 
-	void UpdateFrameText(const ToupcamFrameInfoV4& info)
+	void UpdateFrameText()
+	{
+		unsigned nFrame = 0, nTime = 0, nTotalFrame = 0;
+		if (m_hcam && SUCCEEDED(Toupcam_get_FrameRate(m_hcam, &nFrame, &nTime, &nTotalFrame)))
+		{
+			wchar_t str[256];
+			if (nTime >= 1000)
+				swprintf(str, L"total: %u, fps: %.1f", nTotalFrame, nFrame * 1000.0 / nTime);
+			else
+				swprintf(str, L"total: %u", nTotalFrame);
+			UpdateStatusText(3, str);
+		}
+	}
+
+	void UpdateFrameInfoText(const ToupcamFrameInfoV4& info)
 	{
 		wchar_t str[256];
-		if (m_dwLastTick != m_dwStartTick)
-		{
-			if (info.v3.flag & (TOUPCAM_FRAMEINFO_FLAG_SEQ | TOUPCAM_FRAMEINFO_FLAG_TIMESTAMP))
-				swprintf(str, L"%u, %.2f, %u, %llu", m_nFrameCount, m_nFrameCount / ((m_dwLastTick - m_dwStartTick) / 1000.0), info.v3.seq, info.v3.timestamp);
-			else
-				swprintf(str, L"%u, %.2f", m_nFrameCount, m_nFrameCount / ((m_dwLastTick - m_dwStartTick) / 1000.0));
-		}
-		else
-		{
-			if (info.v3.flag & (TOUPCAM_FRAMEINFO_FLAG_SEQ | TOUPCAM_FRAMEINFO_FLAG_TIMESTAMP))
-				swprintf(str, L"%u, %u, %llu", m_nFrameCount, info.v3.seq, info.v3.timestamp);
-			else
-				swprintf(str, L"%u", m_nFrameCount);
-		}
-		UpdateFrameText(str);
+		swprintf(str, L"seq: %u, timestamp: %llu", info.v3.seq, info.v3.timestamp);
+		UpdateStatusText(4, str);
 	}
 
 	void UpdateExposureTimeText()
 	{
-		CStatusBarCtrl statusbar(m_hWndStatusBar);
 		wchar_t res[128];
 		unsigned nTime = 0;
 		unsigned short Gain = 0;
 		if (SUCCEEDED(Toupcam_get_ExpoTime(m_hcam, &nTime)) && SUCCEEDED(Toupcam_get_ExpoAGain(m_hcam, &Gain)))
 		{
-			swprintf(res, L"ExposureTime = %u, Gain = %hu", nTime, Gain);
-			statusbar.SetText(1, res);
+			swprintf(res, L"ExpoTime = %u, Gain = %hu", nTime, Gain);
+			UpdateStatusText(1, res);
 		}
 	}
 

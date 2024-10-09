@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 /*
-    Version: 57.26345.20240818
+    Version: 57.26598.20240928
 
     For Microsoft dotNET Framework & dotNet Core
 
@@ -250,7 +250,10 @@ internal class Toupcam : IDisposable
         OPTION_AUTOEXP_POLICY = 0x10,
         /* limit the frame rate, range=[0, 63], the default value 0 means no limit */
         OPTION_FRAMERATE = 0x11,
-        /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing, default value: 0 */
+        /* demosaic method for both video and still image: BILINEAR = 0, VNG(Variable Number of Gradients) = 1, PPG(Patterned Pixel Grouping) = 2, AHD(Adaptive Homogeneity Directed) = 3, EA(Edge Aware) = 4, see https://en.wikipedia.org/wiki/Demosaicing
+            In terms of CPU usage, EA is the lowest, followed by BILINEAR, and the others are higher.
+            default value: 0
+        */
         OPTION_DEMOSAIC = 0x12,
         /* demosaic method for video */
         OPTION_DEMOSAIC_VIDEO = 0x13,
@@ -273,8 +276,8 @@ internal class Toupcam : IDisposable
         /* Conversion Gain:
                 0 = LCG
                 1 = HCG
-                2 = HDR (for camera with flag TOUPCAM_FLAG_CGHDR)
-                2 = MCG (for camera with flag TOUPCAM_FLAG_GHOPTO)
+                2 = HDR (for camera with flag FLAG_CGHDR)
+                2 = MCG (for camera with flag FLAG_GHOPTO)
         */
         OPTION_CG = 0x19,
         /* pixel format */
@@ -353,7 +356,7 @@ internal class Toupcam : IDisposable
         OPTION_NOPACKET_TIMEOUT = 0x2b,
         /* get the precise frame rate maximum value in 0.1 fps, such as 115 means 11.5 fps. E_NOTIMPL means not supported */
         OPTION_MAX_PRECISE_FRAMERATE = 0x2c,
-        /* precise frame rate current value in 0.1 fps, range:[1~maximum] */
+        /* precise frame rate current value in 0.1 fps. use OPTION_MAX_PRECISE_FRAMERATE, OPTION_MIN_PRECISE_FRAMERATE to get the range. if the set value is out of range, E_INVALIDARG will be returned */
         OPTION_PRECISE_FRAMERATE = 0x2d,
         /* bandwidth, [1-100]% */
         OPTION_BANDWIDTH = 0x2e,
@@ -365,7 +368,7 @@ internal class Toupcam : IDisposable
             All the memory will be pre-allocated when the camera starts, so, please attention to memory usage
         */
         OPTION_FRONTEND_DEQUE_LENGTH = 0x31,
-        /* alias of TOUPCAM_OPTION_FRONTEND_DEQUE_LENGTH */
+        /* alias of OPTION_FRONTEND_DEQUE_LENGTH */
         OPTION_FRAME_DEQUE_LENGTH = 0x31,
         /* get the precise frame rate minimum value in 0.1 fps, such as 15 means 1.5 fps */
         OPTION_MIN_PRECISE_FRAMERATE = 0x32,
@@ -375,7 +378,7 @@ internal class Toupcam : IDisposable
         OPTION_SEQUENCER_NUMBER = 0x34,
         /* sequencer trigger: exposure time, iOption = OPTION_SEQUENCER_EXPOTIME | index, iValue = exposure time
             For example, to set the exposure time of the third group to 50ms, call:
-            Toupcam_put_Option(TOUPCAM_OPTION_SEQUENCER_EXPOTIME | 3, 50000)
+            put_Option(OPTION_SEQUENCER_EXPOTIME | 3, 50000)
         */
         OPTION_SEQUENCER_EXPOTIME = 0x01000000,
         /* sequencer trigger: exposure gain, iOption = OPTION_SEQUENCER_EXPOGAIN | index, iValue = gain */
@@ -426,8 +429,8 @@ internal class Toupcam : IDisposable
         /* get the current number in backend deque */
         OPTION_BACKEND_DEQUE_CURRENT = 0x46,
         /* enable or disable hardware event: 0 => disable, 1 => enable; default: disable
-                (1) iOption = TOUPCAM_OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
-                (2) iOption = TOUPCAM_OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
+                (1) iOption = OPTION_EVENT_HARDWARE, master switch for notification of all hardware events
+                (2) iOption = OPTION_EVENT_HARDWARE | (event type), a specific type of sub-switch
             Only if both the master switch and the sub-switch of a particular type remain on are actually enabled for that type of event notification.
         */
         OPTION_EVENT_HARDWARE = 0x04000000,
@@ -596,7 +599,17 @@ internal class Toupcam : IDisposable
         /* Correlated Double Sampling */
         OPTION_CDS = 0x6e,
         /* Low Power Consumption: Enable if exposure time is greater than the set value */
-        OPTION_LOW_POWER_EXPOTIME = 0x6f
+        OPTION_LOW_POWER_EXPOTIME = 0x6f,
+        /* Sensor output offset to zero: 0 => disable, 1 => eanble; default: 0 */
+        OPTION_ZERO_OFFSET = 0x70,
+        /* GVCP Timeout: millisecond, range = [3, 75], default: 15
+             Unless in very special circumstances, generally no modification is required, just use the default value
+        */
+        OPTION_GVCP_TIMEOUT = 0x71,
+        /* GVCP Retry: range = [2, 8], default: 4
+             Unless in very special circumstances, generally no modification is required, just use the default value
+        */
+        OPTION_GVCP_RETRY = 0x72
     };
 
     /* HRESULT: error code */
@@ -645,11 +658,11 @@ internal class Toupcam : IDisposable
     public const int SATURATION_MIN = 0;        /* saturation */
     public const int SATURATION_MAX = 255;      /* saturation */
     public const int BRIGHTNESS_DEF = 0;        /* brightness */
-    public const int BRIGHTNESS_MIN = -128;     /* brightness */
-    public const int BRIGHTNESS_MAX = 128;      /* brightness */
+    public const int BRIGHTNESS_MIN = -255;     /* brightness */
+    public const int BRIGHTNESS_MAX = 255;      /* brightness */
     public const int CONTRAST_DEF = 0;        /* contrast */
-    public const int CONTRAST_MIN = -250;     /* contrast */
-    public const int CONTRAST_MAX = 250;      /* contrast */
+    public const int CONTRAST_MIN = -255;     /* contrast */
+    public const int CONTRAST_MAX = 255;      /* contrast */
     public const int GAMMA_DEF = 100;      /* gamma */
     public const int GAMMA_MIN = 20;       /* gamma */
     public const int GAMMA_MAX = 180;      /* gamma */
@@ -881,11 +894,11 @@ internal class Toupcam : IDisposable
         IOCONTROLTYPE_GET_USER_PULSE_NUMBER = 0x41,
         IOCONTROLTYPE_SET_USER_PULSE_NUMBER = 0x42,
         /* External trigger number */
-        TOUPCAM_IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER = 0x43,
+        IOCONTROLTYPE_GET_EXTERNAL_TRIGGER_NUMBER = 0x43,
         /* Trigger signal number after debounce */
-        TOUPCAM_IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = 0x45,
+        IOCONTROLTYPE_GET_DEBOUNCER_TRIGGER_NUMBER = 0x45,
         /* Effective trigger signal number */
-        TOUPCAM_IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = 0x47
+        IOCONTROLTYPE_GET_EFFECTIVE_TRIGGER_NUMBER = 0x47
     };
 
     public const int IOCONTROL_DELAYTIME_MAX = 5 * 1000 * 1000;
@@ -945,7 +958,7 @@ internal class Toupcam : IDisposable
     public struct ModelV2
     {
         public string name;         /* model name */
-        public ulong flag;          /* TOUPCAM_FLAG_xxx, 64 bits */
+        public ulong flag;          /* FLAG_xxx, 64 bits */
         public uint maxspeed;       /* number of speed level, same as get_MaxSpeed(), the speed range = [0, maxspeed], closed interval */
         public uint preview;        /* number of preview resolution, same as get_ResolutionNumber() */
         public uint still;          /* number of still resolution, same as get_StillResolutionNumber() */
@@ -1132,7 +1145,7 @@ internal class Toupcam : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /* get the version of this dll/so, which is: 57.26345.20240818 */
+    /* get the version of this dll/so, which is: 57.26598.20240928 */
     public static string Version()
     {
         return Toupcam_Version();
@@ -1639,11 +1652,11 @@ internal class Toupcam : IDisposable
        bStill: to pull still image, set to 1, otherwise 0
        bits: 24 (RGB24), 32 (RGB32), 48 (RGB48), 8 (Grey), 16 (Grey), 64 (RGB64).
              In RAW mode, this parameter is ignored.
-             bits = 0 means using default bits base on TOUPCAM_OPTION_RGB.
-             When bits and TOUPCAM_OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
-             See the following bits and TOUPCAM_OPTION_RGB correspondence table:
+             bits = 0 means using default bits base on OPTION_RGB.
+             When bits and OPTION_RGB are inconsistent, format conversion will have to be performed, resulting in loss of efficiency.
+             See the following bits and OPTION_RGB correspondence table:
                ----------------------------------------------------------------------------------------------------------------------
-               | TOUPCAM_OPTION_RGB |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
+               | OPTION_RGB         |   0 (RGB24)   |   1 (RGB48)   |   2 (RGB32)   |   3 (Grey8)   |  4 (Grey16)   |   5 (RGB64)   |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
                | bits = 0           |      24       |       48      |      32       |       8       |       16      |       64      |
                |--------------------|---------------|---------------|---------------|---------------|---------------|---------------|
@@ -2177,7 +2190,8 @@ internal class Toupcam : IDisposable
     }
 
     /*
-        0: stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
+        0: no realtime
+              stop grab frame when frame buffer deque is full, until the frames in the queue are pulled away and the queue is not full
         1: realtime
               use minimum frame buffer. When new frame arrive, drop all the pending frame regardless of whether the frame buffer is full.
               If DDR present, also limit the DDR frame buffer to only one frame.
@@ -2984,7 +2998,7 @@ internal class Toupcam : IDisposable
     * cmd: input
     *    -1:       query the number
     *    0~number: query the nth pixel format
-    * pixelFormat: output, TOUPCAM_PIXELFORMAT_xxxx
+    * pixelFormat: output, PIXELFORMAT_xxxx
     */
     public bool get_PixelFormatSupport(sbyte cmd, out int pixelFormat)
     {
@@ -3980,10 +3994,10 @@ internal class Toupcam : IDisposable
         | Temp                    |   1000~25000  |   6503                |
         | Tint                    |   100~2500    |   1000                |
         | LevelRange              |   0~255       |   Low = 0, High = 255 |
-        | Contrast                |   -250~250    |   0                   |
+        | Contrast                |   -255~255    |   0                   |
         | Hue                     |   -180~180    |   0                   |
         | Saturation              |   0~255       |   128                 |
-        | Brightness              |   -128~128    |   0                   |
+        | Brightness              |   -255~255    |   0                   |
         | Gamma                   |   20~180      |   100                 |
         | WBGain                  |   -127~127    |   0                   |
         ------------------------------------------------------------------|

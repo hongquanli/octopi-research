@@ -1462,7 +1462,7 @@ public:
 
 	LRESULT OnSave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 	{
-		if (m_vecGraph.size() && m_vecGraph[0].dataNum() > 0)
+		if (m_vecGraph.size() && (m_vecGraph[0].dataNum() > 0))
 		{
 			CFileDialog dlg(FALSE, _T("cns"), nullptr, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, L"CNS Files (*.cns)\0*.cns\0All Files (*.*)\0*.*\0\0", m_hWnd);
 			if (IDOK == dlg.DoModal())
