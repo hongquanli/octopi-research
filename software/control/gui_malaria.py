@@ -157,6 +157,8 @@ class OctopiGUI(QMainWindow):
             self.camera.set_reset_strobe_delay_function(self.liveController.reset_strobe_arugment)
 
         # load widgets
+        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
+        self.contrastManager = widgets.ContrastManager()
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='malaria')
@@ -166,22 +168,10 @@ class OctopiGUI(QMainWindow):
         self.focusMapWidget = widgets.FocusMapWidget(self.autofocusController)
         if ENABLE_TRACKING:
             self.trackingControlWidget = widgets.TrackingControllerWidget(self.trackingController,self.configurationManager,show_configurations=TRACKING_SHOW_MICROSCOPE_CONFIGURATIONS)
-        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
-        self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
-        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates)
-
-        self.recordTabWidget = QTabWidget()
-        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
-        if ENABLE_SCAN_GRID:
-            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Auto-Grid Multipoint")
-        self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
-        if ENABLE_TRACKING:
-            self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
-        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
-
+        
         self.imageDisplayTabs = QTabWidget()
         if USE_NAPARI_FOR_LIVE_VIEW:
-            self.napariLiveWidget = widgets.NapariLiveWidget(self.liveControlWidget)
+            self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.contrastManager)
             self.imageDisplayTabs.addTab(self.napariLiveWidget, "Live View")
         else:
             if ENABLE_TRACKING:
@@ -192,7 +182,7 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
         if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore)
+            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, self.contrastManager)
             self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
         else:
             self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
@@ -200,21 +190,41 @@ class OctopiGUI(QMainWindow):
 
         if SHOW_TILED_PREVIEW:
             if USE_NAPARI_FOR_TILED_DISPLAY:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore)
+                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore, self.contrastManager)
                 self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
             else:
                 self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
                 self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
 
-        # layout widgets
+        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+            self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore, self.contrastManager)
+            self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
+
+        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController,self.configurationManager)
+        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates, self.napariMosaicDisplayWidget)
+
+        self.recordTabWidget = QTabWidget()
+        self.recordTabWidget.addTab(self.multiPointWidget, "Multipoint Acquisition")
+        if ENABLE_SCAN_GRID:
+            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Auto-Grid Multipoint")
+        self.recordTabWidget.addTab(self.focusMapWidget, "Contrast Focus Map")
+        if ENABLE_TRACKING:
+            self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
+        #self.recordTabWidget.addTab(self.recordingControlWidget, "Simple Recording")
+        self.recordTabWidget.currentChanged.connect(lambda: self.resizeCurrentTab(self.recordTabWidget))
+        self.resizeCurrentTab(self.recordTabWidget)
+
         frame = QFrame()
         frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
         # Creating the top row layout and adding widgets
         top_row_layout = QHBoxLayout()
         top_row_layout.addWidget(self.objectivesWidget)
+        top_row_layout.setContentsMargins(1, 1, 1, 1)
         frame.setLayout(top_row_layout)  # Set the layout on the frame
-        layout = QVBoxLayout() #layout = QStackedLayout()
-        layout.addWidget(frame)
+
+
+        # layout widgets
+        layout = QVBoxLayout()
         #layout.addWidget(self.cameraSettingWidget)
         layout.addWidget(self.liveControlWidget)
         layout.addWidget(self.navigationWidget)
@@ -222,6 +232,7 @@ class OctopiGUI(QMainWindow):
             layout.addWidget(self.dacControlWidget)
         layout.addWidget(self.autofocusWidget)
         layout.addWidget(self.recordTabWidget)
+        layout.addWidget(frame)
         layout.addWidget(self.navigationViewer)
         layout.addStretch()
 
@@ -301,9 +312,6 @@ class OctopiGUI(QMainWindow):
             self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
             self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
 
-            if USE_NAPARI_FOR_LIVE_VIEW:
-                self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
-                self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
         else:
             self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
@@ -319,16 +327,22 @@ class OctopiGUI(QMainWindow):
                 self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
                 self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
 
-                if USE_NAPARI_FOR_LIVE_VIEW:
-                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariLiveWidget.saveContrastLimits)
-                    self.napariLiveWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
-
-                if USE_NAPARI_FOR_MULTIPOINT:
-                    self.napariTiledDisplayWidget.signal_layer_contrast_limits.connect(self.napariMultiChannelWidget.saveContrastLimits)
-                    self.napariMultiChannelWidget.signal_layer_contrast_limits.connect(self.napariTiledDisplayWidget.saveContrastLimits)
             else:
                 self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                 self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
+
+        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+            self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+            self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+            if ENABLE_SCAN_GRID:
+                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+                self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+                self.multiPointWidgetGrid.signal_draw_shape.connect(self.napariMosaicDisplayWidget.enable_shape_drawing)
+                self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
+
+            self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
+            self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
+            self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -344,6 +358,15 @@ class OctopiGUI(QMainWindow):
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
 
         self.navigationController.move_to_cached_position()
+
+    def resizeCurrentTab(self, tabWidget):
+        current_widget = tabWidget.currentWidget()
+        if current_widget:
+            total_height = current_widget.sizeHint().height() + tabWidget.tabBar().height()
+            tabWidget.resize(tabWidget.width(), total_height)
+            tabWidget.setMaximumHeight(total_height)
+            tabWidget.updateGeometry()
+            self.updateGeometry()
 
     def closeEvent(self, event):
         self.navigationController.cache_current_position()

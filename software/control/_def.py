@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 from configparser import ConfigParser
 import json
+import csv
 
 def conf_attribute_reader(string_value):
     """
@@ -59,7 +60,7 @@ def populate_class_from_dict(myclass, options):
 class TriggerMode:
     SOFTWARE = 'Software Trigger'
     HARDWARE = 'Hardware Trigger'
-    CONTINUOUS = 'Continuous Acqusition'
+    CONTINUOUS = 'Continuous Acquisition'
 
 class Acquisition:
     CROP_WIDTH = 3000
@@ -349,17 +350,7 @@ class PLATE_READER:
 DEFAULT_DISPLAY_CROP = 100 # value ranges from 1 to 100 - image display crop size 
 
 CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'IMX252':3.45,'IMX273':3.45,'IMX264':3.45,'IMX265':3.45,'IMX571':3.76,'PYTHON300':4.8}
-OBJECTIVES = {
-    '2x':{'magnification':2, 'NA':0.10, 'tube_lens_f_mm':180},
-    '4x':{'magnification':4, 'NA':0.13, 'tube_lens_f_mm':180},
-    '10x':{'magnification':10, 'NA':0.3, 'tube_lens_f_mm':180},
-    '10x (Mitutoyo)':{'magnification':10, 'NA':0.25, 'tube_lens_f_mm':200},
-    '20x':{'magnification':20, 'NA':0.8, 'tube_lens_f_mm':180},
-    '20x (Nikon)':{'magnification':20, 'NA':0.45, 'tube_lens_f_mm':200},
-    '20x (Boli)':{'magnification':20, 'NA':0.4, 'tube_lens_f_mm':180},
-    '40x':{'magnification':40, 'NA':0.95, 'tube_lens_f_mm':180},
-    '60x':{'magnification':60, 'NA':1.2, 'tube_lens_f_mm':180}
-}
+
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
 DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
@@ -419,7 +410,7 @@ AUTOLEVEL_DEFAULT_SETTING = False
 
 MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix full'
 # MULTIPOINT_AUTOFOCUS_CHANNEL = 'BF LED matrix left half'
-MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = True
+MULTIPOINT_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
 # MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
@@ -435,7 +426,15 @@ CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritt
 
 ENABLE_STROBE_OUTPUT = False
 
+ACQUISITION_PATTERN = 'S-Pattern' # 'S-Pattern', 'Unidirectional'
+FOV_PATTERN = 'S-Pattern' # 'S-Pattern', 'Unidirectional'
+
 Z_STACKING_CONFIG = 'FROM BOTTOM' # 'FROM BOTTOM', 'FROM TOP'
+Z_STACKING_CONFIG_MAP = {
+    0: 'FROM BOTTOM',
+    1: 'FROM CENTER',
+    2: 'FROM TOP'
+}
 
 # plate format
 WELLPLATE_FORMAT = 384
@@ -471,6 +470,7 @@ USE_GLASS_TOP = True
 SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS = False
 
 MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT = False
+MULTIPOINT_CONTRAST_AUTOFOCUS_ENABLE_BY_DEFAULT = False
 
 RUN_CUSTOM_MULTIPOINT = False
 
@@ -536,6 +536,9 @@ USE_NAPARI_FOR_LIVE_VIEW = False
 USE_NAPARI_FOR_MULTIPOINT = True
 USE_NAPARI_FOR_TILED_DISPLAY = False
 USE_NAPARI_FOR_MOSAIC_DISPLAY = True
+USE_NAPARI_WELL_SELECTION = False
+USE_NAPARI_FOR_LIVE_CONTROL = False
+PERFORMANCE_MODE = False
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
@@ -551,6 +554,9 @@ SCIMICROSCOPY_LED_ARRAY_TURN_ON_DELAY = 0.03 # time to wait before trigger the c
 # Tiled preview
 SHOW_TILED_PREVIEW = False
 PRVIEW_DOWNSAMPLE_FACTOR = 5
+
+# Navigation Bar (Stages)
+SHOW_NAVIGATION_BAR = False
 
 # Stitcher
 ENABLE_STITCHER = False
@@ -578,6 +584,57 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
 OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 
+# Stage
+USE_PRIOR_STAGE = False
+PRIOR_STAGE_SN = ""
+
+def read_objectives_csv(file_path):
+    objectives = {}
+    with open(file_path, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            objectives[row['name']] = {
+                'magnification': float(row['magnification']),
+                'NA': float(row['NA']),
+                'tube_lens_f_mm': float(row['tube_lens_f_mm'])
+            }
+            #print(f"{row['name']}: {objectives[row['name']]}")
+    return objectives
+
+def read_sample_formats_csv(file_path):
+    sample_formats = {}
+    with open(file_path, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            format_key = int(row['format'])
+            sample_formats[format_key] = {
+                'a1_x_mm': float(row['a1_x_mm']),
+                'a1_y_mm': float(row['a1_y_mm']),
+                'a1_x_pixel': int(row['a1_x_pixel']),
+                'a1_y_pixel': int(row['a1_y_pixel']),
+                'well_size_mm': float(row['well_size_mm']),
+                'well_spacing_mm': float(row['well_spacing_mm']),
+                'number_of_skip': int(row['number_of_skip']),
+                'rows': int(row['rows']),
+                'cols': int(row['cols'])
+            }
+            #print(format_key, "well plate settings:", sample_formats[format_key])
+    return sample_formats
+
+OBJECTIVES_CSV_PATH = 'objectives.csv'
+SAMPLE_FORMATS_CSV_PATH = 'sample_formats.csv'
+
+OBJECTIVES = read_objectives_csv(os.path.join('configurations', OBJECTIVES_CSV_PATH))
+WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('configurations', SAMPLE_FORMATS_CSV_PATH))
+
+NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
+WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
+WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
+A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm'] # measured stage position - to update
+A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm'] # measured stage position - to update
+A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel'] # coordinate on the png
+A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel'] # coordinate on the png
+
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
@@ -589,6 +646,7 @@ ENABLE_OBJECTIVE_PIEZO = False
 OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
 OBJECTIVE_PIEZO_RANGE_UM = 300
 OBJECTIVE_PIEZO_HOME_UM = 20
+OBJECTIVE_PIEZO_FLIP_DIR = False
 
 MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = True
 MULTIPOINT_PIEZO_DELAY_MS = 20
@@ -641,6 +699,7 @@ if config_files:
             continue
         myclass = locals()[classkey]
         populate_class_from_dict(myclass,pop_items)
+    
     with open("cache/config_file_path.txt", 'w') as file:
         file.write(config_files[0])
     CACHED_CONFIG_FILE_PATH = config_files[0]
@@ -680,52 +739,3 @@ Z_HOME_SAFETY_MARGIN_UM = 600
 
 if ENABLE_TRACKING:
     DEFAULT_DISPLAY_CROP = Tracking.DEFAULT_DISPLAY_CROP
-
-if WELLPLATE_FORMAT == 384:
-    WELL_SIZE_MM = 3.3
-    WELL_SPACING_MM = 4.5
-    NUMBER_OF_SKIP = 1
-    A1_X_MM = 12.05     # measured stage position - to update
-    A1_Y_MM = 9.05      # measured stage position - to update
-    A1_X_PIXEL = 144    # coordinate on the png
-    A1_Y_PIXEL = 108    # coordinate on the png
-elif WELLPLATE_FORMAT == 96:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 6.21
-    WELL_SPACING_MM = 9
-    A1_X_MM = 11.31      # measured stage position - to update
-    A1_Y_MM = 10.75     # measured stage position - to update
-    A1_X_PIXEL = 171    # coordinate on the png
-    A1_Y_PIXEL = 138    # coordinate on the png
-elif WELLPLATE_FORMAT == 24:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 15.54
-    WELL_SPACING_MM = 19.3
-    A1_X_MM = 17.05     # measured stage position - to update
-    A1_Y_MM = 13.67     # measured stage position - to update
-    A1_X_PIXEL = 144    # coordinate on the png - to update
-    A1_Y_PIXEL = 108    # coordinate on the png - to update
-elif WELLPLATE_FORMAT == 12:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 22.05
-    WELL_SPACING_MM = 26
-    A1_X_MM = 24.75     # measured stage position - to update
-    A1_Y_MM = 16.86     # measured stage position - to update
-    A1_X_PIXEL = 297    # coordinate on the png
-    A1_Y_PIXEL = 209    # coordinate on the png
-elif WELLPLATE_FORMAT == 6:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 34.94
-    WELL_SPACING_MM = 39.2
-    A1_X_MM = 24.55     # measured stage position - to update
-    A1_Y_MM = 23.01     # measured stage position - to update
-    A1_X_PIXEL = 297    # coordinate on the png - to update
-    A1_Y_PIXEL = 209    # coordinate on the png - to update
-elif WELLPLATE_FORMAT == 1536:
-    NUMBER_OF_SKIP = 0
-    WELL_SIZE_MM = 1.5
-    WELL_SPACING_MM = 2.25
-    A1_X_MM = 11.0      # measured stage position - to update
-    A1_Y_MM = 7.86      # measured stage position - to update
-    A1_X_PIXEL = 144    # coordinate on the png - to update
-    A1_Y_PIXEL = 108    # coordinate on the png - to update

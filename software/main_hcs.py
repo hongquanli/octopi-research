@@ -1,5 +1,5 @@
 # set QT_API environment variable
-import os 
+import os
 import glob
 import argparse
 os.environ["QT_API"] = "pyqt5"
@@ -24,6 +24,7 @@ import glob
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action = 'store_true')
+parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action = 'store_true')
 args = parser.parse_args()
 
 def show_config(cfp, configpath, main_gui):
@@ -45,11 +46,9 @@ if __name__ == "__main__":
         legacy_config = True
     app = QApplication([])
     app.setStyle('Fusion')
-    if(args.simulation):
-        win = gui.OctopiGUI(is_simulation = True)
-    else:
-        win = gui.OctopiGUI()
-       
+
+    win = gui.OctopiGUI(is_simulation=args.simulation, performance_mode=args.performance)
+
     acq_config_action = QAction("Acquisition Settings", win)
     acq_config_action.triggered.connect(lambda : show_acq_config(win.configurationManager))
 
@@ -60,7 +59,7 @@ if __name__ == "__main__":
         config_action = QAction("Microscope Settings", win)
         config_action.triggered.connect(lambda : show_config(cf_editor_parser, config_files[0], win))
         file_menu.addAction(config_action)
-    
+
     try:
         csw = win.cswWindow
         if csw is not None:
@@ -78,7 +77,7 @@ if __name__ == "__main__":
             file_menu.addAction(csw_fc_action)
     except AttributeError:
         pass
-    
+
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)
     win.show()
