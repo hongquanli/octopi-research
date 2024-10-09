@@ -306,7 +306,7 @@ PID_P_Y = int(1<<12)
 PID_I_Y = int(0)
 PID_D_Y = int(0)
 
-PID_P_Z = int(1<<14)
+PID_P_Z = int(1<<12)
 PID_I_Z = int(0)
 PID_D_Z = int(1)
 
