@@ -169,7 +169,6 @@ class PlateReadingWorker(QObject):
                         self.signal_current_configuration.emit(config)
                         self.wait_till_operation_is_completed()
                         self.liveController.turn_on_illumination()
-                        self.wait_till_operation_is_completed()
                         self.camera.send_trigger() 
                         image = self.camera.read_frame()
                         self.liveController.turn_off_illumination()
