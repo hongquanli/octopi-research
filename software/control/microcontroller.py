@@ -635,10 +635,11 @@ class Microcontroller():
         self.retry = 0
 
     def resend_last_command(self):
-        self.serial.write(self.last_command)
-        self.mcu_cmd_execution_in_progress = True
-        self.timeout_counter = 0
-        self.retry = self.retry + 1
+        if self.last_command is not None:
+            self.serial.write(self.last_command)
+            self.mcu_cmd_execution_in_progress = True
+            self.timeout_counter = 0
+            self.retry = self.retry + 1
 
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
