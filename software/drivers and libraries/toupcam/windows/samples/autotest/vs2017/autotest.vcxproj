@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{EC8B9E26-62F0-4BEF-8C90-ABA7AC02538A}</ProjectGuid>
+    <Keyword>MFCProj</Keyword>
+    <RootNamespace>autotest</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <UseOfMfc>Static</UseOfMfc>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <UseOfMfc>Static</UseOfMfc>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <UseOfMfc>Static</UseOfMfc>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>Static</UseOfMfc>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>toupcam.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+    </Link>
+    <ResourceCompile />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>toupcam.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+    </Link>
+    <ResourceCompile />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>toupcam.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+    </Link>
+    <ResourceCompile />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PreprocessorDefinitions>_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>toupcam.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+    </Link>
+    <ResourceCompile />
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\AutoTest.h" />
+    <ClInclude Include="..\AutoTestDlg.h" />
+    <ClInclude Include="..\CBitDepthPropertyPage.h" />
+    <ClInclude Include="..\CTestPropertyPage.h" />
+    <ClInclude Include="..\CBitDepthTestPropertyPage.h" />
+    <ClInclude Include="..\CFlushTestPropertyPage.h" />
+    <ClInclude Include="..\CPauseTestPropertyPage.h" />
+    <ClInclude Include="..\CExposureGainPropertyPage.h" />
+    <ClInclude Include="..\CFrameRatePropertyPage.h" />
+    <ClInclude Include="..\COpenCloseTestPropertyPage.h" />
+    <ClInclude Include="..\CPreviewSnapPropertyPage.h" />
+    <ClInclude Include="..\CResTestPropertyPage.h" />
+    <ClInclude Include="..\CROITestPropertyPage.h" />
+    <ClInclude Include="..\CSamplingPropertyPage.h" />
+    <ClInclude Include="..\CSettingPropertySheet.h" />
+    <ClInclude Include="..\CSnapResTestPropertyPage.h" />
+    <ClInclude Include="..\CSnapTestPropertyPage.h" />
+    <ClInclude Include="..\CTestPropertySheet.h" />
+    <ClInclude Include="..\CTriggerTestPropertyPage.h" />
+    <ClInclude Include="..\CWhiteBalancePropertyPage.h" />
+    <ClInclude Include="..\global.h" />
+    <ClInclude Include="..\Resource.h" />
+    <ClInclude Include="..\stdafx.h" />
+    <ClInclude Include="..\targetver.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\AutoTest.cpp" />
+    <ClCompile Include="..\AutoTestDlg.cpp" />
+    <ClCompile Include="..\CBitDepthPropertyPage.cpp" />
+    <ClCompile Include="..\CTestPropertyPage.cpp" />
+    <ClCompile Include="..\CBitDepthTestPropertyPage.cpp" />
+    <ClCompile Include="..\CFlushTestPropertyPage.cpp" />
+    <ClCompile Include="..\CPauseTestPropertyPage.cpp" />
+    <ClCompile Include="..\CExposureGainPropertyPage.cpp" />
+    <ClCompile Include="..\CFrameRatePropertyPage.cpp" />
+    <ClCompile Include="..\COpenCloseTestPropertyPage.cpp" />
+    <ClCompile Include="..\CPreviewSnapPropertyPage.cpp" />
+    <ClCompile Include="..\CResTestPropertyPage.cpp" />
+    <ClCompile Include="..\CROITestPropertyPage.cpp" />
+    <ClCompile Include="..\CSamplingPropertyPage.cpp" />
+    <ClCompile Include="..\CSettingPropertySheet.cpp" />
+    <ClCompile Include="..\CSnapResTestPropertyPage.cpp" />
+    <ClCompile Include="..\CSnapTestPropertyPage.cpp" />
+    <ClCompile Include="..\CTestPropertySheet.cpp" />
+    <ClCompile Include="..\CTriggerTestPropertyPage.cpp" />
+    <ClCompile Include="..\CWhiteBalancePropertyPage.cpp" />
+    <ClCompile Include="..\global.cpp" />
+    <ClCompile Include="..\stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\autotest.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\res\autotest.rc2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\res\autotest.ico" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
