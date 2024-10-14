@@ -6933,20 +6933,23 @@ class WellplateCalibration(QDialog):
                 else:
                     existing_settings = self.wellplateFormatWidget.custom_formats[selected_format]
 
-                # Calculate the offset between the original 0,0 pixel and 0,0 mm
-                original_offset_x = existing_settings['a1_x_mm'] - (existing_settings['a1_x_pixel'] * 0.084665)
-                original_offset_y = existing_settings['a1_y_mm'] - (existing_settings['a1_y_pixel'] * 0.084665)
+                # # Calculate the offset between the original 0,0 pixel and 0,0 mm
+                # original_offset_x = existing_settings['a1_x_mm'] - (existing_settings['a1_x_pixel'] * 0.084665)
+                # original_offset_y = existing_settings['a1_y_mm'] - (existing_settings['a1_y_pixel'] * 0.084665)
 
-                # Calculate new pixel coordinates using the original offset
-                a1_x_pixel = round((a1_x_mm - original_offset_x) / 0.084665)
-                a1_y_pixel = round((a1_y_mm - original_offset_y) / 0.084665)
+                # # Calculate new pixel coordinates using the original offset
+                # a1_x_pixel = round((a1_x_mm - original_offset_x) / 0.084665)
+                # a1_y_pixel = round((a1_y_mm - original_offset_y) / 0.084665)
 
                 print(f"Updating existing format {selected_format} well plate")
+                print(f"OLD: 'a1_x_mm': {existing_settings['a1_x_mm']}, 'a1_y_mm': {existing_settings['a1_y_mm']}, 'well_size_mm': {existing_settings['well_size_mm']}")
+                print(f"NEW: 'a1_x_mm': {a1_x_mm}, 'a1_y_mm': {a1_y_mm}, 'well_size_mm': {well_size_mm}") 
+
                 updated_settings = {
                     'a1_x_mm': a1_x_mm,
                     'a1_y_mm': a1_y_mm,
-                    'a1_x_pixel': a1_x_pixel,
-                    'a1_y_pixel': a1_y_pixel,
+                    # 'a1_x_pixel': a1_x_pixel,
+                    # 'a1_y_pixel': a1_y_pixel,
                     'well_size_mm': well_size_mm,
                 }
 

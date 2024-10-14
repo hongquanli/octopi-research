@@ -2191,10 +2191,10 @@ class MultiPointWorker(QObject):
         self.wait_till_operation_is_completed()
         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
-    def handle_z_offset(self, config, todo):
+    def handle_z_offset(self, config, not_offset):
         if config.z_offset is not None:  # perform z offset for config, assume z_offset is in um
             if config.z_offset != 0.0:
-                direction = 1 if todo else -1
+                direction = 1 if not_offset else -1
                 print("Moving Z offset" + str(config.z_offset * direction))
                 self.navigationController.move_z(config.z_offset/1000*direction)
                 self.wait_till_operation_is_completed()
