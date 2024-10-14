@@ -767,7 +767,7 @@ class OctopiGUI(QMainWindow):
     def togglePerformanceMode(self):
         self.performance_mode = self.performanceModeToggle.isChecked()
         button_txt = "Disable" if self.performance_mode else "Enable"
-        self.performanceModeToggle.setText(button_txt + "Performance Mode")
+        self.performanceModeToggle.setText(button_txt + " Performance Mode")
         self.updatePerformanceMode()
 
     def updatePerformanceMode(self):
