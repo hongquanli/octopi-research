@@ -93,6 +93,7 @@ class OctopiGUI(QMainWindow):
         super().__init__(*args, **kwargs)
 
         self.performance_mode = performance_mode or PERFORMANCE_MODE
+        self.napari_connections = {}
 
         self.loadObjects(is_simulation)
 
@@ -110,6 +111,7 @@ class OctopiGUI(QMainWindow):
             self.waitForMicrocontroller()
             if ENABLE_SCAN_GRID:
                 self.multiPointWidgetGrid.init_z()
+            self.multiPointWidget2.init_z()
 
         # Create the menu bar
         menubar = self.menuBar()
@@ -425,24 +427,25 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True, show_LUT=True, autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
-        if USE_NAPARI_FOR_MULTIPOINT:
-            self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, self.contrastManager)
-            self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
-        else:
-            self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
-            self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
-
-        if SHOW_TILED_PREVIEW:
-            if USE_NAPARI_FOR_TILED_DISPLAY:
-                self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore, self.contrastManager)
-                self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+        if not self.performance_mode:
+            if USE_NAPARI_FOR_MULTIPOINT:
+                self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, self.contrastManager)
+                self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
             else:
-                self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
-                self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
+                self.imageArrayDisplayWindow = core.ImageArrayDisplayWindow()
+                self.imageDisplayTabs.addTab(self.imageArrayDisplayWindow.widget, "Multichannel Acquisition")
 
-        if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-            self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore, self.contrastManager)
-            self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
+            if SHOW_TILED_PREVIEW:
+                if USE_NAPARI_FOR_TILED_DISPLAY:
+                    self.napariTiledDisplayWidget = widgets.NapariTiledDisplayWidget(self.objectiveStore, self.contrastManager)
+                    self.imageDisplayTabs.addTab(self.napariTiledDisplayWidget, "Tiled Preview")
+                else:
+                    self.imageDisplayWindow_scan_preview = core.ImageDisplayWindow(draw_crosshairs=True)
+                    self.imageDisplayTabs.addTab(self.imageDisplayWindow_scan_preview.widget, "Tiled Preview")
+
+            if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+                self.napariMosaicDisplayWidget = widgets.NapariMosaicDisplayWidget(self.objectiveStore, self.contrastManager)
+                self.imageDisplayTabs.addTab(self.napariMosaicDisplayWidget, "Mosaic View")
 
         if SUPPORT_LASER_AUTOFOCUS:
             dock_laserfocus_image_display = dock.Dock('Focus Camera Image Display', autoOrientation=False)
@@ -527,6 +530,13 @@ class OctopiGUI(QMainWindow):
 
         layout.addWidget(self.sampleSettingsWidget)
         layout.addWidget(self.navigationViewer)
+
+        # Add performance mode toggle button
+        self.performanceModeToggle = QPushButton("Enable Performance Mode")
+        self.performanceModeToggle.setCheckable(True)
+        self.performanceModeToggle.setChecked(self.performance_mode)
+        self.performanceModeToggle.clicked.connect(self.togglePerformanceMode)
+        layout.addWidget(self.performanceModeToggle)
 
         self.centralWidget = QWidget()
         self.centralWidget.setLayout(layout)
@@ -679,6 +689,10 @@ class OctopiGUI(QMainWindow):
 
                 self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
                 self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+                self.napari_connections['napariMultiChannelWidget'] = [
+                    (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
+                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers)
+                ]
             else:
                 self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
@@ -695,7 +709,12 @@ class OctopiGUI(QMainWindow):
 
                     self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
                     self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
+                    self.napari_connections['napariTiledDisplayWidget'] = [
+                        (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
+                        (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers)
+                    ]
                     self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+
                 else:
                     self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
                     self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
@@ -713,6 +732,9 @@ class OctopiGUI(QMainWindow):
                     self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
 
                 self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
+                self.napari_connections['napariMosaicDisplayWidget'] = [
+                    (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic)
+                ]
                 self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
                 self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
 
@@ -741,6 +763,79 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusController.image_to_display.connect(self.imageDisplayWindow_focus.display_image)
 
         self.camera.set_callback(self.streamHandler.on_new_frame)
+
+    def togglePerformanceMode(self):
+        self.performance_mode = self.performanceModeToggle.isChecked()
+        button_txt = "Disable" if self.performance_mode else "Enable"
+        self.performanceModeToggle.setText(button_txt + "Performance Mode")
+        self.updatePerformanceMode()
+
+    def updatePerformanceMode(self):
+        self.performance_mode = self.performanceModeToggle.isChecked()
+        
+        if hasattr(self, 'multipointController'):
+            self.multipointController.performance_mode = self.performance_mode
+        
+        self.updateNapariConnections()
+        self.toggleNapariTabs()
+        print(f"Performance mode {'enabled' if self.performance_mode else 'disabled'}")
+
+    def updateNapariConnections(self):
+        for widget_name, connections in self.napari_connections.items():
+            if widget_name != 'napariLiveWidget':  # Always keep the live widget connected
+                widget = getattr(self, widget_name, None)
+                if widget:
+                    for signal, slot in connections:
+                        if self.performance_mode:
+                            try:
+                                signal.disconnect(slot)
+                            except TypeError:
+                                # Connection might not exist, which is fine
+                                pass
+                        else:
+                            try:
+                                signal.connect(slot)
+                            except TypeError:
+                                # Connection might already exist, which is fine
+                                pass
+
+    def setupNapariConnections(self):
+        if hasattr(self, 'multipointController'):
+            if hasattr(self, 'napariLiveWidget'):
+                self.napari_connections['napariLiveWidget'] = [
+                    (self.multipointController.napari_live_update, self.napariLiveWidget.updateLiveLayer)
+                ]
+            if hasattr(self, 'napariMultiChannelWidget'):
+                self.napari_connections['napariMultiChannelWidget'] = [
+                    (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
+                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers)
+                ]
+            if hasattr(self, 'napariTiledDisplayWidget'):
+                self.napari_connections['napariTiledDisplayWidget'] = [
+                    (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
+                    (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers)
+                ]
+            if hasattr(self, 'napariMosaicDisplayWidget'):
+                self.napari_connections['napariMosaicDisplayWidget'] = [
+                    (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic)
+                ]
+            
+            # Connect all signals
+            for connections in self.napari_connections.values():
+                for signal, slot in connections:
+                    signal.connect(slot)
+
+    def toggleNapariTabs(self):
+        for i in range(1, self.imageDisplayTabs.count()):
+            widget = self.imageDisplayTabs.widget(i)
+            self.imageDisplayTabs.setTabEnabled(i, not self.performance_mode)
+
+        if self.performance_mode:
+            # Switch to the NapariLiveWidget tab if it exists
+            for i in range(self.imageDisplayTabs.count()):
+                if isinstance(self.imageDisplayTabs.widget(i), widgets.NapariLiveWidget):
+                    self.imageDisplayTabs.setCurrentIndex(i)
+                    break
 
     def openLedMatrixSettings(self):
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
