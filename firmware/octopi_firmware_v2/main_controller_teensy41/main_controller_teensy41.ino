@@ -108,6 +108,7 @@ static const int LASER_488nm = 4;   // to rename
 static const int LASER_561nm = 22;   // to rename
 static const int LASER_638nm = 3;  // to rename
 static const int LASER_730nm = 23;  // to rename
+static const int LASER_INTERLOCK = 1;
 // PWM6 2
 // PWM7 1
 // PWM8 0
@@ -442,19 +443,24 @@ void turn_on_illumination()
     case ILLUMINATION_SOURCE_LED_EXTERNAL_FET:
       break;
     case ILLUMINATION_SOURCE_405NM:
-      digitalWrite(LASER_405nm, HIGH);
+      if(digitalRead(LASER_INTERLOCK) == LOW)
+        digitalWrite(LASER_405nm, HIGH);
       break;
     case ILLUMINATION_SOURCE_488NM:
-      digitalWrite(LASER_488nm, HIGH);
+      if(digitalRead(LASER_INTERLOCK) == LOW)
+        digitalWrite(LASER_488nm, HIGH);
       break;
     case ILLUMINATION_SOURCE_638NM:
-      digitalWrite(LASER_638nm, HIGH);
+      if(digitalRead(LASER_INTERLOCK) == LOW)
+        digitalWrite(LASER_638nm, HIGH);
       break;
     case ILLUMINATION_SOURCE_561NM:
-      digitalWrite(LASER_561nm, HIGH);
+      if(digitalRead(LASER_INTERLOCK) == LOW)
+        digitalWrite(LASER_561nm, HIGH);
       break;
     case ILLUMINATION_SOURCE_730NM:
-      digitalWrite(LASER_730nm, HIGH);
+      if(digitalRead(LASER_INTERLOCK) == LOW)
+        digitalWrite(LASER_730nm, HIGH);
       break;
   }
 }
@@ -604,6 +610,9 @@ void setup() {
 
   // power good pin
   pinMode(pin_PG, INPUT_PULLUP);
+
+  // laser safety interlock
+  pinMode(LASER_INTERLOCK, INPUT_PULLUP);
 
   // camera trigger pins
   for (int i = 0; i < 6; i++)
