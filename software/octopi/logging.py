@@ -1,4 +1,4 @@
-import logging
+import logging as py_logging
 import threading
 from typing import Optional, Type
 from types import TracebackType
@@ -6,17 +6,44 @@ import sys
 
 _octopi_root_logger_name="octopi"
 
+# The idea for this CustomFormatter is cribbed from https://stackoverflow.com/a/56944256
+class _CustomFormatter(py_logging.Formatter):
+    GRAY = "\x1b[38;20m"
+    YELLOW = "\x1b[33;20m"
+    RED = "\x1b[31;20m"
+    BOLD_RED = "\x1b[31;1m"
+    RESET = "\x1b[0m"
+    FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+    FORMATS = {
+        py_logging.DEBUG: GRAY + FORMAT + RESET,
+        py_logging.INFO: GRAY + FORMAT + RESET,
+        py_logging.WARNING: YELLOW + FORMAT + RESET,
+        py_logging.ERROR: RED + FORMAT + RESET,
+        py_logging.CRITICAL: BOLD_RED + FORMAT + RESET
+    }
+
+    FORMATTERS = {level: py_logging.Formatter(fmt) for (level, fmt) in FORMATS.items()}
+
+    def format(self, record):
+        return self.FORMATTERS[record.levelno].format(record)
+
+_COLOR_STREAM_HANDLER = py_logging.StreamHandler()
+_COLOR_STREAM_HANDLER.setFormatter(_CustomFormatter())
+
+def get_logger(name: Optional[str] = None) -> py_logging.Logger:
     """
     Returns the top level octopi logger instance by default, or a logger in the octopi
     logging hierarchy if a non-None name is given.
     """
     if name is None:
-        return logging.getLogger(_octopi_root_logger_name)
+        logger = py_logging.getLogger(_octopi_root_logger_name)
     else:
-        return logging.getLogger(_octopi_root_logger_name).getChild(name)
+        logger = py_logging.getLogger(_octopi_root_logger_name).getChild(name)
 
+    logger.addHandler(_COLOR_STREAM_HANDLER)
+
+    return logger
 
 def set_log_level(level):
     """

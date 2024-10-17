@@ -14,7 +14,7 @@ import control.gui_hcs as gui
 from configparser import ConfigParser
 from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
 from control._def import CACHED_CONFIG_FILE_PATH
-
+import octopi.logging
 
 def show_config(cfp, configpath, main_gui):
     config_widget = ConfigEditorBackwardsCompatible(cfp, configpath, main_gui)
@@ -32,13 +32,15 @@ if __name__ == "__main__":
     parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action='store_true')
     args = parser.parse_args()
 
+    logger = octopi.logging.get_logger("main_hcs")
+
     legacy_config = False
     cf_editor_parser = ConfigParser()
     config_files = glob.glob('.' + '/' + 'configuration*.ini')
     if config_files:
         cf_editor_parser.read(CACHED_CONFIG_FILE_PATH)
     else:
-        print('configuration*.ini file not found, defaulting to legacy configuration')
+        logger.error('configuration*.ini file not found, defaulting to legacy configuration')
         legacy_config = True
     app = QApplication([])
     app.setStyle('Fusion')
