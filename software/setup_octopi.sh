@@ -116,6 +116,11 @@ create_conda_env() {
     local env_name="octopi"
     local python_version="3.10"
 
+    if ! which conda; then
+      echo "No conda found, please install conda then re-run."
+      exit 1
+    fi
+
     if conda info --envs | grep -qw "$env_name"; then
         echo "Conda environment '$env_name' already exists. Activating it..."
     else
