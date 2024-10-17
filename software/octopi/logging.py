@@ -103,18 +103,18 @@ def register_crash_handler(handler, call_existing_too=True):
         value = hook_args.exc_type
         tb = hook_args.exc_traceback
         try:
-            handler(exception_type, value, tb)
+            handler(exception_type, value, type(tb))
         except BaseException as e:
             logger.critical("Custom thread excepthook handler raised exception", e)
         if call_existing_too:
-            old_thread_excepthook(exception_type, value, tb)
+            old_thread_excepthook(exception_type, value, type(tb))
 
     def new_unraisable_hook(info):
-        exception_type = info["exception_type"]
-        tb = info["exception_traceback"]
-        value = info["exception_value"]
+        exception_type = info.exc_type
+        tb = info.exc_traceback
+        value = info.exc_value
         try:
-            handler(exception_type, value, tb)
+            handler(exception_type, value, type(tb))
         except BaseException as e:
             logger.critical("Custom unraisable hook handler raised exception", e)
         if call_existing_too:
@@ -132,6 +132,6 @@ def setup_uncaught_exception_logging():
     """
     logger = get_logger()
     def uncaught_exception_logger(exception_type: Type[BaseException], value: BaseException, tb: TracebackType):
-        logger.exception("Uncaught Exception!", exc_info=(exception_type, value, tb))
+        logger.exception("Uncaught Exception!", exc_info=value)
 
     register_crash_handler(uncaught_exception_logger, call_existing_too=False)
