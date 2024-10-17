@@ -14,7 +14,7 @@ class _CustomFormatter(py_logging.Formatter):
     RED = "\x1b[31;20m"
     BOLD_RED = "\x1b[31;1m"
     RESET = "\x1b[0m"
-    FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+    FORMAT = "%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
 
     FORMATS = {
         py_logging.DEBUG: GRAY + FORMAT + RESET,
@@ -24,7 +24,9 @@ class _CustomFormatter(py_logging.Formatter):
         py_logging.CRITICAL: BOLD_RED + FORMAT + RESET
     }
 
-    FORMATTERS = {level: py_logging.Formatter(fmt) for (level, fmt) in FORMATS.items()}
+    # NOTE(imo): The datetime hackery is so that we can have millisecond timestamps using a period instead
+    # of comma.  The default asctime + datefmt uses a comma.
+    FORMATTERS = {level: py_logging.Formatter(fmt, datefmt="%Y-%m-%d %H:%M:%S") for (level, fmt) in FORMATS.items()}
 
     def format(self, record):
         return self.FORMATTERS[record.levelno].format(record)

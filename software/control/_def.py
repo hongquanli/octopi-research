@@ -8,7 +8,7 @@ import csv
 
 import octopi.logging
 
-log = octopi.logging.get_logger("_def")
+log = octopi.logging.get_logger(__name__)
 
 
 def conf_attribute_reader(string_value):
