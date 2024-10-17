@@ -67,7 +67,11 @@ def set_log_level(level):
     # for our root logger and then check all other loggers to see if they start with our root logger prefix
     # to find all the octopi specific logger.
     for (name, logger) in octopi_root_logger.manager.loggerDict.items():
-        if name.startswith(_octopi_root_logger_name):
+        # The logging module uses the PlaceHolder object for nodes in the hierarchy that
+        # have children, but no associated loggers.  EG if we create a logger at
+        # octopi.control.gui_hcs but not at octopi.control, then the logger for octopi.control
+        # exists but is a PlaceHolder (until someone explicitly requests it).
+        if name.startswith(_octopi_root_logger_name) and isinstance(logger, py_logging.Logger):
             logger.setLevel(level)
 
 
