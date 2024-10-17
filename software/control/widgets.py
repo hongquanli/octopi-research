@@ -2678,6 +2678,25 @@ class MultiPointWidget2(QFrame):
         self.updateGeometry()
         self.update()
 
+    def init_z(self, z_pos_mm=None):
+        if z_pos_mm is None:
+            z_pos_mm = self.navigationController.z_pos_mm
+
+        self.entry_minZ.blockSignals(True)
+        self.entry_maxZ.blockSignals(True)
+        try:
+            self.navigationController.zPos.disconnect(self.update_z_min)
+            self.navigationController.zPos.disconnect(self.update_z_max)
+        except TypeError:
+            pass
+
+        self.entry_minZ.setValue(z_pos_mm*1000)
+        self.entry_maxZ.setValue(z_pos_mm*1000)
+        print("init z-level flexible:", self.entry_minZ.value())
+
+        self.entry_minZ.blockSignals(False)
+        self.entry_maxZ.blockSignals(False)
+
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
@@ -3674,12 +3693,15 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        self.navigationController.zPos.disconnect(self.update_z_min)
-        self.navigationController.zPos.disconnect(self.update_z_max)
+        try:
+            self.navigationController.zPos.disconnect(self.update_z_min)
+            self.navigationController.zPos.disconnect(self.update_z_max)
+        except TypeError:
+            pass
 
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
-        print("init z-level:", self.entry_minZ.value())
+        print("init z-level wellplate:", self.entry_minZ.value())
 
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
