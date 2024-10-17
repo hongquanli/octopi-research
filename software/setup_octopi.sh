@@ -147,7 +147,7 @@ install_conditional_packages() {
     echo "Installing conditional packages..."
     if [ "${os}" == "Linux" ]; then
         pip install cuda-python cupy-cuda12x
-        conda install -y pytorch torchvision torchaudio cudatoolkit=12.1 -c pytorch -c nvidia
+        conda install -y pytorch torchvision torchaudio cuda-version=12.1 -c pytorch -c nvidia
         pip install 'jax[cuda12_pip]==0.4.23' --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
     elif [ "${os}" == "MacOS" ]; then
         pip install torch torchvision torchaudio 
