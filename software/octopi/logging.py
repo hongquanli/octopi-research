@@ -98,7 +98,10 @@ def register_crash_handler(handler, call_existing_too=True):
         if call_existing_too:
             old_excepthook(exception_type, value, tb)
 
-    def new_thread_excepthook(exception_type: Type[BaseException], value: BaseException, tb: TracebackType):
+    def new_thread_excepthook(hook_args: threading.ExceptHookArgs):
+        exception_type = hook_args.exc_type
+        value = hook_args.exc_type
+        tb = hook_args.exc_traceback
         try:
             handler(exception_type, value, tb)
         except BaseException as e:
