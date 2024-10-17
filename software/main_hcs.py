@@ -9,12 +9,15 @@ import sys
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+import octopi.logging
+octopi.logging.setup_uncaught_exception_logging()
+
 # app specific libraries
 import control.gui_hcs as gui
 from configparser import ConfigParser
 from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
 from control._def import CACHED_CONFIG_FILE_PATH
-import octopi.logging
+
 
 def show_config(cfp, configpath, main_gui):
     config_widget = ConfigEditorBackwardsCompatible(cfp, configpath, main_gui)
@@ -25,14 +28,13 @@ def show_acq_config(cfm):
     acq_config_widget = ConfigEditorForAcquisitions(cfm)
     acq_config_widget.exec_()
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action='store_true')
     parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action='store_true')
     args = parser.parse_args()
 
-    logger = octopi.logging.get_logger("main_hcs")
+    log = octopi.logging.get_logger("main_hcs")
 
     legacy_config = False
     cf_editor_parser = ConfigParser()
@@ -40,7 +42,7 @@ if __name__ == "__main__":
     if config_files:
         cf_editor_parser.read(CACHED_CONFIG_FILE_PATH)
     else:
-        logger.error('configuration*.ini file not found, defaulting to legacy configuration')
+        log.error('configuration*.ini file not found, defaulting to legacy configuration')
         legacy_config = True
     app = QApplication([])
     app.setStyle('Fusion')
