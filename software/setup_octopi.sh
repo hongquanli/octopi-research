@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Setup script for octopi-software environment
 # -------------------------------------------------------
 # Usage
@@ -15,6 +15,12 @@
 # conda activate octopi
 # python main.py --simulation
 # -------------------------------------------------------
+set -eo pipefail
+
+if [[ -n "$TRACE" ]]; then
+  echo "TRACE variable non-empty, turning on script tracing."
+  set -x
+fi
 
 # Detect Operating System
 OS="$(uname -s)"
@@ -110,6 +116,11 @@ create_conda_env() {
     local env_name="octopi"
     local python_version="3.10"
 
+    if ! which conda; then
+      echo "No conda found, please install conda then re-run."
+      exit 1
+    fi
+
     if conda info --envs | grep -qw "$env_name"; then
         echo "Conda environment '$env_name' already exists. Activating it..."
     else
@@ -136,7 +147,7 @@ install_conditional_packages() {
     echo "Installing conditional packages..."
     if [ "${os}" == "Linux" ]; then
         pip install cuda-python cupy-cuda12x
-        conda install -y pytorch torchvision torchaudio cudatoolkit=12.1 -c pytorch -c nvidia
+        conda install -y pytorch torchvision torchaudio cuda-version=12.1 -c pytorch -c nvidia
         pip install 'jax[cuda12_pip]==0.4.23' --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
     elif [ "${os}" == "MacOS" ]; then
         pip install torch torchvision torchaudio 
