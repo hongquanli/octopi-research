@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Setup script for octopi-software environment
 # -------------------------------------------------------
 # Usage
@@ -15,6 +15,12 @@
 # conda activate octopi
 # python main.py --simulation
 # -------------------------------------------------------
+set -eo pipefail
+
+if [[ -n "$TRACE" ]]; then
+  echo "TRACE variable non-empty, turning on script tracing."
+  set -x
+fi
 
 # Detect Operating System
 OS="$(uname -s)"
