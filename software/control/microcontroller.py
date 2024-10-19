@@ -36,6 +36,7 @@ class Microcontroller():
         self.x_pos = 0 # unit: microstep or encoder resolution
         self.y_pos = 0 # unit: microstep or encoder resolution
         self.z_pos = 0 # unit: microstep or encoder resolution
+        self.w_pos = 0 # unit: microstep or encoder resolution
         self.theta_pos = 0 # unit: microstep or encoder resolution
         self.button_and_switch_state = 0
         self.joystick_button_pressed = 0
@@ -339,6 +340,37 @@ class Microcontroller():
         # while self.mcu_cmd_execution_in_progress == True:
         #     time.sleep(self._motion_status_checking_interval)
 
+    def move_w_usteps(self,usteps):
+        direction = STAGE_MOVEMENT_SIGN_W*np.sign(usteps)
+        n_microsteps_abs = abs(usteps)
+        # if n_microsteps_abs exceed the max value that can be sent in one go
+        while n_microsteps_abs >= (2**32)/2:
+            n_microsteps_partial_abs = (2**32)/2 - 1
+            n_microsteps_partial = direction*n_microsteps_partial_abs
+            payload = self._int_to_payload(n_microsteps_partial,4)
+            cmd = bytearray(self.tx_buffer_length)
+            cmd[1] = CMD_SET.MOVE_W
+            cmd[2] = payload >> 24
+            cmd[3] = (payload >> 16) & 0xff
+            cmd[4] = (payload >> 8) & 0xff
+            cmd[5] = payload & 0xff
+            self.send_command(cmd)
+            # while self.mcu_cmd_execution_in_progress == True:
+            #     time.sleep(self._motion_status_checking_interval)
+            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
+
+        n_microsteps = direction*n_microsteps_abs
+        payload = self._int_to_payload(n_microsteps,4)
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.MOVE_W
+        cmd[2] = payload >> 24
+        cmd[3] = (payload >> 16) & 0xff
+        cmd[4] = (payload >> 8) & 0xff
+        cmd[5] = payload & 0xff
+        self.send_command(cmd)
+        # while self.mcu_cmd_execution_in_progress == True:
+        #     time.sleep(self._motion_status_checking_interval)
+
     def set_off_set_velocity_x(self,off_set_velocity):
         # off_set_velocity is in mm/s
         cmd = bytearray(self.tx_buffer_length)
@@ -412,6 +444,16 @@ class Microcontroller():
         cmd[4] = int((STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
 
+    def home_w(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = AXIS.W
+        cmd[3] = int((STAGE_MOVEMENT_SIGN_W+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
+        self.send_command(cmd)
+        # while self.mcu_cmd_execution_in_progress == True:
+        #     time.sleep(self._motion_status_checking_interval)
+        #     # to do: add timeout
+
     def zero_x(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
@@ -436,6 +478,16 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Z
+        cmd[3] = HOME_OR_ZERO.ZERO
+        self.send_command(cmd)
+        # while self.mcu_cmd_execution_in_progress == True:
+        #     time.sleep(self._motion_status_checking_interval)
+        #     # to do: add timeout
+
+    def zero_w(self):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.HOME_OR_ZERO
+        cmd[2] = AXIS.W
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
         # while self.mcu_cmd_execution_in_progress == True:
@@ -561,6 +613,8 @@ class Microcontroller():
         self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
         self.wait_till_operation_is_completed()
+        self.set_leadscrew_pitch(AXIS.W,SCREW_PITCH_W_MM)
+        self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
         self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
@@ -568,12 +622,16 @@ class Microcontroller():
         self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
+        self.configure_motor_driver(AXIS.W,MICROSTEPPING_DEFAULT_W,W_MOTOR_RMS_CURRENT_mA,W_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
+        self.wait_till_operation_is_completed()
+        self.set_max_velocity_acceleration(AXIS.W,MAX_VELOCITY_W_mm,MAX_ACCELERATION_W_mm)
         self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
@@ -776,6 +834,7 @@ class Microcontroller_Simulation():
         self.x_pos = 0 # unit: microstep or encoder resolution
         self.y_pos = 0 # unit: microstep or encoder resolution
         self.z_pos = 0 # unit: microstep or encoder resolution
+        self.w_pos = 0 # unit: microstep or encoder resolution
         self.theta_pos = 0 # unit: microstep or encoder resolution
         self.button_and_switch_state = 0
         self.joystick_button_pressed = 0
@@ -853,6 +912,11 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
 
+    def move_w_usteps(self,usteps):
+        self.w_pos = self.w_pos + usteps
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
     def home_x(self):
         self.x_pos = 0
         cmd = bytearray(self.tx_buffer_length)
@@ -883,6 +947,11 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
 
+    def home_w(self):
+        self.w_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+
     def zero_x(self):
         self.x_pos = 0
         cmd = bytearray(self.tx_buffer_length)
@@ -900,6 +969,12 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
         print('   mcu command ' + str(self._cmd_id) + ': zero z')
+
+    def zero_w(self):
+        self.w_pos = 0
+        cmd = bytearray(self.tx_buffer_length)
+        self.send_command(cmd)
+        print('   mcu command ' + str(self._cmd_id) + ': zero w')
 
     def zero_theta(self):
         self.theta_pos = 0
@@ -1008,6 +1083,8 @@ class Microcontroller_Simulation():
         self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
         self.wait_till_operation_is_completed()
+        self.set_leadscrew_pitch(AXIS.W,SCREW_PITCH_W_MM)
+        self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
         self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
@@ -1015,12 +1092,16 @@ class Microcontroller_Simulation():
         self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
+        self.configure_motor_driver(AXIS.W,MICROSTEPPING_DEFAULT_W,W_MOTOR_RMS_CURRENT_mA,W_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
+        self.wait_till_operation_is_completed()
+        self.set_max_velocity_acceleration(AXIS.W,MAX_VELOCITY_W_mm,MAX_ACCELERATION_W_mm)
         self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)

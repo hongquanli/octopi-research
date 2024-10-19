@@ -747,6 +747,7 @@ class NavigationController(QObject):
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
+        self.w_microstepping = MICROSTEPPING_DEFAULT_W
         self.click_to_move = False
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
         self.enable_joystick_button_action = True
@@ -774,6 +775,10 @@ class NavigationController(QObject):
 
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
+
+    def wait_till_operation_is_completed(self):
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
 
     def get_flag_click_to_move(self):
         return self.click_to_move
@@ -862,6 +867,8 @@ class NavigationController(QObject):
 
     def move_z(self,delta):
         self.microcontroller.move_z_usteps(int(delta/self.get_mm_per_ustep_Z()))
+    def move_w(self,delta):
+        self.microcontroller.move_w_usteps(int(delta/(SCREW_PITCH_W_MM/(self.w_microstepping*FULLSTEPS_PER_REV_W))))
 
     def move_x_to(self,delta):
         self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/self.get_mm_per_ustep_X()))
@@ -932,6 +939,9 @@ class NavigationController(QObject):
 
     def home_z(self):
         self.microcontroller.home_z()
+
+    def home_w(self):
+        self.microcontroller.home_w()
 
     def home_theta(self):
         self.microcontroller.home_theta()

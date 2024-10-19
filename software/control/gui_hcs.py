@@ -280,6 +280,11 @@ class OctopiGUI(QMainWindow):
             self.navigationController.set_axis_PID_arguments(2, PID_P_Z, PID_I_Z, PID_D_Z)
             self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
             self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
+        if FILTER_SPIN == True:
+            if HAS_ENCODER_W == True:
+                self.navigationController.set_axis_PID_arguments(3, PID_P_W, PID_I_W, PID_D_W)
+                self.navigationController.configure_encoder(3, 4000, ENCODER_FLIP_DIR_W)
+                self.navigationController.set_pid_control_enable(3, ENABLE_PID_W)
         time.sleep(0.5)
 
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
@@ -309,6 +314,9 @@ class OctopiGUI(QMainWindow):
             self.waitForMicrocontroller()
             self.navigationController.move_y(20)
             self.waitForMicrocontroller()
+        if HOMING_ENABLED_W:
+            self.navigationController.home_w()
+            self.waitForMicrocontroller(15, 'w homing timeout')
 
         if ENABLE_OBJECTIVE_PIEZO:
             OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)
@@ -412,7 +420,7 @@ class OctopiGUI(QMainWindow):
 
         self.cameraTabWidget = QTabWidget()
         self.setupCameraTabWidget()
-
+        
     def setupImageDisplayTabs(self):
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.contrastManager, self.wellSelectionWidget)
@@ -499,6 +507,9 @@ class OctopiGUI(QMainWindow):
             self.cameraTabWidget.addTab(self.spinningDiskConfocalWidget, "Confocal")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget, "Emission Filter")
+        if FILTER_SPIN == True:
+            self.filterspinWidget = widgets.FilterSpinWidget(self.navigationController)
+            self.cameraTabWidget.addTab(self.filterspinWidget,"Filerspin")
         self.cameraTabWidget.addTab(self.cameraSettingWidget, 'Camera')
         self.cameraTabWidget.addTab(self.autofocusWidget, "Contrast AF")
         if SUPPORT_LASER_AUTOFOCUS:
