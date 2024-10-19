@@ -7792,3 +7792,101 @@ class SampleSettingsWidget(QFrame):
         self.setLayout(top_row_layout)  # Set the layout on the frame
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
+class FilterSpinWidget(QFrame):
+    def __init__(self, navigationController, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.navigationController = navigationController
+        self.add_components()
+
+    def add_components(self):
+        # Layout for the position label
+        self.position_label = QLabel("Position: 0", self)
+        position_layout = QHBoxLayout()
+        position_layout.addWidget(self.position_label)
+
+        # Layout for the status label
+        self.status_label = QLabel("Status: Ready", self)
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.status_label)
+
+        # Layout for the editText, label, and button
+        self.edit_text = QLineEdit(self)
+        self.edit_text.setMaxLength(1)  # Restrict to one character
+        self.edit_text.setText('0')
+        move_to_pos_label = QLabel("move to pos.", self)
+        self.move_spin_btn = QPushButton("Move To", self)
+
+        move_to_pos_layout = QHBoxLayout()
+        move_to_pos_layout.addWidget(move_to_pos_label)
+        move_to_pos_layout.addWidget(self.edit_text)
+        move_to_pos_layout.addWidget(self.move_spin_btn)
+
+        # Buttons for controlling the filter spin
+        self.previous_btn = QPushButton("Previous", self)
+        self.next_btn = QPushButton("Next", self)
+        self.home_btn = QPushButton("Homing", self)
+
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.previous_btn)
+        buttons_layout.addWidget(self.next_btn)
+        buttons_layout.addWidget(self.home_btn)
+
+        # Main vertical layout
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(position_layout)
+        main_layout.addLayout(status_layout)
+        main_layout.addLayout(move_to_pos_layout)  # Layout with editText, label, and button
+        main_layout.addLayout(buttons_layout)
+
+        self.setLayout(main_layout)
+
+        # Connect signals and slots
+        self.previous_btn.clicked.connect(self.decrement_position)
+        self.next_btn.clicked.connect(self.increment_position)
+        self.home_btn.clicked.connect(self.home_position)
+        self.move_spin_btn.clicked.connect(self.move_to_position)
+
+    def home_position(self):
+        self.update_position(0)
+        self.status_label.setText("Status: Homed")
+        self.navigationController.home_w()
+
+    def update_position(self, position):
+        self.position_label.setText(f"Position: {position}")
+
+    def decrement_position(self):
+        current_position = int(self.position_label.text().split(": ")[1])
+        new_position = max(0, current_position - 1)  # Ensure position doesn't go below 0
+        if current_position != new_position:
+            self.update_position(new_position)
+            self.navigationController.move_w(-(SCREW_PITCH_W_MM / 8.0))
+            self.navigationController.wait_till_operation_is_completed()
+
+    def increment_position(self):
+        current_position = int(self.position_label.text().split(": ")[1])
+        new_position = min(7, current_position + 1)  # Ensure position doesn't go above 7
+        if current_position != new_position:
+            self.update_position(new_position)
+            self.navigationController.move_w(SCREW_PITCH_W_MM / 8.0)
+            self.navigationController.wait_till_operation_is_completed()
+
+    def home_position(self):
+        self.update_position(0)
+        self.status_label.setText("Status: Homed")
+        self.navigationController.home_w()
+        self.navigationController.wait_till_operation_is_completed()
+        # move offset, could be modified later
+        self.navigationController.move_w((SCREW_PITCH_W_MM / 100.0))
+
+    def move_to_position(self):
+        try:
+            position = int(self.edit_text.text())
+            if position != int(self.position_label.text().split(": ")[1]):
+                self.navigationController.move_w((position - int(self.position_label.text().split(": ")[1])) * SCREW_PITCH_W_MM / 8.0)
+            self.update_position(position)
+        except ValueError:
+            self.status_label.setText("Status: Invalid input")
+            self.position_label.setText("Position: Invalid")
+
+    def update_position(self, position):
+        self.position_label.setText(f"Position: {position}")
