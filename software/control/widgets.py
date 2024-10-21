@@ -1206,8 +1206,7 @@ class PiezoWidget(QFrame):
 
     def update_piezo_position(self):
         displacement_um = self.slider_value
-        dac = int(65535 * (displacement_um / OBJECTIVE_PIEZO_RANGE_UM))
-        self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+        self.navigationController.set_piezo_um(displacement_um)
 
     def adjust_position(self, up):
         increment = self.increment_spinBox.value()
