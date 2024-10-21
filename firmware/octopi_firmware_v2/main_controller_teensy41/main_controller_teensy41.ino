@@ -1887,8 +1887,9 @@ void loop() {
         home_W_found = true;
         us_since_w_home_found = 0;
         tmc4361[w].xmin = tmc4361A_readInt(&tmc4361[w], TMC4361A_X_LATCH_RD);
+        tmc4361A_setCurrentPosition(&tmc4361[w], tmc4361[w].xmin);
+
         W_commanded_movement_in_progress = true;
-        tmc4361A_moveTo(&tmc4361[w], tmc4361[w].xmin);
         W_commanded_target_position = tmc4361[w].xmin;
       }
     }
@@ -1899,8 +1900,9 @@ void loop() {
         home_W_found = true;
         us_since_w_home_found = 0;
         tmc4361[w].xmax = tmc4361A_readInt(&tmc4361[w], TMC4361A_X_LATCH_RD);
+        tmc4361A_setCurrentPosition(&tmc4361[w], tmc4361[w].xmax);
+
         W_commanded_movement_in_progress = true;
-        tmc4361A_moveTo(&tmc4361[w], tmc4361[w].xmax);
         W_commanded_target_position = tmc4361[w].xmax;
       }
     }

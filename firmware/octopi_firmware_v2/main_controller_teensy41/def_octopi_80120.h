@@ -35,7 +35,7 @@ int MICROSTEPPING_W = 64;
 static const float HOMING_VELOCITY_X = 0.8;
 static const float HOMING_VELOCITY_Y = 0.8;
 static const float HOMING_VELOCITY_Z = 0.5;
-static const float HOMING_VELOCITY_W = 0.25 * SCREW_PITCH_W_MM;
+static const float HOMING_VELOCITY_W = 0.15 * SCREW_PITCH_W_MM;
 
 long steps_per_mm_X = FULLSTEPS_PER_REV_X*MICROSTEPPING_X/SCREW_PITCH_X_MM;
 long steps_per_mm_Y = FULLSTEPS_PER_REV_Y*MICROSTEPPING_Y/SCREW_PITCH_Y_MM;
