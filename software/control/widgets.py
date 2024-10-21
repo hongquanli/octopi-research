@@ -7792,7 +7792,7 @@ class SampleSettingsWidget(QFrame):
         self.setLayout(top_row_layout)  # Set the layout on the frame
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
-class FilterSpinWidget(QFrame):
+class SquidFilterWidget(QFrame):
     def __init__(self, navigationController, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.navigationController = navigationController
@@ -7846,11 +7846,6 @@ class FilterSpinWidget(QFrame):
         self.home_btn.clicked.connect(self.home_position)
         self.move_spin_btn.clicked.connect(self.move_to_position)
 
-    def home_position(self):
-        self.update_position(0)
-        self.status_label.setText("Status: Homed")
-        self.navigationController.home_w()
-
     def update_position(self, position):
         self.position_label.setText(f"Position: {position}")
 
@@ -7858,31 +7853,26 @@ class FilterSpinWidget(QFrame):
         current_position = int(self.position_label.text().split(": ")[1])
         new_position = max(0, current_position - 1)  # Ensure position doesn't go below 0
         if current_position != new_position:
+            self.navigationController.squid_filterwheel_previous_position()
             self.update_position(new_position)
-            self.navigationController.move_w(-(SCREW_PITCH_W_MM / 8.0))
-            self.navigationController.wait_till_operation_is_completed()
 
     def increment_position(self):
         current_position = int(self.position_label.text().split(": ")[1])
         new_position = min(7, current_position + 1)  # Ensure position doesn't go above 7
         if current_position != new_position:
+            self.navigationController.squid_filterwheel_next_position()
             self.update_position(new_position)
-            self.navigationController.move_w(SCREW_PITCH_W_MM / 8.0)
-            self.navigationController.wait_till_operation_is_completed()
 
     def home_position(self):
         self.update_position(0)
         self.status_label.setText("Status: Homed")
-        self.navigationController.home_w()
-        self.navigationController.wait_till_operation_is_completed()
-        # move offset, could be modified later
-        self.navigationController.move_w((SCREW_PITCH_W_MM / 100.0))
+        self.navigationController.squid_filterwheel_homing()
 
     def move_to_position(self):
         try:
             position = int(self.edit_text.text())
             if position != int(self.position_label.text().split(": ")[1]):
-                self.navigationController.move_w((position - int(self.position_label.text().split(": ")[1])) * SCREW_PITCH_W_MM / 8.0)
+                self.navigationController.squid_filterwheel_set_emission(position)
             self.update_position(position)
         except ValueError:
             self.status_label.setText("Status: Invalid input")

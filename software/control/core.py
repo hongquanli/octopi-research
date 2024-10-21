@@ -743,6 +743,8 @@ class NavigationController(QObject):
         self.y_pos_mm = 0
         self.z_pos_mm = 0
         self.z_pos = 0
+        # emission filter position
+        self.w_pos_index = 0
         self.theta_pos_rad = 0
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
@@ -867,6 +869,7 @@ class NavigationController(QObject):
 
     def move_z(self,delta):
         self.microcontroller.move_z_usteps(int(delta/self.get_mm_per_ustep_Z()))
+
     def move_w(self,delta):
         self.microcontroller.move_w_usteps(int(delta/(SCREW_PITCH_W_MM/(self.w_microstepping*FULLSTEPS_PER_REV_W))))
 
@@ -1035,6 +1038,33 @@ class NavigationController(QObject):
         dac = int(65535 * (z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
         dac = 65535 - dac if OBJECTIVE_PIEZO_FLIP_DIR else dac
         self.microcontroller.analog_write_onboard_DAC(7, dac)
+
+    def squid_filterwheel_homing(self):
+        self.home_w()
+        self.wait_till_operation_is_completed()
+        # move offset, could be modified later
+        self.move_w(SQUID_FILTERWHEEL_OFFSET)
+        self.w_pos_index = 0
+
+    def squid_filterwheel_next_position(self):
+        if self.w_pos_index < SQUID_FILTERWHEEL_MAX_INDEX:
+            self.move_w(SCREW_PITCH_W_MM / 8.0)
+            self.wait_till_operation_is_completed()
+            self.w_pos_index += 1 
+
+    def squid_filterwheel_previous_position(self):
+        if self.w_pos_index > SQUID_FILTERWHEEL_MIN_INDEX:
+            self.move_w(-(SCREW_PITCH_W_MM / 8.0))
+            self.wait_till_operation_is_completed()
+            self.w_pos_index -= 1
+
+    def squid_filterwheel_set_emission(self, pos):
+        if pos in range(SQUID_FILTERWHEEL_MIN_INDEX, SQUID_FILTERWHEEL_MAX_INDEX + 1): 
+            if pos != self.w_pos_index:
+                self.move_w((pos - self.w_pos_index) * SCREW_PITCH_W_MM / 8.0)
+                self.wait_till_operation_is_completed()
+                self.w_pos_index = pos
+
 
 class SlidePositionControlWorker(QObject):
 
