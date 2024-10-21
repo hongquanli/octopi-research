@@ -1040,10 +1040,14 @@ class NavigationController(QObject):
         self.microcontroller.analog_write_onboard_DAC(7, dac)
 
     def squid_filterwheel_homing(self):
+        # make sure the start homing position is not at homing position  
+        starttime = time.time() 
         self.home_w()
         self.wait_till_operation_is_completed()
-        # move offset, could be modified later
-        self.move_w(SQUID_FILTERWHEEL_OFFSET)
+        # judge whether the current position is a homing position or not
+        if time.time() - starttime > 0.02:
+            # move offset, could be modified later
+            self.move_w(SQUID_FILTERWHEEL_OFFSET)
         self.w_pos_index = 0
 
     def squid_filterwheel_next_position(self):
