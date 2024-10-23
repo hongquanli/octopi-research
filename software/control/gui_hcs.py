@@ -264,6 +264,9 @@ class OctopiGUI(QMainWindow):
 
         self.microcontroller.reset()
         time.sleep(0.5)
+        if USE_SQUID_FILTERWHEEL is True:
+            self.microcontroller.init_filter_wheel()
+            time.sleep(0.5)
         self.microcontroller.initialize_drivers()
         time.sleep(0.5)
         self.microcontroller.configure_actuators()
@@ -280,8 +283,8 @@ class OctopiGUI(QMainWindow):
             self.navigationController.set_axis_PID_arguments(2, PID_P_Z, PID_I_Z, PID_D_Z)
             self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
             self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
-        if USE_SQUID_FILTERWHEEL == True:
-            if HAS_ENCODER_W == True:
+        if USE_SQUID_FILTERWHEEL is True:
+            if HAS_ENCODER_W is True:
                 self.navigationController.set_axis_PID_arguments(3, PID_P_W, PID_I_W, PID_D_W)
                 self.navigationController.configure_encoder(3, 4000, ENCODER_FLIP_DIR_W)
                 self.navigationController.set_pid_control_enable(3, ENABLE_PID_W)
@@ -314,9 +317,11 @@ class OctopiGUI(QMainWindow):
             self.waitForMicrocontroller()
             self.navigationController.move_y(20)
             self.waitForMicrocontroller()
-        if HOMING_ENABLED_W:
-            self.navigationController.home_w()
-            self.waitForMicrocontroller(15, 'w homing timeout')
+        
+        if USE_SQUID_FILTERWHEEL is True:
+            if HOMING_ENABLED_W:
+                self.navigationController.home_w()
+                self.waitForMicrocontroller(15, 'w homing timeout')
 
         if ENABLE_OBJECTIVE_PIEZO:
             OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)

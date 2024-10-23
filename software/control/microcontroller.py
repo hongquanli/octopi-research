@@ -96,6 +96,13 @@ class Microcontroller():
         self.send_command(cmd)
         print('initialize the drivers') # debug
 
+    def init_filter_wheel(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.INITFILTERWHEEL
+        self.send_command(cmd)
+        print('initialize filter wheel') # debug
+
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.TURN_ON_ILLUMINATION
@@ -870,6 +877,13 @@ class Microcontroller_Simulation():
         cmd[1] = CMD_SET.INITIALIZE
         self.send_command(cmd)
         print('initialize the drivers') # debug
+
+    def init_filter_wheel(self):
+        self._cmd_id = 0
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.INITFILTERWHEEL
+        self.send_command(cmd)
+        print('initialize filter wheel')
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + STAGE_MOVEMENT_SIGN_X*usteps
