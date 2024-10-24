@@ -4300,10 +4300,14 @@ class LaserAutofocusController(QObject):
 
     def move_to_target(self,target_um):
         current_displacement_um = self.measure_displacement()
-        um_to_move = target_um - current_displacement_um
-        # limit the range of movement
-        um_to_move = min(um_to_move,200)
-        um_to_move = max(um_to_move,-200)
+        print("Laser AF displacement: ", current_displacement_um)
+
+        if abs(current_displacement_um) > LASER_AF_RANGE:
+            print(f'Warning: Measured displacement ({current_displacement_um:.1f} μm) is unreasonably large, using previous z position')
+            um_to_move = 0
+        else:
+            um_to_move = target_um - current_displacement_um
+
         self.navigationController.move_z(um_to_move/1000)
         self.wait_till_operation_is_completed()
         # update the displacement measurement
