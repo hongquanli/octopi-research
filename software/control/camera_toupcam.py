@@ -146,6 +146,13 @@ class Camera(object):
         self._software_trigger_sent = False
         self._last_software_trigger_timestamp = None
         self.resolution = None
+        # the balcklevel factor
+        # 8 bits: 1
+        # 10 bits: 4
+        # 12 bits: 16 
+        # 14 bits: 64 
+        # 16 bits: 256
+        self.blacklevel_factor = 1
 
         if resolution != None:
             self.resolution = resolution
@@ -220,6 +227,7 @@ class Camera(object):
             self.set_data_format('RAW')
             self.set_pixel_format('MONO16') # 'MONO8'
             self.set_auto_exposure(False)
+            self.set_blacklevel(0)
 
             # set resolution to full if resolution is not specified or not in the list of supported resolutions
             if self.resolution is None:
@@ -364,15 +372,19 @@ class Camera(object):
         if self.data_format == 'RAW':
             if pixel_format == 'MONO8':
                 self.pixel_size_byte = 1
+                self.blacklevel_factor = 1
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,0)
             elif pixel_format == 'MONO12':
                 self.pixel_size_byte = 2
+                self.blacklevel_factor = 16
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
             elif pixel_format == 'MONO14':
                 self.pixel_size_byte = 2
+                self.blacklevel_factor = 64
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
             elif pixel_format == 'MONO16':
                 self.pixel_size_byte = 2
+                self.blacklevel_factor = 256
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_BITDEPTH,1)
         else:
             # RGB data format
@@ -847,6 +859,23 @@ class Camera(object):
     def set_reset_strobe_delay_function(self, function_body):
         self.reset_strobe_delay = function_body 
 
+    def set_blacklevel(self, blacklevel):
+        try:
+            current_blacklevel = self.camera.get_Option(toupcam.TOUPCAM_OPTION_BLACKLEVEL)
+            print('current blacklevel ' + str(current_blacklevel))
+        except toupcam.HRESULTException as ex:
+            err_type = hresult_checker(ex,'E_NOTIMPL')
+            print("blacklevel not implemented")
+            return
+
+        _blacklevel = blacklevel * self.blacklevel_factor
+
+        try:
+            self.camera.put_Option(toupcam.TOUPCAM_OPTION_BLACKLEVEL, _blacklevel)
+        except toupcam.HRESULTException as ex:
+            print('put blacklevel fail, hr=0x{:x}'.format(ex.hr))
+        
+
 class Camera_Simulation(object):
     
     def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
@@ -909,6 +938,14 @@ class Camera_Simulation(object):
 
         # when camera arguments changed, call it to update strobe_delay
         self.reset_strobe_delay = None
+
+        # the balcklevel factor
+        # 8 bits: 1
+        # 10 bits: 4
+        # 12 bits: 16 
+        # 14 bits: 64 
+        # 16 bits: 256
+        self.blacklevel_factor = 1
 
     def open(self,index=0):
         pass
@@ -1027,4 +1064,7 @@ class Camera_Simulation(object):
         pass
 
     def set_reset_strobe_delay_function(self, function_body):
+        pass
+    
+    def set_blacklevel(self, blacklevel):
         pass

@@ -772,6 +772,32 @@ class CameraSettingsWidget(QFrame):
         roi_line.addWidget(self.entry_ROI_offset_x)
         self.camera_layout.addLayout(roi_line)
 
+        blacklevel_line = QHBoxLayout()
+        blacklevel_line.addWidget(QLabel('Black Level'))
+
+        # slider_blackLevel Scaling
+        self.slider_blackLevelScaling = QSlider(Qt.Horizontal)
+        self.slider_blackLevelScaling.setRange(0, 31)
+        self.slider_blackLevelScaling.setValue(int(0))
+        self.slider_blackLevelScaling.setTickPosition(QSlider.TicksBelow)
+        self.slider_blackLevelScaling.setTickInterval(1)
+        self.slider_blackLevelScaling.valueChanged.connect(self.update_blacklevel_scaling)
+        self.slider_blackLevelScaling.setSingleStep(1)
+
+        self.label_blackLevelScaling = QSpinBox()
+        self.label_blackLevelScaling.setMinimum(0)
+        self.label_blackLevelScaling.setMaximum(31)
+        self.label_blackLevelScaling.setValue(self.slider_blackLevelScaling.value())
+        self.label_blackLevelScaling.setSuffix(" ")
+
+        self.slider_blackLevelScaling.valueChanged.connect(lambda v: self.label_blackLevelScaling.setValue(round(v)))
+        self.label_blackLevelScaling.valueChanged.connect(lambda v: self.slider_blackLevelScaling.setValue(round(v)))
+
+        blacklevel_line.addWidget(self.slider_blackLevelScaling)
+        blacklevel_line.addWidget(self.label_blackLevelScaling)
+
+        self.camera_layout.addLayout(blacklevel_line)
+
         if include_camera_auto_wb_setting:
             is_color = False
             try:
@@ -865,6 +891,12 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_offset_y.blockSignals(False)
         self.entry_ROI_height.blockSignals(False)
         self.entry_ROI_width.blockSignals(False)
+
+    def update_blacklevel_scaling(self, blacklevel):
+        try:
+            self.camera.set_blacklevel(blacklevel)
+        except AttributeError:
+            pass
 
 
 class LiveControlWidget(QFrame):
