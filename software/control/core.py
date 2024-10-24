@@ -3542,6 +3542,7 @@ class NavigationViewer(QFrame):
             '6 well plate': 'images/6 well plate_1509x1010.png',
             '12 well plate': 'images/12 well plate_1509x1010.png',
             '24 well plate': 'images/24 well plate_1509x1010.png',
+            '48 well plate': 'images/48 well plate_1509x1010.png',
             '96 well plate': 'images/96 well plate_1509x1010.png',
             '384 well plate': 'images/384 well plate_1509x1010.png',
             '1536 well plate': 'images/1536 well plate_1509x1010.png'
