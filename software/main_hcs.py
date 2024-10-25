@@ -1,8 +1,10 @@
 # set QT_API environment variable
 import argparse
 import glob
+import logging
 import os
 os.environ["QT_API"] = "pyqt5"
+import signal
 import sys
 
 # qt libraries
@@ -32,9 +34,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action='store_true')
     parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action='store_true')
+    parser.add_argument("--verbose", help="Turn on verbose logging (DEBUG level)", action="store_true")
     args = parser.parse_args()
 
     log = squid.logging.get_logger("main_hcs")
+
+    if args.verbose:
+        log.info("Turning on debug logging.")
+        squid.logging.set_log_level(logging.DEBUG)
 
     legacy_config = False
     cf_editor_parser = ConfigParser()
@@ -46,6 +53,8 @@ if __name__ == "__main__":
         legacy_config = True
     app = QApplication([])
     app.setStyle('Fusion')
+    # This allows shutdown via ctrl+C even after the gui has popped up.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     win = gui.OctopiGUI(is_simulation=args.simulation, performance_mode=args.performance)
 

@@ -1,9 +1,8 @@
 # set QT_API environment variable
 import os
-import sys
-import time
 os.environ["QT_API"] = "pyqt5"
-import qtpy
+import serial
+import time
 
 # qt libraries
 from qtpy.QtCore import *
@@ -14,37 +13,40 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
-import serial
+import pyqtgraph.dockarea as dock
+import squid.logging
+
+log = squid.logging.get_logger(__name__)
 
 if CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera
     except:
-        print("Problem importing Toupcam, defaulting to default camera")
+        log.warning("Problem importing Toupcam, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "FLIR":
     try:
         import control.camera_flir as camera
     except:
-        print("Problem importing FLIR camera, defaulting to default camera")
+        log.warning("Problem importing FLIR camera, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "Hamamatsu":
     try:
         import control.camera_hamamatsu as camera
     except:
-        print("Problem importing Hamamatsu camera, defaulting to default camera")
+        log.warning("Problem importing Hamamatsu camera, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "iDS":
     try:
         import control.camera_ids as camera
     except:
-        print("Problem importing iDS camera, defaulting to default camera")
+        log.warning("Problem importing iDS camera, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "Tucsen":
     try:
         import control.camera_tucsen as camera
     except:
-        print("Problem importing Tucsen camera, defaulting to default camera")
+        log.warning("Problem importing Tucsen camera, defaulting to default camera")
         import control.camera as camera
 else:
     import control.camera as camera
@@ -53,13 +55,13 @@ if FOCUS_CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera_fc
     except:
-        print("Problem importing Toupcam for focus, defaulting to default camera")
+        log.warning("Problem importing Toupcam for focus, defaulting to default camera")
         import control.camera as camera_fc
 elif FOCUS_CAMERA_TYPE == "FLIR":
     try:
         import control.camera_flir as camera_fc
     except:
-        print("Problem importing FLIR camera for focus, defaulting to default camera")
+        log.warning("Problem importing FLIR camera for focus, defaulting to default camera")
         import control.camera as camera_fc
 else:
     import control.camera as camera_fc
@@ -78,15 +80,10 @@ if ENABLE_STITCHER:
 if SUPPORT_LASER_AUTOFOCUS:
     import control.core_displacement_measurement as core_displacement_measurement
 
-import pyqtgraph.dockarea as dock
-import serial
-import time
-
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
 
 class OctopiGUI(QMainWindow):
-
     fps_software_trigger = 100
 
     def __init__(self, is_simulation=False, performance_mode=False, *args, **kwargs):
@@ -125,11 +122,9 @@ class OctopiGUI(QMainWindow):
         else:
             try:
                 self.loadHardwareObjects()
-            except Exception as e:
-                print("\n---- !! ERROR CONNECTING TO HARDWARE !! ----")
-                print(e)
-                print("Falling back to simulation mode\n")
-                self.loadSimulationObjects()
+            except Exception:
+                log.error("---- !! ERROR CONNECTING TO HARDWARE !! ----", stack_info=True, exc_info=True)
+                raise
 
         # Common object initialization
         self.objectiveStore = core.ObjectiveStore(parent=self)
@@ -164,6 +159,7 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP,look_for_cache=False)
 
     def loadSimulationObjects(self):
+        log.debug("Loading simulated hardware objects...")
         # Initialize simulation objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.xlight = serial_peripherals.XLight_Simulation()
@@ -187,15 +183,17 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             try:
                 self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER, XLIGHT_SLEEP_TIME_FOR_WHEEL)
-            except Exception as e:
-                raise Exception(f"Error initializing Spinning Disk Confocal: {e}")
+            except Exception:
+                log.error("Error initializing Spinning Disk Confocal")
+                raise
 
         if ENABLE_NL5:
             try:
                 import control.NL5 as NL5
                 self.nl5 = NL5.NL5()
-            except Exception as e:
-                raise Exception(f"Error initializing NL5: {e}")
+            except Exception:
+                log.error("Error initializing NL5")
+                raise
 
         if ENABLE_CELLX:
             try:
@@ -203,8 +201,9 @@ class OctopiGUI(QMainWindow):
                 for channel in [1,2,3,4]:
                     self.cellx.set_modulation(channel, CELLX_MODULATION)
                     self.cellx.turn_on(channel)
-            except Exception as e:
-                raise Exception(f"Error initializing CellX: {e}")
+            except Exception:
+                log.error("Error initializing CellX")
+                raise
 
         if USE_LDI_SERIAL_CONTROL:
             try:
@@ -212,8 +211,9 @@ class OctopiGUI(QMainWindow):
                 self.ldi.run()
                 self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
                 self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
-            except Exception as e:
-                raise Exception(f"Error initializing LDI: {e}")
+            except Exception:
+                log.error("Error initializing LDI")
+                raise
 
         if SUPPORT_LASER_AUTOFOCUS:
             try:
@@ -221,39 +221,45 @@ class OctopiGUI(QMainWindow):
                 self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
                 self.camera_focus.open()
                 self.camera_focus.set_pixel_format('MONO8')
-            except Exception as e:
-                raise Exception(f"Error initializing Laser Autofocus Camera: {e}")
+            except Exception:
+                log.error(f"Error initializing Laser Autofocus Camera")
+                raise
 
         try:
             sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
             self.camera = camera.Camera(sn=sn_camera_main, rotate_image_angle=ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
             self.camera.open()
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
-        except Exception as e:
-            raise Exception(f"Error initializing Main Camera: {e}")
+        except Exception:
+            log.error("Error initializing Main Camera")
+            raise
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             try:
                 self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
-            except Exception as e:
-                raise Exception(f"Error initializing Zaber Emission Filter Wheel: {e}")
+            except Exception:
+                log.error("Error initializing Zaber Emission Filter Wheel")
+                raise
 
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             try:
                 self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
-            except Exception as e:
-                raise Exception(f"Error initializing Optospin Emission Filter Wheel: {e}")
+            except Exception:
+                log.error("Error initializing Optospin Emission Filter Wheel")
+                raise
 
         if USE_PRIOR_STAGE:
             try:
                 self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
-            except Exception as e:
-                raise Exception(f"Error initializing Prior Stage: {e}")
+            except Exception:
+                log.error("Error initializing Prior Stage")
+                raise
 
         try:
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION, sn=CONTROLLER_SN)
-        except Exception as e:
-            raise Exception(f"Error initializing Microcontroller: {e}")
+        except Exception:
+            log.error(f"Error initializing Microcontroller")
+            raise
 
     def setupHardware(self):
         # Setup hardware components
@@ -335,7 +341,7 @@ class OctopiGUI(QMainWindow):
         while self.microcontroller.is_busy():
             time.sleep(0.005)
             if timeout and time.time() - start_time > timeout:
-                print(error_message or 'Microcontroller operation timed out')
+                self.log.error(error_message or 'Microcontroller operation timed out')
                 sys.exit(1)
 
     def loadWidgets(self):
