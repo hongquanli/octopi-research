@@ -1217,7 +1217,11 @@ class PiezoWidget(QFrame):
         
     def get_position(self):
         return self.slider_value
-        
+
+    def update_piezo_position(self):
+        displacement_um = self.slider_value
+        self.navigationController.set_piezo_um(displacement_um)
+
     def home(self):
         self.set_position(OBJECTIVE_PIEZO_HOME_UM)
 

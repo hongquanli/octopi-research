@@ -4,7 +4,7 @@ import re
 import threading
 
 class PriorStage():
-    def __init__(self, sn, baudrate=9600, timeout=0.1, parent=None):
+    def __init__(self, sn, baudrate=115200, timeout=0.1, parent=None):
         port = [p.device for p in serial.tools.list_ports.comports() if sn == p.serial_number]
         self.serial = serial.Serial(port[0], baudrate=baudrate, timeout=timeout)
         self.current_baudrate = baudrate
@@ -30,8 +30,8 @@ class PriorStage():
         self.resolution = 0.1
         self.x_direction = 1    # 1 or -1
         self.y_direction = 1    # 1 or -1
-        self.speed = 100    # Default value
-        self.acceleration = 100  # Default value
+        self.speed = 200    # Default value
+        self.acceleration = 500  # Default value
 
         # Position updating callback
         self.pos_callback_external = None
@@ -45,7 +45,7 @@ class PriorStage():
         self.position_updating_thread.start()
 
     def set_baudrate(self, baud):
-        allowed_baudrates = {9600: '96', 19200: '19', 38400: '38', 115400: '115'}
+        allowed_baudrates = {9600: '96', 19200: '19', 38400: '38', 115200: '115'}
         if baud not in allowed_baudrates:
             print('Baudrate not allowed. Setting baudrate to 9600')
             baud_command = "BAUD 96"
@@ -87,6 +87,8 @@ class PriorStage():
         self.joystick_enabled = True
         self.user_unit = self.stage_microsteps_per_mm * self.resolution
         self.get_stage_info()
+        self.set_acceleration(self.acceleration)
+        self.set_max_speed(self.speed)
 
     def send_command(self, command):
         with self.serial_lock:
