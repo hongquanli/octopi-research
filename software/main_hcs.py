@@ -41,7 +41,11 @@ if __name__ == "__main__":
 
     if args.verbose:
         log.info("Turning on debug logging.")
-        squid.logging.set_log_level(logging.DEBUG)
+        squid.logging.set_stdout_log_level(logging.DEBUG)
+
+    if not squid.logging.add_file_logging(f"{squid.logging.get_default_log_directory()}/main_hcs.log"):
+        log.error("Couldn't setup logging to file!")
+        sys.exit(1)
 
     legacy_config = False
     cf_editor_parser = ConfigParser()

@@ -37,7 +37,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.verbose:
-        squid.logging.set_log_level(logging.DEBUG)
+        squid.logging.set_stdout_log_level(logging.DEBUG)
 
     legacy_config = False
     cf_editor_parser = ConfigParser()
