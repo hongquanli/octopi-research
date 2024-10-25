@@ -1129,106 +1129,101 @@ class LiveControlWidget(QFrame):
 
 
 class PiezoWidget(QFrame):
+    position_changed = Signal(float)  # Emit offset in μm
+
     def __init__(self, navigationController, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.navigationController = navigationController
         self.slider_value = 0.00
-        self.add_components()
+        self.setup_slider()
 
-    def add_components(self):
-        # Row 1: Slider and Double Spin Box for direct control
-        self.slider = QSlider(Qt.Horizontal, self)
+    def setup_slider(self):
+        layout = QHBoxLayout()
+        
+        # Create slider
+        self.slider = QSlider(Qt.Horizontal)
         self.slider.setMinimum(0)
-        self.slider.setMaximum(int(OBJECTIVE_PIEZO_RANGE_UM * 100))  # Multiplied by 100 for 0.01 precision
-
-        self.spinBox = QDoubleSpinBox(self)
+        self.slider.setMaximum(int(OBJECTIVE_PIEZO_RANGE_UM * 100))
+        
+        # Create spinbox
+        self.spinBox = QDoubleSpinBox()
         self.spinBox.setRange(0.0, OBJECTIVE_PIEZO_RANGE_UM)
         self.spinBox.setDecimals(2)
         self.spinBox.setSingleStep(0.01)
         self.spinBox.setSuffix(' μm')
+        self.spinBox.setFixedWidth(100)
+        
+        # Layout
+        layout.addWidget(QLabel("Piezo:"))
+        layout.addWidget(self.slider)
+        layout.addWidget(self.spinBox)
+        
+        self.setLayout(layout)
 
-        # Row 3: Home Button
-        self.home_btn = QPushButton(f" Set to {OBJECTIVE_PIEZO_HOME_UM} μm ", self)
-
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.home_btn)
-        hbox1.addWidget(self.slider)
-        hbox1.addWidget(self.spinBox)
-
-        # Row 2: Increment Double Spin Box, Move Up and Move Down Buttons
-        self.increment_spinBox = QDoubleSpinBox(self)
-        self.increment_spinBox.setRange(0.0, 100.0)
-        self.increment_spinBox.setDecimals(2)
-        self.increment_spinBox.setSingleStep(1)
-        self.increment_spinBox.setValue(1.00)
-        self.increment_spinBox.setSuffix(' μm')
-        self.move_up_btn = QPushButton("Move Up", self)
-        self.move_down_btn = QPushButton("Move Down", self)
-
-        hbox2 = QHBoxLayout()
-        hbox2.addWidget(self.increment_spinBox)
-        hbox2.addWidget(self.move_up_btn)
-        hbox2.addWidget(self.move_down_btn)
-
-        # Vertical Layout to include all HBoxes
-        vbox = QVBoxLayout()
-        vbox.addLayout(hbox1)
-        vbox.addLayout(hbox2)
-
-        self.setLayout(vbox)
-
-        # Connect signals and slots
+        # Connect signals
         self.slider.valueChanged.connect(self.update_from_slider)
-        self.spinBox.valueChanged.connect(self.update_from_spinBox)
-        self.move_up_btn.clicked.connect(lambda: self.adjust_position(True))
-        self.move_down_btn.clicked.connect(lambda: self.adjust_position(False))
-        self.home_btn.clicked.connect(self.home)
+        self.spinBox.valueChanged.connect(self.update_from_spinbox)
+
+    def connect_multipoint_checkbox(self, checkbox):
+        """Connect to MultiPointWidgetGrid's checkbox_usePiezo"""
+        self.checkbox_usePiezo = checkbox
+
+    def use_piezo_checked(self):
+        """Check if piezo should be used based on configuration"""
+        if Z_MOTOR_CONFIG == "PIEZO":
+            return True
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            return hasattr(self, 'checkbox_usePiezo') and self.checkbox_usePiezo.isChecked()
+        return False
 
     def update_from_slider(self, value):
-        self.slider_value = value / 100  # Convert back to float with two decimal places
-        self.update_spinBox()
-        self.update_piezo_position()
+        """Handle slider value changes"""
+        self.slider_value = value / 100
+        self.update_spinbox_display()
+        self.update_hardware_position()
+        self.position_changed.emit(self.slider_value)
 
-    def update_from_spinBox(self, value):
+    def update_from_spinbox(self, value):
+        """Handle spinbox value changes"""
         self.slider_value = value
-        self.update_slider()
-        self.update_piezo_position()
+        self.update_slider_position()
+        self.update_hardware_position()
+        self.position_changed.emit(self.slider_value)
 
-    def update_spinBox(self):
+    def update_spinbox_display(self):
+        """Update spinbox without triggering signals"""
         self.spinBox.blockSignals(True)
         self.spinBox.setValue(self.slider_value)
         self.spinBox.blockSignals(False)
 
-    def update_slider(self):
+    def update_slider_position(self):
+        """Update slider without triggering signals"""
         self.slider.blockSignals(True)
         self.slider.setValue(int(self.slider_value * 100))
         self.slider.blockSignals(False)
-
-    def update_piezo_position(self):
-        displacement_um = self.slider_value
-        dac = int(65535 * (displacement_um / OBJECTIVE_PIEZO_RANGE_UM))
+        
+    def update_hardware_position(self):
+        dac = int(65535 * (self.slider_value / OBJECTIVE_PIEZO_RANGE_UM))
+        if OBJECTIVE_PIEZO_FLIP_DIR:
+            dac = 65535 - dac
         self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
-
-    def adjust_position(self, up):
-        increment = self.increment_spinBox.value()
-        if up:
-            self.slider_value = min(OBJECTIVE_PIEZO_RANGE_UM, self.slider_value + increment)
-        else:
-            self.slider_value = max(0, self.slider_value - increment)
-        self.update_spinBox()
-        self.update_slider()
-        self.update_piezo_position()
-
+        
+    def set_position(self, position_um):
+        value = max(0, min(position_um, OBJECTIVE_PIEZO_RANGE_UM))
+        self.slider_value = value
+        self.update_slider_position()
+        self.update_spinbox_display()
+        self.update_hardware_position()
+        
+    def get_position(self):
+        return self.slider_value
+        
     def home(self):
-        self.slider_value = OBJECTIVE_PIEZO_HOME_UM
-        self.update_spinBox()
-        self.update_slider()
-        self.update_piezo_position()
+        self.set_position(OBJECTIVE_PIEZO_HOME_UM)
 
     def update_displacement_um_display(self, displacement):
-        self.slider_value = round(displacement, 2)
-        self.update_spinBox()
-        self.update_slider()
+        """Update position from external signal"""
+        self.set_position(displacement)
 
 
 class RecordingWidget(QFrame):
@@ -2450,6 +2445,14 @@ class MultiPointWidget2(QFrame):
 
         self.checkbox_usePiezo = QCheckBox('Piezo Z-Stack')
         self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
+        # if Z_MOTOR_CONFIG == "PIEZO":
+        #     self.checkbox_usePiezo.setChecked(True)
+        #     self.checkbox_usePiezo.setEnabled(False)
+        # elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+        #     self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
+        #     self.checkbox_usePiezo.setEnabled(True)
+        # else:
+        #     self.checkbox_usePiezo.setVisible(False)
 
         self.checkbox_stitchOutput = QCheckBox('Stitch Scans')
         self.checkbox_stitchOutput.setChecked(False)
@@ -2698,15 +2701,29 @@ class MultiPointWidget2(QFrame):
         self.entry_maxZ.blockSignals(False)
 
     def set_z_min(self):
-        z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        """Set Z-min based on current position"""
+        if Z_MOTOR_CONFIG == "STEPPER":
+            z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            stepper_pos = self.navigationController.z_pos_mm * 1000
+            piezo_pos = self.navigationController.piezo_widget.get_position()
+            z_value = stepper_pos + piezo_pos
+        
         self.entry_minZ.setValue(z_value)
         try:
             self.navigationController.zPos.disconnect(self.update_z_min)
         except TypeError:
-            pass # signal was not connected, so there's nothing to disconnect
+            pass
 
     def set_z_max(self):
-        z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        """Set Z-max based on current position"""
+        if Z_MOTOR_CONFIG == "STEPPER":
+            z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            stepper_pos = self.navigationController.z_pos_mm * 1000
+            piezo_pos = self.navigationController.piezo_widget.get_position()
+            z_value = stepper_pos + piezo_pos
+            
         self.entry_maxZ.setValue(z_value)
         try:
             self.navigationController.zPos.disconnect(self.update_z_max)
@@ -2720,6 +2737,27 @@ class MultiPointWidget2(QFrame):
     def update_z_max(self, z_pos_um):
         if z_pos_um > self.entry_maxZ.value():
             self.entry_maxZ.setValue(z_pos_um)
+
+    def validate_z_range(self):
+        """Validate z-range based on configuration"""
+        if self.checkbox_usePiezo.isChecked():
+            if Z_MOTOR_CONFIG == "PIEZO":
+                z_range = abs(self.entry_maxZ.value() - self.entry_minZ.value())
+            elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+                # For STEPPER + PIEZO, need to validate piezo component only
+                stepper_pos = self.navigationController.z_pos_mm * 1000  # Base position
+                z_min_offset = self.entry_minZ.value() - stepper_pos
+                z_max_offset = self.entry_maxZ.value() - stepper_pos
+                z_range = abs(z_max_offset - z_min_offset)
+
+            if z_range > OBJECTIVE_PIEZO_RANGE_UM:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Z-Range",
+                    f"Z-range cannot exceed {OBJECTIVE_PIEZO_RANGE_UM}μm when using piezo"
+                )
+                return False
+        return True
 
     def update_Nz(self):
         z_min = self.entry_minZ.value()
@@ -3302,7 +3340,16 @@ class MultiPointWidgetGrid(QFrame):
         self.multipointController.set_reflection_af_flag(MULTIPOINT_REFLECTION_AUTOFOCUS_ENABLE_BY_DEFAULT)
 
         self.checkbox_usePiezo = QCheckBox('Piezo Z-Stack')
-        self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
+        #self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
+        if Z_MOTOR_CONFIG == "PIEZO":
+            self.checkbox_usePiezo.setChecked(True)
+            self.checkbox_usePiezo.setEnabled(False)
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            self.checkbox_usePiezo.setChecked(MULTIPOINT_USE_PIEZO_FOR_ZSTACKS)
+            self.checkbox_usePiezo.setEnabled(True)
+        else:
+            if hasattr(self, 'checkbox_usePiezo'):
+                self.checkbox_usePiezo.setEnabled(False)
 
         self.checkbox_set_z_range = QCheckBox('Set Z-range')
         self.checkbox_set_z_range.toggled.connect(self.toggle_z_range_controls)
@@ -3409,7 +3456,7 @@ class MultiPointWidgetGrid(QFrame):
         if SUPPORT_LASER_AUTOFOCUS:
             options_layout.addWidget(self.checkbox_withReflectionAutofocus)
         options_layout.addWidget(self.checkbox_genFocusMap)
-        if ENABLE_OBJECTIVE_PIEZO:
+        if ENABLE_OBJECTIVE_PIEZO and "PIEZO" in Z_MOTOR_CONFIG:
             options_layout.addWidget(self.checkbox_usePiezo)
         options_layout.addWidget(self.checkbox_set_z_range)
         if ENABLE_STITCHER:
@@ -3664,20 +3711,40 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_NZ.setValue(nz)
 
     def set_z_min(self):
-        z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        """Set Z-min based on current position"""
+        z_value = self.navigationController.get_effective_z_mm() * 1000  # Get total z in μm
         self.entry_minZ.setValue(z_value)
         try:
             self.navigationController.zPos.disconnect(self.update_z_min)
         except TypeError:
-            pass # signal was not connected, so there's nothing to disconnect
+            pass
 
     def set_z_max(self):
-        z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
+        """Set Z-max based on current position"""
+        z_value = self.navigationController.get_effective_z_mm() * 1000  # Get total z in μm
         self.entry_maxZ.setValue(z_value)
         try:
             self.navigationController.zPos.disconnect(self.update_z_max)
         except TypeError:
             pass
+
+    def validate_z_range(self):
+        """Validate z-range based on configuration"""
+        if self.checkbox_usePiezo.isChecked() and "PIEZO" in Z_MOTOR_CONFIG:
+            if Z_MOTOR_CONFIG == "PIEZO":
+                z_range = abs(self.entry_maxZ.value() - self.entry_minZ.value())
+            elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+                # Calculate piezo range component only
+                stepper_pos = self.navigationController.z_pos_mm * 1000  # Base position in μm
+                z_min_offset = abs(self.entry_minZ.value() - stepper_pos)
+                z_max_offset = abs(self.entry_maxZ.value() - stepper_pos)
+                z_range = max(z_min_offset, z_max_offset) * 2  # Total range needed
+
+            if z_range > OBJECTIVE_PIEZO_RANGE_UM:
+                QMessageBox.warning(self, "Warning",
+                    f"Z-range ({z_range:.1f}μm) cannot exceed {OBJECTIVE_PIEZO_RANGE_UM}μm when using piezo")
+                return False
+        return True
 
     def update_z_min(self, z_pos_um):
         if z_pos_um < self.entry_minZ.value():
@@ -4065,6 +4132,39 @@ class MultiPointWidgetGrid(QFrame):
             QMessageBox.warning(self, "Warning", "Please select at least one imaging channel")
             return
 
+        # Handle Z-range setup
+        if self.checkbox_set_z_range.isChecked():
+            # Validate z-range when using piezo
+            if self.checkbox_usePiezo.isChecked() and "PIEZO" in Z_MOTOR_CONFIG:
+                z_range = self.entry_maxZ.value() - self.entry_minZ.value()
+                if z_range > OBJECTIVE_PIEZO_RANGE_UM:
+                    self.btn_startAcquisition.setChecked(False)
+                    QMessageBox.warning(
+                        self,
+                        "Warning",
+                        f"Z-range must be ≤ {OBJECTIVE_PIEZO_RANGE_UM}μm when using piezo"
+                    )
+                    return
+
+                # Home piezo and configure for z-stack
+                if self.navigationController.piezo_widget:
+                    self.navigationController.piezo_widget.home()
+                    time.sleep(MULTIPOINT_PIEZO_DELAY_MS / 1000)
+
+                    if Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+                        # Fix stepper at current position for piezo z-stack
+                        # self.navigationController.fix_stepper_position()
+                        pass
+
+            # Set z-range in mm
+            minZ = self.entry_minZ.value() / 1000
+            maxZ = self.entry_maxZ.value() / 1000
+            self.multipointController.set_z_range(minZ, maxZ)
+        else:
+            # Single plane acquisition - use effective z position
+            z = self.navigationController.get_effective_z_mm()
+            self.multipointController.set_z_range(z, z)
+
         if pressed:
             self.setEnabled_all(False)
 
@@ -4115,16 +4215,6 @@ class MultiPointWidgetGrid(QFrame):
                 self.multipointController.set_NY(Ny)
                 self.multipointController.set_deltaX(dx_mm)
                 self.multipointController.set_deltaY(dy_mm)
-
-            if self.checkbox_set_z_range.isChecked():
-                # Set Z-range (convert from μm to mm)
-                minZ = self.entry_minZ.value() / 1000  # Convert from μm to mm
-                maxZ = self.entry_maxZ.value() / 1000  # Convert from μm to mm
-                self.multipointController.set_z_range(minZ, maxZ)
-                print("set z-range", (minZ, maxZ))
-            else:
-                z = self.navigationController.z_pos_mm
-                self.multipointController.set_z_range(z, z)
 
             self.multipointController.set_deltaZ(self.entry_deltaZ.value())
             self.multipointController.set_NZ(self.entry_NZ.value())
@@ -6683,9 +6773,9 @@ class WellplateCalibration(QDialog):
         self.mode_group.addButton(self.new_format_radio)
         self.mode_group.addButton(self.calibrate_format_radio)
         self.new_format_radio.setChecked(True)
-        
-        left_layout.addWidget(self.new_format_radio)
+
         left_layout.addWidget(self.calibrate_format_radio)
+        left_layout.addWidget(self.new_format_radio)
 
         # Existing format selection (initially hidden)
         self.existing_format_combo = QComboBox(self)
