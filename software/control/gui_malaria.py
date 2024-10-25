@@ -158,7 +158,7 @@ class OctopiGUI(QMainWindow):
 
         # load widgets
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
-        self.contrastManager = widgets.ContrastManager()
+        self.contrastManager = core.ContrastManager()
         self.cameraSettingWidget = widgets.CameraSettingsWidget(self.camera, include_gain_exposure_time=False)
         self.liveControlWidget = widgets.LiveControlWidget(self.streamHandler,self.liveController,self.configurationManager,show_display_options=True)
         self.navigationWidget = widgets.NavigationWidget(self.navigationController,self.slidePositionController,widget_configuration='malaria')
