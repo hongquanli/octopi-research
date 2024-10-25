@@ -173,7 +173,7 @@ def add_file_logging(log_filename, replace_existing=False):
     formatter = py_logging.Formatter(fmt=_baseline_log_format, datefmt=_baseline_log_dateformat)
     new_handler.setFormatter(formatter)
 
-    log.info(f"Adding new file logger writing to file '{new_handler.baseFilename}")
+    log.info(f"Adding new file logger writing to file '{new_handler.baseFilename}'")
     root_logger.addHandler(new_handler)
 
     # We want a new log file every time we start, so force one at startup if the log file already existed.
