@@ -7,13 +7,17 @@ import numpy as np
 from scipy import misc
 import cv2
 
+import squid.logging
+log = squid.logging.get_logger(__name__)
+
 try:
     import gi
     gi.require_version("Gst", "1.0")
     gi.require_version("Tcam", "0.1")
     from gi.repository import Tcam, Gst, GLib, GObject
 except ImportError:
-    print('gi import error')
+    log.error('gi import error')
+    # TODO(imo): Propagate error in some way and handle
 
 DeviceInfo = namedtuple("DeviceInfo", "status name identifier connection_type")
 CameraProperty = namedtuple("CameraProperty", "status value min max default step type flags category group")
@@ -21,6 +25,7 @@ CameraProperty = namedtuple("CameraProperty", "status value min max default step
 class Camera(object):
 
     def __init__(self,sn=None,width=1920,height=1080,framerate=30,color=False):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
         Gst.init(sys.argv)
         self.height = height
         self.width = width
@@ -55,11 +60,11 @@ class Camera(object):
 
         p += ' ! videoconvert ! appsink name=sink'
 
-        print(p)
+        self.log.info(p)
         try:
             self.pipeline = Gst.parse_launch(p)
         except GLib.Error as error:
-            print("Error creating pipeline: {0}".format(err))
+            self.log.error(f"Error creating pipeline", error)
             raise
 
         self.pipeline.set_state(Gst.State.READY)
@@ -111,13 +116,13 @@ class Camera(object):
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
             self.is_streaming = True
         except GLib.Error as error:
-            print("Error starting pipeline: {0}".format(err))#error?
+            self.log.error("Error starting pipeline", error)
             raise
         self.frame_ID = 0
 
     def stop_streaming(self):
         self.pipeline.set_state(Gst.State.NULL)
-        print("pipeline stopped")
+        self.log.info("pipeline stopped")
         self.pipeline.set_state(Gst.State.READY)
         self.is_streaming = False
 
@@ -141,16 +146,15 @@ class Camera(object):
     def _on_new_buffer(self, appsink):
         # Function that is called when a new sample from camera is available
         self.newsample = True
-        # print('new buffer received: ' + str(time.time())) #@@@
         if self.image_locked:
-            print('last image is still being processed, a frame is dropped')
+            self.log.error('last image is still being processed, a frame is dropped')
+            # TODO(imo): Propagate error in some way and handle
             return
         if self.samplelocked is False:
             self.samplelocked = True
             try:
                 self.sample = self.appsink.get_property('last-sample')
                 self._gstbuffer_to_opencv()
-                # print('new buffer read into RAM: ' + str(time.time())) #@@@
                 self.samplelocked = False
                 self.newsample = False
                 # gotimage reflects if a new image was triggered
@@ -160,23 +164,25 @@ class Camera(object):
                 if self.new_image_callback_external is not None:
                     self.new_image_callback_external(self)
             except GLib.Error as error:
-                print("Error on_new_buffer pipeline: {0}".format(err)) #error
+                self.log.error("Error on_new_buffer pipeline", error)
                 self.img_mat = None
+                # TODO(imo): Propagate error in some way and handle
+
         return Gst.FlowReturn.OK
 
-    def _get_property(self, PropertyName):
+    def _get_property(self, property_name):
         try:
-            return CameraProperty(*self.source.get_tcam_property(PropertyName))
+            return CameraProperty(*self.source.get_tcam_property(property_name))
         except GLib.Error as error:
-            print("Error get Property {0}: {1}",PropertyName, format(err))
+            self.log.error(f"Error get Property {property_name}", error)
             raise
 
-    def _set_property(self, PropertyName, value):
+    def _set_property(self, property_name, value):
         try:
-            print('setting ' + PropertyName + 'to ' + str(value))
-            self.source.set_tcam_property(PropertyName,GObject.Value(type(value),value))
+            self.log.info('setting ' + property_name + 'to ' + str(value))
+            self.source.set_tcam_property(property_name, GObject.Value(type(value), value))
         except GLib.Error as error:
-            print("Error set Property {0}: {1}",PropertyName, format(err))
+            self.log.error(f"Error set Property {property_name}", error)
             raise
 
     def _gstbuffer_to_opencv(self):

@@ -1,21 +1,20 @@
-import sys
-import argparse
-import cv2
 import time
 import numpy as np
 
+import squid.logging
 from control._def import *
 
 import threading
 import control.toupcam as toupcam
 from control.toupcam_exceptions import hresult_checker
 
+log = squid.logging.get_logger(__name__)
 
 def get_sn_by_model(model_name):
     try:
         device_list = toupcam.Toupcam.EnumV2()
     except:
-        print("Problem generating Toupcam device list")
+        log.error("Problem generating Toupcam device list")
         return None
     for dev in device_list:
         if dev.displayname == model_name:
@@ -31,21 +30,20 @@ class Camera(object):
             if camera.is_streaming:
                 camera._on_frame_callback()
                 camera._software_trigger_sent = False
-                # print('  >>> new frame callback')
 
     def _on_frame_callback(self):
         
         # check if the last image is still locked
         if self.image_locked:
-            print('last image is still being processed, a frame is dropped')
+            self.log.warning('last image is still being processed, a frame is dropped')
             return
 
         # get the image from the camera
         try:
             self.camera.PullImageV2(self.buf, self.pixel_size_byte*8, None) # the second camera is number of bits per pixel - ignored in RAW mode
-            # print('  >>> pull image ok, current frame # = {}'.format(self.frame_ID))
         except toupcam.HRESULTException as ex:
-            print('pull image failed, hr=0x{:x}'.format(ex.hr))
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('pull image failed, hr=0x{:x}'.format(ex.hr))
 
         # increament frame ID
         self.frame_ID_software += 1
@@ -55,19 +53,15 @@ class Camera(object):
         # right now support the raw format only
         if self.data_format == 'RGB':
             if self.pixel_format == 'RGB24':
-                # self.current_frame = QImage(self.buf, self.w, self.h, (self.w * 24 + 31) // 32 * 4, QImage.Format_RGB888)
-                print('convert buffer to image not yet implemented for the RGB format')
-            return()
+                # TODO(imo): Propagate error in some way and handle
+                self.log.error('convert buffer to image not yet implemented for the RGB format')
+            return
         else:
             if self.pixel_size_byte == 1:
                 raw_image = np.frombuffer(self.buf, dtype='uint8')
             elif self.pixel_size_byte == 2:
                 raw_image = np.frombuffer(self.buf, dtype='uint16')
             self.current_frame = raw_image.reshape(self.Height,self.Width)
-
-        # for debugging
-        #print(self.current_frame.shape)
-        #print(self.current_frame.dtype)
 
         # frame ID for hardware triggered acquisition
         if self.trigger_mode == TriggerMode.HARDWARE:
@@ -84,6 +78,7 @@ class Camera(object):
         return (w * 24 + 31) // 32 * 4
 
     def __init__(self,sn=None,resolution=(3104,2084),is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
 
         # many to be purged
         self.sn = sn
@@ -180,20 +175,19 @@ class Camera(object):
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
             time.sleep(2)
-            # print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
             temperature = self.get_temperature() 
             if self.temperature_reading_callback is not None:
                 try:
                     self.temperature_reading_callback(temperature)
                 except TypeError as ex:
-                    print("Temperature read callback failed due to error: "+repr(ex))
+                    self.log.error("Temperature read callback failed due to error: "+repr(ex))
                     pass
 
     def open(self,index=0):
         if len(self.devices) > 0:
-            print('{}: flag = {:#x}, preview = {}, still = {}'.format(self.devices[0].displayname, self.devices[0].model.flag, self.devices[0].model.preview, self.devices[0].model.still))
+            self.log.info('{}: flag = {:#x}, preview = {}, still = {}'.format(self.devices[0].displayname, self.devices[0].model.flag, self.devices[0].model.preview, self.devices[0].model.still))
             for r in self.devices[index].model.res:
-                print('\t = [{} x {}]'.format(r.width, r.height))
+                self.log.info('\t = [{} x {}]'.format(r.width, r.height))
             if self.sn is not None:
                 index = [idx for idx in range(len(self.devices)) if self.devices[idx].id == self.sn][0]
             highest_res = (0,0)
@@ -213,7 +207,6 @@ class Camera(object):
             # RAW format: In this format, the output is the raw data directly output from the sensor. The RAW format is for the users that want to skip the internal color processing and obtain the raw data for user-specific purpose. With the raw format output enabled, the functions that are related to the internal color processing will not work, such as Toupcam_put_Hue or Toupcam_AwbOnce function and so on
             
             # set temperature
-            # print('max fan speed is ' + str(self.camera.FanMaxSpeed()))
             self.set_fan_speed(1)
             self.set_temperature(20)
 
@@ -236,14 +229,16 @@ class Camera(object):
                     try:
                         self.camera.StartPullModeWithCallback(self._event_callback, self)
                     except toupcam.HRESULTException as ex:
-                        print('failed to start camera, hr=0x{:x}'.format(ex.hr))
+                        self.log.error('failed to start camera, hr=0x{:x}'.format(ex.hr))
+                        # TODO(imo): Remove sys.exit and propagate+handle.
                         sys.exit(1)
                 self._toupcam_pullmode_started = True
             else:
-                print('failed to open camera')
+                # TODO(imo): Remove sys.exit and propagate+handle.
+                self.log.error('failed to open camera')
                 sys.exit(1)
         else:
-            print('no camera found')
+            self.log.error('no camera found')
 
         self.is_color = False
         if self.is_color:
@@ -320,7 +315,7 @@ class Camera(object):
             return self.camera.get_WhiteBalanceGain()
         except toupcam.HRESULTException as ex:
             err_type = hresult_checker(ex,'E_NOTIMPL')
-            print("AWB not implemented")
+            self.log.warning("AWB not implemented")
             return (0,0,0)
 
     def set_wb_ratios(self, wb_r=None, wb_g=None, wb_b=None):
@@ -328,7 +323,7 @@ class Camera(object):
             camera.put_WhiteBalanceGain(wb_r,wb_g,wb_b)
         except toupcam.HRESULTException as ex:
             err_type = hresult_checker(ex,'E_NOTIMPL')
-            print("White balance not implemented")
+            self.log.warning("White balance not implemented")
 
     def set_reverse_x(self,value):
         pass
@@ -342,10 +337,11 @@ class Camera(object):
                 self.camera.StartPullModeWithCallback(self._event_callback, self)
                 self._toupcam_pullmode_started = True
             except toupcam.HRESULTException as ex:
-                print('failed to start camera, hr: '+hresult_checker(ex))
+                self.log.error('failed to start camera, hr: '+hresult_checker(ex))
                 self.close()
+                # TODO(imo): Remove sys.exit and propagate+handle.
                 sys.exit(1)
-        print('  start streaming')
+        self.log.info('start streaming')
         self.is_streaming = True
 
     def stop_streaming(self):
@@ -409,25 +405,9 @@ class Camera(object):
 
         if was_streaming:
             self.start_streaming()
-        #     if pixel_format == 'BAYER_RG8':
-        #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG8)
-        #         self.pixel_size_byte = 1
-        #     if pixel_format == 'BAYER_RG12':
-        #         self.camera.PixelFormat.set(gx.GxPixelFormatEntry.BAYER_RG12)
-        #         self.pixel_size_byte = 2
-        #     self.pixel_format = pixel_format
-        # else:
-        #     print("pixel format is not implemented or not writable")
 
         if self.reset_strobe_delay is not None:
             self.reset_strobe_delay()
-
-        # if was_streaming:
-        #    self.start_streaming()
-
-        # # update the exposure delay and strobe delay
-        # self.exposure_delay_us = self.exposure_delay_us_8bit*self.pixel_size_byte
-        # self.strobe_delay_us = self.exposure_delay_us + self.row_period_us*self.pixel_size_byte*(self.row_numbers-1)
 
         # It is forbidden to call Toupcam_put_Option with TOUPCAM_OPTION_BITDEPTH in the callback context of 
         # PTOUPCAM_EVENT_CALLBACK and PTOUPCAM_DATA_CALLBACK_V3, the return value is E_WRONG_THREAD
@@ -436,7 +416,8 @@ class Camera(object):
         try:
             self.camera.put_AutoExpoEnable(enabled)
         except toupcam.HRESULTException as ex:
-            print("Unable to set auto exposure: "+repr(ex))
+            self.log.error("Unable to set auto exposure: "+repr(ex))
+            # TODO(imo): Propagate error in some way and handle
 
     def set_data_format(self,data_format):
         self.data_format = data_format
@@ -455,9 +436,10 @@ class Camera(object):
         except toupcam.HRESULTException as ex:
             err_type = hresult_checker(ex,'E_INVALIDARG','E_BUSY','E_ACCESDENIED', 'E_UNEXPECTED')
             if err_type == 'E_INVALIDARG':
-                print(f"Resolution ({width},{height}) not supported by camera")
+                self.log.error(f"Resolution ({width},{height}) not supported by camera")
             else:
-                print(f"Resolution cannot be set due to error: "+err_type)
+                self.log.error(f"Resolution cannot be set due to error: "+err_type)
+                # TODO(imo): Propagate error in some way and handle
         self._update_buffer_settings()
         if was_streaming:
             self.start_streaming()
@@ -477,7 +459,7 @@ class Camera(object):
             bufsize = _TDIBWIDTHBYTES(width * self.pixel_size_byte * 8) * height
         else:
             bufsize = width * self.pixel_size_byte * height
-        print('image size: {} x {}, bufsize = {}'.format(width, height, bufsize))
+        self.log.info('image size: {} x {}, bufsize = {}'.format(width, height, bufsize))
         # create the buffer
         self.buf = bytes(bufsize)
 
@@ -486,7 +468,8 @@ class Camera(object):
             return self.camera.get_Temperature()/10
         except toupcam.HRESULTException as ex:
             error_type = hresult_checker(ex)
-            print("Could not get temperature, error: "+error_type)
+            self.log.debug("Could not get temperature, error: "+error_type)
+            # TODO(imo): Returning 0 temp here seems dangerous - probably indicate instead that we don't know the temp
             return 0
 
     def set_temperature(self,temperature):
@@ -494,7 +477,8 @@ class Camera(object):
             self.camera.put_Temperature(int(temperature*10))
         except toupcam.HRESULTException as ex:
             error_type = hresult_checker(ex)
-            print("Unable to set temperature: "+error_type)
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error("Unable to set temperature: "+error_type)
 
     def set_fan_speed(self,speed):
         if self.has_fan:
@@ -502,7 +486,8 @@ class Camera(object):
                 self.camera.put_Option(toupcam.TOUPCAM_OPTION_FAN,speed)
             except toupcam.HRESULTException as ex:
                 error_type = hresult_checker(ex)
-                print("Unable to set fan speed: "+error_type)
+                # TODO(imo): Propagate error in some way and handle
+                self.log.error("Unable to set fan speed: "+error_type)
         else:
             pass
 
@@ -526,16 +511,16 @@ class Camera(object):
             self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_TRIGGERSOURCE, 1)
         except toupcam.HRESULTException as ex:
             error_type = hresult_checker(ex)
-            print("Unable to select trigger source: " + error_type)
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error("Unable to select trigger source: " + error_type)
         # set GPIO1 to trigger wait
         try:
             self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTMODE, 0)
             self.camera.IoControl(3, toupcam.TOUPCAM_IOCONTROLTYPE_SET_OUTPUTINVERTER, 0)
         except toupcam.HRESULTException as ex:
             error_type = hresult_checker(ex)
-            print("Unable to set GPIO1 for trigger ready: " + error_type)
-
-        # self.update_camera_exposure_time()
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error("Unable to set GPIO1 for trigger ready: " + error_type)
 
     def set_trigger_width_mode(self):
         self.camera.IoControl(1, toupcam.TOUPCAM_IOCONTROLTYPE_SET_PWMSOURCE, 1) # set PWM source to GPIO0
@@ -552,20 +537,19 @@ class Camera(object):
     def send_trigger(self):
         if self._last_software_trigger_timestamp!= None:
             if (time.time() - self._last_software_trigger_timestamp) > (1.5*self.exposure_time/1000*1.02 + 4):
-                print('last software trigger timed out')
+                self.log.warning('last software trigger timed out')
                 self._software_trigger_sent = False
         if self.is_streaming and (self._software_trigger_sent == False):
             self.camera.Trigger(1)
             self._software_trigger_sent = True
             self._last_software_trigger_timestamp = time.time()
-            print('  >>> trigger sent')
+            self.log.debug('>>> trigger sent')
         else:
+            # TODO(imo): Propagate these errors in some way and handle
             if self.is_streaming == False:
-                print('trigger not sent - camera is not streaming')
+                self.logger.error('trigger not sent - camera is not streaming')
             else:
-                # print('trigger not sent - waiting for the last trigger to complete')
                 pass
-                #print("{:.3f}".format(time.time()-self._last_software_trigger_timestamp) + ' s since the last trigger')
 
     def stop_exposure(self):
         if self.is_streaming and self._software_trigger_sent == True:
@@ -584,7 +568,7 @@ class Camera(object):
             if self.image_is_ready:
                 self.image_is_ready = False
                 return self.current_frame
-        print('read frame timed out')
+        self.log.error('read frame timed out')
         return None
     
     def set_ROI(self,offset_x=None,offset_y=None,width=None,height=None):
@@ -592,77 +576,22 @@ class Camera(object):
             ROI_offset_x = 2*(offset_x//2)
         else:
             ROI_offset_x = self.ROI_offset_x
-        #     # stop streaming if streaming is on
-        #     if self.is_streaming == True:
-        #         was_streaming = True
-        #         self.stop_streaming()
-        #     else:
-        #         was_streaming = False
-        #     # update the camera setting
-        #     if self.camera.OffsetX.is_implemented() and self.camera.OffsetX.is_writable():
-        #         self.camera.OffsetX.set(self.ROI_offset_x)
-        #     else:
-        #         print("OffsetX is not implemented or not writable")
-        #     # restart streaming if it was previously on
-        #     if was_streaming == True:
-        #         self.start_streaming()
 
         if offset_y is not None:
             ROI_offset_y = 2*(offset_y//2)
         else:
             ROI_offset_y = self.ROI_offset_y
-        #         # stop streaming if streaming is on
-        #     if self.is_streaming == True:
-        #         was_streaming = True
-        #         self.stop_streaming()
-        #     else:
-        #         was_streaming = False
-        #     # update the camera setting
-        #     if self.camera.OffsetY.is_implemented() and self.camera.OffsetY.is_writable():
-        #         self.camera.OffsetY.set(self.ROI_offset_y)
-        #     else:
-        #         print("OffsetX is not implemented or not writable")
-        #     # restart streaming if it was previously on
-        #     if was_streaming == True:
-        #         self.start_streaming()
 
         if width is not None:
             ROI_width = max(16,2*(width//2))
         else:
             ROI_width = self.ROI_width
-        #     # stop streaming if streaming is on
-        #     if self.is_streaming == True:
-        #         was_streaming = True
-        #         self.stop_streaming()
-        #     else:
-        #         was_streaming = False
-        #     # update the camera setting
-        #     if self.camera.Width.is_implemented() and self.camera.Width.is_writable():
-        #         self.camera.Width.set(self.ROI_width)
-        #     else:
-        #         print("OffsetX is not implemented or not writable")
-        #     # restart streaming if it was previously on
-        #     if was_streaming == True:
-        #         self.start_streaming()
 
         if height is not None:
             ROI_height = max(16,2*(height//2))
         else:
             ROI_height = self.ROI_height
-        #     # stop streaming if streaming is on
-        #     if self.is_streaming == True:
-        #         was_streaming = True
-        #         self.stop_streaming()
-        #     else:
-        #         was_streaming = False
-        #     # update the camera setting
-        #     if self.camera.Height.is_implemented() and self.camera.Height.is_writable():
-        #         self.camera.Height.set(self.ROI_height)
-        #     else:
-        #         print("Height is not implemented or not writable")
-        #     # restart streaming if it was previously on
-        #     if was_streaming == True:
-        #         self.start_streaming()
+
         was_streaming = False
         if self.is_streaming:
             self.stop_streaming()
@@ -698,7 +627,7 @@ class Camera(object):
                 self.OffsetY = ROI_offset_y
             except toupcam.HRESULTException as ex:
                 err_type = hresult_checker(ex,'E_INVALIDARG')
-                print("ROI bounds invalid, not changing ROI.")
+                self.log.error("ROI bounds invalid, not changing ROI.")
             self._update_buffer_settings()
         if was_streaming:
             self.start_streaming()
@@ -707,6 +636,7 @@ class Camera(object):
             self.reset_strobe_delay()
 
     def reset_camera_acquisition_counter(self):
+        # TODO(imo): raise not implemented or something so this isn't a silent fail
         # if self.camera.CounterEventSource.is_implemented() and self.camera.CounterEventSource.is_writable():
         #     self.camera.CounterEventSource.set(gx.GxCounterEventSourceEntry.LINE2)
         # else:
@@ -719,6 +649,7 @@ class Camera(object):
         pass
 
     def set_line3_to_strobe(self):
+        # TODO(imo): Make this not a silent fail
         # # self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
         # self.camera.LineSelector.set(gx.GxLineSelectorEntry.LINE3)
         # self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
@@ -726,6 +657,7 @@ class Camera(object):
         pass
 
     def set_line3_to_exposure_active(self):
+        # TODO(imo): Make this not a silent fail
         # # self.camera.StrobeSwitch.set(gx.GxSwitchEntry.ON)
         # self.camera.LineSelector.set(gx.GxLineSelectorEntry.LINE3)
         # self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
@@ -741,7 +673,7 @@ class Camera(object):
         roi_height = 0
 
         pixel_bits = self.pixel_size_byte * 8
-        #print(f'pixel_bits = {pixel_bits}')
+
 
         line_length = 0
         low_noise = 0
@@ -758,25 +690,24 @@ class Camera(object):
 
         try:
             resolution_width, resolution_height = self.camera.get_Size()
-            #print(f'res width = {resolution_width} res height = {resolution_height}')
         except toupcam.HRESULTException as ex:
-            print('get resolution fail, hr=0x{:x}'.format(ex.hr))
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('get resolution fail, hr=0x{:x}'.format(ex.hr))
 
         xoffset, yoffset, roi_width, roi_height = self.camera.get_Roi()
-        #print(f'roi_width = {roi_width} roi_height = {roi_height}')
 
         try:
             bandwidth = self.camera.get_Option(toupcam.TOUPCAM_OPTION_BANDWIDTH) 
         except toupcam.HRESULTException as ex:
-            print('get badwidth fail, hr=0x{:x}'.format(ex.hr))
-        #print(f'bandwidth = {bandwidth}')
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('get badwidth fail, hr=0x{:x}'.format(ex.hr))
 
         if self.has_low_noise_mode:
             try:
                 low_noise = self.camera.get_Option(toupcam.TOUPCAM_OPTION_LOW_NOISE)
             except toupcam.HRESULTException as ex:
-                print('get low_noise fail, hr=0x{:x}'.format(ex.hr))
-        #print(f'low_noise = {low_noise}')
+                # TODO(imo): Propagate error in some way and handle
+                self.log.error('get low_noise fail, hr=0x{:x}'.format(ex.hr))
 
         if resolution_width == 6224 and resolution_height == 4168:
             if pixel_bits == 8:
@@ -800,48 +731,31 @@ class Camera(object):
                 line_length = 790
 
         line_length = int(line_length / (bandwidth / 100.0))
-        #print(f'line_length = {line_length}')
-
         row_time = line_length / 72
-        #print(f'row_time = {row_time}')
 
         try:
             max_framerate = self.camera.get_Option(toupcam.TOUPCAM_OPTION_MAX_PRECISE_FRAMERATE)
         except toupcam.HRESULTException as ex:
-            print('get max_framerate fail, hr=0x{:x}'.format(ex.hr))
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('get max_framerate fail, hr=0x{:x}'.format(ex.hr))
 
         # need reset value, because the default value is only 90% of setting value
         try:
             self.camera.put_Option(toupcam.TOUPCAM_OPTION_PRECISE_FRAMERATE, max_framerate )
         except toupcam.HRESULTException as ex:
-            print('put max_framerate fail, hr=0x{:x}'.format(ex.hr))
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('put max_framerate fail, hr=0x{:x}'.format(ex.hr))
 
         max_framerate = max_framerate / 10.0
-        #print(f'max_framerate = {max_framerate}')
 
         vheight = 72000000 / (max_framerate * line_length)
         if vheight < roi_height + 56:
             vheight = roi_height + 56
-        #print(f'vheight = {vheight}')
-        
-        #print(f'exposure_time = {self.exposure_time}')
+
         exp_length = 72 * self.exposure_time * 1000 / line_length
 
-        #print(f'exp_length = {exp_length}')
-
-        #if vheight >= exp_length - 1:
-        #    SHR = vheight - exp_length
-        #else:
-        #    SHR = 1
-
-        #print(f'SHR = {SHR}')
-
-        #TRG_DELAY = int((SHR * line_length) / 72)
-        #print(f'TRG_DELAY = {TRG_DELAY}')
-
         frame_time = int(vheight * row_time)
-        #print(f'frame_time = {frame_time}')
-        
+
         self.strobe_delay_us = frame_time
 
     def set_reset_strobe_delay_function(self, function_body):
@@ -850,6 +764,7 @@ class Camera(object):
 class Camera_Simulation(object):
     
     def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
         # many to be purged
         self.sn = sn
         self.is_global_shutter = is_global_shutter
@@ -954,7 +869,7 @@ class Camera_Simulation(object):
 
     def set_pixel_format(self,pixel_format):
         self.pixel_format = pixel_format
-        print(pixel_format)
+        self.log.debug(f"Pixel format: {pixel_format}")
         self.frame_ID = 0
 
     def get_temperature(self):
