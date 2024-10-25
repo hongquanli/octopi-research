@@ -1,17 +1,16 @@
 import platform
 import serial
-import sys
 import serial.tools.list_ports
 import time
 import numpy as np
 import threading
 from crc import CrcCalculator, Crc8
 
+from qtpy.QtCore import QTimer
+
+import squid.logging
 from control._def import *
 
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
 
 # add user to the dialout group to avoid the need to use sudo
 
@@ -21,8 +20,10 @@ from qtpy.QtGui import *
 
 # to do (7/28/2021) - add functions for configuring the stepper motors
 
-class Microcontroller():    
-    def __init__(self,version='Arduino Due',sn=None,parent=None):
+class Microcontroller:
+    def __init__(self, version='Arduino Due', sn=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
+
         self.serial = None
         self.platform_name = platform.system()
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
@@ -49,7 +50,7 @@ class Microcontroller():
         self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
         self.retry = 0
 
-        print('connecting to controller based on ' + version)
+        self.log.debug("connecting to controller based on " + version)
 
         if version =='Arduino Due':
             controller_ports = [p.device for p in serial.tools.list_ports.comports() if 'Arduino Due' == p.description] # autodetect - based on Deepak's code
@@ -65,11 +66,11 @@ class Microcontroller():
         if not controller_ports:
             raise IOError("no controller found")
         if len(controller_ports) > 1:
-            print('multiple controller found - using the first')
+            self.log.warning("multiple controller found - using the first")
         
         self.serial = serial.Serial(controller_ports[0],2000000)
         time.sleep(0.2)
-        print('controller connected')
+        self.log.debug("controller connected")
 
         self.new_packet_callback_external = None
         self.terminate_reading_received_packet_thread = False
@@ -86,14 +87,14 @@ class Microcontroller():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.RESET
         self.send_command(cmd)
-        print('reset the microcontroller') # debug
+        self.log.debug("reset the microcontroller")
 
     def initialize_drivers(self):
         self._cmd_id = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.INITIALIZE
         self.send_command(cmd)
-        print('initialize the drivers') # debug
+        self.log.debug("initialize the drivers")
 
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -105,7 +106,7 @@ class Microcontroller():
         cmd[1] = CMD_SET.TURN_OFF_ILLUMINATION
         self.send_command(cmd)
 
-    def set_illumination(self,illumination_source,intensity,r=None,g=None,b=None):
+    def set_illumination(self,illumination_source,intensity):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_ILLUMINATION
         cmd[2] = illumination_source
@@ -142,20 +143,6 @@ class Microcontroller():
         cmd[5] = (strobe_delay_us >> 8) & 0xff
         cmd[6] = strobe_delay_us & 0xff
         self.send_command(cmd)
-
-    '''
-    def move_x(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_X
-        cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-    '''
 
     def move_x_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
@@ -198,20 +185,6 @@ class Microcontroller():
         cmd[5] = payload & 0xff
         self.send_command(cmd)
 
-    '''
-    def move_y(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_Y
-        cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-    '''
-
     def move_y_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
@@ -252,20 +225,6 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-
-    '''
-    def move_z(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_Z)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_Z
-        cmd[1] = 1-direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-    '''
 
     def move_z_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Z*np.sign(usteps)
@@ -652,7 +611,6 @@ class Microcontroller():
             # get rid of old data
             num_bytes_in_rx_buffer = self.serial.in_waiting
             if num_bytes_in_rx_buffer > self.rx_buffer_length:
-                # print('getting rid of old data')
                 for i in range(num_bytes_in_rx_buffer-self.rx_buffer_length):
                     self.serial.read()
             
@@ -678,20 +636,20 @@ class Microcontroller():
             if (self._cmd_id_mcu == self._cmd_id) and (self._cmd_execution_status == CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS):
                 if self.mcu_cmd_execution_in_progress == True:
                     self.mcu_cmd_execution_in_progress = False
-                    print('   mcu command ' + str(self._cmd_id) + ' complete')
+                    self.log.debug("mcu command " + str(self._cmd_id) + " complete")
             elif self._cmd_id_mcu != self._cmd_id and time.time() - self.last_command_timestamp > 5 and self.last_command != None:
                 self.timeout_counter = self.timeout_counter + 1
                 if self.timeout_counter > 10:
                     self.resend_last_command()
-                    print('      *** resend the last command')
+                    self.log.debug("*** resend the last command")
             elif self._cmd_execution_status == CMD_EXECUTION_STATUS.CMD_CHECKSUM_ERROR:
-                print('! cmd checksum error, resending command')
+                self.log.error("cmd checksum error, resending command")
                 if self.retry > 10:
-                    print('!! resending command failed for more than 10 times, the program will exit')
+                    self.log.error("resending command failed for more than 10 times, the program will exit")
+                    # TODO(imo): Don't just exit here, let the caller do something if they want to
                     sys.exit(1)
                 else:
                     self.resend_last_command()
-            # print('command id ' + str(self._cmd_id) + '; mcu command ' + str(self._cmd_id_mcu) + ' status: ' + str(msg[1]) )
 
             self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
             self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
@@ -730,17 +688,20 @@ class Microcontroller():
         while self.is_busy():
             time.sleep(0.02)
             if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
-                print('Error - microcontroller timeout, the program will exit')
+                self.log.error("microcontroller timeout, the program will exit")
+                # TODO(imo): Don't just exit here, let the caller do something if they want
                 sys.exit(1)
 
-    def _int_to_payload(self,signed_int,number_of_bytes):
+    @staticmethod
+    def _int_to_payload(signed_int,number_of_bytes):
         if signed_int >= 0:
             payload = signed_int
         else:
             payload = 2**(8*number_of_bytes) + signed_int # find two's completement
         return payload
 
-    def _payload_to_int(self,payload,number_of_bytes):
+    @staticmethod
+    def _payload_to_int(payload,number_of_bytes):
         signed = 0
         for i in range(number_of_bytes):
             signed = signed + int(payload[i])*(256**(number_of_bytes-1-i))
@@ -762,7 +723,8 @@ class Microcontroller():
         self.send_command(cmd)
 
 class Microcontroller_Simulation():
-    def __init__(self,parent=None):
+    def __init__(self):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
         self.serial = None
         self.platform_name = platform.system()
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
@@ -810,73 +772,74 @@ class Microcontroller_Simulation():
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.INITIALIZE
         self.send_command(cmd)
-        print('initialize the drivers') # debug
+        self.log.debug("initialize the drivers")
 
     def move_x_usteps(self,usteps):
         self.x_pos = self.x_pos + STAGE_MOVEMENT_SIGN_X*usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': move x')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move x")
 
     def move_x_to_usteps(self,usteps):
         self.x_pos = usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': move x to')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move x to")
 
     def move_y_usteps(self,usteps):
         self.y_pos = self.y_pos + STAGE_MOVEMENT_SIGN_Y*usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': move y')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move y")
 
     def move_y_to_usteps(self,usteps):
         self.y_pos = usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': move y to')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move y to")
 
     def move_z_usteps(self,usteps):
         self.z_pos = self.z_pos + STAGE_MOVEMENT_SIGN_Z*usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': move z')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move z")
 
     def move_z_to_usteps(self,usteps):
         self.z_pos = usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': move z to')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move z to")
 
     def move_theta_usteps(self,usteps):
         self.theta_pos = self.theta_pos + usteps
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
+        self.log.debug("mcu command " + str(self._cmd_id) + ": move theta")
 
     def home_x(self):
         self.x_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': home x')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": home x")
 
     def home_y(self):
         self.y_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': home y')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": home y")
 
     def home_z(self):
         self.z_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': home z')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": home z")
 
     def home_xy(self):
         self.x_pos = 0
         self.y_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': home xy')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": home xy")
 
     def home_theta(self):
         self.theta_pos = 0
@@ -887,19 +850,19 @@ class Microcontroller_Simulation():
         self.x_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': zero x')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": zero x")
 
     def zero_y(self):
         self.y_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': zero y')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": zero y")
 
     def zero_z(self):
         self.z_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': zero z')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": zero z")
 
     def zero_theta(self):
         self.theta_pos = 0
@@ -1058,7 +1021,7 @@ class Microcontroller_Simulation():
             if time.time() - self.timestamp_last_command > 0.05: # in the simulation, assume all the operation takes 0.05s to complete
                 if self._mcu_cmd_execution_status !=  CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS:
                     self._mcu_cmd_execution_status = CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS
-                    print('   mcu command ' + str(self._cmd_id) + ' complete')
+                    self.log.debug("mcu command " + str(self._cmd_id) + " complete")
 
             # read and parse message
             msg=[]
@@ -1072,13 +1035,7 @@ class Microcontroller_Simulation():
             self._cmd_execution_status = msg[1]
             if (self._cmd_id_mcu == self._cmd_id) and (self._cmd_execution_status == CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS):
                 self.mcu_cmd_execution_in_progress = False
-            # print('mcu_cmd_execution_in_progress: ' + str(self.mcu_cmd_execution_in_progress))
-            
-            # self.x_pos = utils.unsigned_to_signed(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            # self.y_pos = utils.unsigned_to_signed(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            # self.z_pos = utils.unsigned_to_signed(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            # self.theta_pos = utils.unsigned_to_signed(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            
+
             self.button_and_switch_state = msg[18]
 
             if self.new_packet_callback_external is not None:
@@ -1089,22 +1046,22 @@ class Microcontroller_Simulation():
     def turn_on_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': turn on illumination')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": turn on illumination")
 
     def turn_off_illumination(self):
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': turn off illumination')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": turn off illumination")
 
     def set_illumination(self,illumination_source,intensity):
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': set illumination')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": set illumination")
 
     def set_illumination_led_matrix(self,illumination_source,r,g,b):
         cmd = bytearray(self.tx_buffer_length)
         self.send_command(cmd)
-        print('   mcu command ' + str(self._cmd_id) + ': set illumination (led matrix)')
+        self.log.debug("mcu command " + str(self._cmd_id) + ": set illumination (led matrix)")
 
     def send_hardware_trigger(self,control_illumination=False,illumination_on_time_us=0,trigger_output_ch = 0):
         illumination_on_time_us = int(illumination_on_time_us)
@@ -1118,7 +1075,7 @@ class Microcontroller_Simulation():
         self.send_command(cmd)
 
     def set_strobe_delay_us(self, strobe_delay_us, camera_channel=0):
-        print('set strobe delay')
+        self.log.debug("set strobe delay")
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_STROBE_DELAY
         cmd[2] = camera_channel
@@ -1177,7 +1134,8 @@ class Microcontroller_Simulation():
         while self.is_busy():
             time.sleep(0.02)
             if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
-                print('Error - microcontroller timeout, the program will exit')
+                self.log.error("microcontroller timeout, the program will exit")
+                # TODO(imo): Don't just exit, let the caller do something.
                 sys.exit(1)
 
     def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
