@@ -1,13 +1,10 @@
 # set QT_API environment variable
-import os 
-import sys
+import os
 os.environ["QT_API"] = "pyqt5"
-import qtpy
 
 # qt libraries
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
-from qtpy.QtGui import *
 
 # app specific libraries
 import control.widgets as widgets
@@ -21,13 +18,15 @@ import time
 
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
-class OctopiGUI(QMainWindow):
+class MalariaGUI(QMainWindow):
 
     # variables
     fps_software_trigger = 100
 
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.log = squid.logging.get_logger(self.__class__.__name__)
 
         # load objects
         if is_simulation:
@@ -40,11 +39,11 @@ class OctopiGUI(QMainWindow):
             except:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.open()
-                print('! camera not detected, using simulated camera !')
+                self.log.error("camera not detected, using simulated camera")
             try:
                 self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
             except:
-                print('! Microcontroller not detected, using simulated microcontroller !')
+                self.log.error("Microcontroller not detected, using simulated microcontroller")
                 self.microcontroller = microcontroller.Microcontroller_Simulation()
 
         # reset the MCU
@@ -77,9 +76,9 @@ class OctopiGUI(QMainWindow):
         while self.microcontroller.is_busy():
             time.sleep(0.005)
             if time.time() - t0 > 10:
-                print('z homing timeout, the program will exit')
+                self.log.error('z homing timeout, the program will exit')
                 sys.exit(1)
-        print('objective retracted')
+        self.log.info('objective retracted')
 
         # set encoder arguments
         # set axis pid control enable
@@ -104,11 +103,11 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_x_limit_neg_mm(-100)
         self.navigationController.set_y_limit_pos_mm(100)
         self.navigationController.set_y_limit_neg_mm(-100)
-        print('start homing')
+        self.log.info("start homing")
         self.slidePositionController.move_to_slide_scanning_position()
         while self.slidePositionController.slide_scanning_position_reached == False:
             time.sleep(0.005)
-        print('homing finished')
+        self.log.info("homing finished")
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
         self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
         self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)

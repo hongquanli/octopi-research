@@ -36,7 +36,9 @@ _COLOR_STREAM_HANDLER.setFormatter(_CustomFormatter())
 
 # Make sure the squid root logger has all the handlers we want setup.  We could move this into a helper so it
 # isn't done at the module level, but not needing to remember to call some helper to setup formatting is nice.
+# Also set the default logging level to INFO
 py_logging.getLogger(_squid_root_logger_name).addHandler(_COLOR_STREAM_HANDLER)
+py_logging.getLogger(_squid_root_logger_name).setLevel(py_logging.INFO)
 
 
 def get_logger(name: Optional[str] = None) -> py_logging.Logger:

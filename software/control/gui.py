@@ -14,6 +14,7 @@ import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
 from control._def import *
+import squid.logging
 
 import pyqtgraph.dockarea as dock
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
@@ -25,6 +26,8 @@ class OctopiGUI(QMainWindow):
 
     def __init__(self, is_simulation = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.log = squid.logging.get_logger(self.__class__.__name__)
 
         # load window
         if ENABLE_TRACKING:
@@ -52,11 +55,11 @@ class OctopiGUI(QMainWindow):
             except:
                 self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
                 self.camera.open()
-                print('! camera not detected, using simulated camera !')
+                self.log.error("camera not detected, using simulated camera")
             try:
                 self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
             except:
-                print('! Microcontroller not detected, using simulated microcontroller !')
+                self.log.error("Microcontroller not detected, using simulated microcontroller")
                 self.microcontroller = microcontroller.Microcontroller_Simulation()
 
         # reset the MCU

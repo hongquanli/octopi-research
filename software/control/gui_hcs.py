@@ -83,12 +83,12 @@ if SUPPORT_LASER_AUTOFOCUS:
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
 
-class OctopiGUI(QMainWindow):
+class HighContentScreeningGui(QMainWindow):
     fps_software_trigger = 100
 
     def __init__(self, is_simulation=False, performance_mode=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        self.log = squid.logging.get_logger(self.__class__.__name__)
         self.performance_mode = performance_mode or PERFORMANCE_MODE
 
         self.loadObjects(is_simulation)
@@ -123,7 +123,7 @@ class OctopiGUI(QMainWindow):
             try:
                 self.loadHardwareObjects()
             except Exception:
-                log.error("---- !! ERROR CONNECTING TO HARDWARE !! ----", stack_info=True, exc_info=True)
+                self.log.error("---- !! ERROR CONNECTING TO HARDWARE !! ----", stack_info=True, exc_info=True)
                 raise
 
         # Common object initialization
@@ -159,7 +159,7 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP,look_for_cache=False)
 
     def loadSimulationObjects(self):
-        log.debug("Loading simulated hardware objects...")
+        self.log.debug("Loading simulated hardware objects...")
         # Initialize simulation objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.xlight = serial_peripherals.XLight_Simulation()
@@ -184,7 +184,7 @@ class OctopiGUI(QMainWindow):
             try:
                 self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER, XLIGHT_SLEEP_TIME_FOR_WHEEL)
             except Exception:
-                log.error("Error initializing Spinning Disk Confocal")
+                self.log.error("Error initializing Spinning Disk Confocal")
                 raise
 
         if ENABLE_NL5:
@@ -192,7 +192,7 @@ class OctopiGUI(QMainWindow):
                 import control.NL5 as NL5
                 self.nl5 = NL5.NL5()
             except Exception:
-                log.error("Error initializing NL5")
+                self.log.error("Error initializing NL5")
                 raise
 
         if ENABLE_CELLX:
@@ -202,7 +202,7 @@ class OctopiGUI(QMainWindow):
                     self.cellx.set_modulation(channel, CELLX_MODULATION)
                     self.cellx.turn_on(channel)
             except Exception:
-                log.error("Error initializing CellX")
+                self.log.error("Error initializing CellX")
                 raise
 
         if USE_LDI_SERIAL_CONTROL:
@@ -212,7 +212,7 @@ class OctopiGUI(QMainWindow):
                 self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
                 self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
             except Exception:
-                log.error("Error initializing LDI")
+                self.log.error("Error initializing LDI")
                 raise
 
         if SUPPORT_LASER_AUTOFOCUS:
@@ -222,7 +222,7 @@ class OctopiGUI(QMainWindow):
                 self.camera_focus.open()
                 self.camera_focus.set_pixel_format('MONO8')
             except Exception:
-                log.error(f"Error initializing Laser Autofocus Camera")
+                self.log.error(f"Error initializing Laser Autofocus Camera")
                 raise
 
         try:
@@ -231,34 +231,34 @@ class OctopiGUI(QMainWindow):
             self.camera.open()
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
         except Exception:
-            log.error("Error initializing Main Camera")
+            self.log.error("Error initializing Main Camera")
             raise
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             try:
                 self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
             except Exception:
-                log.error("Error initializing Zaber Emission Filter Wheel")
+                self.log.error("Error initializing Zaber Emission Filter Wheel")
                 raise
 
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             try:
                 self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
             except Exception:
-                log.error("Error initializing Optospin Emission Filter Wheel")
+                self.log.error("Error initializing Optospin Emission Filter Wheel")
                 raise
 
         if USE_PRIOR_STAGE:
             try:
                 self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
             except Exception:
-                log.error("Error initializing Prior Stage")
+                self.log.error("Error initializing Prior Stage")
                 raise
 
         try:
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION, sn=CONTROLLER_SN)
         except Exception:
-            log.error(f"Error initializing Microcontroller")
+            self.log.error(f"Error initializing Microcontroller")
             raise
 
     def setupHardware(self):
