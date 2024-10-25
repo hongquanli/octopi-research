@@ -1,48 +1,48 @@
 # set QT_API environment variable
-import os
-import glob
 import argparse
+import glob
+import os
 os.environ["QT_API"] = "pyqt5"
-import qtpy
-
 import sys
 
 # qt libraries
-from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
+import squid.logging
+squid.logging.setup_uncaught_exception_logging()
+
 # app specific libraries
 import control.gui_hcs as gui
-
 from configparser import ConfigParser
 from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
-
 from control._def import CACHED_CONFIG_FILE_PATH
 
-import glob
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action = 'store_true')
-parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action = 'store_true')
-args = parser.parse_args()
 
 def show_config(cfp, configpath, main_gui):
     config_widget = ConfigEditorBackwardsCompatible(cfp, configpath, main_gui)
     config_widget.exec_()
+
 
 def show_acq_config(cfm):
     acq_config_widget = ConfigEditorForAcquisitions(cfm)
     acq_config_widget.exec_()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action='store_true')
+    parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action='store_true')
+    args = parser.parse_args()
+
+    log = squid.logging.get_logger("main_hcs")
+
     legacy_config = False
     cf_editor_parser = ConfigParser()
     config_files = glob.glob('.' + '/' + 'configuration*.ini')
     if config_files:
         cf_editor_parser.read(CACHED_CONFIG_FILE_PATH)
     else:
-        print('configuration*.ini file not found, defaulting to legacy configuration')
+        log.error('configuration*.ini file not found, defaulting to legacy configuration')
         legacy_config = True
     app = QApplication([])
     app.setStyle('Fusion')

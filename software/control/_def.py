@@ -1,11 +1,15 @@
 import os
 import sys
 import glob
-import numpy as np
 from pathlib import Path
 from configparser import ConfigParser
 import json
 import csv
+
+import squid.logging
+
+log = squid.logging.get_logger(__name__)
+
 
 def conf_attribute_reader(string_value):
     """
@@ -180,13 +184,13 @@ class LIMIT_SWITCH_POLARITY:
 
 
 class ILLUMINATION_CODE:
-    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
+    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0
     ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1
     ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2
     ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3
-    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4;
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5;
-    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6;
+    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5
+    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6
     ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20
     ILLUMINATION_SOURCE_405NM = 11
     ILLUMINATION_SOURCE_488NM = 12
@@ -493,8 +497,6 @@ SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
 
-ENABLE_SPINNING_DISK_CONFOCAL = False
-
 INVERTED_OBJECTIVE = False
 
 ILLUMINATION_INTENSITY_FACTOR = 0.6
@@ -598,7 +600,6 @@ def read_objectives_csv(file_path):
                 'NA': float(row['NA']),
                 'tube_lens_f_mm': float(row['tube_lens_f_mm'])
             }
-            #print(f"{row['name']}: {objectives[row['name']]}")
     return objectives
 
 def read_sample_formats_csv(file_path):
@@ -618,7 +619,6 @@ def read_sample_formats_csv(file_path):
                 'rows': int(row['rows']),
                 'cols': int(row['cols'])
             }
-            #print(format_key, "well plate settings:", sample_formats[format_key])
     return sample_formats
 
 OBJECTIVES_CSV_PATH = 'objectives.csv'
@@ -668,12 +668,12 @@ config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
         if CACHED_CONFIG_FILE_PATH in config_files:
-            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            log.info(f'defaulting to last cached config file at \'{CACHED_CONFIG_FILE_PATH}\'')
             config_files = [CACHED_CONFIG_FILE_PATH]
         else:
-            print('multiple machine configuration files found, the program will exit')
+            log.error('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-    print('load machine-specific configuration')
+    log.info('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
     cfp.read(config_files[0])
@@ -704,16 +704,16 @@ if config_files:
         file.write(config_files[0])
     CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
-    print('configuration*.ini file not found, defaulting to legacy configuration')
+    log.warning('configuration*.ini file not found, defaulting to legacy configuration')
     config_files = glob.glob('.' + '/' + 'configuration*.txt')
     if config_files:
         if len(config_files) > 1:
-            print('multiple machine configuration files found, the program will exit')
+            log.error('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-        print('load machine-specific configuration')
+        log.info('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
-        print('machine-specific configuration not present, the program will exit')
+        log.error('machine-specific configuration not present, the program will exit')
         sys.exit(1)
 ##########################################################
 ##### end of loading machine specific configurations #####
