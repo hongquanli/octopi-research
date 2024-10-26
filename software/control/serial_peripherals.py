@@ -10,7 +10,7 @@ class SerialDevice:
     automating device finding based on VID/PID
     or serial number.
     """
-    def __init__(self, port=None, VID=None,PID=None,SN=None, baudrate=9600, read_timeout=1, **kwargs):
+    def __init__(self, port=None, VID=None,PID=None,SN=None, baudrate=9600, read_timeout=0.1, **kwargs):
         # Initialize the serial connection
         self.port = port
         self.VID = VID
@@ -74,7 +74,7 @@ class SerialDevice:
             if self.port is not None:
                 self.serial = serial.Serial(self.port,**kwargs)
 
-    def write_and_check(self, command, expected_response, read_delay=0.1, max_attempts=3, attempt_delay=1, check_prefix=True, print_response=False):
+    def write_and_check(self, command, expected_response, read_delay=0.1, max_attempts=5, attempt_delay=1, check_prefix=True, print_response=False):
         # Write a command and check the response
         for attempt in range(max_attempts):
             self.serial.write(command.encode())
