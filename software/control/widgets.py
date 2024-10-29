@@ -2893,15 +2893,17 @@ class MultiPointWidget2(QFrame):
             if hasattr(self.multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
                 self.multipointController.scanCoordinates.grid_skip_positions = []
 
-            if self.checkbox_set_z_range.isChecked():
-                # Set Z-range (convert from μm to mm)
-                self.multipointController.set_z_range(self.entry_minZ.value() / 1000, self.entry_maxZ.value() / 1000)
-
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
                 self.add_location()
                 self.acquisition_in_place = True
                 self.multipointController.location_list = self.location_list
+
+            if self.checkbox_set_z_range.isChecked():
+                # Set Z-range (convert from μm to mm)
+                minZ = self.entry_minZ.value() / 1000
+                maxZ = self.entry_maxZ.value() / 1000
+                self.multipointController.set_z_range(minZ, maxZ)
 
             self.setEnabled_all(False)
             # set parameters
