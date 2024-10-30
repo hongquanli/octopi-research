@@ -181,8 +181,8 @@ class PriorStage():
         x, y, z = map(int, response.split(','))
         self.x_pos = x
         self.y_pos = y
-        self.x_pos_mm = self.steps_to_mm(x_pos)
-        self.y_pos_mm = self.steps_to_mm(y_pos)
+        self.x_pos_mm = self.steps_to_mm(self.x_pos)
+        self.y_pos_mm = self.steps_to_mm(self.y_pos)
 
     def get_pos_mm(self):
         return self.x_pos_mm, self.y_pos_mm, 0
@@ -257,7 +257,8 @@ class PriorStage():
             status = int(self.send_command("$,S"))
             if status == 0:
                 self.get_pos()
-                self.pos_callback_external(self) # let navigation controller get the latest position
+                if self.pos_callback_external is not None:
+                    self.pos_callback_external(self) # let navigation controller get the latest position
                 break
             time.sleep(0.05)
 
