@@ -37,7 +37,7 @@ class PriorStage():
         self.pos_callback_external = None
         self.serial_lock = threading.Lock()
         self.position_updating_event = threading.Event()
-        self.position_updating_thread = threading.Thread(target=self.return_position_info, daemon=True)
+        self.position_updating_thread = threading.Thread(target=self.return_position_info, daemon=True) # can change to sched in the future for fixed and precise interval
 
         self.set_baudrate(baudrate)
 
@@ -143,8 +143,10 @@ class PriorStage():
 
     def return_position_info(self):
         while not self.position_updating_event.is_set():
+            self.get_pos()
             if self.pos_callback_external is not None:
                 self.pos_callback_external(self)
+            time.sleep(0.1) # sets the update interval to be around 0.1s
 
     def home_xy(self):
         """Home the XY stage."""
@@ -174,11 +176,16 @@ class PriorStage():
         self.set_pos(self.x_pos, 0)
 
     def get_pos(self):
+        # read from controller
         response = self.send_command("P")
         x, y, z = map(int, response.split(','))
         self.x_pos = x
         self.y_pos = y
-        return x, y, 0, 0  # Z and theta are 0
+        self.x_pos_mm = self.steps_to_mm(x_pos)
+        self.y_pos_mm = self.steps_to_mm(y_pos)
+
+    def get_pos_mm(self):
+        return self.x_pos_mm, self.y_pos_mm, 0
 
     def set_pos(self, x, y, z=0):
         self.send_command(f"P {x},{y},{z}")
@@ -250,7 +257,7 @@ class PriorStage():
             status = int(self.send_command("$,S"))
             if status == 0:
                 self.get_pos()
-                print('xy position: ', self.x_pos, self.y_pos)
+                self.pos_callback_external(self) # let navigation controller get the latest position
                 break
             time.sleep(0.05)
 

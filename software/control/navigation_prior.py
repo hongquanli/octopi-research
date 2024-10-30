@@ -208,10 +208,9 @@ class NavigationController_PriorStage(QObject):
 
     def update_pos(self,stage):
         # get position from the stage
-        x_pos, y_pos, z_pos, theta_pos = stage.get_pos()
-
-        self.x_pos_mm = stage.steps_to_mm(x_pos)
-        self.y_pos_mm = stage.steps_to_mm(y_pos)
+        x_pos_mm, y_pos_mm, z_pos_mm = stage.get_pos_mm()
+        self.x_pos_mm = x_pos_mm
+        self.y_pos_mm = y_pos_mm
 
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
