@@ -110,6 +110,7 @@ class OctopiGUI(QMainWindow):
             self.waitForMicrocontroller()
             if ENABLE_SCAN_GRID:
                 self.multiPointWidgetGrid.init_z()
+            self.multiPointWidget2.init_z()
 
         # Create the menu bar
         menubar = self.menuBar()
