@@ -498,9 +498,14 @@ class OctopiGUI(QMainWindow):
 
     def setupCameraTabWidget(self):
         if not USE_NAPARI_FOR_LIVE_CONTROL or self.performance_mode:
-            self.cameraTabWidget.addTab(self.navigationWidget, "Stages")
-        if ENABLE_OBJECTIVE_PIEZO:
-            self.cameraTabWidget.addTab(self.piezoWidget, "Piezo")
+            stagesWidget = QWidget()
+            stages = QVBoxLayout()
+            stages.addWidget(self.navigationWidget)
+            stages.addWidget(self.piezoWidget)
+            stagesWidget.setLayout(stages)
+            self.cameraTabWidget.addTab(stagesWidget, "Stages")
+        # if ENABLE_OBJECTIVE_PIEZO:
+        #     self.cameraTabWidget.addTab(self.piezoWidget, "Piezo")
         if ENABLE_NL5:
             self.cameraTabWidget.addTab(self.nl5Wdiget, "NL5")
         if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -519,6 +524,7 @@ class OctopiGUI(QMainWindow):
 
         if USE_NAPARI_FOR_LIVE_CONTROL and not self.performance_mode:
             layout.addWidget(self.navigationWidget)
+            layout.addWidget(self.piezoWidget)
         else:
             layout.addWidget(self.liveControlWidget)
 
@@ -654,7 +660,8 @@ class OctopiGUI(QMainWindow):
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
-        self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
+        if ENABLE_OBJECTIVE_PIEZO:
+            self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
         self.multiPointWidgetGrid.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
 
         self.recordTabWidget.currentChanged.connect(self.onTabChanged)
@@ -995,26 +1002,25 @@ class OctopiGUI(QMainWindow):
             )
 
             self.stitcherWidget.setStitcherThread(self.stitcherThread)
-            self.connectStitcherSignals()
+            #self.connectStitcherSignals()
             self.stitcherThread.start()
 
-    def connectStitcherSignals(self):
-        self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
-        self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
-        self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
-        self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
-        self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
+    # def connectStitcherSignals(self):
+    #     self.stitcherThread.update_progress.connect(self.stitcherWidget.updateProgressBar)
+    #     self.stitcherThread.getting_flatfields.connect(self.stitcherWidget.gettingFlatfields)
+    #     self.stitcherThread.starting_stitching.connect(self.stitcherWidget.startingStitching)
+    #     self.stitcherThread.starting_saving.connect(self.stitcherWidget.startingSaving)
+    #     self.stitcherThread.finished_saving.connect(self.stitcherWidget.finishedSaving)
 
     def closeEvent(self, event):
         self.navigationController.cache_current_position()
-
+        if hasattr(self, 'stitcherWidget'):
+            self.stitcherWidget.cleanupStitcherThread()
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter(1)
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_emission_filter(1)
             self.emission_filter_wheel.close()
-        if ENABLE_STITCHER:
-            self.stitcherWidget.closeEvent(event)
         if SUPPORT_LASER_AUTOFOCUS:
             self.liveController_focus_camera.stop_live()
             self.camera_focus.close()

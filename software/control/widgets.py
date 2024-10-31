@@ -4374,7 +4374,40 @@ class StitcherWidget(QFrame):
         self.layout.addLayout(progress_row)
 
     def setStitcherThread(self, thread):
+        """Set up a new stitcher thread with proper signal connections"""
+        if self.stitcherThread is not None:
+            self.cleanupStitcherThread()
+            
         self.stitcherThread = thread
+        if thread is not None:
+            # Connect all signals for the new thread
+            self.stitcherThread.update_progress.connect(self.updateProgressBar)
+            self.stitcherThread.getting_flatfields.connect(self.gettingFlatfields)
+            self.stitcherThread.starting_stitching.connect(self.startingStitching)
+            self.stitcherThread.starting_saving.connect(self.startingSaving)
+            self.stitcherThread.finished_saving.connect(self.finishedSaving)
+            # Connect finished signal for auto-cleanup
+            self.stitcherThread.finished.connect(self.cleanupStitcherThread)
+
+    def cleanupStitcherThread(self):
+        """Clean up the stitcher thread and its resources"""
+        if self.stitcherThread is not None:
+            try:
+                # Disconnect all signals
+                self.stitcherThread.disconnect()
+            except Exception:
+                pass  # Ignore if signals were already disconnected
+
+            # Stop the thread properly
+            if self.stitcherThread.isRunning():
+                self.stitcherThread.wait(2000)  # Wait up to 2 seconds
+                if self.stitcherThread.isRunning():
+                    print("Stitcher thread did not finish in time, forcing termination")
+                    self.stitcherThread.terminate()
+                    self.stitcherThread.wait()
+
+            self.stitcherThread.deleteLater()
+            self.stitcherThread = None
 
     def onRegistrationCheck(self, checked):
         self.registrationChannelLabel.setVisible(checked)
@@ -4416,18 +4449,17 @@ class StitcherWidget(QFrame):
         else:
             self.statusLabel.setText('Status: Saving Stitched Region')
         self.statusLabel.setVisible(True)
-        self.progressBar.setRange(0, 0)  # indeterminate mode.
+        self.progressBar.setRange(0, 0)  # indeterminate mode
         self.progressBar.setVisible(True)
 
     def finishedSaving(self, output_path, dtype):
-        if self.stitcherThread is not None:
-            self.stitcherThread.quit()
-            self.stitcherThread.deleteLater()
+        """Handle completion of stitching process"""
         self.statusLabel.setVisible(False)
         self.progressBar.setVisible(False)
         self.viewOutputButton.setVisible(True)
         self.viewOutputButton.setStyleSheet("background-color: #C2C2FF")
         self.viewOutputButton.setEnabled(True)
+        
         try:
             self.viewOutputButton.clicked.disconnect()
         except TypeError:
@@ -4484,17 +4516,21 @@ class StitcherWidget(QFrame):
             print(f"An error occurred while opening output in Napari: {e}")
 
     def resetUI(self):
+        """Reset the UI state and clean up resources"""
+        self.cleanupStitcherThread()
         self.output_path = ""
 
-        # Reset UI components to their default states
+        # Reset UI components
         self.applyFlatfieldCheck.setChecked(False)
-        self.outputFormatCombo.setCurrentIndex(0)  # Assuming the first index is the default
+        self.outputFormatCombo.setCurrentIndex(0)
         self.useRegistrationCheck.setChecked(False)
-        self.registrationChannelCombo.clear()  # Clear existing items
+        self.registrationChannelCombo.clear()
         self.registrationChannelLabel.setVisible(False)
         self.registrationChannelCombo.setVisible(False)
+        self.registrationZLabel.setVisible(False)
+        self.registrationZCombo.setVisible(False)
 
-        # Reset the visibility and state of buttons and labels
+        # Reset progress indicators
         self.viewOutputButton.setEnabled(False)
         self.viewOutputButton.setVisible(False)
         self.progressBar.setValue(0)
@@ -4503,11 +4539,8 @@ class StitcherWidget(QFrame):
         self.statusLabel.setVisible(False)
 
     def closeEvent(self, event):
-        if self.stitcherThread is not None:
-            self.stitcherThread.quit()
-            self.stitcherThread.wait()
-            self.stitcherThread.deleteLater()
-            self.stitcherThread = None
+        """Handle widget closing"""
+        self.cleanupStitcherThread()
         super().closeEvent(event)
 
 
