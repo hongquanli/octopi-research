@@ -357,7 +357,12 @@ class OctopiGUI(QMainWindow):
         self.navigationBarWidget = widgets.NavigationBarWidget(self.navigationController, self.slidePositionController, add_z_buttons=False)
         self.dacControlWidget = widgets.DACControWidget(self.microcontroller)
         self.autofocusWidget = widgets.AutoFocusWidget(self.autofocusController)
-        self.piezoWidget = widgets.PiezoWidget(self.navigationController)
+        if "PIEZO" in Z_MOTOR_CONFIG:
+            self.piezoWidget = widgets.PiezoWidget(self.navigationController)
+            self.navigationController.set_piezo_widget(self.piezoWidget)
+            
+            if Z_MOTOR_CONFIG == "PIEZO":
+                self.piezoWidget.home()
         self.objectivesWidget = widgets.ObjectivesWidget(self.objectiveStore)
 
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:

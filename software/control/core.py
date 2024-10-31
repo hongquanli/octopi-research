@@ -722,8 +722,8 @@ class NavigationController(QObject):
 
     xPos = Signal(float)
     yPos = Signal(float)
-    zPos = Signal(float)
-    new_zPos_mm = Signal(float)
+    zPos = Signal(float)         # stepper position in μm
+    piezo_zPos = Signal(float)   # piezo position in μm
     thetaPos = Signal(float)
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
@@ -739,17 +739,25 @@ class NavigationController(QObject):
         self.microcontroller = microcontroller
         self.parent = parent
         self.objectiveStore = objectivestore
+
         self.x_pos_mm = 0
         self.y_pos_mm = 0
-        self.z_pos_mm = 0
-        self.z_pos = 0
+        self.z_pos_mm = 0         # stepper position in mm
+        self.z_pos = 0            # raw z pos
         self.theta_pos_rad = 0
+
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
-        self.click_to_move = False
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
+
+        self.click_to_move = False
         self.enable_joystick_button_action = True
+        self.piezo_widget = None
+
+        self.piezo_offset_um = 0  # piezo offset in um
+        self.use_stepper = "STEPPER" in Z_MOTOR_CONFIG
+        self.use_piezo = "PIEZO" in Z_MOTOR_CONFIG
 
         # to be moved to gui for transparency
         self.microcontroller.set_callback(self.update_pos)
@@ -860,8 +868,22 @@ class NavigationController(QObject):
     def move_y(self,delta):
         self.microcontroller.move_y_usteps(int(delta/self.get_mm_per_ustep_Y()))
 
-    def move_z(self,delta):
-        self.microcontroller.move_z_usteps(int(delta/self.get_mm_per_ustep_Z()))
+    # def move_z(self,delta):
+    #     self.microcontroller.move_z_usteps(int(delta/self.get_mm_per_ustep_Z()))
+    def move_z(self, delta_mm):
+        """Move Z axis by relative amount"""
+        if Z_MOTOR_CONFIG == "PIEZO":
+            if self.piezo_widget:
+                target_um = self.piezo_offset_um + (delta_mm * 1000)
+                self.piezo_widget.set_position(target_um)
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            if self.piezo_widget and self.piezo_widget.use_piezo_checked():
+                target_um = self.piezo_offset_um + (delta_mm * 1000)
+                self.piezo_widget.set_position(target_um)
+            else:
+                self.microcontroller.move_z_usteps(int(delta_mm/self.get_mm_per_ustep_Z()))
+        else:
+            self.microcontroller.move_z_usteps(int(delta_mm/self.get_mm_per_ustep_Z()))
 
     def move_x_to(self,delta):
         self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/self.get_mm_per_ustep_X()))
@@ -869,8 +891,20 @@ class NavigationController(QObject):
     def move_y_to(self,delta):
         self.microcontroller.move_y_to_usteps(STAGE_MOVEMENT_SIGN_Y*int(delta/self.get_mm_per_ustep_Y()))
 
-    def move_z_to(self,delta):
-        self.microcontroller.move_z_to_usteps(STAGE_MOVEMENT_SIGN_Z*int(delta/self.get_mm_per_ustep_Z()))
+    # def move_z_to(self,delta):
+    #     self.microcontroller.move_z_to_usteps(STAGE_MOVEMENT_SIGN_Z*int(delta/self.get_mm_per_ustep_Z()))
+    def move_z_to(self, position_mm):
+        """Move Z axis to absolute position"""
+        if Z_MOTOR_CONFIG == "PIEZO":
+            if self.piezo_widget:
+                self.piezo_widget.set_position(position_mm * 1000)
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            if self.piezo_widget and self.piezo_widget.use_piezo_checked():
+                self.piezo_widget.set_position(position_mm * 1000)
+            else:
+                self.microcontroller.move_z_to_usteps(STAGE_MOVEMENT_SIGN_Z*int(position_mm/self.get_mm_per_ustep_Z()))
+        else:
+            self.microcontroller.move_z_to_usteps(STAGE_MOVEMENT_SIGN_Z*int(position_mm/self.get_mm_per_ustep_Z()))
 
     def move_x_usteps(self,usteps):
         self.microcontroller.move_x_usteps(usteps)
@@ -889,40 +923,6 @@ class NavigationController(QObject):
 
     def move_z_to_usteps(self,usteps):
         self.microcontroller.move_z_to_usteps(usteps)
-
-    def update_pos(self,microcontroller):
-        # get position from the microcontroller
-        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
-        self.z_pos = z_pos
-        # calculate position in mm or rad
-        if USE_ENCODER_X:
-            self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
-        else:
-            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
-        if USE_ENCODER_Y:
-            self.y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
-        else:
-            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
-        if USE_ENCODER_Z:
-            self.z_pos_mm = z_pos*ENCODER_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
-        else:
-            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*self.get_mm_per_ustep_Z()
-        if USE_ENCODER_THETA:
-            self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
-        else:
-            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
-        # emit the updated position
-        self.xPos.emit(self.x_pos_mm)
-        self.yPos.emit(self.y_pos_mm)
-        self.zPos.emit(self.z_pos_mm*1000)
-        self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
-        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
-
-        if microcontroller.signal_joystick_button_pressed_event:
-            if self.enable_joystick_button_action:
-                self.signal_joystick_button_pressed.emit()
-            print('joystick button pressed')
-            microcontroller.signal_joystick_button_pressed_event = False
 
     def home_x(self):
         self.microcontroller.home_x()
@@ -1025,6 +1025,78 @@ class NavigationController(QObject):
         dac = int(65535 * (z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
         dac = 65535 - dac if OBJECTIVE_PIEZO_FLIP_DIR else dac
         self.microcontroller.analog_write_onboard_DAC(7, dac)
+
+    def set_piezo_widget(self, piezo_widget):
+        """Connect piezo widget for position updates"""
+        self.piezo_widget = piezo_widget
+        if self.use_piezo:
+            self.piezo_widget.position_changed.connect(self._handle_piezo_position_change)
+
+    def _handle_piezo_position_change(self, offset_um):
+        """Handle piezo offset updates"""
+        self.piezo_offset_um = offset_um
+        self.piezo_zPos.emit(offset_um)
+
+    def fix_stepper_position(self):
+        """Fix stepper position for piezo z-stack"""
+        if self.use_stepper and Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            self.fixed_stepper_pos = self.z_pos_mm
+            print(f"Fixed stepper position at {self.fixed_stepper_pos} mm")
+
+    def release_stepper_position(self):
+        """Release fixed stepper position"""
+        self.fixed_stepper_pos = None
+
+    def get_effective_z_mm(self):
+        """Get total z position in mm"""
+        if Z_MOTOR_CONFIG == "PIEZO":
+            return self.piezo_offset_um / 1000
+        elif Z_MOTOR_CONFIG == "STEPPER + PIEZO":
+            return self.z_pos_mm + (self.piezo_offset_um / 1000)
+        else:
+            return self.z_pos_mm
+
+    def update_pos(self, microcontroller):
+        # get position from the microcontroller
+        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
+        self.z_pos = z_pos
+
+        # Always calculate all positions
+        if USE_ENCODER_X:
+            self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
+        else:
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
+            
+        if USE_ENCODER_Y:
+            self.y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
+        else:
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
+
+        # Always calculate Z position
+        if USE_ENCODER_Z:
+            self.z_pos_mm = z_pos*ENCODER_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
+        else:
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*self.get_mm_per_ustep_Z()
+
+        if USE_ENCODER_THETA:
+            self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
+        else:
+            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+
+        # Always emit all positions
+        self.xPos.emit(self.x_pos_mm)
+        self.yPos.emit(self.y_pos_mm)
+        self.zPos.emit(self.z_pos_mm*1000)  # Keep original z position emission
+        self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
+        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
+
+        # Handle joystick button
+        if microcontroller.signal_joystick_button_pressed_event:
+            if self.enable_joystick_button_action:
+                self.signal_joystick_button_pressed.emit()
+            print('joystick button pressed')
+            microcontroller.signal_joystick_button_pressed_event = False
+
 
 class SlidePositionControlWorker(QObject):
 
