@@ -376,6 +376,7 @@ class SpinningDiskConfocalWidget(QWidget):
         self.slider_illumination_iris.setRange(0, 100)
         self.spinbox_illumination_iris = QSpinBox()
         self.spinbox_illumination_iris.setRange(0, 100)
+        self.spinbox_illumination_iris.setKeyboardTracking(False)
         illuminationIrisLayout.addWidget(self.slider_illumination_iris)
         illuminationIrisLayout.addWidget(self.spinbox_illumination_iris)
 
@@ -385,6 +386,7 @@ class SpinningDiskConfocalWidget(QWidget):
         self.slider_emission_iris.setRange(0, 100)
         self.spinbox_emission_iris = QSpinBox()
         self.spinbox_emission_iris.setRange(0, 100)
+        self.spinbox_emission_iris.setKeyboardTracking(False)
         emissionIrisLayout.addWidget(self.slider_emission_iris)
         emissionIrisLayout.addWidget(self.spinbox_emission_iris)
 
@@ -1206,8 +1208,7 @@ class PiezoWidget(QFrame):
 
     def update_piezo_position(self):
         displacement_um = self.slider_value
-        dac = int(65535 * (displacement_um / OBJECTIVE_PIEZO_RANGE_UM))
-        self.navigationController.microcontroller.analog_write_onboard_DAC(7, dac)
+        self.navigationController.set_piezo_um(displacement_um)
 
     def adjust_position(self, up):
         increment = self.increment_spinBox.value()

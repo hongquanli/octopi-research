@@ -946,6 +946,10 @@ class OctopiGUI(QMainWindow):
             self.camera_focus.close()
             self.imageDisplayWindow_focus.close()
 
+        self.liveController.stop_live()
+        self.camera.stop_streaming()
+        self.camera.close()
+
         if HOMING_ENABLED_X and HOMING_ENABLED_Y:
             self.navigationController.move_x(0.1)
             self.waitForMicrocontroller()
@@ -957,10 +961,6 @@ class OctopiGUI(QMainWindow):
             self.waitForMicrocontroller()
 
         self.navigationController.turnoff_axis_pid_control()
-
-        self.liveController.stop_live()
-        self.camera.stop_streaming()
-        self.camera.close()
 
         if ENABLE_CELLX:
             for channel in [1,2,3,4]:

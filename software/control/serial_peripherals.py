@@ -10,7 +10,7 @@ class SerialDevice:
     automating device finding based on VID/PID
     or serial number.
     """
-    def __init__(self, port=None, VID=None,PID=None,SN=None, baudrate=9600, read_timeout=1, **kwargs):
+    def __init__(self, port=None, VID=None,PID=None,SN=None, baudrate=9600, read_timeout=0.1, **kwargs):
         # Initialize the serial connection
         self.port = port
         self.VID = VID
@@ -74,11 +74,11 @@ class SerialDevice:
             if self.port is not None:
                 self.serial = serial.Serial(self.port,**kwargs)
 
-    def write_and_check(self, command, expected_response, read_delay=0.1, max_attempts=3, attempt_delay=1, check_prefix=True, print_response=False):
+    def write_and_check(self, command, expected_response, read_delay=0.1, max_attempts=5, attempt_delay=1, check_prefix=True, print_response=False):
         # Write a command and check the response
         for attempt in range(max_attempts):
             self.serial.write(command.encode())
-            time.sleep(read_delay)  # Wait for the command to be sent
+            time.sleep(read_delay)  # Wait for the command to be sent/executed
 
             response = self.serial.readline().decode().strip()
             if print_response:
@@ -251,7 +251,7 @@ class XLight:
             position_to_write+="m"
 
         if validate:
-            current_pos = self.serial_connection.write_and_check("B"+position_to_write+"\r","B"+position_to_read)
+            current_pos = self.serial_connection.write_and_check("B"+position_to_write+"\r","B"+position_to_read,read_delay=0.01)
             self.emission_wheel_pos = int(current_pos[1])
         else:
             self.serial_connection.write("B"+position_to_write+"\r")
@@ -261,7 +261,7 @@ class XLight:
         return self.emission_wheel_pos
 
     def get_emission_filter(self):
-        current_pos = self.serial_connection.write_and_check("rB\r","rB")
+        current_pos = self.serial_connection.write_and_check("rB\r","rB",read_delay=0.01)
         self.emission_wheel_pos = int(current_pos[2])
         return self.emission_wheel_pos
 
@@ -273,12 +273,12 @@ class XLight:
         if extraction:
             position_to_write+="m"
 
-        current_pos = self.serial_connection.write_and_check("C"+position_to_write+"\r","C"+position_to_read)
+        current_pos = self.serial_connection.write_and_check("C"+position_to_write+"\r","C"+position_to_read,read_delay=0.01)
         self.dichroic_wheel_pos = int(current_pos[1])
         return self.dichroic_wheel_pos
 
     def get_dichroic(self):
-        current_pos = self.serial_connection.write_and_check("rC\r","rC")
+        current_pos = self.serial_connection.write_and_check("rC\r","rC",read_delay=0.01)
         self.dichroic_wheel_pos = int(current_pos[2])
         return self.dichroic_wheel_pos
 
@@ -294,7 +294,7 @@ class XLight:
         position_to_write = str(position)
         position_to_read = str(position)
 
-        current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read)
+        current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read,read_delay=7.5)
         self.spinning_disk_pos = int(current_pos[1])
         return self.spinning_disk_pos
 
@@ -302,14 +302,14 @@ class XLight:
         # value: 0 - 100
         self.illumination_iris = value
         value = str(int(10*value))
-        self.serial_connection.write_and_check("J"+value+"\r","J"+value)
+        self.serial_connection.write_and_check("J"+value+"\r","J"+value,read_delay=0.01)
         return self.illumination_iris
 
     def set_emission_iris(self,value):
         # value: 0 - 100
         self.emission_iris = value
         value = str(int(10*value))
-        self.serial_connection.write_and_check("V"+value+"\r","V"+value)
+        self.serial_connection.write_and_check("V"+value+"\r","V"+value,read_delay=0.01)
         return self.emission_iris
 
     def set_filter_slider(self,position):
@@ -318,11 +318,11 @@ class XLight:
         self.slider_position = position
         position_to_write = str(position)
         position_to_read = str(position)
-        self.serial_connection.write_and_check("P"+position_to_write+"\r","V"+position_to_read)
+        self.serial_connection.write_and_check("P"+position_to_write+"\r","V"+position_to_read,read_delay=0.01)
         return self.slider_position
 
     def get_disk_position(self):
-        current_pos = self.serial_connection.write_and_check("rD\r","rD")
+        current_pos = self.serial_connection.write_and_check("rD\r","rD",read_delay=0.01)
         self.spinning_disk_pos = int(current_pos[2])
         return self.spinning_disk_pos
 
@@ -333,13 +333,13 @@ class XLight:
         else:
             state_to_write = "0"
 
-        current_pos = self.serial_connection.write_and_check("N"+state_to_write+"\r","N"+state_to_write)
+        current_pos = self.serial_connection.write_and_check("N"+state_to_write+"\r","N"+state_to_write,read_delay=2.5)
 
         self.disk_motor_state = bool(int(current_pos[1]))
 
     def get_disk_motor_state(self):
         """Return True for on, Off otherwise"""
-        current_pos = self.serial_connection.write_and_check("rN\r","rN")
+        current_pos = self.serial_connection.write_and_check("rN\r","rN",read_delay=0.01)
         self.disk_motor_state = bool(int(current_pos[2]))
         return self.disk_motor_state
 
