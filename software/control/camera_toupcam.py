@@ -227,7 +227,7 @@ class Camera(object):
             self.set_data_format('RAW')
             self.set_pixel_format('MONO16') # 'MONO8'
             self.set_auto_exposure(False)
-            self.set_blacklevel(0)
+            self.set_blacklevel(DEFAULT_BLACKLEVEL_VALUE)
 
             # set resolution to full if resolution is not specified or not in the list of supported resolutions
             if self.resolution is None:
