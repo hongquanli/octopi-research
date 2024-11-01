@@ -7793,9 +7793,9 @@ class SampleSettingsWidget(QFrame):
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
 class SquidFilterWidget(QFrame):
-    def __init__(self, navigationController, *args, **kwargs):
+    def __init__(self, parent, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.navigationController = navigationController
+        self.microscope = parent
         self.add_components()
 
     def add_components(self):
@@ -7853,26 +7853,26 @@ class SquidFilterWidget(QFrame):
         current_position = int(self.position_label.text().split(": ")[1])
         new_position = max(0, current_position - 1)  # Ensure position doesn't go below 0
         if current_position != new_position:
-            self.navigationController.squid_filterwheel_previous_position()
+            self.microscope.squid_filter_wheel.previous_position()
             self.update_position(new_position)
 
     def increment_position(self):
         current_position = int(self.position_label.text().split(": ")[1])
         new_position = min(7, current_position + 1)  # Ensure position doesn't go above 7
         if current_position != new_position:
-            self.navigationController.squid_filterwheel_next_position()
+            self.microscope.squid_filter_wheel.next_position()
             self.update_position(new_position)
 
     def home_position(self):
         self.update_position(0)
         self.status_label.setText("Status: Homed")
-        self.navigationController.squid_filterwheel_homing()
+        self.microscope.squid_filter_wheel.homing()
 
     def move_to_position(self):
         try:
             position = int(self.edit_text.text())
             if position != int(self.position_label.text().split(": ")[1]):
-                self.navigationController.squid_filterwheel_set_emission(position)
+                self.microscope.squid_filter_wheel.set_emission(position)
             self.update_position(position)
         except ValueError:
             self.status_label.setText("Status: Invalid input")

@@ -16,6 +16,9 @@ from control._def import *
 import control.widgets as widgets
 import serial
 
+import control.filterwheel as filterwheel
+
+
 if CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera
@@ -181,6 +184,8 @@ class OctopiGUI(QMainWindow):
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel = serial_peripherals.Optospin_Simulation(SN=None)
         self.microcontroller = microcontroller.Microcontroller_Simulation()
+        if USE_SQUID_FILTERWHEEL:
+            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper_Simulation(None)
 
     def loadHardwareObjects(self):
         # Initialize hardware objects
@@ -237,6 +242,9 @@ class OctopiGUI(QMainWindow):
                 self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
             except Exception as e:
                 raise Exception(f"Error initializing Zaber Emission Filter Wheel: {e}")
+
+        if USE_SQUID_FILTERWHEEL:
+            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(navigationcontroller)
 
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             try:
@@ -373,6 +381,9 @@ class OctopiGUI(QMainWindow):
 
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
+
+        if USE_SQUID_FILTERWHEEL:
+            self.squidFilterWidget = widgets.SquidFilterWidget(self)
 
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler, self.imageSaver)
         self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer, self.streamHandler, self.liveController)
@@ -513,7 +524,6 @@ class OctopiGUI(QMainWindow):
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget, "Emission Filter")
         if USE_SQUID_FILTERWHEEL == True:
-            self.squidFilterWidget = widgets.SquidFilterWidget(self.navigationController)
             self.cameraTabWidget.addTab(self.squidFilterWidget,"SquidFilter")
         self.cameraTabWidget.addTab(self.cameraSettingWidget, 'Camera')
         self.cameraTabWidget.addTab(self.autofocusWidget, "Contrast AF")
