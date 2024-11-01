@@ -68,6 +68,15 @@ class Acquisition:
     NUMBER_OF_FOVS_PER_AF = 3
     IMAGE_FORMAT = 'bmp'
     IMAGE_DISPLAY_SCALING_FACTOR = 0.3
+    PSEUDO_COLOR = False
+    MERGE_CHANNELS = False
+    PSEUDO_COLOR_MAP = {
+    "405": {"hex": 0x0000FF},   # blue
+    "488": {"hex": 0x00FF00},   # green
+    "561": {"hex": 0xFFCF00},   # yellow
+    "638": {"hex": 0xFF0000},   # red
+    "730": {"hex": 0x770000}    # dark red
+    }
     DX = 0.9
     DY = 0.9
     DZ = 1.5
@@ -466,6 +475,7 @@ LASER_AF_DISPLAY_SPOT_IMAGE = True
 LASER_AF_CROP_WIDTH = 1536
 LASER_AF_CROP_HEIGHT = 256
 HAS_TWO_INTERFACES = True
+LASER_AF_RANGE = 200
 USE_GLASS_TOP = True
 SHOW_LEGACY_DISPLACEMENT_MEASUREMENT_WINDOWS = False
 

@@ -1708,6 +1708,8 @@ class MultiPointWorker(QObject):
         self.tiled_preview = None
         self.count = 0
 
+        self.merged_image = None
+        self.image_count = 0
 
     def update_stats(self, new_stats):
         self.count += 1
@@ -2317,7 +2319,53 @@ class MultiPointWorker(QObject):
                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                     image = image[:,:,1]
+
+        if Acquisition.PSEUDO_COLOR:
+            image = self.return_pseudo_colored_image(image, config)
+
+        if Acquisition.MERGE_CHANNELS:
+            self._save_merged_image(image, file_ID, current_path)
+
         iio.imwrite(saving_path,image)
+
+    def _save_merged_image(self, image, file_ID, current_path):
+        if self.image_count % len(self.selected_configurations) == 0:
+            self.merged_image = image
+        else:
+            self.merged_image += image
+
+            if self.image_count % len(self.selected_configurations) == len(self.selected_configurations) - 1: 
+                if image.dtype == np.uint16:
+                    saving_path = os.path.join(current_path, file_ID + '_merged' + '.tiff')
+                else:
+                    saving_path = os.path.join(current_path, file_ID + '_merged' + '.' + Acquisition.IMAGE_FORMAT)
+
+                iio.imwrite(saving_path, self.merged_image)
+
+        self.image_count += 1
+
+        return
+
+    def return_pseudo_colored_image(self, image, config):
+        if '405 nm' in config.name:
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["405"]["hex"])
+        elif '488 nm' in config.name:     
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["488"]["hex"])
+        elif '561 nm' in config.name:
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["561"]["hex"])
+        elif '638 nm' in config.name:
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["638"]["hex"])
+        elif '730 nm' in config.name:          
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["730"]["hex"])
+
+        return image
+
+    def grayscale_to_rgb(self, image, hex_color):
+        rgb_ratios = np.array([(hex_color >> 16) & 0xFF,
+                          (hex_color >> 8) & 0xFF,
+                          hex_color & 0xFF]) / 255
+        rgb = np.stack([image] * 3, axis=-1) * rgb_ratios
+        return rgb.astype(image.dtype)
 
     def update_napari(self, image, config_name, i, j, k):
         i = -1 if i is None else i
@@ -4300,10 +4348,14 @@ class LaserAutofocusController(QObject):
 
     def move_to_target(self,target_um):
         current_displacement_um = self.measure_displacement()
-        um_to_move = target_um - current_displacement_um
-        # limit the range of movement
-        um_to_move = min(um_to_move,200)
-        um_to_move = max(um_to_move,-200)
+        print("Laser AF displacement: ", current_displacement_um)
+
+        if abs(current_displacement_um) > LASER_AF_RANGE:
+            print(f'Warning: Measured displacement ({current_displacement_um:.1f} μm) is unreasonably large, using previous z position')
+            um_to_move = 0
+        else:
+            um_to_move = target_um - current_displacement_um
+
         self.navigationController.move_z(um_to_move/1000)
         self.wait_till_operation_is_completed()
         # update the displacement measurement
