@@ -376,6 +376,7 @@ class SpinningDiskConfocalWidget(QWidget):
         self.slider_illumination_iris.setRange(0, 100)
         self.spinbox_illumination_iris = QSpinBox()
         self.spinbox_illumination_iris.setRange(0, 100)
+        self.spinbox_illumination_iris.setKeyboardTracking(False)
         illuminationIrisLayout.addWidget(self.slider_illumination_iris)
         illuminationIrisLayout.addWidget(self.spinbox_illumination_iris)
 
@@ -385,6 +386,7 @@ class SpinningDiskConfocalWidget(QWidget):
         self.slider_emission_iris.setRange(0, 100)
         self.spinbox_emission_iris = QSpinBox()
         self.spinbox_emission_iris.setRange(0, 100)
+        self.spinbox_emission_iris.setKeyboardTracking(False)
         emissionIrisLayout.addWidget(self.slider_emission_iris)
         emissionIrisLayout.addWidget(self.spinbox_emission_iris)
 
