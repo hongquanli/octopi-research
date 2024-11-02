@@ -2329,21 +2329,20 @@ class MultiPointWorker(QObject):
         iio.imwrite(saving_path,image)
 
     def _save_merged_image(self, image, file_ID, current_path):
-        if self.image_count % len(self.selected_configurations) == 0:
+        self.image_count += 1
+        if self.image_count == 1:
             self.merged_image = image
         else:
             self.merged_image += image
 
-            if self.image_count % len(self.selected_configurations) == len(self.selected_configurations) - 1: 
+            if self.image_count == len(self.selected_configurations):
                 if image.dtype == np.uint16:
                     saving_path = os.path.join(current_path, file_ID + '_merged' + '.tiff')
                 else:
                     saving_path = os.path.join(current_path, file_ID + '_merged' + '.' + Acquisition.IMAGE_FORMAT)
 
                 iio.imwrite(saving_path, self.merged_image)
-
-        self.image_count += 1
-
+                self.image_count = 0
         return
 
     def return_pseudo_colored_image(self, image, config):
