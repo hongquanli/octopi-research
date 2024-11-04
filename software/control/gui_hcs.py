@@ -166,6 +166,10 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP,look_for_cache=False)
 
+        if USE_SQUID_FILTERWHEEL:
+            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(self.navigationController)
+
+
     def loadSimulationObjects(self):
         # Initialize simulation objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -242,9 +246,6 @@ class OctopiGUI(QMainWindow):
                 self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
             except Exception as e:
                 raise Exception(f"Error initializing Zaber Emission Filter Wheel: {e}")
-
-        if USE_SQUID_FILTERWHEEL:
-            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(navigationcontroller)
 
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             try:

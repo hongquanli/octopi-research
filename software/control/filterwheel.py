@@ -1,8 +1,11 @@
 import os
+import time
+
+from control._def import *
 
 class SquidFilterWheelWrapper:
 
-    def __init__(self, navigationController):
+    def __init__(self, navigationController = None):
         # emission filter position
         self.w_pos_index = 0
 
