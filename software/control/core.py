@@ -851,8 +851,11 @@ class NavigationController(QObject):
                 break
 
     def cache_current_position(self):
-        with open("cache/last_coords.txt","w") as f:
-            f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
+        if (SOFTWARE_POS_LIMIT.X_NEGATIVE <= self.x_pos_mm <= SOFTWARE_POS_LIMIT.X_POSITIVE and
+            SOFTWARE_POS_LIMIT.Y_NEGATIVE <= self.y_pos_mm <= SOFTWARE_POS_LIMIT.Y_POSITIVE and
+            SOFTWARE_POS_LIMIT.Z_NEGATIVE <= self.z_pos_mm <= SOFTWARE_POS_LIMIT.Z_POSITIVE):
+            with open("cache/last_coords.txt","w") as f:
+                f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
 
     def move_x(self,delta):
         self.microcontroller.move_x_usteps(int(delta/self.get_mm_per_ustep_X()))
