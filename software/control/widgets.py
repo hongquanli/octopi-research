@@ -784,8 +784,6 @@ class CameraSettingsWidget(QFrame):
             self.label_blackLevel.valueChanged.connect(self.update_blacklevel_scaling)
             self.label_blackLevel.setSuffix(" ")
 
-            self.label_blackLevel.valueChanged.connect(lambda v: self.label_blackLevel.setValue(round(v)))
-
             blacklevel_line.addWidget(self.label_blackLevel)
 
             self.camera_layout.addLayout(blacklevel_line)

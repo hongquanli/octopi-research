@@ -862,7 +862,6 @@ class Camera(object):
     def set_blacklevel(self, blacklevel):
         try:
             current_blacklevel = self.camera.get_Option(toupcam.TOUPCAM_OPTION_BLACKLEVEL)
-            print('current blacklevel ' + str(current_blacklevel))
         except toupcam.HRESULTException as ex:
             err_type = hresult_checker(ex,'E_NOTIMPL')
             print("blacklevel not implemented")
