@@ -774,7 +774,7 @@ class CameraSettingsWidget(QFrame):
         roi_line.addWidget(self.entry_ROI_offset_x)
         self.camera_layout.addLayout(roi_line)
 
-        if USE_TOUPCAMER_BLACKLEVEL_SETTINGS is True:
+        if DISPLAY_TOUPCAMER_BLACKLEVEL_SETTINGS is True:
             blacklevel_line = QHBoxLayout()
             blacklevel_line.addWidget(QLabel('Black Level'))
 
