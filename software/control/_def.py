@@ -599,7 +599,7 @@ USE_PRIOR_STAGE = False
 PRIOR_STAGE_SN = ""
 
 # camera blacklevel settings
-USE_TOUPCAMER_BLACKLEVEL_SETTINGS = False
+DISPLAY_TOUPCAMER_BLACKLEVEL_SETTINGS = False
 DEFAULT_BLACKLEVEL_VALUE = 3
 
 def read_objectives_csv(file_path):
