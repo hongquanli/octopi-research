@@ -678,67 +678,68 @@ class OctopiGUI(QMainWindow):
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
-        if not self.live_only_mode:
-            if USE_NAPARI_FOR_MULTIPOINT:
-                self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-                self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-                if ENABLE_FLEXIBLE_MULTIPOINT:
-                    self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-                    self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
-                if ENABLE_SCAN_GRID:
-                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
-                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+        # if not self.live_only_mode:
+        #     if USE_NAPARI_FOR_MULTIPOINT:
+        #         self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+        #         self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+        #         if ENABLE_FLEXIBLE_MULTIPOINT:
+        #             self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+        #             self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
+        #         if ENABLE_SCAN_GRID:
+        #             self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
+        #             self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
 
-                self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
-                self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
-                self.napari_connections['napariMultiChannelWidget'] = [
-                    (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
-                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers)
-                ]
-            else:
-                self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+        #         self.multipointController.napari_layers_init.connect(self.napariMultiChannelWidget.initLayers)
+        #         self.multipointController.napari_layers_update.connect(self.napariMultiChannelWidget.updateLayers)
+        #         self.napari_connections['napariMultiChannelWidget'] = [
+        #             (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
+        #             (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers)
+        #         ]
+        #     else:
+        #         self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
 
-            if SHOW_TILED_PREVIEW:
-                if USE_NAPARI_FOR_TILED_DISPLAY:
-                    self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
-                    self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
-                    if ENABLE_FLEXIBLE_MULTIPOINT:
-                        self.multiPointWidget2.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
-                        self.multiPointWidget2.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
-                    if ENABLE_SCAN_GRID:
-                        self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
-                        self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+        #     if SHOW_TILED_PREVIEW:
+        #         if USE_NAPARI_FOR_TILED_DISPLAY:
+        #             self.multiPointWidget.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+        #             self.multiPointWidget.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+        #             if ENABLE_FLEXIBLE_MULTIPOINT:
+        #                 self.multiPointWidget2.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+        #                 self.multiPointWidget2.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
+        #             if ENABLE_SCAN_GRID:
+        #                 self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariTiledDisplayWidget.initChannels)
+        #                 self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariTiledDisplayWidget.initLayersShape)
 
-                    self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
-                    self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
-                    self.napari_connections['napariTiledDisplayWidget'] = [
-                        (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
-                        (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers)
-                    ]
-                    self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
+        #             self.multipointController.napari_layers_init.connect(self.napariTiledDisplayWidget.initLayers)
+        #             self.multipointController.napari_layers_update.connect(self.napariTiledDisplayWidget.updateLayers)
+        #             self.napari_connections['napariTiledDisplayWidget'] = [
+        #                 (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
+        #                 (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers)
+        #             ]
+        #             self.napariTiledDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.scan_preview_move_from_click)
 
-                else:
-                    self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
-                    self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
+        #         else:
+        #             self.multipointController.image_to_display_tiled_preview.connect(self.imageDisplayWindow_scan_preview.display_image)
+        #             self.imageDisplayWindow_scan_preview.image_click_coordinates.connect(self.navigationController.scan_preview_move_from_click)
 
-            if USE_NAPARI_FOR_MOSAIC_DISPLAY:
-                self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
-                self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
-                if ENABLE_FLEXIBLE_MULTIPOINT:
-                    self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
-                    self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
-                if ENABLE_SCAN_GRID:
-                    self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
-                    self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
-                    self.multiPointWidgetGrid.signal_draw_shape.connect(self.napariMosaicDisplayWidget.enable_shape_drawing)
-                    self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
+        #     if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+        #         self.multiPointWidget.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+        #         self.multiPointWidget.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+        #         if ENABLE_FLEXIBLE_MULTIPOINT:
+        #             self.multiPointWidget2.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+        #             self.multiPointWidget2.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+        #         if ENABLE_SCAN_GRID:
+        #             self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.napariMosaicDisplayWidget.initChannels)
+        #             self.multiPointWidgetGrid.signal_acquisition_shape.connect(self.napariMosaicDisplayWidget.initLayersShape)
+        #             self.multiPointWidgetGrid.signal_draw_shape.connect(self.napariMosaicDisplayWidget.enable_shape_drawing)
+        #             self.napariMosaicDisplayWidget.signal_shape_drawn.connect(self.multiPointWidgetGrid.update_manual_shape)
 
-                self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
-                self.napari_connections['napariMosaicDisplayWidget'] = [
-                    (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic)
-                ]
-                self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
-                self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
+        #         self.multipointController.napari_mosaic_update.connect(self.napariMosaicDisplayWidget.updateMosaic)
+        #         self.napari_connections['napariMosaicDisplayWidget'] = [
+        #             (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic)
+        #         ]
+        #         self.napariMosaicDisplayWidget.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
+        #         self.napariMosaicDisplayWidget.signal_update_viewer.connect(self.navigationViewer.update_slide)
+        self.makeNapariConnections()
 
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.scanCoordinates.update_wellplate_settings)
@@ -766,21 +767,121 @@ class OctopiGUI(QMainWindow):
 
         self.camera.set_callback(self.streamHandler.on_new_frame)
 
-    def togglePerformanceMode(self):
-        self.performance_mode = self.performanceModeToggle.isChecked()
-        button_txt = "Disable" if self.performance_mode else "Enable"
-        self.performanceModeToggle.setText(button_txt + " Performance Mode")
-        self.updatePerformanceMode()
+    def makeNapariConnections(self):
+        """Initialize all Napari connections in one place"""
+        self.napari_connections = {
+            'napariLiveWidget': [],
+            'napariMultiChannelWidget': [],
+            'napariTiledDisplayWidget': [],
+            'napariMosaicDisplayWidget': []
+        }
 
-    def updatePerformanceMode(self):
-        self.performance_mode = self.performanceModeToggle.isChecked()
-        self.multipointController.performance_mode = self.performance_mode
-        
-        self.updateNapariConnections()
-        self.toggleNapariTabs()
-        print(f"Performance mode {'enabled' if self.performance_mode else 'disabled'}")
+        # Setup live view connections
+        if USE_NAPARI_FOR_LIVE_VIEW and not self.live_only_mode:
+            self.napari_connections['napariLiveWidget'] = [
+                (self.multipointController.signal_current_configuration, self.napariLiveWidget.set_microscope_mode),
+                (self.autofocusController.image_to_display, 
+                 lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True)),
+                (self.streamHandler.image_to_display, 
+                 lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False)),
+                (self.multipointController.image_to_display, 
+                 lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False)),
+                (self.napariLiveWidget.signal_coordinates_clicked, self.navigationController.move_from_click),
+                (self.liveControlWidget.signal_live_configuration, self.napariLiveWidget.set_live_configuration)
+            ]
+            
+            if USE_NAPARI_FOR_LIVE_CONTROL:
+                self.napari_connections['napariLiveWidget'].extend([
+                    (self.napariLiveWidget.signal_newExposureTime, self.cameraSettingWidget.set_exposure_time),
+                    (self.napariLiveWidget.signal_newAnalogGain, self.cameraSettingWidget.set_analog_gain),
+                    (self.napariLiveWidget.signal_autoLevelSetting, self.imageDisplayWindow.set_autolevel)
+                ])
+        else:
+            # Non-Napari display connections
+            self.streamHandler.image_to_display.connect(self.imageDisplay.enqueue)
+            self.imageDisplay.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.autofocusController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
+            self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
+            self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
+
+        if not self.live_only_mode:
+            # Setup multichannel widget connections
+            if USE_NAPARI_FOR_MULTIPOINT:
+                self.napari_connections['napariMultiChannelWidget'] = [
+                    (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
+                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers),
+                    (self.multiPointWidget.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
+                    (self.multiPointWidget.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
+                ]
+                
+                if ENABLE_FLEXIBLE_MULTIPOINT:
+                    self.napari_connections['napariMultiChannelWidget'].extend([
+                        (self.multiPointWidget2.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
+                        (self.multiPointWidget2.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
+                    ])
+                
+                if ENABLE_SCAN_GRID:
+                    self.napari_connections['napariMultiChannelWidget'].extend([
+                        (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
+                        (self.multiPointWidgetGrid.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
+                    ])
+            else:
+                self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
+
+            # Setup tiled display widget connections
+            if SHOW_TILED_PREVIEW and USE_NAPARI_FOR_TILED_DISPLAY:
+                self.napari_connections['napariTiledDisplayWidget'] = [
+                    (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
+                    (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers),
+                    (self.multiPointWidget.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
+                    (self.multiPointWidget.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape),
+                    (self.napariTiledDisplayWidget.signal_coordinates_clicked, 
+                     self.navigationController.scan_preview_move_from_click)
+                ]
+
+                if ENABLE_FLEXIBLE_MULTIPOINT:
+                    self.napari_connections['napariTiledDisplayWidget'].extend([
+                        (self.multiPointWidget2.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
+                        (self.multiPointWidget2.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape)
+                    ])
+
+                if ENABLE_SCAN_GRID:
+                    self.napari_connections['napariTiledDisplayWidget'].extend([
+                        (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
+                        (self.multiPointWidgetGrid.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape)
+                    ])
+
+            # Setup mosaic display widget connections
+            if USE_NAPARI_FOR_MOSAIC_DISPLAY:
+                self.napari_connections['napariMosaicDisplayWidget'] = [
+                    (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic),
+                    (self.multiPointWidget.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
+                    (self.multiPointWidget.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape),
+                    (self.napariMosaicDisplayWidget.signal_coordinates_clicked, 
+                     self.navigationController.move_from_click_mosaic),
+                    (self.napariMosaicDisplayWidget.signal_update_viewer, self.navigationViewer.update_slide)
+                ]
+
+                if ENABLE_FLEXIBLE_MULTIPOINT:
+                    self.napari_connections['napariMosaicDisplayWidget'].extend([
+                        (self.multiPointWidget2.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
+                        (self.multiPointWidget2.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape)
+                    ])
+
+                if ENABLE_SCAN_GRID:
+                    self.napari_connections['napariMosaicDisplayWidget'].extend([
+                        (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
+                        (self.multiPointWidgetGrid.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape),
+                        (self.multiPointWidgetGrid.signal_draw_shape, self.napariMosaicDisplayWidget.enable_shape_drawing),
+                        (self.napariMosaicDisplayWidget.signal_shape_drawn, self.multiPointWidgetGrid.update_manual_shape)
+                    ])
+
+            # Make initial connections
+            self.updateNapariConnections()
 
     def updateNapariConnections(self):
+        # Update Napari connections based on performance mode. Live widget connections are preserved
         for widget_name, connections in self.napari_connections.items():
             if widget_name != 'napariLiveWidget':  # Always keep the live widget connected
                 widget = getattr(self, widget_name, None)
@@ -800,6 +901,7 @@ class OctopiGUI(QMainWindow):
                                 pass
 
     def toggleNapariTabs(self):
+        # Enable/disable Napari tabs based on performance mode
         for i in range(1, self.imageDisplayTabs.count()):
             widget = self.imageDisplayTabs.widget(i)
             self.imageDisplayTabs.setTabEnabled(i, not self.performance_mode)
@@ -810,6 +912,15 @@ class OctopiGUI(QMainWindow):
                 if isinstance(self.imageDisplayTabs.widget(i), widgets.NapariLiveWidget):
                     self.imageDisplayTabs.setCurrentIndex(i)
                     break
+
+    def togglePerformanceMode(self):
+        self.performance_mode = self.performanceModeToggle.isChecked()
+        button_txt = "Disable" if self.performance_mode else "Enable"
+        self.performanceModeToggle.setText(button_txt + " Performance Mode")
+        self.multipointController.performance_mode = self.performance_mode
+        self.updateNapariConnections()
+        self.toggleNapariTabs()
+        print(f"Performance mode {'enabled' if self.performance_mode else 'disabled'}")
 
     def openLedMatrixSettings(self):
         if SUPPORT_SCIMICROSCOPY_LED_ARRAY:
