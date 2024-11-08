@@ -89,10 +89,11 @@ class OctopiGUI(QMainWindow):
 
     fps_software_trigger = 100
 
-    def __init__(self, is_simulation=False, performance_mode=False, *args, **kwargs):
+    def __init__(self, is_simulation=False, live_only_mode=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.performance_mode = performance_mode or PERFORMANCE_MODE
+        self.live_only_mode = live_only_mode or LIVE_ONLY_MODE
+        self.performance_mode = False
         self.napari_connections = {}
 
         self.loadObjects(is_simulation)
@@ -387,7 +388,7 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusControlWidget = widgets.LaserAutofocusControlWidget(self.laserAutofocusController)
 
         self.imageDisplayTabs = QTabWidget()
-        if self.performance_mode:
+        if self.live_only_mode:
             if ENABLE_TRACKING:
                 self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True)
                 self.imageDisplayWindow.show_ROI_selector()
@@ -427,7 +428,7 @@ class OctopiGUI(QMainWindow):
                 self.imageDisplayWindow = core.ImageDisplayWindow(self.liveController, self.contrastManager, draw_crosshairs=True, show_LUT=True, autoLevels=True)
             self.imageDisplayTabs.addTab(self.imageDisplayWindow.widget, "Live View")
 
-        if not self.performance_mode:
+        if not self.live_only_mode:
             if USE_NAPARI_FOR_MULTIPOINT:
                 self.napariMultiChannelWidget = widgets.NapariMultiChannelWidget(self.objectiveStore, self.contrastManager)
                 self.imageDisplayTabs.addTab(self.napariMultiChannelWidget, "Multichannel Acquisition")
@@ -492,7 +493,7 @@ class OctopiGUI(QMainWindow):
         self.resizeCurrentTab(self.recordTabWidget)
 
     def setupCameraTabWidget(self):
-        if not USE_NAPARI_FOR_LIVE_CONTROL or self.performance_mode:
+        if not USE_NAPARI_FOR_LIVE_CONTROL or self.live_only_mode:
             self.cameraTabWidget.addTab(self.navigationWidget, "Stages")
         if ENABLE_OBJECTIVE_PIEZO:
             self.cameraTabWidget.addTab(self.piezoWidget, "Piezo")
@@ -512,7 +513,7 @@ class OctopiGUI(QMainWindow):
     def setupLayout(self):
         layout = QVBoxLayout()
 
-        if USE_NAPARI_FOR_LIVE_CONTROL and not self.performance_mode:
+        if USE_NAPARI_FOR_LIVE_CONTROL and not self.live_only_mode:
             layout.addWidget(self.navigationWidget)
         else:
             layout.addWidget(self.liveControlWidget)
@@ -532,11 +533,12 @@ class OctopiGUI(QMainWindow):
         layout.addWidget(self.navigationViewer)
 
         # Add performance mode toggle button
-        self.performanceModeToggle = QPushButton("Enable Performance Mode")
-        self.performanceModeToggle.setCheckable(True)
-        self.performanceModeToggle.setChecked(self.performance_mode)
-        self.performanceModeToggle.clicked.connect(self.togglePerformanceMode)
-        layout.addWidget(self.performanceModeToggle)
+        if not self.live_only_mode:
+            self.performanceModeToggle = QPushButton("Enable Performance Mode")
+            self.performanceModeToggle.setCheckable(True)
+            self.performanceModeToggle.setChecked(self.performance_mode)
+            self.performanceModeToggle.clicked.connect(self.togglePerformanceMode)
+            layout.addWidget(self.performanceModeToggle)
 
         self.centralWidget = QWidget()
         self.centralWidget.setLayout(layout)
@@ -560,7 +562,7 @@ class OctopiGUI(QMainWindow):
 
         self.dock_wellSelection = dock.Dock('Well Selector', autoOrientation=False)
         self.dock_wellSelection.showTitleBar()
-        if not USE_NAPARI_WELL_SELECTION or self.performance_mode:
+        if not USE_NAPARI_WELL_SELECTION or self.live_only_mode:
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
             self.dock_wellSelection.setFixedHeight(self.dock_wellSelection.minimumSizeHint().height())
             main_dockArea.addDock(self.dock_wellSelection, 'bottom')
@@ -635,7 +637,7 @@ class OctopiGUI(QMainWindow):
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
-        if not self.performance_mode:
+        if not self.live_only_mode:
             self.liveControlWidget.signal_start_live.connect(self.onStartLive)
         self.liveControlWidget.update_camera_settings()
 
@@ -653,10 +655,10 @@ class OctopiGUI(QMainWindow):
         self.multiPointWidgetGrid.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
 
         self.recordTabWidget.currentChanged.connect(self.onTabChanged)
-        if not self.performance_mode:
+        if not self.live_only_mode:
             self.imageDisplayTabs.currentChanged.connect(self.onDisplayTabChanged)
 
-        if USE_NAPARI_FOR_LIVE_VIEW and not self.performance_mode:
+        if USE_NAPARI_FOR_LIVE_VIEW and not self.live_only_mode:
             self.multipointController.signal_current_configuration.connect(self.napariLiveWidget.set_microscope_mode)
             self.autofocusController.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True))
             self.streamHandler.image_to_display.connect(lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False))
@@ -676,7 +678,7 @@ class OctopiGUI(QMainWindow):
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
 
-        if not self.performance_mode:
+        if not self.live_only_mode:
             if USE_NAPARI_FOR_MULTIPOINT:
                 self.multiPointWidget.signal_acquisition_channels.connect(self.napariMultiChannelWidget.initChannels)
                 self.multiPointWidget.signal_acquisition_shape.connect(self.napariMultiChannelWidget.initLayersShape)
@@ -772,9 +774,7 @@ class OctopiGUI(QMainWindow):
 
     def updatePerformanceMode(self):
         self.performance_mode = self.performanceModeToggle.isChecked()
-        
-        if hasattr(self, 'multipointController'):
-            self.multipointController.performance_mode = self.performance_mode
+        self.multipointController.performance_mode = self.performance_mode
         
         self.updateNapariConnections()
         self.toggleNapariTabs()
@@ -798,32 +798,6 @@ class OctopiGUI(QMainWindow):
                             except TypeError:
                                 # Connection might already exist, which is fine
                                 pass
-
-    def setupNapariConnections(self):
-        if hasattr(self, 'multipointController'):
-            if hasattr(self, 'napariLiveWidget'):
-                self.napari_connections['napariLiveWidget'] = [
-                    (self.multipointController.napari_live_update, self.napariLiveWidget.updateLiveLayer)
-                ]
-            if hasattr(self, 'napariMultiChannelWidget'):
-                self.napari_connections['napariMultiChannelWidget'] = [
-                    (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
-                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers)
-                ]
-            if hasattr(self, 'napariTiledDisplayWidget'):
-                self.napari_connections['napariTiledDisplayWidget'] = [
-                    (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
-                    (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers)
-                ]
-            if hasattr(self, 'napariMosaicDisplayWidget'):
-                self.napari_connections['napariMosaicDisplayWidget'] = [
-                    (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic)
-                ]
-            
-            # Connect all signals
-            for connections in self.napari_connections.values():
-                for signal, slot in connections:
-                    signal.connect(slot)
 
     def toggleNapariTabs(self):
         for i in range(1, self.imageDisplayTabs.count()):
@@ -921,7 +895,7 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.deleteLater()
         self.wellSelectionWidget = new_widget
         self.scanCoordinates.add_well_selector(self.wellSelectionWidget)
-        if USE_NAPARI_WELL_SELECTION and not self.performance_mode:
+        if USE_NAPARI_WELL_SELECTION and not self.performance_mode and not self.live_only_mode:
             self.napariLiveWidget.replace_well_selector(self.wellSelectionWidget)
         else:
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
@@ -934,7 +908,7 @@ class OctopiGUI(QMainWindow):
             self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
 
     def toggleWellSelector(self, show):
-        if USE_NAPARI_WELL_SELECTION and not self.performance_mode:
+        if USE_NAPARI_WELL_SELECTION and not self.performance_mode and not self.live_only_mode:
             self.napariLiveWidget.toggle_well_selector(show)
         else:
             self.dock_wellSelection.setVisible(show)
