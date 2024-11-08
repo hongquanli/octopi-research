@@ -2815,7 +2815,7 @@ class MultiPointController(QObject):
                 self.usb_spectrometer_was_streaming = False
 
         # set current tabs
-        if self.parent is not None and not self.parent.performance_mode:
+        if self.parent is not None and not self.parent.live_only_mode:
             configs = [config.name for config in self.selected_configurations]
             print(configs)
             if DO_FLUORESCENCE_RTP and 'BF LED matrix left half' in configs and 'BF LED matrix right half' in configs and 'Fluorescence 405 nm Ex' in configs:
