@@ -362,7 +362,6 @@ CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'I
 
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
-DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
 TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
 DEFAULT_TRACKER = 'csrt'
 
@@ -445,8 +444,6 @@ Z_STACKING_CONFIG_MAP = {
     2: 'FROM TOP'
 }
 
-# plate format
-WELLPLATE_FORMAT = 384
 DEFAULT_Z_POS_MM = 2
 
 WELLPLATE_OFFSET_X_mm = 0 # x offset adjustment for using different plates
@@ -636,6 +633,18 @@ SAMPLE_FORMATS_CSV_PATH = 'sample_formats.csv'
 
 OBJECTIVES = read_objectives_csv(os.path.join('configurations', OBJECTIVES_CSV_PATH))
 WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('configurations', SAMPLE_FORMATS_CSV_PATH))
+
+# Add this after reading the CSV files but before using DEFAULT_OBJECTIVE and WELLPLATE_FORMAT
+try:
+    with open("cache/objective_and_sample_format.txt", 'r') as f:
+        cached_settings = json.load(f)
+        if cached_settings.get('objective') in OBJECTIVES:
+            DEFAULT_OBJECTIVE = cached_settings['objective']
+        if cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0:
+            WELLPLATE_FORMAT = cached_settings['wellplate_format']
+except (FileNotFoundError, json.JSONDecodeError):
+    DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
+    WELLPLATE_FORMAT = 384
 
 NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
 WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
