@@ -548,7 +548,7 @@ USE_NAPARI_FOR_TILED_DISPLAY = False
 USE_NAPARI_FOR_MOSAIC_DISPLAY = True
 USE_NAPARI_WELL_SELECTION = False
 USE_NAPARI_FOR_LIVE_CONTROL = False
-PERFORMANCE_MODE = False
+LIVE_ONLY_MODE = False
 
 # Controller SN (needed when using multiple teensy-based connections)
 CONTROLLER_SN = None
