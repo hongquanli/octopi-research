@@ -747,7 +747,7 @@ class NavigationController(QObject):
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
-        self.click_to_move = False
+        self.click_to_move = ENABLE_DEFAULT_CLICK_TO_MOVE # default on when acquisition not running
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
         self.enable_joystick_button_action = True
 
@@ -2638,7 +2638,7 @@ class MultiPointController(QObject):
         self.z_stacking_config = Z_STACKING_CONFIG
 
     def set_use_piezo(self, checked):
-        print("----- setting use_piezo to", checked)
+        print("set use_piezo to", checked)
         self.use_piezo = checked
         if hasattr(self, 'multiPointWorker'):
             self.multiPointWorker.update_use_piezo(checked)
@@ -2646,7 +2646,7 @@ class MultiPointController(QObject):
     def set_z_stacking_config(self, z_stacking_config_index):
         if z_stacking_config_index in Z_STACKING_CONFIG_MAP:
             self.z_stacking_config = Z_STACKING_CONFIG_MAP[z_stacking_config_index]
-        print(f"z-stacking configuration set to: {self.z_stacking_config}")
+        print(f"z-stacking configuration set to {self.z_stacking_config}")
 
     def set_z_range(self, minZ, maxZ):
         self.z_range = [minZ, maxZ]

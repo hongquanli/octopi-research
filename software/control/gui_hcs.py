@@ -598,7 +598,6 @@ class OctopiGUI(QMainWindow):
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
         self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
 
         if ENABLE_STITCHER:
@@ -608,7 +607,6 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidget2.signal_acquisition_started.connect(self.toggleAcquisitionStart)
             if ENABLE_STITCHER:
                 self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
@@ -616,7 +614,6 @@ class OctopiGUI(QMainWindow):
                 self.multiPointWidget2.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidgetGrid.signal_acquisition_started.connect(self.toggleAcquisitionStart)
             if ENABLE_STITCHER:
                 self.multiPointWidgetGrid.signal_stitcher_widget.connect(self.toggleStitcherWidget)
@@ -846,6 +843,7 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.setVisible(show)
 
     def toggleAcquisitionStart(self, acquisition_started):
+        self.navigationWidget.toggle_click_to_move(acquisition_started)
         current_index = self.recordTabWidget.currentIndex()
         for index in range(self.recordTabWidget.count()):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
