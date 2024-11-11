@@ -724,7 +724,7 @@ try:
         if cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0:
             WELLPLATE_FORMAT = cached_settings['wellplate_format']
 except (FileNotFoundError, json.JSONDecodeError):
-    DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
+    DEFAULT_OBJECTIVE = '20x'
     WELLPLATE_FORMAT = 384
 
 NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
