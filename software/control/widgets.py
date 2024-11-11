@@ -3695,6 +3695,7 @@ class MultiPointWidgetGrid(QFrame):
             self.entry_maxZ.setValue(z_pos_um)
 
     def init_z(self, z_pos_mm=None):
+        # sets initial z range form the current z position used after startup of the GUI
         if z_pos_mm is None:
             z_pos_mm = self.navigationController.z_pos_mm
 
@@ -3702,7 +3703,7 @@ class MultiPointWidgetGrid(QFrame):
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
 
-        try: # disconnect any previous connections updating the z min and max from the current z pos
+        try: # disconnect any previous live connections updating the z min and max from the current z pos
             self.navigationController.zPos.disconnect(self.update_z_min)
             self.navigationController.zPos.disconnect(self.update_z_max)
         except TypeError:
