@@ -217,14 +217,16 @@ uint32_t max_acceleration_usteps[N_MOTOR];
 ConfigurationTypeDef tmc4361_configs[N_MOTOR];
 TMC4361ATypeDef tmc4361[N_MOTOR];
 
-volatile long X_commanded_target_position = 0;
-volatile long Y_commanded_target_position = 0;
-volatile long Z_commanded_target_position = 0;
-volatile long W_commanded_target_position = 0;
-volatile bool X_commanded_movement_in_progress = false;
-volatile bool Y_commanded_movement_in_progress = false;
-volatile bool Z_commanded_movement_in_progress = false;
-volatile bool W_commanded_movement_in_progress = false;
+long X_commanded_target_position = 0;
+long Y_commanded_target_position = 0;
+long Z_commanded_target_position = 0;
+long W_commanded_target_position = 0;
+
+bool X_commanded_movement_in_progress = false;
+bool Y_commanded_movement_in_progress = false;
+bool Z_commanded_movement_in_progress = false;
+bool W_commanded_movement_in_progress = false;
+
 int X_direction;
 int Y_direction;
 int Z_direction;
@@ -234,10 +236,10 @@ int32_t focusPosition = 0;
 
 long target_position;
 
-volatile int32_t X_pos = 0;
-volatile int32_t Y_pos = 0;
-volatile int32_t Z_pos = 0;
-volatile int32_t W_pos = 0;
+int32_t X_pos = 0;
+int32_t Y_pos = 0;
+int32_t Z_pos = 0;
+int32_t W_pos = 0;
 
 float offset_velocity_x = 0;
 float offset_velocity_y = 0;
@@ -250,10 +252,10 @@ bool is_homing_Y = false;
 bool is_homing_Z = false;
 bool is_homing_XY = false;
 bool is_homing_W = false;
-volatile bool home_X_found = false;
-volatile bool home_Y_found = false;
-volatile bool home_Z_found = false;
-volatile bool home_W_found = false;
+bool home_X_found = false;
+bool home_Y_found = false;
+bool home_Z_found = false;
+bool home_W_found = false;
 bool is_preparing_for_homing_X = false;
 bool is_preparing_for_homing_Y = false;
 bool is_preparing_for_homing_Z = false;

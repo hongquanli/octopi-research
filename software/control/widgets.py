@@ -7859,7 +7859,7 @@ class SquidFilterWidget(QFrame):
 
     def increment_position(self):
         current_position = int(self.position_label.text().split(": ")[1])
-        new_position = min(7, current_position + 1)  # Ensure position doesn't go above 7
+        new_position = min(SQUID_FILTERWHEEL_MAX_INDEX, current_position + 1)  # Ensure position doesn't go above SQUID_FILTERWHEEL_MAX_INDEX
         if current_position != new_position:
             self.microscope.squid_filter_wheel.next_position()
             self.update_position(new_position)

@@ -180,8 +180,6 @@ class Microcontroller():
             cmd[4] = (payload >> 8) & 0xff
             cmd[5] = payload & 0xff
             self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -193,8 +191,6 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
 
     def move_x_to_usteps(self,usteps):
         payload = self._int_to_payload(usteps,4)
@@ -235,8 +231,6 @@ class Microcontroller():
             cmd[4] = (payload >> 8) & 0xff
             cmd[5] = payload & 0xff
             self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -248,8 +242,6 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
     
     def move_y_to_usteps(self,usteps):
         payload = self._int_to_payload(usteps,4)
@@ -290,8 +282,6 @@ class Microcontroller():
             cmd[4] = (payload >> 8) & 0xff
             cmd[5] = payload & 0xff
             self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -303,8 +293,6 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
 
     def move_z_to_usteps(self,usteps):
         payload = self._int_to_payload(usteps,4)
@@ -331,8 +319,6 @@ class Microcontroller():
             cmd[4] = (payload >> 8) & 0xff
             cmd[5] = payload & 0xff
             self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -344,8 +330,6 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
 
     def move_w_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_W*np.sign(usteps)
@@ -362,8 +346,6 @@ class Microcontroller():
             cmd[4] = (payload >> 8) & 0xff
             cmd[5] = payload & 0xff
             self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
             n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
         n_microsteps = direction*n_microsteps_abs
@@ -375,8 +357,6 @@ class Microcontroller():
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
 
     def set_off_set_velocity_x(self,off_set_velocity):
         # off_set_velocity is in mm/s
@@ -409,9 +389,6 @@ class Microcontroller():
         cmd[2] = AXIS.X
         cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_y(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -419,9 +396,6 @@ class Microcontroller():
         cmd[2] = AXIS.Y
         cmd[3] = int((STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_z(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -429,9 +403,6 @@ class Microcontroller():
         cmd[2] = AXIS.Z
         cmd[3] = int((STAGE_MOVEMENT_SIGN_Z+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_theta(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -439,9 +410,6 @@ class Microcontroller():
         cmd[2] = 3
         cmd[3] = int((STAGE_MOVEMENT_SIGN_THETA+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_xy(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -457,9 +425,6 @@ class Microcontroller():
         cmd[2] = AXIS.W
         cmd[3] = int((STAGE_MOVEMENT_SIGN_W+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_x(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -467,9 +432,6 @@ class Microcontroller():
         cmd[2] = AXIS.X
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_y(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -477,9 +439,6 @@ class Microcontroller():
         cmd[2] = AXIS.Y
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_z(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -487,9 +446,6 @@ class Microcontroller():
         cmd[2] = AXIS.Z
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_w(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -497,9 +453,6 @@ class Microcontroller():
         cmd[2] = AXIS.W
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_theta(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -507,9 +460,6 @@ class Microcontroller():
         cmd[2] = AXIS.THETA
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def configure_stage_pid(self, axis, transitions_per_revolution, flip_direction=False):
         cmd = bytearray(self.tx_buffer_length)
