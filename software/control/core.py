@@ -3402,10 +3402,6 @@ class ImageDisplayWindow(QMainWindow):
         self.show_LUT = show_LUT
         self.autoLevels = autoLevels
 
-        # Double click tracking
-        self.last_click_time = None
-        self.double_click_interval = 500  # Standard system double-click time (ms)
-
         # interpret image data as row-major instead of col-major
         pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -3474,16 +3470,10 @@ class ImageDisplayWindow(QMainWindow):
             self.graphics_widget.view.scene().sigMouseClicked.connect(self.handle_mouse_click)
 
     def handle_mouse_click(self, evt):
-        current_time = QTime.currentTime()
-        
-        # Handle first click or expired interval
-        if self.last_click_time is None or self.last_click_time.msecsTo(current_time) > self.double_click_interval:
-            self.last_click_time = current_time
+        # Only process double clicks
+        if not evt.double():
             return
-        
-        # Process double click
-        self.last_click_time = None
-        
+
         try:
             pos = evt.pos()
             if self.show_LUT:
