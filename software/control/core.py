@@ -856,8 +856,11 @@ class NavigationController(QObject):
                 break
 
     def cache_current_position(self):
-        with open("cache/last_coords.txt","w") as f:
-            f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
+        if (SOFTWARE_POS_LIMIT.X_NEGATIVE <= self.x_pos_mm <= SOFTWARE_POS_LIMIT.X_POSITIVE and
+            SOFTWARE_POS_LIMIT.Y_NEGATIVE <= self.y_pos_mm <= SOFTWARE_POS_LIMIT.Y_POSITIVE and
+            SOFTWARE_POS_LIMIT.Z_NEGATIVE <= self.z_pos_mm <= SOFTWARE_POS_LIMIT.Z_POSITIVE):
+            with open("cache/last_coords.txt","w") as f:
+                f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
 
     def move_x(self,delta):
         self.microcontroller.move_x_usteps(int(delta/self.get_mm_per_ustep_X()))
@@ -2341,21 +2344,20 @@ class MultiPointWorker(QObject):
         iio.imwrite(saving_path,image)
 
     def _save_merged_image(self, image, file_ID, current_path):
-        if self.image_count % len(self.selected_configurations) == 0:
+        self.image_count += 1
+        if self.image_count == 1:
             self.merged_image = image
         else:
             self.merged_image += image
 
-            if self.image_count % len(self.selected_configurations) == len(self.selected_configurations) - 1: 
+            if self.image_count == len(self.selected_configurations):
                 if image.dtype == np.uint16:
                     saving_path = os.path.join(current_path, file_ID + '_merged' + '.tiff')
                 else:
                     saving_path = os.path.join(current_path, file_ID + '_merged' + '.' + Acquisition.IMAGE_FORMAT)
 
                 iio.imwrite(saving_path, self.merged_image)
-
-        self.image_count += 1
-
+                self.image_count = 0
         return
 
     def return_pseudo_colored_image(self, image, config):
