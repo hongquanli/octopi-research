@@ -2683,18 +2683,22 @@ class MultiPointWidget2(QFrame):
         if z_pos_mm is None:
             z_pos_mm = self.navigationController.z_pos_mm
 
+        # block entry update signals
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        try:
+
+        try: # disconnect any previous connections updating the z min and max from the current z pos
             self.navigationController.zPos.disconnect(self.update_z_min)
             self.navigationController.zPos.disconnect(self.update_z_max)
         except TypeError:
             pass
 
+        # set entry range values bith to current z pos
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
-        print("init z-level flexible:", self.entry_minZ.value())
+        print("init z-level wellplate:", self.entry_minZ.value())
 
+        # reallow updates from entry sinals (signal enforces min <= max when we update either entry)
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
 
@@ -3694,18 +3698,22 @@ class MultiPointWidgetGrid(QFrame):
         if z_pos_mm is None:
             z_pos_mm = self.navigationController.z_pos_mm
 
+        # block entry update signals
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        try:
+
+        try: # disconnect any previous connections updating the z min and max from the current z pos
             self.navigationController.zPos.disconnect(self.update_z_min)
             self.navigationController.zPos.disconnect(self.update_z_max)
         except TypeError:
             pass
 
+        # set entry range values bith to current z pos
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
         print("init z-level wellplate:", self.entry_minZ.value())
 
+        # reallow updates from entry sinals (signal enforces min <= max when we update either entry)
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
 
