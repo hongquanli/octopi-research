@@ -631,8 +631,8 @@ def read_sample_formats_csv(file_path):
 OBJECTIVES_CSV_PATH = 'objectives.csv'
 SAMPLE_FORMATS_CSV_PATH = 'sample_formats.csv'
 
-OBJECTIVES = read_objectives_csv(os.path.join('configurations', OBJECTIVES_CSV_PATH))
-WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('configurations', SAMPLE_FORMATS_CSV_PATH))
+OBJECTIVES = read_objectives_csv(os.path.join('objective_and_sample_formats', OBJECTIVES_CSV_PATH))
+WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('objective_and_sample_formats', SAMPLE_FORMATS_CSV_PATH))
 
 ##########################################################
 #### start of loading machine specific configurations ####

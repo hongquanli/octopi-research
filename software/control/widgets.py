@@ -6579,7 +6579,7 @@ class WellplateFormatWidget(QWidget):
 
     def load_formats_from_csv(self):
         cache_path = os.path.join('cache', self.csv_path)
-        config_path = os.path.join('configurations', self.csv_path)
+        config_path = os.path.join('objective_and_sample_formats', self.csv_path)
 
         if os.path.exists(cache_path):
             pass
