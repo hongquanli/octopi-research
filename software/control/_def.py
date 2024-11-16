@@ -68,6 +68,15 @@ class Acquisition:
     NUMBER_OF_FOVS_PER_AF = 3
     IMAGE_FORMAT = 'bmp'
     IMAGE_DISPLAY_SCALING_FACTOR = 0.3
+    PSEUDO_COLOR = False
+    MERGE_CHANNELS = False
+    PSEUDO_COLOR_MAP = {
+    "405": {"hex": 0x0000FF},   # blue
+    "488": {"hex": 0x00FF00},   # green
+    "561": {"hex": 0xFFCF00},   # yellow
+    "638": {"hex": 0xFF0000},   # red
+    "730": {"hex": 0x770000}    # dark red
+    }
     DX = 0.9
     DY = 0.9
     DZ = 1.5
@@ -353,7 +362,6 @@ CAMERA_PIXEL_SIZE_UM = {'IMX290':2.9,'IMX178':2.4,'IMX226':1.85,'IMX250':3.45,'I
 
 TUBE_LENS_MM = 50
 CAMERA_SENSOR = 'IMX226'
-DEFAULT_OBJECTIVE = '10x (Mitutoyo)'
 TRACKERS = ['csrt', 'kcf', 'mil', 'tld', 'medianflow','mosse','daSiamRPN']
 DEFAULT_TRACKER = 'csrt'
 
@@ -436,8 +444,6 @@ Z_STACKING_CONFIG_MAP = {
     2: 'FROM TOP'
 }
 
-# plate format
-WELLPLATE_FORMAT = 384
 DEFAULT_Z_POS_MM = 2
 
 WELLPLATE_OFFSET_X_mm = 0 # x offset adjustment for using different plates
@@ -625,16 +631,8 @@ def read_sample_formats_csv(file_path):
 OBJECTIVES_CSV_PATH = 'objectives.csv'
 SAMPLE_FORMATS_CSV_PATH = 'sample_formats.csv'
 
-OBJECTIVES = read_objectives_csv(os.path.join('configurations', OBJECTIVES_CSV_PATH))
-WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('configurations', SAMPLE_FORMATS_CSV_PATH))
-
-NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
-WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
-WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
-A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm'] # measured stage position - to update
-A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm'] # measured stage position - to update
-A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel'] # coordinate on the png
-A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel'] # coordinate on the png
+OBJECTIVES = read_objectives_csv(os.path.join('objective_and_sample_formats', OBJECTIVES_CSV_PATH))
+WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('objective_and_sample_formats', SAMPLE_FORMATS_CSV_PATH))
 
 ##########################################################
 #### start of loading machine specific configurations ####
@@ -716,6 +714,27 @@ else:
     else:
         print('machine-specific configuration not present, the program will exit')
         sys.exit(1)
+
+# Add this after reading the CSV files but before using DEFAULT_OBJECTIVE and WELLPLATE_FORMAT
+try:
+    with open("cache/objective_and_sample_format.txt", 'r') as f:
+        cached_settings = json.load(f)
+        if cached_settings.get('objective') in OBJECTIVES:
+            DEFAULT_OBJECTIVE = cached_settings['objective']
+        if cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0:
+            WELLPLATE_FORMAT = cached_settings['wellplate_format']
+except (FileNotFoundError, json.JSONDecodeError):
+    DEFAULT_OBJECTIVE = '20x'
+    WELLPLATE_FORMAT = 384
+
+NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
+WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']
+WELL_SPACING_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_spacing_mm']
+A1_X_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_mm'] # measured stage position - to update
+A1_Y_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_mm'] # measured stage position - to update
+A1_X_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_x_pixel'] # coordinate on the png
+A1_Y_PIXEL = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['a1_y_pixel'] # coordinate on the png
+
 ##########################################################
 ##### end of loading machine specific configurations #####
 ##########################################################
