@@ -774,6 +774,20 @@ class CameraSettingsWidget(QFrame):
         roi_line.addWidget(self.entry_ROI_offset_x)
         self.camera_layout.addLayout(roi_line)
 
+        if DISPLAY_TOUPCAMER_BLACKLEVEL_SETTINGS is True:
+            blacklevel_line = QHBoxLayout()
+            blacklevel_line.addWidget(QLabel('Black Level'))
+
+            self.label_blackLevel = QSpinBox()
+            self.label_blackLevel.setMinimum(0)
+            self.label_blackLevel.setMaximum(31)
+            self.label_blackLevel.valueChanged.connect(self.update_blacklevel_scaling)
+            self.label_blackLevel.setSuffix(" ")
+
+            blacklevel_line.addWidget(self.label_blackLevel)
+
+            self.camera_layout.addLayout(blacklevel_line)
+
         if include_camera_auto_wb_setting:
             is_color = False
             try:
@@ -867,6 +881,12 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_offset_y.blockSignals(False)
         self.entry_ROI_height.blockSignals(False)
         self.entry_ROI_width.blockSignals(False)
+
+    def update_blacklevel_scaling(self, blacklevel):
+        try:
+            self.camera.set_blacklevel(blacklevel)
+        except AttributeError:
+            pass
 
 
 class LiveControlWidget(QFrame):

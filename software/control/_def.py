@@ -595,6 +595,10 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 USE_PRIOR_STAGE = False
 PRIOR_STAGE_SN = ""
 
+# camera blacklevel settings
+DISPLAY_TOUPCAMER_BLACKLEVEL_SETTINGS = False
+DEFAULT_BLACKLEVEL_VALUE = 3
+
 def read_objectives_csv(file_path):
     objectives = {}
     with open(file_path, 'r') as csvfile:
