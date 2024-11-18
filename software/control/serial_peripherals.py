@@ -189,7 +189,7 @@ class XLight_Simulation:
 
 class XLight:
     """Wrapper for communicating with CrestOptics X-Light devices over serial"""
-    def __init__(self, SN, sleep_time_for_wheel = 0.25, disable_emission_filter_wheel=False):
+    def __init__(self, SN, sleep_time_for_wheel = 0.25, disable_emission_filter_wheel=True):
         """
         Provide serial number (default is that of the device
         cephla already has) for device-finding purposes. Otherwise, all
