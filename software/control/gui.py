@@ -47,7 +47,7 @@ class OctopiGUI(QMainWindow):
         # load objects
         if is_simulation:
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-            self.microcontroller = microcontroller.Microcontroller_Simulation()
+            self.microcontroller = microcontroller.Microcontroller(existing_serial=microcontroller.SimSerial())
         else:
             try:
                 self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
