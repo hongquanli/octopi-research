@@ -3,6 +3,7 @@ import os
 os.environ["QT_API"] = "pyqt5"
 import serial
 import time
+from typing import Optional
 
 # qt libraries
 from qtpy.QtCore import *
@@ -88,6 +89,8 @@ class HighContentScreeningGui(QMainWindow):
 
     def __init__(self, is_simulation=False, live_only_mode=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.microcontroller: Optional[microcontroller.Microcontroller] = None
+
         self.log = squid.logging.get_logger(self.__class__.__name__)
         self.live_only_mode = live_only_mode or LIVE_ONLY_MODE
         self.performance_mode = False
@@ -271,61 +274,70 @@ class HighContentScreeningGui(QMainWindow):
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_speed(OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ)
 
-        self.microcontroller.reset()
-        time.sleep(0.5)
-        self.microcontroller.initialize_drivers()
-        time.sleep(0.5)
-        self.microcontroller.configure_actuators()
+        if not self.microcontroller:
+            raise ValueError("Microcontroller must be none-None for hardware setup.")
 
-        if HAS_ENCODER_X:
-            self.navigationController.set_axis_PID_arguments(0, PID_P_X, PID_I_X, PID_D_X)
-            self.navigationController.configure_encoder(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
-            self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
-        if HAS_ENCODER_Y:
-            self.navigationController.set_axis_PID_arguments(1, PID_P_Y, PID_I_Y, PID_D_Y)
-            self.navigationController.configure_encoder(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
-            self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
-        if HAS_ENCODER_Z:
-            self.navigationController.set_axis_PID_arguments(2, PID_P_Z, PID_I_Z, PID_D_Z)
-            self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
-            self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
-        time.sleep(0.5)
+        try:
+            self.microcontroller.reset()
+            time.sleep(0.5)
+            self.microcontroller.initialize_drivers()
+            time.sleep(0.5)
+            self.microcontroller.configure_actuators()
 
-        self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
-        self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
-        self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
-        self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
-        self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
-        self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
+            if HAS_ENCODER_X:
+                self.navigationController.set_axis_PID_arguments(0, PID_P_X, PID_I_X, PID_D_X)
+                self.navigationController.configure_encoder(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
+                self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
+            if HAS_ENCODER_Y:
+                self.navigationController.set_axis_PID_arguments(1, PID_P_Y, PID_I_Y, PID_D_Y)
+                self.navigationController.configure_encoder(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
+                self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
+            if HAS_ENCODER_Z:
+                self.navigationController.set_axis_PID_arguments(2, PID_P_Z, PID_I_Z, PID_D_Z)
+                self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
+                self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
+            time.sleep(0.5)
 
-        if HOMING_ENABLED_Z:
-            self.navigationController.home_z()
-            self.waitForMicrocontroller(10, 'z homing timeout')
-        if HOMING_ENABLED_X and HOMING_ENABLED_Y:
-            self.navigationController.move_x(20)
-            self.waitForMicrocontroller()
-            self.navigationController.home_y()
-            self.waitForMicrocontroller(10, 'y homing timeout')
-            self.navigationController.zero_y()
-            self.navigationController.home_x()
-            self.waitForMicrocontroller(10, 'x homing timeout')
-            self.navigationController.zero_x()
-            self.slidePositionController.homing_done = True
-        if USE_ZABER_EMISSION_FILTER_WHEEL:
-            self.emission_filter_wheel.wait_for_homing_complete()
-        if HOMING_ENABLED_X and HOMING_ENABLED_Y:
-            self.navigationController.move_x(20)
-            self.waitForMicrocontroller()
-            self.navigationController.move_y(20)
-            self.waitForMicrocontroller()
+            self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+            self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+            self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+            self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+            self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+            self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
 
-        if ENABLE_OBJECTIVE_PIEZO:
-            OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)
-        div = 1 if OUTPUT_GAINS.REFDIV else 0
-        gains = sum(getattr(OUTPUT_GAINS, f'CHANNEL{i}_GAIN') << i for i in range(8))
-        self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
-        self.microcontroller.set_dac80508_scaling_factor_for_illumination(ILLUMINATION_INTENSITY_FACTOR)
+            if HOMING_ENABLED_Z:
+                self.navigationController.home_z()
+                self.waitForMicrocontroller(10, 'z homing timeout')
+            if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+                self.navigationController.move_x(20)
+                self.waitForMicrocontroller()
+                self.navigationController.home_y()
+                self.waitForMicrocontroller(10, 'y homing timeout')
+                self.navigationController.zero_y()
+                self.navigationController.home_x()
+                self.waitForMicrocontroller(10, 'x homing timeout')
+                self.navigationController.zero_x()
+                self.slidePositionController.homing_done = True
+            if USE_ZABER_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel.wait_for_homing_complete()
+            if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+                self.navigationController.move_x(20)
+                self.waitForMicrocontroller()
+                self.navigationController.move_y(20)
+                self.waitForMicrocontroller()
 
+            if ENABLE_OBJECTIVE_PIEZO:
+                OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)
+            div = 1 if OUTPUT_GAINS.REFDIV else 0
+            gains = sum(getattr(OUTPUT_GAINS, f'CHANNEL{i}_GAIN') << i for i in range(8))
+            self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
+            self.microcontroller.set_dac80508_scaling_factor_for_illumination(ILLUMINATION_INTENSITY_FACTOR)
+        except TimeoutError as e:
+            # If we can't recover from a timeout, at least do our best to make sure the system is left in a safe
+            # and restartable state.
+            self.log.error("Setup timed out, resetting microcontroller before failing gui setup")
+            self.microcontroller.reset()
+            raise e
         self.camera.set_software_triggered_acquisition()
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
@@ -339,13 +351,12 @@ class HighContentScreeningGui(QMainWindow):
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
 
-    def waitForMicrocontroller(self, timeout=None, error_message=None):
-        start_time = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if timeout and time.time() - start_time > timeout:
-                self.log.error(error_message or 'Microcontroller operation timed out')
-                sys.exit(1)
+    def waitForMicrocontroller(self, timeout=5.0, error_message=None):
+        try:
+            self.microcontroller.wait_till_operation_is_completed(timeout)
+        except TimeoutError as e:
+            self.log.error(error_message or "Microcontroller operation timed out!")
+            raise e
 
     def loadWidgets(self):
         # Initialize all GUI widgets
