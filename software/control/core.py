@@ -1359,7 +1359,6 @@ class AutofocusWorker(QObject):
             # trigger acquisition (including turning on the illumination) and read frame
             if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                 self.liveController.turn_on_illumination()
-                self.wait_till_operation_is_completed()
                 self.camera.send_trigger()
                 image = self.camera.read_frame()
             elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
@@ -1904,13 +1903,11 @@ class MultiPointWorker(QObject):
         print("moving to coordinate", coordinate_mm)
         x_mm = coordinate_mm[0]
         self.navigationController.move_x_to(x_mm)
-        self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
 
         y_mm = coordinate_mm[1]
         self.navigationController.move_y_to(y_mm)
+
         self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
 
         # check if z is included in the coordinate
         if len(coordinate_mm) == 3:
@@ -1932,7 +1929,6 @@ class MultiPointWorker(QObject):
                 self.wait_till_operation_is_completed()
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
 
     def run_grid_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
@@ -2210,12 +2206,10 @@ class MultiPointWorker(QObject):
     def acquire_camera_image(self, config, file_ID, current_path, current_round_images, i, j, k):
         # update the current configuration
         self.signal_current_configuration.emit(config)
-        self.wait_till_operation_is_completed()
 
         # trigger acquisition (including turning on the illumination) and read frame
         if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
             self.liveController.turn_on_illumination()
-            self.wait_till_operation_is_completed()
             self.camera.send_trigger()
             image = self.camera.read_frame()
         elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
@@ -2263,12 +2257,10 @@ class MultiPointWorker(QObject):
             if config_.name in rgb_channels:
                 # update the current configuration
                 self.signal_current_configuration.emit(config_)
-                self.wait_till_operation_is_completed()
 
                 # trigger acquisition (including turning on the illumination)
                 if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                     self.liveController.turn_on_illumination()
-                    self.wait_till_operation_is_completed()
                     self.camera.send_trigger()
 
                 elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
@@ -3284,7 +3276,6 @@ class TrackingWorker(QObject):
             # switch to the tracking config
             config = self.selected_configurations[0]
             self.signal_current_configuration.emit(config)
-            self.wait_till_operation_is_completed()
 
             # do autofocus
             if self.trackingController.flag_AF_enabled and tracking_frame_counter > 1:
@@ -3303,9 +3294,7 @@ class TrackingWorker(QObject):
             config = self.selected_configurations[0]
             if(self.number_of_selected_configurations > 1):
                 self.signal_current_configuration.emit(config)
-                self.wait_till_operation_is_completed()
                 self.liveController.turn_on_illumination()        # keep illumination on for single configuration acqusition
-                self.wait_till_operation_is_completed()
             t = time.time()
             self.camera.send_trigger()
             image = self.camera.read_frame()
@@ -3322,9 +3311,7 @@ class TrackingWorker(QObject):
             # image the rest configurations
             for config_ in self.selected_configurations[1:]:
                 self.signal_current_configuration.emit(config_)
-                self.wait_till_operation_is_completed()
                 self.liveController.turn_on_illumination()
-                self.wait_till_operation_is_completed()
                 self.camera.send_trigger()
                 image_ = self.camera.read_frame()
                 self.liveController.turn_off_illumination()
