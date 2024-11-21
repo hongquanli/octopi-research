@@ -144,6 +144,13 @@ class Microcontroller:
         cmd[6] = strobe_delay_us & 0xff
         self.send_command(cmd)
 
+    def set_axis_enable_disable(self, axis, status):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_AXIS_DISABLE_ENABLE
+        cmd[2] = axis
+        cmd[3] = status
+        self.send_command(cmd)
+
     def move_x_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
@@ -1083,6 +1090,13 @@ class Microcontroller_Simulation():
         cmd[4] = (strobe_delay_us >> 16) & 0xff
         cmd[5] = (strobe_delay_us >> 8) & 0xff
         cmd[6] = strobe_delay_us & 0xff
+        self.send_command(cmd)
+
+    def set_axis_enable_disable(self, axis, status):
+        cmd = bytearray(self.tx_buffer_length)
+        cmd[1] = CMD_SET.SET_AXIS_DISABLE_ENABLE
+        cmd[2] = axis
+        cmd[3] = status
         self.send_command(cmd)
 
     def get_pos(self):

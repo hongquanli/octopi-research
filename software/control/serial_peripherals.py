@@ -193,7 +193,7 @@ class XLight_Simulation:
 class XLight:
 
     """Wrapper for communicating with CrestOptics X-Light devices over serial"""
-    def __init__(self, SN, sleep_time_for_wheel = 0.25):
+    def __init__(self, SN, sleep_time_for_wheel = 0.25, disable_emission_filter_wheel=True):
         """
         Provide serial number (default is that of the device
         cephla already has) for device-finding purposes. Otherwise, all
@@ -211,6 +211,8 @@ class XLight:
         self.has_dichroic_filter_slider = False
         self.has_ttl_control = False
         self.sleep_time_for_wheel = sleep_time_for_wheel
+
+        self.disable_emission_filter_wheel = disable_emission_filter_wheel
 
         self.serial_connection = SerialDevice(SN=SN,baudrate=115200,
                 bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,
@@ -250,6 +252,9 @@ class XLight:
             f"  TTL control and combined commands subsystem: {self.has_ttl_control}"))
 
     def set_emission_filter(self,position,extraction=False,validate=True):
+        if self.disable_emission_filter_wheel:
+            print('emission filter wheel disabled')
+            return -1
         if str(position) not in ["1","2","3","4","5","6","7","8"]:
             raise ValueError("Invalid emission filter wheel position!")
         position_to_write = str(position)
@@ -301,7 +306,7 @@ class XLight:
         position_to_write = str(position)
         position_to_read = str(position)
 
-        current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read,read_delay=7.5)
+        current_pos = self.serial_connection.write_and_check("D"+position_to_write+"\r","D"+position_to_read,read_delay=5)
         self.spinning_disk_pos = int(current_pos[1])
         return self.spinning_disk_pos
 
@@ -309,14 +314,14 @@ class XLight:
         # value: 0 - 100
         self.illumination_iris = value
         value = str(int(10*value))
-        self.serial_connection.write_and_check("J"+value+"\r","J"+value,read_delay=0.01)
+        self.serial_connection.write_and_check("J"+value+"\r","J"+value,read_delay=3)
         return self.illumination_iris
 
     def set_emission_iris(self,value):
         # value: 0 - 100
         self.emission_iris = value
         value = str(int(10*value))
-        self.serial_connection.write_and_check("V"+value+"\r","V"+value,read_delay=0.01)
+        self.serial_connection.write_and_check("V"+value+"\r","V"+value,read_delay=3)
         return self.emission_iris
 
     def set_filter_slider(self,position):
@@ -325,7 +330,7 @@ class XLight:
         self.slider_position = position
         position_to_write = str(position)
         position_to_read = str(position)
-        self.serial_connection.write_and_check("P"+position_to_write+"\r","V"+position_to_read,read_delay=0.01)
+        self.serial_connection.write_and_check("P"+position_to_write+"\r","V"+position_to_read,read_delay=5)
         return self.slider_position
 
     def get_disk_position(self):
