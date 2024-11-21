@@ -20,6 +20,17 @@ from control._def import *
 # check if the microcontroller has finished executing the more recent command
 
 # to do (7/28/2021) - add functions for configuring the stepper motors
+class CommandAborted(RuntimeError):
+    """
+    If we send a command and it needs to abort for any reason (too many retries,
+    timeout waiting for the mcu to acknowledge, etc), the Microcontroller class will throw this
+    for wait and progress check operations until a new command is started.
+
+    This does mean that if you don't check for command completion, you may miss these errors!
+    """
+    def __init__(self, command_id, reason):
+        super().__init__(reason)
+        self.command_id = command_id
 
 
 class SimSerial:
@@ -96,6 +107,9 @@ class SimSerial:
 
 
 class Microcontroller:
+    LAST_COMMAND_ACK_TIMEOUT = 0.5
+    MAX_RETRY_COUNT = 5
+
     def __init__(self, version='Arduino Due', sn=None, existing_serial=None):
         self.log = squid.logging.get_logger(self.__class__.__name__)
 
@@ -117,8 +131,8 @@ class Microcontroller:
         self.switch_state = 0
 
         self.last_command = None
-        self.timeout_counter = 0
-        self.last_command_timestamp = time.time()
+        self.last_command_send_timestamp = time.time()
+        self.last_command_aborted_error = None
 
         self.crc_calculator = CrcCalculator(Crc8.CCITT,table_based=True)
         self.retry = 0
@@ -331,9 +345,6 @@ class Microcontroller:
         cmd[2] = AXIS.X
         cmd[3] = int((STAGE_MOVEMENT_SIGN_X+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_y(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -341,9 +352,6 @@ class Microcontroller:
         cmd[2] = AXIS.Y
         cmd[3] = int((STAGE_MOVEMENT_SIGN_Y+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_z(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -351,9 +359,6 @@ class Microcontroller:
         cmd[2] = AXIS.Z
         cmd[3] = int((STAGE_MOVEMENT_SIGN_Z+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_theta(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -361,9 +366,6 @@ class Microcontroller:
         cmd[2] = 3
         cmd[3] = int((STAGE_MOVEMENT_SIGN_THETA+1)/2) # "move backward" if SIGN is 1, "move forward" if SIGN is -1
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def home_xy(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -379,9 +381,6 @@ class Microcontroller:
         cmd[2] = AXIS.X
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_y(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -389,9 +388,6 @@ class Microcontroller:
         cmd[2] = AXIS.Y
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_z(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -399,9 +395,6 @@ class Microcontroller:
         cmd[2] = AXIS.Z
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def zero_theta(self):
         cmd = bytearray(self.tx_buffer_length)
@@ -409,9 +402,6 @@ class Microcontroller:
         cmd[2] = AXIS.THETA
         cmd[3] = HOME_OR_ZERO.ZERO
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
-        #     # to do: add timeout
 
     def configure_stage_pid(self, axis, transitions_per_revolution, flip_direction=False):
         cmd = bytearray(self.tx_buffer_length)
@@ -591,16 +581,35 @@ class Microcontroller:
         self.serial.write(command)
         self.mcu_cmd_execution_in_progress = True
         self.last_command = command
-        self.timeout_counter = 0
-        self.last_command_timestamp = time.time()
+        self.last_command_send_timestamp = time.time()
         self.retry = 0
+
+        if self.last_command_aborted_error is not None:
+            self.log.warning("Last command aborted and not cleared before new command sent!", self.last_command_aborted_error)
+        self.last_command_aborted_error = None
+
+    def abort_current_command(self, reason):
+        self.log.error(f"Command id={self._cmd_id} aborted for reason='{reason}'")
+        self.last_command_aborted_error = CommandAborted(reason=reason, command_id=self._cmd_id)
+        self.mcu_cmd_execution_in_progress = False
+
+    def acknowledge_aborted_command(self):
+        if self.last_command_aborted_error is None:
+            self.log.warning("Request to ack aborted command, but there is no aborted command.")
+
+        self.last_command_aborted_error = None
 
     def resend_last_command(self):
         if self.last_command is not None:
             self.serial.write(self.last_command)
             self.mcu_cmd_execution_in_progress = True
-            self.timeout_counter = 0
+            # We use the retry count for both checksum errors, and to keep track of
+            # timeout re-attempts.
+            self.last_command_send_timestamp = time.time()
             self.retry = self.retry + 1
+        else:
+            self.log.warning("resend requested with no last_command, something is wrong!")
+            self.abort_current_command("Resend last requested with no last command")
 
     def read_received_packet(self):
         while self.terminate_reading_received_packet_thread == False:
@@ -637,21 +646,20 @@ class Microcontroller:
             self._cmd_id_mcu = msg[0]
             self._cmd_execution_status = msg[1]
             if (self._cmd_id_mcu == self._cmd_id) and (self._cmd_execution_status == CMD_EXECUTION_STATUS.COMPLETED_WITHOUT_ERRORS):
-                if self.mcu_cmd_execution_in_progress == True:
+                if self.mcu_cmd_execution_in_progress:
                     self.mcu_cmd_execution_in_progress = False
                     self.log.debug("mcu command " + str(self._cmd_id) + " complete")
-            elif self._cmd_id_mcu != self._cmd_id and time.time() - self.last_command_timestamp > 5 and self.last_command != None:
-                self.timeout_counter = self.timeout_counter + 1
-                if self.timeout_counter > 10:
-                    self.resend_last_command()
-                    self.log.debug("*** resend the last command")
-            elif self._cmd_execution_status == CMD_EXECUTION_STATUS.CMD_CHECKSUM_ERROR:
-                self.log.error("cmd checksum error, resending command")
-                if self.retry > 10:
-                    self.log.error("resending command failed for more than 10 times, the program will exit")
-                    # TODO(imo): Don't just exit here, let the caller do something if they want to
-                    sys.exit(1)
+            elif self.mcu_cmd_execution_in_progress and self._cmd_id_mcu != self._cmd_id and time.time() - self.last_command_send_timestamp > self.LAST_COMMAND_ACK_TIMEOUT and self.last_command is not None:
+                if self.retry > self.MAX_RETRY_COUNT:
+                    self.abort_current_command(reason=f"Command timed out without an ack after {self.LAST_COMMAND_ACK_TIMEOUT} [s], and {self.retry} retries")
                 else:
+                    self.log.debug(f"command timed out without an ack after {self.LAST_COMMAND_ACK_TIMEOUT} [s], resending command")
+                    self.resend_last_command()
+            elif self.mcu_cmd_execution_in_progress and self._cmd_execution_status == CMD_EXECUTION_STATUS.CMD_CHECKSUM_ERROR:
+                if self.retry > self.MAX_RETRY_COUNT:
+                    self.abort_current_command(reason=f"Checksum error and 10 retries for {self._cmd_id}")
+                else:
+                    self.log.error("cmd checksum error, resending command")
                     self.resend_last_command()
 
             self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
@@ -686,14 +694,19 @@ class Microcontroller:
     def set_callback(self,function):
         self.new_packet_callback_external = function
 
-    def wait_till_operation_is_completed(self, TIMEOUT_LIMIT_S=5):
+    def wait_till_operation_is_completed(self, timeout_limit_s=5):
+        """
+        Wait for the current command to complete.  If the wait times out, the current command isn't touched.  To
+        abort it, you should call the abort_current_command(...) method.
+        """
         timestamp_start = time.time()
-        while self.is_busy():
+        while self.is_busy() and self.last_command_aborted_error is None:
             time.sleep(0.02)
-            if time.time() - timestamp_start > TIMEOUT_LIMIT_S:
-                self.log.error("microcontroller timeout, the program will exit")
-                # TODO(imo): Don't just exit here, let the caller do something if they want
-                sys.exit(1)
+            if time.time() - timestamp_start > timeout_limit_s:
+                raise TimeoutError(f"Current mcu operation timed out after {timeout_limit_s} [s].")
+
+        if self.last_command_aborted_error is not None:
+            raise self.last_command_aborted_error
 
     @staticmethod
     def _int_to_payload(signed_int,number_of_bytes):
