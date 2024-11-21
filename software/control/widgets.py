@@ -774,6 +774,20 @@ class CameraSettingsWidget(QFrame):
         roi_line.addWidget(self.entry_ROI_offset_x)
         self.camera_layout.addLayout(roi_line)
 
+        if DISPLAY_TOUPCAMER_BLACKLEVEL_SETTINGS is True:
+            blacklevel_line = QHBoxLayout()
+            blacklevel_line.addWidget(QLabel('Black Level'))
+
+            self.label_blackLevel = QSpinBox()
+            self.label_blackLevel.setMinimum(0)
+            self.label_blackLevel.setMaximum(31)
+            self.label_blackLevel.valueChanged.connect(self.update_blacklevel)
+            self.label_blackLevel.setSuffix(" ")
+
+            blacklevel_line.addWidget(self.label_blackLevel)
+
+            self.camera_layout.addLayout(blacklevel_line)
+
         if include_camera_auto_wb_setting:
             is_color = False
             try:
@@ -867,6 +881,12 @@ class CameraSettingsWidget(QFrame):
         self.entry_ROI_offset_y.blockSignals(False)
         self.entry_ROI_height.blockSignals(False)
         self.entry_ROI_width.blockSignals(False)
+
+    def update_blacklevel(self, blacklevel):
+        try:
+            self.camera.set_blacklevel(blacklevel)
+        except AttributeError:
+            pass
 
 
 class LiveControlWidget(QFrame):
@@ -2679,6 +2699,25 @@ class MultiPointWidget2(QFrame):
         self.updateGeometry()
         self.update()
 
+    def init_z(self, z_pos_mm=None):
+        if z_pos_mm is None:
+            z_pos_mm = self.navigationController.z_pos_mm
+
+        self.entry_minZ.blockSignals(True)
+        self.entry_maxZ.blockSignals(True)
+        try:
+            self.navigationController.zPos.disconnect(self.update_z_min)
+            self.navigationController.zPos.disconnect(self.update_z_max)
+        except TypeError:
+            pass
+
+        self.entry_minZ.setValue(z_pos_mm*1000)
+        self.entry_maxZ.setValue(z_pos_mm*1000)
+        print("init z-level flexible:", self.entry_minZ.value())
+
+        self.entry_minZ.blockSignals(False)
+        self.entry_maxZ.blockSignals(False)
+
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
@@ -3675,12 +3714,15 @@ class MultiPointWidgetGrid(QFrame):
 
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        self.navigationController.zPos.disconnect(self.update_z_min)
-        self.navigationController.zPos.disconnect(self.update_z_max)
+        try:
+            self.navigationController.zPos.disconnect(self.update_z_min)
+            self.navigationController.zPos.disconnect(self.update_z_max)
+        except TypeError:
+            pass
 
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
-        print("init z-level:", self.entry_minZ.value())
+        print("init z-level wellplate:", self.entry_minZ.value())
 
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
@@ -6579,7 +6621,7 @@ class WellplateFormatWidget(QWidget):
 
     def load_formats_from_csv(self):
         cache_path = os.path.join('cache', self.csv_path)
-        config_path = os.path.join('configurations', self.csv_path)
+        config_path = os.path.join('objective_and_sample_formats', self.csv_path)
 
         if os.path.exists(cache_path):
             pass
@@ -7781,15 +7823,32 @@ class LedMatrixSettingsDialog(QDialog):
 
 
 class SampleSettingsWidget(QFrame):
-    def __init__(self, ObjectivesWidget, WellplateFormatWidget ,*args, **kwargs):
+    def __init__(self, ObjectivesWidget, WellplateFormatWidget, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.objectivesWidget = ObjectivesWidget
         self.wellplateFormatWidget = WellplateFormatWidget
+
+        # Set up the layout
         top_row_layout = QGridLayout()
         top_row_layout.setSpacing(2)
         top_row_layout.setContentsMargins(0, 2, 0, 2)
-        top_row_layout.addWidget(self.objectivesWidget,0,0)
-        top_row_layout.addWidget(self.wellplateFormatWidget,0,1)
-        self.setLayout(top_row_layout)  # Set the layout on the frame
+        top_row_layout.addWidget(self.objectivesWidget, 0, 0)
+        top_row_layout.addWidget(self.wellplateFormatWidget, 0, 1)
+        self.setLayout(top_row_layout)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
+
+        # Connect signals for saving settings
+        self.objectivesWidget.signal_objective_changed.connect(self.save_settings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(lambda *args: self.save_settings())
+
+    def save_settings(self):
+        """Save current objective and wellplate format to cache"""
+        os.makedirs('cache', exist_ok=True)
+        data = {
+            'objective': self.objectivesWidget.dropdown.currentText(),
+            'wellplate_format': self.wellplateFormatWidget.wellplate_format
+        }
+
+        with open('cache/objective_and_sample_format.txt', 'w') as f:
+            json.dump(data, f)
 

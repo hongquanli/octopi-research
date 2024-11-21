@@ -64,6 +64,7 @@ static const int SET_HOME_SAFETY_MERGIN = 28;
 static const int SET_PID_ARGUMENTS = 29;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
+static const int SET_AXIS_DISABLE_ENABLE = 32;
 static const int SET_PIN_LEVEL = 41;
 static const int INITIALIZE = 254;
 static const int RESET = 255;
@@ -1498,6 +1499,18 @@ void loop() {
             int axis = buffer_rx[2];
             tmc4361A_set_PID(&tmc4361[axis], PID_DISABLE);
             stage_PID_enabled[axis] = 0;
+            break;
+          }
+        case SET_AXIS_DISABLE_ENABLE:
+          {
+            int axis = buffer_rx[2];
+            int status = buffer_rx[3];
+            if (status == 0) {
+              tmc4361A_tmc2660_disable_driver(&tmc4361[axis]);
+            }
+            else {
+              tmc4361A_tmc2660_enable_driver(&tmc4361[axis]);
+            }
             break;
           }
         case INITIALIZE:
