@@ -144,20 +144,6 @@ class Microcontroller:
         cmd[6] = strobe_delay_us & 0xff
         self.send_command(cmd)
 
-    '''
-    def move_x(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_X
-        cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-    '''
-
     def set_axis_enable_disable(self, axis, status):
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.SET_AXIS_DISABLE_ENABLE
@@ -206,20 +192,6 @@ class Microcontroller:
         cmd[5] = payload & 0xff
         self.send_command(cmd)
 
-    '''
-    def move_y(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_XY)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_Y
-        cmd[1] = direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-    '''
-
     def move_y_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
         n_microsteps_abs = abs(usteps)
@@ -260,20 +232,6 @@ class Microcontroller:
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-
-    '''
-    def move_z(self,delta):
-        direction = int((np.sign(delta)+1)/2)
-        n_microsteps = abs(delta*Motion.STEPS_PER_MM_Z)
-        if n_microsteps > 65535:
-            n_microsteps = 65535
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[0] = CMD_SET.MOVE_Z
-        cmd[1] = 1-direction
-        cmd[2] = int(n_microsteps) >> 8
-        cmd[3] = int(n_microsteps) & 0xff
-        self.serial.write(cmd)
-    '''
 
     def move_z_usteps(self,usteps):
         direction = STAGE_MOVEMENT_SIGN_Z*np.sign(usteps)
