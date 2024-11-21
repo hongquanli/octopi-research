@@ -683,7 +683,7 @@ class HighContentScreeningGui(QMainWindow):
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
-            
+
         self.makeNapariConnections()
 
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
@@ -725,16 +725,16 @@ class HighContentScreeningGui(QMainWindow):
         if USE_NAPARI_FOR_LIVE_VIEW and not self.live_only_mode:
             self.napari_connections['napariLiveWidget'] = [
                 (self.multipointController.signal_current_configuration, self.napariLiveWidget.set_microscope_mode),
-                (self.autofocusController.image_to_display, 
+                (self.autofocusController.image_to_display,
                  lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True)),
-                (self.streamHandler.image_to_display, 
+                (self.streamHandler.image_to_display,
                  lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False)),
-                (self.multipointController.image_to_display, 
+                (self.multipointController.image_to_display,
                  lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False)),
                 (self.napariLiveWidget.signal_coordinates_clicked, self.navigationController.move_from_click),
                 (self.liveControlWidget.signal_live_configuration, self.napariLiveWidget.set_live_configuration)
             ]
-            
+
             if USE_NAPARI_FOR_LIVE_CONTROL:
                 self.napari_connections['napariLiveWidget'].extend([
                     (self.napariLiveWidget.signal_newExposureTime, self.cameraSettingWidget.set_exposure_time),
@@ -759,13 +759,13 @@ class HighContentScreeningGui(QMainWindow):
                     (self.multiPointWidget.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
                     (self.multiPointWidget.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
                 ]
-                
+
                 if ENABLE_FLEXIBLE_MULTIPOINT:
                     self.napari_connections['napariMultiChannelWidget'].extend([
                         (self.multiPointWidget2.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
                         (self.multiPointWidget2.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
                     ])
-                
+
                 if ENABLE_SCAN_GRID:
                     self.napari_connections['napariMultiChannelWidget'].extend([
                         (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
@@ -781,7 +781,7 @@ class HighContentScreeningGui(QMainWindow):
                     (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers),
                     (self.multiPointWidget.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
                     (self.multiPointWidget.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape),
-                    (self.napariTiledDisplayWidget.signal_coordinates_clicked, 
+                    (self.napariTiledDisplayWidget.signal_coordinates_clicked,
                      self.navigationController.scan_preview_move_from_click)
                 ]
 
@@ -803,7 +803,7 @@ class HighContentScreeningGui(QMainWindow):
                     (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic),
                     (self.multiPointWidget.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
                     (self.multiPointWidget.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape),
-                    (self.napariMosaicDisplayWidget.signal_coordinates_clicked, 
+                    (self.napariMosaicDisplayWidget.signal_coordinates_clicked,
                      self.navigationController.move_from_click_mosaic),
                     (self.napariMosaicDisplayWidget.signal_update_viewer, self.navigationViewer.update_slide)
                 ]
