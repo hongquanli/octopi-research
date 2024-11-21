@@ -154,36 +154,37 @@ class Microcontroller:
         cmd[3] = status
         self.send_command(cmd)
 
-    def move_x_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_X*np.sign(usteps)
+    def _move_axis_usteps(self, usteps, axis_command_code, axis_direction_sign):
+        direction = axis_direction_sign * np.sign(usteps)
         n_microsteps_abs = abs(usteps)
         # if n_microsteps_abs exceed the max value that can be sent in one go
-        while n_microsteps_abs >= (2**32)/2:
-            n_microsteps_partial_abs = (2**32)/2 - 1
-            n_microsteps_partial = direction*n_microsteps_partial_abs
-            payload = self._int_to_payload(n_microsteps_partial,4)
+        while n_microsteps_abs >= (2 ** 32) / 2:
+            n_microsteps_partial_abs = (2 ** 32) / 2 - 1
+            n_microsteps_partial = direction * n_microsteps_partial_abs
+            payload = self._int_to_payload(n_microsteps_partial, 4)
             cmd = bytearray(self.tx_buffer_length)
-            cmd[1] = CMD_SET.MOVE_X
+            cmd[1] = axis_command_code
             cmd[2] = payload >> 24
             cmd[3] = (payload >> 16) & 0xff
             cmd[4] = (payload >> 8) & 0xff
             cmd[5] = payload & 0xff
+            # TODO(imo): Since this issues multiple commands, there's no way to check for and abort failed
+            # ones mid-move.
             self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
-            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
 
-        n_microsteps = direction*n_microsteps_abs
-        payload = self._int_to_payload(n_microsteps,4)
+            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
+        n_microsteps = direction * n_microsteps_abs
+        payload = self._int_to_payload(n_microsteps, 4)
         cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.MOVE_X
+        cmd[1] = axis_command_code
         cmd[2] = payload >> 24
         cmd[3] = (payload >> 16) & 0xff
         cmd[4] = (payload >> 8) & 0xff
         cmd[5] = payload & 0xff
         self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
+
+    def move_x_usteps(self,usteps):
+        self._move_axis_usteps(usteps, CMD_SET.MOVE_X, STAGE_MOVEMENT_SIGN_X)
 
     def move_x_to_usteps(self,usteps):
         payload = self._int_to_payload(usteps,4)
@@ -196,35 +197,7 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_y_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_Y*np.sign(usteps)
-        n_microsteps_abs = abs(usteps)
-        # if n_microsteps_abs exceed the max value that can be sent in one go
-        while n_microsteps_abs >= (2**32)/2:
-            n_microsteps_partial_abs = (2**32)/2 - 1
-            n_microsteps_partial = direction*n_microsteps_partial_abs
-            payload = self._int_to_payload(n_microsteps_partial,4)
-            cmd = bytearray(self.tx_buffer_length)
-            cmd[1] = CMD_SET.MOVE_Y
-            cmd[2] = payload >> 24
-            cmd[3] = (payload >> 16) & 0xff
-            cmd[4] = (payload >> 8) & 0xff
-            cmd[5] = payload & 0xff
-            self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
-            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
-
-        n_microsteps = direction*n_microsteps_abs
-        payload = self._int_to_payload(n_microsteps,4)
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.MOVE_Y
-        cmd[2] = payload >> 24
-        cmd[3] = (payload >> 16) & 0xff
-        cmd[4] = (payload >> 8) & 0xff
-        cmd[5] = payload & 0xff
-        self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
+        self._move_axis_usteps(usteps, CMD_SET.MOVE_Y, STAGE_MOVEMENT_SIGN_Y)
     
     def move_y_to_usteps(self,usteps):
         payload = self._int_to_payload(usteps,4)
@@ -237,35 +210,7 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_z_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_Z*np.sign(usteps)
-        n_microsteps_abs = abs(usteps)
-        # if n_microsteps_abs exceed the max value that can be sent in one go
-        while n_microsteps_abs >= (2**32)/2:
-            n_microsteps_partial_abs = (2**32)/2 - 1
-            n_microsteps_partial = direction*n_microsteps_partial_abs
-            payload = self._int_to_payload(n_microsteps_partial,4)
-            cmd = bytearray(self.tx_buffer_length)
-            cmd[1] = CMD_SET.MOVE_Z
-            cmd[2] = payload >> 24
-            cmd[3] = (payload >> 16) & 0xff
-            cmd[4] = (payload >> 8) & 0xff
-            cmd[5] = payload & 0xff
-            self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
-            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
-
-        n_microsteps = direction*n_microsteps_abs
-        payload = self._int_to_payload(n_microsteps,4)
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.MOVE_Z
-        cmd[2] = payload >> 24
-        cmd[3] = (payload >> 16) & 0xff
-        cmd[4] = (payload >> 8) & 0xff
-        cmd[5] = payload & 0xff
-        self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
+        self._move_axis_usteps(usteps, CMD_SET.MOVE_Z, STAGE_MOVEMENT_SIGN_Z)
 
     def move_z_to_usteps(self,usteps):
         payload = self._int_to_payload(usteps,4)
@@ -278,35 +223,7 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_theta_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_THETA*np.sign(usteps)
-        n_microsteps_abs = abs(usteps)
-        # if n_microsteps_abs exceed the max value that can be sent in one go
-        while n_microsteps_abs >= (2**32)/2:
-            n_microsteps_partial_abs = (2**32)/2 - 1
-            n_microsteps_partial = direction*n_microsteps_partial_abs
-            payload = self._int_to_payload(n_microsteps_partial,4)
-            cmd = bytearray(self.tx_buffer_length)
-            cmd[1] = CMD_SET.MOVE_THETA
-            cmd[2] = payload >> 24
-            cmd[3] = (payload >> 16) & 0xff
-            cmd[4] = (payload >> 8) & 0xff
-            cmd[5] = payload & 0xff
-            self.send_command(cmd)
-            # while self.mcu_cmd_execution_in_progress == True:
-            #     time.sleep(self._motion_status_checking_interval)
-            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
-
-        n_microsteps = direction*n_microsteps_abs
-        payload = self._int_to_payload(n_microsteps,4)
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.MOVE_THETA
-        cmd[2] = payload >> 24
-        cmd[3] = (payload >> 16) & 0xff
-        cmd[4] = (payload >> 8) & 0xff
-        cmd[5] = payload & 0xff
-        self.send_command(cmd)
-        # while self.mcu_cmd_execution_in_progress == True:
-        #     time.sleep(self._motion_status_checking_interval)
+        self._move_axis_usteps(usteps, CMD_SET.MOVE_THETA, STAGE_MOVEMENT_SIGN_THETA)
 
     def set_off_set_velocity_x(self,off_set_velocity):
         # off_set_velocity is in mm/s
