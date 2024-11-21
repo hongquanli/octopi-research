@@ -83,11 +83,14 @@ class Microcontroller:
         self.serial.close()
 
     def reset(self):
-        self._cmd_id = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.RESET
-        self.send_command(cmd)
         self.log.debug("reset the microcontroller")
+        self.send_command(cmd)
+        # On the microcontroller side, reset forces the command Id back to 0
+        # so any responses will look like they are for command id 0.  Force that
+        # here.
+        self._cmd_id = 0
 
     def initialize_drivers(self):
         self._cmd_id = 0
