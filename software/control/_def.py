@@ -633,11 +633,32 @@ def read_sample_formats_csv(file_path):
             #print(format_key, "well plate settings:", sample_formats[format_key])
     return sample_formats
 
+def load_formats():
+    """Load formats, prioritizing cache for sample formats."""
+    cache_path = 'cache'
+    default_path = 'objective_and_sample_formats'
+
+    # Load objectives (from default location)
+    objectives = read_objectives_csv(os.path.join(default_path, 'objectives.csv'))
+
+    # Try cache first for sample formats, fall back to default if not found
+    cached_formats_path = os.path.join(cache_path, 'sample_formats.csv')
+    default_formats_path = os.path.join(default_path, 'sample_formats.csv')
+
+    if os.path.exists(cached_formats_path):
+        print('Using cached sample formats')
+        sample_formats = read_sample_formats_csv(cached_formats_path)
+    else:
+        print('Using default sample formats')
+        sample_formats = read_sample_formats_csv(default_formats_path)
+
+    return objectives, sample_formats
+
+
 OBJECTIVES_CSV_PATH = 'objectives.csv'
 SAMPLE_FORMATS_CSV_PATH = 'sample_formats.csv'
 
-OBJECTIVES = read_objectives_csv(os.path.join('objective_and_sample_formats', OBJECTIVES_CSV_PATH))
-WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('objective_and_sample_formats', SAMPLE_FORMATS_CSV_PATH))
+OBJECTIVES, WELLPLATE_FORMAT_SETTINGS = load_formats()
 
 ##########################################################
 #### start of loading machine specific configurations ####
@@ -645,14 +666,16 @@ WELLPLATE_FORMAT_SETTINGS = read_sample_formats_csv(os.path.join('objective_and_
 CACHED_CONFIG_FILE_PATH = None
 
 # Piezo configuration items
-ENABLE_OBJECTIVE_PIEZO = False
+Z_MOTOR_CONFIG = "STEPPER" # "STEPPER", "STEPPER + PIEZO", "PIEZO", "LINEAR"
+ENABLE_OBJECTIVE_PIEZO = "PIEZO" in Z_MOTOR_CONFIG
+
 # the value of OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE is 2.5 or 5
 OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE = 5
 OBJECTIVE_PIEZO_RANGE_UM = 300
 OBJECTIVE_PIEZO_HOME_UM = 20
 OBJECTIVE_PIEZO_FLIP_DIR = False
 
-MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = True
+MULTIPOINT_USE_PIEZO_FOR_ZSTACKS = ENABLE_OBJECTIVE_PIEZO
 MULTIPOINT_PIEZO_DELAY_MS = 20
 MULTIPOINT_PIEZO_UPDATE_DISPLAY = True
 
@@ -720,14 +743,11 @@ else:
         print('machine-specific configuration not present, the program will exit')
         sys.exit(1)
 
-# Add this after reading the CSV files but before using DEFAULT_OBJECTIVE and WELLPLATE_FORMAT
 try:
     with open("cache/objective_and_sample_format.txt", 'r') as f:
         cached_settings = json.load(f)
-        if cached_settings.get('objective') in OBJECTIVES:
-            DEFAULT_OBJECTIVE = cached_settings['objective']
-        if cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0:
-            WELLPLATE_FORMAT = cached_settings['wellplate_format']
+        DEFAULT_OBJECTIVE = cached_settings.get('objective') if cached_settings.get('objective') in OBJECTIVES else '20x'
+        WELLPLATE_FORMAT = cached_settings.get('wellplate_format') if (cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0) else 384
 except (FileNotFoundError, json.JSONDecodeError):
     DEFAULT_OBJECTIVE = '20x'
     WELLPLATE_FORMAT = 384
