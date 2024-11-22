@@ -2687,12 +2687,6 @@ class MultiPointWidget2(QFrame):
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
 
-        try: # disconnect any previous connections updating the z min and max from the current z pos
-            self.navigationController.zPos.disconnect(self.update_z_min)
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
-
         # set entry range values bith to current z pos
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
@@ -2705,18 +2699,10 @@ class MultiPointWidget2(QFrame):
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_min)
-        except TypeError:
-            pass # signal was not connected, so there's nothing to disconnect
-
+        
     def set_z_max(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_maxZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
     def update_z_min(self, z_pos_um):
         if z_pos_um < self.entry_minZ.value():
@@ -3474,10 +3460,6 @@ class MultiPointWidgetGrid(QFrame):
         self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
         if not self.performance_mode:
             self.napariMosaicWidget.signal_layers_initialized.connect(self.enable_manual_ROI)
-
-        self.navigationController.zPos.connect(self.update_z_min)
-        self.navigationController.zPos.connect(self.update_z_max)
-        #self.entry_NZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
 
     def enable_manual_ROI(self, enable):
@@ -3673,18 +3655,10 @@ class MultiPointWidgetGrid(QFrame):
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_min)
-        except TypeError:
-            pass # signal was not connected, so there's nothing to disconnect
 
     def set_z_max(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_maxZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
     def update_z_min(self, z_pos_um):
         if z_pos_um < self.entry_minZ.value():
@@ -3702,12 +3676,6 @@ class MultiPointWidgetGrid(QFrame):
         # block entry update signals
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-
-        try: # disconnect any previous live connections updating the z min and max from the current z pos
-            self.navigationController.zPos.disconnect(self.update_z_min)
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
         # set entry range values bith to current z pos
         self.entry_minZ.setValue(z_pos_mm*1000)
