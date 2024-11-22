@@ -1462,7 +1462,7 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 1)
             grid_line3.addWidget(self.btn_zero_Z, 1)
 
-        if not ENABLE_DEFAULT_CLICK_TO_MOVE:
+        if not ENABLE_CLICK_TO_MOVE_BY_DEFAULT:
             grid_line3.addWidget(self.checkbox_clickToMove, 1)
 
         self.grid = QVBoxLayout()
