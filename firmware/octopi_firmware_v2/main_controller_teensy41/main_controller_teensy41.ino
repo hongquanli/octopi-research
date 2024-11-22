@@ -68,6 +68,7 @@ static const int SET_HOME_SAFETY_MERGIN = 28;
 static const int SET_PID_ARGUMENTS = 29;
 static const int SEND_HARDWARE_TRIGGER = 30;
 static const int SET_STROBE_DELAY = 31;
+static const int SET_AXIS_DISABLE_ENABLE = 32;
 static const int SET_PIN_LEVEL = 41;
 static const int INITFILTERWHEEL = 253;
 static const int INITIALIZE = 254;
@@ -1627,6 +1628,18 @@ void loop() {
             tmc4361A_set_PID(&tmc4361[w], PID_DISABLE);
 
             tmc4361A_enableHomingLimit(&tmc4361[w], rht_sw_pol[w], TMC4361_homing_sw[w], home_safety_margin[w]);
+            break;
+          }
+        case SET_AXIS_DISABLE_ENABLE:
+          {
+            int axis = buffer_rx[2];
+            int status = buffer_rx[3];
+            if (status == 0) {
+              tmc4361A_tmc2660_disable_driver(&tmc4361[axis]);
+            }
+            else {
+              tmc4361A_tmc2660_enable_driver(&tmc4361[axis]);
+            }
             break;
           }
         case INITIALIZE:

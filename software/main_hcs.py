@@ -24,7 +24,7 @@ import glob
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action = 'store_true')
-parser.add_argument("--performance", help="Run the GUI with minimal viewers.", action = 'store_true')
+parser.add_argument("--live-only", help="Run the GUI with minimal viewers.", action = 'store_true')
 args = parser.parse_args()
 
 def show_config(cfp, configpath, main_gui):
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     app = QApplication([])
     app.setStyle('Fusion')
 
-    win = gui.OctopiGUI(is_simulation=args.simulation, performance_mode=args.performance)
+    win = gui.OctopiGUI(is_simulation=args.simulation, live_only_mode=args.live_only)
 
     acq_config_action = QAction("Acquisition Settings", win)
     acq_config_action.triggered.connect(lambda : show_acq_config(win.configurationManager))
