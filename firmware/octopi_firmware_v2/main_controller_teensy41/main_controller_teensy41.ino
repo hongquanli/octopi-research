@@ -12,10 +12,10 @@
 //#include "def_platereader.h"
 //#include "def_squid_vertical.h"
 
-// the firmware support axises number
+// the firmware support axes number
 #define N_MOTOR 4
-// default axises, such as X,Y,Z
-#define STAGE_AXIS 3
+// default axes, such as X,Y,Z
+#define STAGE_AXES 3
 
 #define DEBUG_MODE false
 
@@ -290,7 +290,7 @@ typedef struct pid_arguments {
 	uint8_t 	i; 
 	uint8_t 	d; 
 } PID_ARGUMENTS;
-PID_ARGUMENTS axis_pid_arg[N_MOTOR];
+PID_ARGUMENTS axes_pid_arg[N_MOTOR];
 
 // home safety margin
 uint16_t home_safety_margin[N_MOTOR] = {4, 4, 4, 4};
@@ -672,7 +672,7 @@ void setup() {
     digitalWrite(digitial_output_pins[i], LOW);
   }
 
-  // disable all axis 
+  // disable all axes 
   for (int i = 0; i < N_MOTOR; i++)
   {
     pinMode(pin_TMC4361_CS[i], OUTPUT);
@@ -708,9 +708,9 @@ void setup() {
   for (int i = 0; i < N_MOTOR; i++) {
     stage_PID_enabled[i] = 0;
 
-	axis_pid_arg[i].p = (1<<12);
-	axis_pid_arg[i].i = 0;
-	axis_pid_arg[i].d = 0;
+	axes_pid_arg[i].p = (1<<12);
+	axes_pid_arg[i].i = 0;
+	axes_pid_arg[i].d = 0;
   }
 
   // clock
@@ -719,7 +719,7 @@ void setup() {
   analogWrite(pin_TMC4361_CLK, 128); // 50% duty
 
   // initialize TMC4361 structs with default values and initialize CS pins
-  for (int i = 0; i < STAGE_AXIS; i++)
+  for (int i = 0; i < STAGE_AXES; i++)
   {
     // initialize the tmc4361 with their channel number and default configuration
     tmc4361A_init(&tmc4361[i], pin_TMC4361_CS[i], &tmc4361_configs[i], tmc4361A_defaultRegisterResetState);
@@ -738,7 +738,7 @@ void setup() {
   delayMicroseconds(5000);
 
   // initilize TMC4361 and TMC2660 - turn on functionality
-  for (int i = 0; i < STAGE_AXIS; i++)
+  for (int i = 0; i < STAGE_AXES; i++)
     tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
 
   // enable limit switch reading
@@ -758,7 +758,7 @@ void setup() {
   max_velocity_usteps[y] = tmc4361A_vmmToMicrosteps(&tmc4361[y], MAX_VELOCITY_Y_mm);
   max_velocity_usteps[z] = tmc4361A_vmmToMicrosteps(&tmc4361[z], MAX_VELOCITY_Z_mm);
   max_velocity_usteps[w] = tmc4361A_vmmToMicrosteps(&tmc4361[w], MAX_VELOCITY_W_mm);
-  for (int i = 0; i < STAGE_AXIS; i++)
+  for (int i = 0; i < STAGE_AXES; i++)
   {
     // initialize ramp with default values
     tmc4361A_setMaxSpeed(&tmc4361[i], max_velocity_usteps[i]);
@@ -1065,9 +1065,9 @@ void loop() {
 			uint8_t  i = uint8_t(buffer_rx[5]);
 			uint8_t  d = uint8_t(buffer_rx[6]);
 
-			axis_pid_arg[axis].p = p; 
-			axis_pid_arg[axis].i = i;
-			axis_pid_arg[axis].d = d;
+			axes_pid_arg[axis].p = p; 
+			axes_pid_arg[axis].i = i;
+			axes_pid_arg[axis].d = d;
 
 		  	break;
 		  }
@@ -1579,16 +1579,16 @@ void loop() {
             tmc4361A_init_ABN_encoder(&tmc4361[axis], transitions_per_revolution, 32, 4, 512, flip_direction);
             // Init PID. target reach tolerance, position error tolerance, P, I, and D coefficients, max speed, winding limit, derivative update rate
             if (axis == z)
-              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
+              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axes_pid_arg[axis].p, axes_pid_arg[axis].i, axes_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Z_mm), 4096, 2);
             else if (axis == y)
-              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 32767, 2);
+              tmc4361A_init_PID(&tmc4361[axis], 25, 25, axes_pid_arg[axis].p, axes_pid_arg[axis].i, axes_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_Y_mm), 32767, 2);
             else if(axis == w) {
               if (enable_filterwheel == true)
-                tmc4361A_init_PID(&tmc4361[axis], 2, 2, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_W_mm), 4096, 2);
+                tmc4361A_init_PID(&tmc4361[axis], 2, 2, axes_pid_arg[axis].p, axes_pid_arg[axis].i, axes_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_W_mm), 4096, 2);
             }
             else {
               if (enable_filterwheel == true)
-                tmc4361A_init_PID(&tmc4361[axis], 25, 25, axis_pid_arg[axis].p, axis_pid_arg[axis].i, axis_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 32767, 2);
+                tmc4361A_init_PID(&tmc4361[axis], 25, 25, axes_pid_arg[axis].p, axes_pid_arg[axis].i, axes_pid_arg[axis].d, tmc4361A_vmmToMicrosteps(&tmc4361[axis], MAX_VELOCITY_X_mm), 32767, 2);
             }
             break;
           }
@@ -1635,7 +1635,7 @@ void loop() {
             focusPosition = 0;
             first_packet_from_joystick_panel = true;
             // initilize TMC4361 and TMC2660
-            for (int i = 0; i < STAGE_AXIS; i++)
+            for (int i = 0; i < STAGE_AXES; i++)
               tmc4361A_tmc2660_init(&tmc4361[i], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
 
             if (enable_filterwheel == true)
@@ -1669,7 +1669,7 @@ void loop() {
             if (enable_filterwheel == true)
               max_velocity_usteps[w] = tmc4361A_vmmToMicrosteps(&tmc4361[w], MAX_VELOCITY_W_mm);
 
-            for (int i = 0; i < STAGE_AXIS; i++) {
+            for (int i = 0; i < STAGE_AXES; i++) {
               // initialize ramp with default values
               tmc4361A_setMaxSpeed(&tmc4361[i], max_velocity_usteps[i]);
               tmc4361A_setMaxAcceleration(&tmc4361[i], max_acceleration_usteps[i]);
