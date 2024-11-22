@@ -7942,13 +7942,3 @@ class SquidFilterWidget(QFrame):
         self.objectivesWidget.signal_objective_changed.connect(self.save_settings)
         self.wellplateFormatWidget.signalWellplateSettings.connect(lambda *args: self.save_settings())
 
-    def save_settings(self):
-        """Save current objective and wellplate format to cache"""
-        os.makedirs('cache', exist_ok=True)
-        data = {
-            'objective': self.objectivesWidget.dropdown.currentText(),
-            'wellplate_format': self.wellplateFormatWidget.wellplate_format
-        }
-
-        with open('cache/objective_and_sample_format.txt', 'w') as f:
-            json.dump(data, f)
