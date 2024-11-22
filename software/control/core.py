@@ -851,8 +851,11 @@ class NavigationController(QObject):
                 break
 
     def cache_current_position(self):
-        with open("cache/last_coords.txt","w") as f:
-            f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
+        if (SOFTWARE_POS_LIMIT.X_NEGATIVE <= self.x_pos_mm <= SOFTWARE_POS_LIMIT.X_POSITIVE and
+            SOFTWARE_POS_LIMIT.Y_NEGATIVE <= self.y_pos_mm <= SOFTWARE_POS_LIMIT.Y_POSITIVE and
+            SOFTWARE_POS_LIMIT.Z_NEGATIVE <= self.z_pos_mm <= SOFTWARE_POS_LIMIT.Z_POSITIVE):
+            with open("cache/last_coords.txt","w") as f:
+                f.write(",".join([str(self.x_pos_mm),str(self.y_pos_mm),str(self.z_pos_mm)]))
 
     def move_x(self,delta):
         self.microcontroller.move_x_usteps(int(delta/self.get_mm_per_ustep_X()))
@@ -1692,6 +1695,8 @@ class MultiPointWorker(QObject):
         self.z_range = self.multiPointController.z_range
 
         self.microscope = self.multiPointController.parent
+        self.performance_mode = self.microscope.performance_mode
+
         try:
             self.model = self.microscope.segmentation_model
         except:
@@ -1708,6 +1713,8 @@ class MultiPointWorker(QObject):
         self.tiled_preview = None
         self.count = 0
 
+        self.merged_image = None
+        self.image_count = 0
 
     def update_stats(self, new_stats):
         self.count += 1
@@ -2317,22 +2324,68 @@ class MultiPointWorker(QObject):
                     image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
                 elif MULTIPOINT_BF_SAVING_OPTION == 'Green Channel Only':
                     image = image[:,:,1]
+
+        if Acquisition.PSEUDO_COLOR:
+            image = self.return_pseudo_colored_image(image, config)
+
+        if Acquisition.MERGE_CHANNELS:
+            self._save_merged_image(image, file_ID, current_path)
+
         iio.imwrite(saving_path,image)
 
-    def update_napari(self, image, config_name, i, j, k):
-        i = -1 if i is None else i
-        j = -1 if j is None else j
-        print("update napari:", i, j, k, config_name)
+    def _save_merged_image(self, image, file_ID, current_path):
+        self.image_count += 1
+        if self.image_count == 1:
+            self.merged_image = image
+        else:
+            self.merged_image += image
 
-        if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
-            if not self.init_napari_layers:
-                print("init napari layers")
-                self.init_napari_layers = True
-                self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
-            self.napari_layers_update.emit(image, i, j, k, config_name)
-        if USE_NAPARI_FOR_MOSAIC_DISPLAY and k == 0:
-            print(f"Updating mosaic layers: x={self.navigationController.x_pos_mm:.6f}, y={self.navigationController.y_pos_mm:.6f}")
-            self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config_name)
+            if self.image_count == len(self.selected_configurations):
+                if image.dtype == np.uint16:
+                    saving_path = os.path.join(current_path, file_ID + '_merged' + '.tiff')
+                else:
+                    saving_path = os.path.join(current_path, file_ID + '_merged' + '.' + Acquisition.IMAGE_FORMAT)
+
+                iio.imwrite(saving_path, self.merged_image)
+                self.image_count = 0
+        return
+
+    def return_pseudo_colored_image(self, image, config):
+        if '405 nm' in config.name:
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["405"]["hex"])
+        elif '488 nm' in config.name:     
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["488"]["hex"])
+        elif '561 nm' in config.name:
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["561"]["hex"])
+        elif '638 nm' in config.name:
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["638"]["hex"])
+        elif '730 nm' in config.name:          
+            image = self.grayscale_to_rgb(image, Acquisition.PSEUDO_COLOR_MAP["730"]["hex"])
+
+        return image
+
+    def grayscale_to_rgb(self, image, hex_color):
+        rgb_ratios = np.array([(hex_color >> 16) & 0xFF,
+                          (hex_color >> 8) & 0xFF,
+                          hex_color & 0xFF]) / 255
+        rgb = np.stack([image] * 3, axis=-1) * rgb_ratios
+        return rgb.astype(image.dtype)
+
+    def update_napari(self, image, config_name, i, j, k):
+        if not self.performance_mode:
+            i = -1 if i is None else i
+            j = -1 if j is None else j
+            print("update napari:", i, j, k, config_name)
+
+            if USE_NAPARI_FOR_MULTIPOINT or USE_NAPARI_FOR_TILED_DISPLAY:
+                if not self.init_napari_layers:
+                    print("init napari layers")
+                    self.init_napari_layers = True
+                    self.napari_layers_init.emit(image.shape[0],image.shape[1], image.dtype)
+                self.napari_layers_update.emit(image, i, j, k, config_name)
+            if USE_NAPARI_FOR_MOSAIC_DISPLAY and k == 0:
+                print(f"Updating mosaic layers: x={self.navigationController.x_pos_mm:.6f}, y={self.navigationController.y_pos_mm:.6f}")
+                self.napari_mosaic_update.emit(image, self.navigationController.x_pos_mm, self.navigationController.y_pos_mm, k, config_name)
 
     def handle_dpc_generation(self, current_round_images):
         keys_to_check = ['BF LED matrix left half', 'BF LED matrix right half', 'BF LED matrix top half', 'BF LED matrix bottom half']
@@ -2764,7 +2817,10 @@ class MultiPointController(QObject):
                 self.usb_spectrometer_was_streaming = False
 
         # set current tabs
-        if self.parent is not None and not self.parent.performance_mode:
+        if self.parent.performance_mode:
+            self.parent.imageDisplayTabs.setCurrentIndex(0)
+
+        elif self.parent is not None and not self.parent.live_only_mode:
             configs = [config.name for config in self.selected_configurations]
             print(configs)
             if DO_FLUORESCENCE_RTP and 'BF LED matrix left half' in configs and 'BF LED matrix right half' in configs and 'Fluorescence 405 nm Ex' in configs:
