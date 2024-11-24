@@ -1364,7 +1364,7 @@ class NavigationWidget(QFrame):
         self.slidePositionController = slidePositionController
         self.widget_configuration = widget_configuration
         self.slide_position = None
-        self.flag_click_to_move = False
+        self.flag_click_to_move = navigationController.click_to_move
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1482,7 +1482,8 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 1)
             grid_line3.addWidget(self.btn_zero_Z, 1)
 
-        grid_line3.addWidget(self.checkbox_clickToMove, 1)
+        if not ENABLE_CLICK_TO_MOVE_BY_DEFAULT:
+            grid_line3.addWidget(self.checkbox_clickToMove, 1)
 
         self.grid = QVBoxLayout()
         self.grid.addLayout(grid_line0)
@@ -1512,14 +1513,18 @@ class NavigationWidget(QFrame):
         self.btn_load_slide.clicked.connect(self.switch_position)
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
 
-    def toggle_navigation_controls(self, started):
+    def toggle_click_to_move(self, started):
         if started:
             self.flag_click_to_move = self.navigationController.get_flag_click_to_move()
             self.setEnabled_all(False)
-            self.checkbox_clickToMove.setChecked(False)
+            self.checkbox_clickToMove.setChecked(False) # should set navigationController.click_to_move to False
+            self.navigationController.click_to_move = False
+            print("set click to move off")
         else:
             self.setEnabled_all(True)
             self.checkbox_clickToMove.setChecked(self.flag_click_to_move)
+            self.navigationController.click_to_move = self.flag_click_to_move
+            print("restored click to move to", "on" if self.flag_click_to_move else "off")
 
     def setEnabled_all(self, enabled):
         self.checkbox_clickToMove.setEnabled(enabled)

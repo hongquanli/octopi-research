@@ -747,7 +747,7 @@ class NavigationController(QObject):
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
-        self.click_to_move = False
+        self.click_to_move = ENABLE_CLICK_TO_MOVE_BY_DEFAULT # default on when acquisition not running
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
         self.enable_joystick_button_action = True
 
@@ -2641,7 +2641,7 @@ class MultiPointController(QObject):
         self.z_stacking_config = Z_STACKING_CONFIG
 
     def set_use_piezo(self, checked):
-        print("----- setting use_piezo to", checked)
+        print("set use_piezo to", checked)
         self.use_piezo = checked
         if hasattr(self, 'multiPointWorker'):
             self.multiPointWorker.update_use_piezo(checked)
@@ -2649,7 +2649,7 @@ class MultiPointController(QObject):
     def set_z_stacking_config(self, z_stacking_config_index):
         if z_stacking_config_index in Z_STACKING_CONFIG_MAP:
             self.z_stacking_config = Z_STACKING_CONFIG_MAP[z_stacking_config_index]
-        print(f"z-stacking configuration set to: {self.z_stacking_config}")
+        print(f"z-stacking configuration set to {self.z_stacking_config}")
 
     def set_z_range(self, minZ, maxZ):
         self.z_range = [minZ, maxZ]
@@ -3397,7 +3397,7 @@ class ImageDisplayWindow(QMainWindow):
 
     image_click_coordinates = Signal(int, int, int, int)
 
-    def __init__(self, liveController=None, contrastManager=None, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
+    def __init__(self, liveController=None, contrastManager=None, window_title='', draw_crosshairs=False, show_LUT=False, autoLevels=False):
         super().__init__()
         self.liveController = liveController
         self.contrastManager = contrastManager
@@ -3428,9 +3428,6 @@ class ImageDisplayWindow(QMainWindow):
             self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
             self.LUTWidget.region.sigRegionChanged.connect(self.update_contrast_limits)
             self.LUTWidget.region.sigRegionChangeFinished.connect(self.update_contrast_limits)
-            # self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
-            # self.LUTWidget.autoHistogramRange()
-            # self.graphics_widget.view.autolevels()
         else:
             self.graphics_widget.img = pg.ImageItem(border='w')
             self.graphics_widget.view.addItem(self.graphics_widget.img)
@@ -3457,9 +3454,6 @@ class ImageDisplayWindow(QMainWindow):
         self.DrawCrossHairs = False
         self.image_offset = np.array([0, 0])
 
-        # ## flag of setting scaling level
-        # self.flag_image_scaling_level_init = False
-
         ## Layout
         layout = QGridLayout()
         if self.show_LUT:
@@ -3470,25 +3464,22 @@ class ImageDisplayWindow(QMainWindow):
         self.setCentralWidget(self.widget)
 
         # set window size
-        desktopWidget = QDesktopWidget();
-        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
+        desktopWidget = QDesktopWidget()
+        width = min(desktopWidget.height()*0.9,1000)
         height = width
         self.setFixedSize(int(width),int(height))
+        
+        # Connect mouse click handler
         if self.show_LUT:
-            self.graphics_widget.view.getView().scene().sigMouseClicked.connect(self.mouse_clicked)
+            self.graphics_widget.view.getView().scene().sigMouseClicked.connect(self.handle_mouse_click)
         else:
-            self.graphics_widget.view.scene().sigMouseClicked.connect(self.mouse_clicked)
+            self.graphics_widget.view.scene().sigMouseClicked.connect(self.handle_mouse_click)
 
-    def is_within_image(self, coordinates):
-        try:
-            image_width = self.graphics_widget.img.width()
-            image_height = self.graphics_widget.img.height()
+    def handle_mouse_click(self, evt):
+        # Only process double clicks
+        if not evt.double():
+            return
 
-            return 0 <= coordinates.x() < image_width and 0 <= coordinates.y() < image_height
-        except:
-            return False
-
-    def mouse_clicked(self, evt):
         try:
             pos = evt.pos()
             if self.show_LUT:
@@ -3502,8 +3493,19 @@ class ImageDisplayWindow(QMainWindow):
         if self.is_within_image(image_coord):
             x_pixel_centered = int(image_coord.x() - self.graphics_widget.img.width()/2)
             y_pixel_centered = int(image_coord.y() - self.graphics_widget.img.height()/2)
-            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, self.graphics_widget.img.width(), self.graphics_widget.img.height())
+            self.image_click_coordinates.emit(x_pixel_centered, y_pixel_centered, 
+                                           self.graphics_widget.img.width(), 
+                                           self.graphics_widget.img.height())
 
+    def is_within_image(self, coordinates):
+        try:
+            image_width = self.graphics_widget.img.width()
+            image_height = self.graphics_widget.img.height()
+            return 0 <= coordinates.x() < image_width and 0 <= coordinates.y() < image_height
+        except:
+            return False
+
+    # [Rest of the methods remain exactly the same...]
     def display_image(self, image):
         if ENABLE_TRACKING:
             image = np.copy(image)
