@@ -366,7 +366,7 @@ class OctopiGUI(QMainWindow):
 
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler, self.imageSaver)
         self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer, self.streamHandler, self.liveController)
-        if WELLPLATE_FORMAT != 1536:
+        if WELLPLATE_FORMAT != '1536':
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT, self.wellplateFormatWidget)
         else:
             self.wellSelectionWidget = widgets.Well1536SelectionWidget()
@@ -907,7 +907,7 @@ class OctopiGUI(QMainWindow):
             self.navigationController.inverted_objective = True
             self.setupSlidePositionController(is_for_wellplate=True)
 
-            if format_ == 1536:
+            if format_ == '1536':
                 self.replaceWellSelectionWidget(widgets.Well1536SelectionWidget())
             elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
                 self.replaceWellSelectionWidget(widgets.WellSelectionWidget(format_, self.wellplateFormatWidget))

@@ -619,7 +619,7 @@ def read_sample_formats_csv(file_path):
     with open(file_path, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            format_key = int(row['format'])
+            format_key = str(row['format'])
             sample_formats[format_key] = {
                 'a1_x_mm': float(row['a1_x_mm']),
                 'a1_y_mm': float(row['a1_y_mm']),
@@ -748,10 +748,10 @@ try:
     with open("cache/objective_and_sample_format.txt", 'r') as f:
         cached_settings = json.load(f)
         DEFAULT_OBJECTIVE = cached_settings.get('objective') if cached_settings.get('objective') in OBJECTIVES else '20x'
-        WELLPLATE_FORMAT = cached_settings.get('wellplate_format') if (cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0) else 384
+        WELLPLATE_FORMAT = str(cached_settings.get('wellplate_format')) if (cached_settings.get('wellplate_format') in WELLPLATE_FORMAT_SETTINGS or cached_settings.get('wellplate_format') == 0) else '96'
 except (FileNotFoundError, json.JSONDecodeError):
     DEFAULT_OBJECTIVE = '20x'
-    WELLPLATE_FORMAT = 384
+    WELLPLATE_FORMAT = '96'
 
 NUMBER_OF_SKIP = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['number_of_skip'] # num rows/cols to skip on wellplate edge
 WELL_SIZE_MM = WELLPLATE_FORMAT_SETTINGS[WELLPLATE_FORMAT]['well_size_mm']

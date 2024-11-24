@@ -3696,14 +3696,14 @@ class NavigationViewer(QFrame):
         if isinstance(sample_format, QVariant):
             sample_format = sample_format.value()
 
-        if sample_format == 0:
+        if sample_format == '0':
             if IS_HCS:
                 sample = '4 glass slide'
             else:
                 sample = 'glass slide'
-        elif isinstance(sample_format, int):
+        elif sample_format.isdigit():
             sample = f'{sample_format} well plate'
-        else:  # Custom wellplate
+        else:
             sample = sample_format
 
         self.sample = sample
@@ -3721,7 +3721,8 @@ class NavigationViewer(QFrame):
         image_path = self.image_paths.get(sample)
         if image_path is None or not os.path.exists(image_path):
             # Look for a custom wellplate image
-            custom_image_path = os.path.join('images', f'{sample.replace(" ", "_")}.png')
+            custom_image_path = os.path.join('images', self.sample, '.png')
+            print(custom_image_path)
             if os.path.exists(custom_image_path):
                 image_path = custom_image_path
             else:
