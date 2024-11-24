@@ -1364,7 +1364,7 @@ class NavigationWidget(QFrame):
         self.slidePositionController = slidePositionController
         self.widget_configuration = widget_configuration
         self.slide_position = None
-        self.flag_click_to_move = False
+        self.flag_click_to_move = navigationController.click_to_move
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
 
@@ -1482,7 +1482,8 @@ class NavigationWidget(QFrame):
             grid_line3.addWidget(self.btn_home_Z, 1)
             grid_line3.addWidget(self.btn_zero_Z, 1)
 
-        grid_line3.addWidget(self.checkbox_clickToMove, 1)
+        if not ENABLE_CLICK_TO_MOVE_BY_DEFAULT:
+            grid_line3.addWidget(self.checkbox_clickToMove, 1)
 
         self.grid = QVBoxLayout()
         self.grid.addLayout(grid_line0)
@@ -1512,14 +1513,18 @@ class NavigationWidget(QFrame):
         self.btn_load_slide.clicked.connect(self.switch_position)
         self.btn_load_slide.setStyleSheet("background-color: #C2C2FF")
 
-    def toggle_navigation_controls(self, started):
+    def toggle_click_to_move(self, started):
         if started:
             self.flag_click_to_move = self.navigationController.get_flag_click_to_move()
             self.setEnabled_all(False)
-            self.checkbox_clickToMove.setChecked(False)
+            self.checkbox_clickToMove.setChecked(False) # should set navigationController.click_to_move to False
+            self.navigationController.click_to_move = False
+            print("set click to move off")
         else:
             self.setEnabled_all(True)
             self.checkbox_clickToMove.setChecked(self.flag_click_to_move)
+            self.navigationController.click_to_move = self.flag_click_to_move
+            print("restored click to move to", "on" if self.flag_click_to_move else "off")
 
     def setEnabled_all(self, enabled):
         self.checkbox_clickToMove.setEnabled(enabled)
@@ -2703,36 +2708,26 @@ class MultiPointWidget2(QFrame):
         if z_pos_mm is None:
             z_pos_mm = self.navigationController.z_pos_mm
 
+        # block entry update signals
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_min)
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
+        # set entry range values bith to current z pos
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
         print("init z-level flexible:", self.entry_minZ.value())
 
+        # reallow updates from entry sinals (signal enforces min <= max when we update either entry)
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
 
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_min)
-        except TypeError:
-            pass # signal was not connected, so there's nothing to disconnect
-
+        
     def set_z_max(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_maxZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
     def update_z_min(self, z_pos_um):
         if z_pos_um < self.entry_minZ.value():
@@ -2872,15 +2867,17 @@ class MultiPointWidget2(QFrame):
             if hasattr(self.multipointController, 'scanCoordinates') and self.multipointController.scanCoordinates:
                 self.multipointController.scanCoordinates.grid_skip_positions = []
 
-            if self.checkbox_set_z_range.isChecked():
-                # Set Z-range (convert from μm to mm)
-                self.multipointController.set_z_range(self.entry_minZ.value() / 1000, self.entry_maxZ.value() / 1000)
-
             # add the current location to the location list if the list is empty
             if len(self.location_list) == 0:
                 self.add_location()
                 self.acquisition_in_place = True
                 self.multipointController.location_list = self.location_list
+
+            if self.checkbox_set_z_range.isChecked():
+                # Set Z-range (convert from μm to mm)
+                minZ = self.entry_minZ.value() / 1000
+                maxZ = self.entry_maxZ.value() / 1000
+                self.multipointController.set_z_range(minZ, maxZ)
 
             self.setEnabled_all(False)
             # set parameters
@@ -3488,10 +3485,6 @@ class MultiPointWidgetGrid(QFrame):
         self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
         if not self.performance_mode:
             self.napariMosaicWidget.signal_layers_initialized.connect(self.enable_manual_ROI)
-
-        self.navigationController.zPos.connect(self.update_z_min)
-        self.navigationController.zPos.connect(self.update_z_max)
-        #self.entry_NZ.valueChanged.connect(self.update_dz)
         self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
 
     def enable_manual_ROI(self, enable):
@@ -3617,7 +3610,7 @@ class MultiPointWidgetGrid(QFrame):
             self.update_scan_size_from_coverage()
 
     def set_default_shape(self):
-        if self.scanCoordinates.format in [384, 1536]:
+        if self.scanCoordinates.format in ['384 well plate', '1536 well plate']:
             self.combobox_shape.setCurrentText('Square')
         elif self.scanCoordinates.format != 0:
             self.combobox_shape.setCurrentText('Circle')
@@ -3687,18 +3680,10 @@ class MultiPointWidgetGrid(QFrame):
     def set_z_min(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_minZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_min)
-        except TypeError:
-            pass # signal was not connected, so there's nothing to disconnect
 
     def set_z_max(self):
         z_value = self.navigationController.z_pos_mm * 1000  # Convert to μm
         self.entry_maxZ.setValue(z_value)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
     def update_z_min(self, z_pos_um):
         if z_pos_um < self.entry_minZ.value():
@@ -3709,21 +3694,20 @@ class MultiPointWidgetGrid(QFrame):
             self.entry_maxZ.setValue(z_pos_um)
 
     def init_z(self, z_pos_mm=None):
+        # sets initial z range form the current z position used after startup of the GUI
         if z_pos_mm is None:
             z_pos_mm = self.navigationController.z_pos_mm
 
+        # block entry update signals
         self.entry_minZ.blockSignals(True)
         self.entry_maxZ.blockSignals(True)
-        try:
-            self.navigationController.zPos.disconnect(self.update_z_min)
-            self.navigationController.zPos.disconnect(self.update_z_max)
-        except TypeError:
-            pass
 
+        # set entry range values bith to current z pos
         self.entry_minZ.setValue(z_pos_mm*1000)
         self.entry_maxZ.setValue(z_pos_mm*1000)
         print("init z-level wellplate:", self.entry_minZ.value())
 
+        # reallow updates from entry sinals (signal enforces min <= max when we update either entry)
         self.entry_minZ.blockSignals(False)
         self.entry_maxZ.blockSignals(False)
 
@@ -6519,9 +6503,7 @@ class WellplateFormatWidget(QWidget):
         self.streamHandler = streamHandler
         self.liveController = liveController
         self.wellplate_format = WELLPLATE_FORMAT
-        self.custom_formats = {}
         self.csv_path = SAMPLE_FORMATS_CSV_PATH # 'sample_formats.csv'
-        self.load_formats_from_csv()
         self.initUI()
 
     def initUI(self):
@@ -6539,11 +6521,9 @@ class WellplateFormatWidget(QWidget):
 
     def populate_combo_box(self):
         self.comboBox.clear()
-        self.comboBox.addItem("glass slide", 0)
+        self.comboBox.addItem("glass slide", '0')
         for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
-            self.comboBox.addItem(f"{format_} well plate", int(format_))
-        for name in self.custom_formats:
-            self.comboBox.addItem(name, name)
+            self.comboBox.addItem(format_, format_)
 
         # Add custom item and set its font to italic
         self.comboBox.addItem("calibrate format...", 'custom')
@@ -6567,9 +6547,7 @@ class WellplateFormatWidget(QWidget):
     def setWellplateSettings(self, wellplate_format):
         if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
             settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
-        elif isinstance(wellplate_format, str) and wellplate_format in self.custom_formats:
-            settings = self.custom_formats[wellplate_format]
-        elif wellplate_format == 0:
+        elif wellplate_format == '0':
             self.signalWellplateSettings.emit(QVariant(0), 0, 0, 0, 0, 0, 0, 0, 1, 1)
             return
         else:
@@ -6592,11 +6570,9 @@ class WellplateFormatWidget(QWidget):
     def getWellplateSettings(self, wellplate_format):
         if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
             settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
-        elif isinstance(wellplate_format, str) and wellplate_format in self.custom_formats:
-            settings = self.custom_formats[wellplate_format]
-        elif wellplate_format == 0:
+        elif wellplate_format == '0':
             settings = {
-                'format': 0,
+                'format': '0',
                 'a1_x_mm': 0,
                 'a1_y_mm': 0,
                 'a1_x_pixel': 0,
@@ -6612,38 +6588,12 @@ class WellplateFormatWidget(QWidget):
         return settings
 
     def add_custom_format(self, name, settings):
-        self.custom_formats[name] = settings
+        self.WELLPLATE_FORMAT_SETTINGS[name] = settings
         self.populate_combo_box()
         index = self.comboBox.findData(name)
         if index >= 0:
             self.comboBox.setCurrentIndex(index)
         self.wellplateChanged(index)
-
-    def load_formats_from_csv(self):
-        cache_path = os.path.join('cache', self.csv_path)
-        config_path = os.path.join('objective_and_sample_formats', self.csv_path)
-
-        if os.path.exists(cache_path):
-            pass
-        elif os.path.exists(config_path):
-            os.makedirs('cache', exist_ok=True)
-            shutil.copy(config_path, cache_path)
-        else:
-            print(f"CSV file not found in cache or configurations: {config_path}")
-            return
-        try:
-            with open(cache_path, 'r') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    format_ = row['format']
-                    if format_.isdigit():
-                        format_ = int(format_)
-                        if format_ not in WELLPLATE_FORMAT_SETTINGS:
-                            WELLPLATE_FORMAT_SETTINGS[format_] = self.parse_csv_row(row)
-                    else:
-                        self.custom_formats[format_] = self.parse_csv_row(row)
-        except FileNotFoundError:
-            print(f"CSV file not found: {cache_path}")
 
     def save_formats_to_csv(self):
         cache_path = os.path.join('cache', self.csv_path)
@@ -6655,8 +6605,6 @@ class WellplateFormatWidget(QWidget):
             writer.writeheader()
             for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
                 writer.writerow({**{'format': format_}, **settings})
-            for name, settings in self.custom_formats.items():
-                writer.writerow({**{'format': name}, **settings})
 
     @staticmethod
     def parse_csv_row(row):
@@ -6906,8 +6854,6 @@ class WellplateCalibration(QDialog):
         self.existing_format_combo.clear()
         for format_ in WELLPLATE_FORMAT_SETTINGS:
             self.existing_format_combo.addItem(f"{format_} well plate", format_)
-        for name in self.wellplateFormatWidget.custom_formats:
-            self.existing_format_combo.addItem(name, name)
 
     def toggle_input_mode(self):
         if self.new_format_radio.isChecked():
@@ -6971,10 +6917,7 @@ class WellplateCalibration(QDialog):
                 a1_x_mm, a1_y_mm = center
 
                 # Get the existing format settings
-                if isinstance(selected_format, int):
-                    existing_settings = WELLPLATE_FORMAT_SETTINGS[selected_format]
-                else:
-                    existing_settings = self.wellplateFormatWidget.custom_formats[selected_format]
+                existing_settings = WELLPLATE_FORMAT_SETTINGS[selected_format]
 
                 # # Calculate the offset between the original 0,0 pixel and 0,0 mm
                 # original_offset_x = existing_settings['a1_x_mm'] - (existing_settings['a1_x_pixel'] * 0.084665)
@@ -6995,10 +6938,7 @@ class WellplateCalibration(QDialog):
                     'well_size_mm': well_size_mm,
                 }
 
-                if isinstance(selected_format, int):
-                    WELLPLATE_FORMAT_SETTINGS[selected_format].update(updated_settings)
-                else:
-                    self.wellplateFormatWidget.custom_formats[selected_format].update(updated_settings)
+                WELLPLATE_FORMAT_SETTINGS[selected_format].update(updated_settings)
 
                 self.wellplateFormatWidget.save_formats_to_csv()
                 self.wellplateFormatWidget.setWellplateSettings(selected_format)
@@ -7402,7 +7342,7 @@ class WellSelectionWidget(QTableWidget):
         self.setDragDropOverwriteMode(False)
         self.setMouseTracking(False)
 
-        if self.format == 1536:
+        if self.format == '1536 well plate':
             font = QFont()
             font.setPointSize(6)  # You can adjust this value as needed
         else:
@@ -7560,7 +7500,7 @@ class Well1536SelectionWidget(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.format = 1536
+        self.format = '1536 well plate'
         self.selected_cells = {}  # Dictionary to keep track of selected cells and their colors
         self.current_cell = None  # To track the current (green) cell
         self.rows = 32
