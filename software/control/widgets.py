@@ -6525,7 +6525,6 @@ class WellplateFormatWidget(QWidget):
         self.liveController = liveController
         self.wellplate_format = WELLPLATE_FORMAT
         self.csv_path = SAMPLE_FORMATS_CSV_PATH # 'sample_formats.csv'
-        self.load_formats_from_csv()
         self.initUI()
 
     def initUI(self):
@@ -6616,30 +6615,6 @@ class WellplateFormatWidget(QWidget):
         if index >= 0:
             self.comboBox.setCurrentIndex(index)
         self.wellplateChanged(index)
-
-    def load_formats_from_csv(self):
-        cache_path = os.path.join('cache', self.csv_path)
-        config_path = os.path.join('objective_and_sample_formats', self.csv_path)
-
-        if os.path.exists(cache_path):
-            pass
-        elif os.path.exists(config_path):
-            os.makedirs('cache', exist_ok=True)
-            shutil.copy(config_path, cache_path)
-        else:
-            print(f"CSV file not found in cache or configurations: {config_path}")
-            return
-        try:
-            with open(cache_path, 'r') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    format_ = row['format']
-                    format_ = format_ + ' well plate' if format_.isdigit() else format_
-                    if format_ not in WELLPLATE_FORMAT_SETTINGS:
-                        WELLPLATE_FORMAT_SETTINGS[format_] = self.parse_csv_row(row)
-
-        except FileNotFoundError:
-            print(f"CSV file not found: {cache_path}")
 
     def save_formats_to_csv(self):
         cache_path = os.path.join('cache', self.csv_path)
