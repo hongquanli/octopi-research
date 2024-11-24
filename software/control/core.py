@@ -3701,8 +3701,6 @@ class NavigationViewer(QFrame):
                 sample = '4 glass slide'
             else:
                 sample = 'glass slide'
-        elif sample_format.isdigit():
-            sample = f'{sample_format} well plate'
         else:
             sample = sample_format
 
