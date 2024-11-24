@@ -3721,7 +3721,7 @@ class NavigationViewer(QFrame):
         image_path = self.image_paths.get(sample)
         if image_path is None or not os.path.exists(image_path):
             # Look for a custom wellplate image
-            custom_image_path = os.path.join('images', self.sample, '.png')
+            custom_image_path = os.path.join('images', self.sample + '.png')
             print(custom_image_path)
             if os.path.exists(custom_image_path):
                 image_path = custom_image_path

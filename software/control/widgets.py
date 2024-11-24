@@ -3622,7 +3622,7 @@ class MultiPointWidgetGrid(QFrame):
             self.update_scan_size_from_coverage()
 
     def set_default_shape(self):
-        if self.scanCoordinates.format in ['384', '1536']:
+        if self.scanCoordinates.format in ['384 well plate', '1536 well plate']:
             self.combobox_shape.setCurrentText('Square')
         elif self.scanCoordinates.format != 0:
             self.combobox_shape.setCurrentText('Circle')
@@ -6545,7 +6545,7 @@ class WellplateFormatWidget(QWidget):
         self.comboBox.clear()
         self.comboBox.addItem("glass slide", '0')
         for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
-            self.comboBox.addItem(f"{format_} well plate" if format_.isdigit() else format_, format_)
+            self.comboBox.addItem(format_, format_)
 
         # Add custom item and set its font to italic
         self.comboBox.addItem("calibrate format...", 'custom')
@@ -6634,6 +6634,7 @@ class WellplateFormatWidget(QWidget):
                 reader = csv.DictReader(csvfile)
                 for row in reader:
                     format_ = row['format']
+                    format_ = format_ + ' well plate' if format_.isdigit() else format_
                     if format_ not in WELLPLATE_FORMAT_SETTINGS:
                         WELLPLATE_FORMAT_SETTINGS[format_] = self.parse_csv_row(row)
 
@@ -7387,7 +7388,7 @@ class WellSelectionWidget(QTableWidget):
         self.setDragDropOverwriteMode(False)
         self.setMouseTracking(False)
 
-        if self.format == '1536':
+        if self.format == '1536 well plate':
             font = QFont()
             font.setPointSize(6)  # You can adjust this value as needed
         else:
@@ -7545,7 +7546,7 @@ class Well1536SelectionWidget(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.format = '1536'
+        self.format = '1536 well plate'
         self.selected_cells = {}  # Dictionary to keep track of selected cells and their colors
         self.current_cell = None  # To track the current (green) cell
         self.rows = 32
