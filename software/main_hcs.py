@@ -19,6 +19,7 @@ import control.gui_hcs as gui
 from configparser import ConfigParser
 from control.widgets import ConfigEditorBackwardsCompatible, ConfigEditorForAcquisitions
 from control._def import CACHED_CONFIG_FILE_PATH
+from control.console import ConsoleThread
 
 
 def show_config(cfp, configpath, main_gui):
@@ -94,4 +95,12 @@ if __name__ == "__main__":
     menu_bar = win.menuBar()
     menu_bar.addMenu(file_menu)
     win.show()
+
+    console_locals = {
+        'microscope': win.microscope
+    }
+
+    console_thread = ConsoleThread(console_locals)
+    console_thread.start()
+
     sys.exit(app.exec_())

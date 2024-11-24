@@ -17,6 +17,8 @@ import control.widgets as widgets
 import pyqtgraph.dockarea as dock
 import squid.logging
 
+import control.microscope as microscope
+
 log = squid.logging.get_logger(__name__)
 
 if CAMERA_TYPE == "Toupcam":
@@ -105,6 +107,8 @@ class HighContentScreeningGui(QMainWindow):
         self.setupLayout()
 
         self.makeConnections()
+
+        self.microscope = microscope.Microscope(self)
 
         # Move to cached position
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
