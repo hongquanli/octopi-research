@@ -158,7 +158,7 @@ class OctopiGUI(QMainWindow):
         if WELLPLATE_FORMAT == 0:
             self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample='4 glass slide')
         else:
-            self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=f'{WELLPLATE_FORMAT} well plate')
+            self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=WELLPLATE_FORMAT)
 
         if SUPPORT_LASER_AUTOFOCUS:
             self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
@@ -391,7 +391,7 @@ class OctopiGUI(QMainWindow):
 
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler, self.imageSaver)
         self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer, self.streamHandler, self.liveController)
-        if WELLPLATE_FORMAT != 1536:
+        if WELLPLATE_FORMAT != '1536 well plate':
             self.wellSelectionWidget = widgets.WellSelectionWidget(WELLPLATE_FORMAT, self.wellplateFormatWidget)
         else:
             self.wellSelectionWidget = widgets.Well1536SelectionWidget()
@@ -637,7 +637,6 @@ class OctopiGUI(QMainWindow):
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
-        self.multiPointWidget.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
         self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
 
         if ENABLE_STITCHER:
@@ -647,7 +646,6 @@ class OctopiGUI(QMainWindow):
             self.multiPointWidget.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.multiPointWidget2.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidget2.signal_acquisition_started.connect(self.toggleAcquisitionStart)
             if ENABLE_STITCHER:
                 self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
@@ -655,7 +653,6 @@ class OctopiGUI(QMainWindow):
                 self.multiPointWidget2.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.signal_acquisition_started.connect(self.navigationWidget.toggle_navigation_controls)
             self.multiPointWidgetGrid.signal_acquisition_started.connect(self.toggleAcquisitionStart)
             if ENABLE_STITCHER:
                 self.multiPointWidgetGrid.signal_stitcher_widget.connect(self.toggleStitcherWidget)
@@ -937,7 +934,7 @@ class OctopiGUI(QMainWindow):
             self.navigationController.inverted_objective = True
             self.setupSlidePositionController(is_for_wellplate=True)
 
-            if format_ == 1536:
+            if format_ == '1536 well plate':
                 self.replaceWellSelectionWidget(widgets.Well1536SelectionWidget())
             elif isinstance(self.wellSelectionWidget, widgets.Well1536SelectionWidget):
                 self.replaceWellSelectionWidget(widgets.WellSelectionWidget(format_, self.wellplateFormatWidget))
@@ -991,6 +988,7 @@ class OctopiGUI(QMainWindow):
         self.wellSelectionWidget.setVisible(show)
 
     def toggleAcquisitionStart(self, acquisition_started):
+        self.navigationWidget.toggle_click_to_move(acquisition_started)
         current_index = self.recordTabWidget.currentIndex()
         for index in range(self.recordTabWidget.count()):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
