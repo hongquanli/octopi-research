@@ -20,6 +20,7 @@ from qtpy.QtGui import *
 class Microscope(QObject):
 
     def __init__(self, microscope=None,is_simulation=False):
+        super().__init__()
         if microscope is None:
             self.initialize_camera()
             self.initialize_microcontroller()
