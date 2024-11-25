@@ -7776,7 +7776,11 @@ class SampleSettingsWidget(QFrame):
         top_row_layout.addWidget(self.wellplateFormatWidget, 0, 1)
         self.setLayout(top_row_layout)
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-    
+
+        # Connect signals for saving settings
+        self.objectivesWidget.signal_objective_changed.connect(self.save_settings)
+        self.wellplateFormatWidget.signalWellplateSettings.connect(lambda *args: self.save_settings())
+
     def save_settings(self):
         """Save current objective and wellplate format to cache"""
         os.makedirs('cache', exist_ok=True)
@@ -7874,11 +7878,3 @@ class SquidFilterWidget(QFrame):
         except ValueError:
             self.status_label.setText("Status: Invalid input")
             self.position_label.setText("Position: Invalid")
-
-    def update_position(self, position):
-        self.position_label.setText(f"Position: {position}")
-
-        # Connect signals for saving settings
-        self.objectivesWidget.signal_objective_changed.connect(self.save_settings)
-        self.wellplateFormatWidget.signalWellplateSettings.connect(lambda *args: self.save_settings())
-
