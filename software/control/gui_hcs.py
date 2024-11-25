@@ -172,7 +172,6 @@ class OctopiGUI(QMainWindow):
         if USE_SQUID_FILTERWHEEL:
             self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(self.navigationController)
 
-
     def loadSimulationObjects(self):
         # Initialize simulation objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -330,11 +329,6 @@ class OctopiGUI(QMainWindow):
             self.navigationController.move_y(20)
             self.waitForMicrocontroller()
         
-        if USE_SQUID_FILTERWHEEL:
-            if HOMING_ENABLED_W:
-                self.navigationController.home_w()
-                self.waitForMicrocontroller(15, 'w homing timeout')
-
         if ENABLE_OBJECTIVE_PIEZO:
             OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)
         div = 1 if OUTPUT_GAINS.REFDIV else 0
@@ -354,6 +348,10 @@ class OctopiGUI(QMainWindow):
             self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
+
+        if USE_SQUID_FILTERWHEEL:
+            if SQUID_FILTERWHEEL_HOMING_ENABLED:
+                self.squid_filter_wheel.homing()
 
     def waitForMicrocontroller(self, timeout=None, error_message=None):
         start_time = time.time()
