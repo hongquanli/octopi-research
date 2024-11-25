@@ -578,6 +578,12 @@ class LiveController(QObject):
             except Exception as e:
                 print('not setting emission filter position due to ' + str(e))
 
+        if USE_SQUID_FILTERWHEEL and self.enable_channel_auto_filter_switching:
+            try:
+                self.microscope.squid_filter_wheel.set_emission(self.currentConfiguration.emission_filter_position)
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
+
     def start_live(self):
         self.is_live = True
         self.camera.is_live = True
