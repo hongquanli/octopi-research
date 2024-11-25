@@ -408,6 +408,50 @@ class LDI:
         self.log.debug('shutter:'+channel+'='+state+'\r')
         self.serial_connection.write_and_check('shutter:'+channel+'='+state+'\r',"ok")
 
+
+class LDI_Simulation:
+    """Wrapper for communicating with LDI over serial"""
+    def __init__(self, SN="00000001"):
+        """
+        Provide serial number
+        """
+        self.log = squid.logging.get_logger(self.__class__.__name__)
+        self.intensity_mode = 'PC'
+        self.shutter_mode = 'PC'
+
+    def run(self):
+        pass
+
+    def set_shutter_mode(self,mode):
+        if mode in ['EXT','PC']:
+            self.intensity_mode = mode
+
+    def set_intensity_mode(self,mode):
+        if mode in ['EXT','PC']:
+            self.intensity_mode = mode
+
+    def set_intensity(self,channel,intensity):
+        channel = str(channel)
+        intensity = "{:.2f}".format(intensity)
+        self.log.debug('set:'+channel+'='+intensity+'\r')
+        self.log.debug('active channel: ' + str(self.active_channel))
+
+    def set_shutter(self,channel,state):
+        channel = str(channel)
+        state = str(state)
+
+    def get_shutter_state(self):
+        return 0
+
+    def set_active_channel(self,channel):
+        self.active_channel = channel
+        self.log.debug('[set active channel to ' + str(channel) + ']')
+
+    def set_active_channel_shutter(self,state):
+        channel = str(self.active_channel)
+        state = str(state)
+        self.log.debug('shutter:'+channel+'='+state+'\r')
+
 class SciMicroscopyLEDArray:
     """Wrapper for communicating with SciMicroscopy over serial"""
     def __init__(self, SN, array_distance = 50, turn_on_delay = 0.03):
@@ -476,6 +520,66 @@ class SciMicroscopyLEDArray:
             time.sleep(self.turn_on_delay)
     def turn_off_illumination(self):
         self.clear()
+
+class SciMicroscopyLEDArray_Simulation:
+    """Wrapper for communicating with SciMicroscopy over serial"""
+    def __init__(self, SN, array_distance = 50, turn_on_delay = 0.03):
+        """
+        Provide serial number
+        """
+        self.serial_connection.open_ser()
+        self.check_about()
+        self.set_distance(array_distance)
+        self.set_brightness(1)
+
+        self.illumination = None
+        self.NA = 0.5
+        self.turn_on_delay = turn_on_delay
+
+    def write(self,command):
+        pass
+
+    def check_about(self):
+        pass
+
+    def set_distance(self,array_distance):
+        # array distance in mm
+        array_distance = str(int(array_distance))
+
+    def set_NA(self,NA):
+        self.NA = NA
+        NA = str(int(NA*100))
+
+    def set_color(self,color):
+        # (r,g,b), 0-1
+        r = int(255*color[0])
+        g = int(255*color[1])
+        b = int(255*color[2])
+
+    def set_brightness(self, brightness):
+        # 0 to 100
+        brightness = str(int(255*(brightness/100.0)))
+
+    def turn_on_bf(self):
+        pass
+
+    def turn_on_dpc(self,quadrant):
+        pass
+
+    def turn_on_df(self):
+        pass
+
+    def set_illumination(self,illumination):
+        pass
+
+    def clear(self):
+        pass
+
+    def turn_on_illumination(self):
+        pass
+
+    def turn_off_illumination(self):
+        pass
 
 class CellX:
 
