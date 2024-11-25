@@ -157,7 +157,8 @@ class StreamHandler(QObject):
                 self.timestamp_last = timestamp_now
                 self.fps_real = self.counter
                 self.counter = 0
-                print('real camera fps is ' + str(self.fps_real))
+                if PRINT_CAMERA_FPS:
+                    print('real camera fps is ' + str(self.fps_real))
 
             # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
             # # rotate and flip - eventually these should be done in the camera
