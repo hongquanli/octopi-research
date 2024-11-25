@@ -7801,7 +7801,7 @@ class SquidFilterWidget(QFrame):
 
     def add_components(self):
         # Layout for the position label
-        self.position_label = QLabel("Position: 0", self)
+        self.position_label = QLabel(f"Position: {SQUID_FILTERWHEEL_MIN_INDEX}", self)
         position_layout = QHBoxLayout()
         position_layout.addWidget(self.position_label)
 
@@ -7813,7 +7813,7 @@ class SquidFilterWidget(QFrame):
         # Layout for the editText, label, and button
         self.edit_text = QLineEdit(self)
         self.edit_text.setMaxLength(1)  # Restrict to one character
-        self.edit_text.setText('0')
+        self.edit_text.setText(f'{SQUID_FILTERWHEEL_MIN_INDEX}')
         move_to_pos_label = QLabel("move to pos.", self)
         self.move_spin_btn = QPushButton("Move To", self)
 
@@ -7852,7 +7852,7 @@ class SquidFilterWidget(QFrame):
 
     def decrement_position(self):
         current_position = int(self.position_label.text().split(": ")[1])
-        new_position = max(0, current_position - 1)  # Ensure position doesn't go below 0
+        new_position = max(SQUID_FILTERWHEEL_MIN_INDEX, current_position - 1)  # Ensure position doesn't go below 0
         if current_position != new_position:
             self.microscope.squid_filter_wheel.previous_position()
             self.update_position(new_position)
@@ -7865,16 +7865,17 @@ class SquidFilterWidget(QFrame):
             self.update_position(new_position)
 
     def home_position(self):
-        self.update_position(0)
+        self.update_position(SQUID_FILTERWHEEL_MIN_INDEX)
         self.status_label.setText("Status: Homed")
         self.microscope.squid_filter_wheel.homing()
 
     def move_to_position(self):
         try:
             position = int(self.edit_text.text())
-            if position != int(self.position_label.text().split(": ")[1]):
-                self.microscope.squid_filter_wheel.set_emission(position)
-            self.update_position(position)
+            if position in range(SQUID_FILTERWHEEL_MIN_INDEX, SQUID_FILTERWHEEL_MAX_INDEX + 1): 
+                if position != int(self.position_label.text().split(": ")[1]):
+                    self.microscope.squid_filter_wheel.set_emission(position)
+                self.update_position(position)
         except ValueError:
             self.status_label.setText("Status: Invalid input")
             self.position_label.setText("Position: Invalid")
