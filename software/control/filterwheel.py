@@ -16,15 +16,10 @@ class SquidFilterWheelWrapper:
         self.navigationController = navigationController
 
     def homing(self):
-        # make sure the start homing position is not at homing position  
-        starttime = time.time() 
         self.navigationController.home_w()
         # for homing action, need much more timeout time
         self.navigationController.wait_till_operation_is_completed(15)
-        # judge whether the current position is at homing position or not
-        if time.time() - starttime > 0.02:
-            # move offset, could be modified later
-            self.navigationController.move_w(SQUID_FILTERWHEEL_OFFSET)
+        self.navigationController.move_w(SQUID_FILTERWHEEL_OFFSET)
 
         self.w_pos_index = SQUID_FILTERWHEEL_MIN_INDEX
         

@@ -260,6 +260,7 @@ bool home_W_found = false;
 bool is_preparing_for_homing_X = false;
 bool is_preparing_for_homing_Y = false;
 bool is_preparing_for_homing_Z = false;
+bool is_preparing_for_homing_W = false;
 bool homing_direction_X;
 bool homing_direction_Y;
 bool homing_direction_Z;
@@ -1354,7 +1355,6 @@ void loop() {
                       is_homing_Z = true;
                       tmc4361A_readInt(&tmc4361[z], TMC4361A_EVENTS);
                       tmc4361A_setSpeed(&tmc4361[z], tmc4361A_vmmToMicrosteps( &tmc4361[z], RGHT_DIR * HOMING_VELOCITY_Z * MAX_VELOCITY_Z_mm ));
-                      // tmc4361A_moveTo(&tmc4361[y], tmc4361A_currentPosition(&tmc4361[y])+51200); // for debugging
                     }
                   }
                   break;
@@ -1366,11 +1366,40 @@ void loop() {
                     tmc4361A_disableVirtualLimitSwitch(&tmc4361[w], 1);
                     homing_direction_W = buffer_rx[3];
                     home_W_found = false;
-
-                    is_homing_W = true;
-                    tmc4361A_readLimitSwitches(&tmc4361[w]);
-                    tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
-                    tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], RGHT_DIR * HOMING_VELOCITY_W ));
+                    if (homing_direction_W == HOME_NEGATIVE) // use the left limit switch for homing
+                    {
+                      if (tmc4361A_readLimitSwitches(&tmc4361[w]) == 0x00)
+                      {
+                        // get out of the hysteresis zone
+                        is_preparing_for_homing_W = true;
+                        tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
+                        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], LEFT_DIR * HOMING_VELOCITY_W ));
+                      }
+                      else
+                      {
+                        is_homing_W = true;
+                        tmc4361A_readLimitSwitches(&tmc4361[w]);
+                        tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
+                        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], RGHT_DIR * HOMING_VELOCITY_W ));
+                      }
+                    }
+                    else // use the right limit switch for homing
+                    {
+                      if (tmc4361A_readLimitSwitches(&tmc4361[w]) == 0x00)
+                      {
+                        // get out of the hysteresis zone
+                        is_preparing_for_homing_W = true;
+                        tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
+                        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], RGHT_DIR * HOMING_VELOCITY_W ));
+                      }
+                      else
+                      {
+                        is_homing_W = true;
+                        tmc4361A_readLimitSwitches(&tmc4361[w]);
+                        tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
+                        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], LEFT_DIR * HOMING_VELOCITY_W ));
+                      }
+                    }
                   }
                   break;
                 case AXES_XY:
@@ -1697,6 +1726,7 @@ void loop() {
             is_preparing_for_homing_X = false;
             is_preparing_for_homing_Y = false;
             is_preparing_for_homing_Z = false;
+            is_preparing_for_homing_W = false;
             cmd_id = 0;
             break;
           }
@@ -1819,6 +1849,29 @@ void loop() {
         is_homing_Z = true;
         tmc4361A_readInt(&tmc4361[z], TMC4361A_EVENTS);
         tmc4361A_setSpeed(&tmc4361[z], tmc4361A_vmmToMicrosteps( &tmc4361[z], RGHT_DIR * HOMING_VELOCITY_Z * MAX_VELOCITY_Z_mm ));
+      }
+    }
+  }
+  if (is_preparing_for_homing_W)
+  {
+    if (homing_direction_W == HOME_NEGATIVE) // use the left limit switch for homing
+    {
+      if (tmc4361A_readLimitSwitches(&tmc4361[w]) != 0x00)
+      {
+        is_preparing_for_homing_W = false;
+        is_homing_W = true;
+        tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
+        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], RGHT_DIR * HOMING_VELOCITY_W * MAX_VELOCITY_W_mm ));
+      }
+    }
+    else // use the right limit switch for homing
+    {
+      if (tmc4361A_readLimitSwitches(&tmc4361[w]) != 0x00)
+      {
+        is_preparing_for_homing_W = false;
+        is_homing_W = true;
+        tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
+        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], LEFT_DIR * HOMING_VELOCITY_W * MAX_VELOCITY_W_mm ));
       }
     }
   }
@@ -1952,7 +2005,6 @@ void loop() {
   // finish homing
   if (is_homing_X && home_X_found && ( tmc4361A_currentPosition(&tmc4361[x]) == tmc4361A_targetPosition(&tmc4361[x]) || us_since_x_home_found > 500 * 1000 ) )
   {
-    // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[x], 0);
     if (stage_PID_enabled[AXIS_X])
       tmc4361A_set_PID(&tmc4361[AXIS_X], PID_BPG0);
@@ -1965,7 +2017,6 @@ void loop() {
   }
   if (is_homing_Y && home_Y_found && ( tmc4361A_currentPosition(&tmc4361[y]) == tmc4361A_targetPosition(&tmc4361[y]) || us_since_y_home_found > 500 * 1000 ) )
   {
-    // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[y], 0);
     if (stage_PID_enabled[AXIS_Y])
       tmc4361A_set_PID(&tmc4361[AXIS_Y], PID_BPG0);
@@ -1978,7 +2029,6 @@ void loop() {
   }
   if (is_homing_Z && home_Z_found && ( tmc4361A_currentPosition(&tmc4361[z]) == tmc4361A_targetPosition(&tmc4361[z]) || us_since_z_home_found > 500 * 1000 ) )
   {
-    // clear_matrix(matrix); // debug
     tmc4361A_setCurrentPosition(&tmc4361[z], 0);
     if (stage_PID_enabled[AXIS_Z])
       tmc4361A_set_PID(&tmc4361[AXIS_Z], PID_BPG0);
@@ -1993,7 +2043,6 @@ void loop() {
   if (is_homing_W && home_W_found && ( tmc4361A_currentPosition(&tmc4361[w]) == tmc4361A_targetPosition(&tmc4361[w]) || us_since_w_home_found > 500 * 1000 ) )
   {
     if (enable_filterwheel == true) {
-      // clear_matrix(matrix); // debug
       tmc4361A_write_encoder(&tmc4361[w], 0);
       if (stage_PID_enabled[w])
         tmc4361A_set_PID(&tmc4361[w], PID_BPG0);
@@ -2168,7 +2217,7 @@ void loop() {
   }
 
   if (us_since_last_check_limit > interval_check_limit) {
-	us_since_last_check_limit = 0;
+    us_since_last_check_limit = 0;
 
   	// at limit
     if (X_commanded_movement_in_progress && !is_homing_X) // homing is handled separately
