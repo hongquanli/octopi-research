@@ -700,9 +700,9 @@ void setup() {
   for (int i = 0; i < N_MOTOR; i++) {
     stage_PID_enabled[i] = 0;
 
-	axes_pid_arg[i].p = (1<<12);
-	axes_pid_arg[i].i = 0;
-	axes_pid_arg[i].d = 0;
+    axes_pid_arg[i].p = (1<<12);
+    axes_pid_arg[i].i = 0;
+    axes_pid_arg[i].d = 0;
   }
 
   // clock
@@ -1861,7 +1861,7 @@ void loop() {
         is_preparing_for_homing_W = false;
         is_homing_W = true;
         tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
-        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], RGHT_DIR * HOMING_VELOCITY_W * MAX_VELOCITY_W_mm ));
+        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], RGHT_DIR * HOMING_VELOCITY_W ));
       }
     }
     else // use the right limit switch for homing
@@ -1871,7 +1871,7 @@ void loop() {
         is_preparing_for_homing_W = false;
         is_homing_W = true;
         tmc4361A_readInt(&tmc4361[w], TMC4361A_EVENTS);
-        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], LEFT_DIR * HOMING_VELOCITY_W * MAX_VELOCITY_W_mm ));
+        tmc4361A_setSpeed(&tmc4361[w], tmc4361A_vmmToMicrosteps( &tmc4361[w], LEFT_DIR * HOMING_VELOCITY_W ));
       }
     }
   }
