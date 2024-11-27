@@ -3697,7 +3697,7 @@ class NavigationViewer(QFrame):
         if isinstance(sample_format, QVariant):
             sample_format = sample_format.value()
 
-        if sample_format == '0':
+        if sample_format == 'glass slide':
             if IS_HCS:
                 sample = '4 glass slide'
             else:
