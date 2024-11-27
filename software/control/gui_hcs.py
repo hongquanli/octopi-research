@@ -919,7 +919,7 @@ class HighContentScreeningGui(QMainWindow):
         if isinstance(format_, QVariant):
             format_ = format_.value()
 
-        if format_ == 0:
+        if format_ == 'glass slide':
             self.toggleWellSelector(False)
             self.multipointController.inverted_objective = False
             self.navigationController.inverted_objective = False
@@ -992,7 +992,7 @@ class HighContentScreeningGui(QMainWindow):
             self.liveControlWidget.toggle_autolevel(not acquisition_started)
         is_multipoint = (current_index == self.recordTabWidget.indexOf(self.multiPointWidget))
         is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
-        if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0:
+        if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 'glass slide':
             self.toggleWellSelector(not acquisition_started)
         if is_scan_grid:
             self.navigationViewer.on_acquisition_start(acquisition_started)

@@ -3601,6 +3601,7 @@ class MultiPointWidgetGrid(QFrame):
 
     def set_default_scan_size(self):
         self.set_default_shape()
+        print(self.navigationViewer.sample)
         if 'glass slide' in self.navigationViewer.sample:
             self.entry_scan_size.setEnabled(True)
             self.entry_well_coverage.setEnabled(False)
@@ -6521,7 +6522,7 @@ class WellplateFormatWidget(QWidget):
 
     def populate_combo_box(self):
         self.comboBox.clear()
-        self.comboBox.addItem("glass slide", '0')
+        self.comboBox.addItem("glass slide", 'glass slide')
         for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
             self.comboBox.addItem(format_, format_)
 
@@ -6547,8 +6548,8 @@ class WellplateFormatWidget(QWidget):
     def setWellplateSettings(self, wellplate_format):
         if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
             settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
-        elif wellplate_format == '0':
-            self.signalWellplateSettings.emit(QVariant(0), 0, 0, 0, 0, 0, 0, 0, 1, 1)
+        elif wellplate_format == 'glass slide':
+            self.signalWellplateSettings.emit(QVariant('glass slide'), 0, 0, 0, 0, 0, 0, 0, 1, 1)
             return
         else:
             print(f"Wellplate format {wellplate_format} not recognized")
@@ -6570,9 +6571,9 @@ class WellplateFormatWidget(QWidget):
     def getWellplateSettings(self, wellplate_format):
         if wellplate_format in WELLPLATE_FORMAT_SETTINGS:
             settings = WELLPLATE_FORMAT_SETTINGS[wellplate_format]
-        elif wellplate_format == '0':
+        elif wellplate_format == 'glass slide':
             settings = {
-                'format': '0',
+                'format': 'glass slide',
                 'a1_x_mm': 0,
                 'a1_y_mm': 0,
                 'a1_x_pixel': 0,
