@@ -763,9 +763,6 @@ class NavigationController(QObject):
         # scan start position
         self.scan_begin_position_x = 0
         self.scan_begin_position_y = 0
-        # last pos to check if still moving
-        self.last_x_pos_mm = 0
-        self.last_y_pos_mm = 0
     
     def get_mm_per_ustep_X(self):
         return SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
@@ -924,11 +921,7 @@ class NavigationController(QObject):
         self.yPos.emit(self.y_pos_mm)
         self.zPos.emit(self.z_pos_mm*1000)
         self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
-        if self.last_x_pos_mm == self.x_pos_mm and self.last_y_pos_mm == self.y_pos_mm:
-            self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
-        else:
-            self.last_x_pos_mm = self.x_pos_mm
-            self.last_y_pos_mm = self.y_pos_mm
+        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
 
         if microcontroller.signal_joystick_button_pressed_event:
             if self.enable_joystick_button_action:
@@ -3787,38 +3780,9 @@ class NavigationViewer(QFrame):
             )
         return current_FOV_top_left, current_FOV_bottom_right
 
-    # def draw_current_fov(self, x_mm, y_mm):
-    #     self.fov_overlay.fill(0)
-    #     current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm, y_mm)
-    #     cv2.rectangle(self.fov_overlay, current_FOV_top_left, current_FOV_bottom_right, (255, 0, 0, 255), self.box_line_thickness)
-    #     self.fov_overlay_item.setImage(self.fov_overlay)
-
     def draw_current_fov(self, x_mm, y_mm):
-        print("\n=== Draw Current FOV Debug ===")
-        print(f"Input coordinates (mm): x={x_mm:.3f}, y={y_mm:.3f}")
-        print(f"Using mm_per_pixel: {self.mm_per_pixel}")
-        print(f"Origin (pixels): ({self.origin_x_pixel}, {self.origin_y_pixel})")
-        print(f"Image dimensions: {self.image_width}x{self.image_height}")
-        print(f"FOV size (mm): {self.fov_size_mm}")
-        
-        # Calculate and print intermediate values
-        x_pixel_base = self.origin_x_pixel + x_mm/self.mm_per_pixel
-        print(f"Base x pixel (before FOV offset): {x_pixel_base:.1f}")
-        
-        if self.sample == 'glass slide':
-            y_pixel_base = self.image_height - (self.origin_y_pixel + y_mm/self.mm_per_pixel)
-        else:
-            y_pixel_base = self.origin_y_pixel + y_mm/self.mm_per_pixel
-        print(f"Base y pixel (before FOV offset): {y_pixel_base:.1f}")
-
         self.fov_overlay.fill(0)
         current_FOV_top_left, current_FOV_bottom_right = self.get_FOV_pixel_coordinates(x_mm, y_mm)
-        
-        print(f"FOV rectangle corners:")
-        print(f"Top left: {current_FOV_top_left}")
-        print(f"Bottom right: {current_FOV_bottom_right}")
-        print("===========================\n")
-        
         cv2.rectangle(self.fov_overlay, current_FOV_top_left, current_FOV_bottom_right, (255, 0, 0, 255), self.box_line_thickness)
         self.fov_overlay_item.setImage(self.fov_overlay)
 
@@ -3862,14 +3826,8 @@ class NavigationViewer(QFrame):
             # Direct conversion to mm without adding offsets again
             x_mm = (scene_coord.x() - self.origin_x_pixel) * self.mm_per_pixel
             y_mm = (scene_coord.y() - self.origin_y_pixel) * self.mm_per_pixel
-            
-            print("\n=== Mouse Click Debug ===")
-            print(f"Scene coordinates: ({scene_coord.x():.1f}, {scene_coord.y():.1f})")
-            print(f"Converted to mm: ({x_mm:.3f}, {y_mm:.3f})")
-            print("======================\n")
-                
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
-            
+
         except Exception as e:
             print(f"Error processing navigation click: {e}")
             return
