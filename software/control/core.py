@@ -915,6 +915,7 @@ class NavigationController(QObject):
             self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
         else:
             self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
         self.yPos.emit(self.y_pos_mm)
@@ -1029,6 +1030,7 @@ class NavigationController(QObject):
         dac = int(65535 * (z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
         dac = 65535 - dac if OBJECTIVE_PIEZO_FLIP_DIR else dac
         self.microcontroller.analog_write_onboard_DAC(7, dac)
+
 
 class SlidePositionControlWorker(QObject):
 
@@ -3573,6 +3575,7 @@ class ImageDisplayWindow(QMainWindow):
 
 class NavigationViewer(QFrame):
 
+    signal_coordinates_clicked = Signal(float, float)  # Will emit x_mm, y_mm when clicked
     signal_update_live_scan_grid = Signal(float, float)
     signal_update_well_coordinates = Signal(bool)
 
@@ -3626,6 +3629,8 @@ class NavigationViewer(QFrame):
         self.grid = QVBoxLayout()
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
+        # Connect double-click handler
+        self.view.scene().sigMouseClicked.connect(self.handle_mouse_click)
 
     def load_background_image(self, image_path):
         self.view.clear()
@@ -3813,6 +3818,19 @@ class NavigationViewer(QFrame):
         self.scan_overlay.fill(0)
         self.scan_overlay_item.setImage(self.scan_overlay)
 
+    def handle_mouse_click(self, evt):
+        if not evt.double():
+            return
+        try:
+            scene_coord = self.view.mapSceneToView(evt.pos())
+            # Direct conversion to mm without adding offsets again
+            x_mm = (scene_coord.x() - self.origin_x_pixel) * self.mm_per_pixel
+            y_mm = (scene_coord.y() - self.origin_y_pixel) * self.mm_per_pixel
+            self.signal_coordinates_clicked.emit(x_mm, y_mm)
+
+        except Exception as e:
+            print(f"Error processing navigation click: {e}")
+            return
 
 class ImageArrayDisplayWindow(QMainWindow):
 

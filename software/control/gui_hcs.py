@@ -666,7 +666,7 @@ class HighContentScreeningGui(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
-
+        self.navigationViewer.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
         self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
