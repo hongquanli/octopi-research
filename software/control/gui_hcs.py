@@ -188,7 +188,7 @@ class HighContentScreeningGui(QMainWindow):
             self.emission_filter_wheel = serial_peripherals.FilterController_Simulation(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel = serial_peripherals.Optospin_Simulation(SN=None)
-        self.microcontroller = microcontroller.Microcontroller(existing_serial=microcontroller.SimSerial())
+        self.microcontroller = microcontroller.Microcontroller(existing_serial=microcontroller.SimSerial(),is_simulation=True)
 
     def loadHardwareObjects(self):
         # Initialize hardware objects
@@ -666,7 +666,7 @@ class HighContentScreeningGui(QMainWindow):
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
-
+        self.navigationViewer.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
         self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
         self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
@@ -919,7 +919,7 @@ class HighContentScreeningGui(QMainWindow):
         if isinstance(format_, QVariant):
             format_ = format_.value()
 
-        if format_ == 0:
+        if format_ == 'glass slide':
             self.toggleWellSelector(False)
             self.multipointController.inverted_objective = False
             self.navigationController.inverted_objective = False
@@ -992,7 +992,7 @@ class HighContentScreeningGui(QMainWindow):
             self.liveControlWidget.toggle_autolevel(not acquisition_started)
         is_multipoint = (current_index == self.recordTabWidget.indexOf(self.multiPointWidget))
         is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
-        if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0:
+        if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 'glass slide':
             self.toggleWellSelector(not acquisition_started)
         if is_scan_grid:
             self.navigationViewer.on_acquisition_start(acquisition_started)

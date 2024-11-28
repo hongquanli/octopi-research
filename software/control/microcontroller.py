@@ -59,10 +59,10 @@ class SimSerial:
         self.in_waiting = 0
         self.response_buffer = []
 
-        self.x = 111
-        self.y = 222
-        self.z = 333
-        self.theta = 444
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.theta = 0
         self.joystick_button = False
         self.switch = False
 
@@ -110,7 +110,9 @@ class Microcontroller:
     LAST_COMMAND_ACK_TIMEOUT = 0.5
     MAX_RETRY_COUNT = 5
 
-    def __init__(self, version='Arduino Due', sn=None, existing_serial=None):
+    def __init__(self, version='Arduino Due', sn=None, existing_serial=None, is_simulation=False):
+        self.is_simulation = is_simulation
+
         self.log = squid.logging.get_logger(self.__class__.__name__)
 
         self.tx_buffer_length = MicrocontrollerDef.CMD_LENGTH
@@ -273,9 +275,13 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_x_usteps(self,usteps):
+        if self.is_simulation:
+            self.x_pos = self.x_pos + STAGE_MOVEMENT_SIGN_X*usteps
         self._move_axis_usteps(usteps, CMD_SET.MOVE_X, STAGE_MOVEMENT_SIGN_X)
 
     def move_x_to_usteps(self,usteps):
+        if self.is_simulation:
+            self.x_pos = usteps
         payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_X
@@ -286,9 +292,13 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_y_usteps(self,usteps):
+        if self.is_simulation:
+            self.y_pos = self.y_pos + STAGE_MOVEMENT_SIGN_Y*usteps
         self._move_axis_usteps(usteps, CMD_SET.MOVE_Y, STAGE_MOVEMENT_SIGN_Y)
     
     def move_y_to_usteps(self,usteps):
+        if self.is_simulation:
+            self.y_pos = usteps
         payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Y
@@ -299,9 +309,13 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_z_usteps(self,usteps):
+        if self.is_simulation:
+            self.z_pos = self.z_pos + STAGE_MOVEMENT_SIGN_Z*usteps
         self._move_axis_usteps(usteps, CMD_SET.MOVE_Z, STAGE_MOVEMENT_SIGN_Z)
 
     def move_z_to_usteps(self,usteps):
+        if self.is_simulation:
+            self.z_pos = usteps
         payload = self._int_to_payload(usteps,4)
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.MOVETO_Z
@@ -312,6 +326,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def move_theta_usteps(self,usteps):
+        if self.is_simulation:
+            self.theta_pos = self.theta_pos + usteps
         self._move_axis_usteps(usteps, CMD_SET.MOVE_THETA, STAGE_MOVEMENT_SIGN_THETA)
 
     def set_off_set_velocity_x(self,off_set_velocity):
@@ -340,6 +356,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def home_x(self):
+        if self.is_simulation:
+            self.x_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.X
@@ -347,6 +365,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def home_y(self):
+        if self.is_simulation:
+            self.y_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Y
@@ -354,6 +374,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def home_z(self):
+        if self.is_simulation:
+            self.z_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Z
@@ -361,6 +383,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def home_theta(self):
+        if self.is_simulation:
+            self.theta_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = 3
@@ -368,6 +392,10 @@ class Microcontroller:
         self.send_command(cmd)
 
     def home_xy(self):
+        if self.is_simulation:
+            self.x_pos = 0
+            self.y_pos = 0
+        self.y_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.XY
@@ -376,6 +404,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def zero_x(self):
+        if self.is_simulation:
+            self.x_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.X
@@ -383,6 +413,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def zero_y(self):
+        if self.is_simulation:
+            self.y_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Y
@@ -390,6 +422,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def zero_z(self):
+        if self.is_simulation:
+            self.z_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.Z
@@ -397,6 +431,8 @@ class Microcontroller:
         self.send_command(cmd)
 
     def zero_theta(self):
+        if self.is_simulation:
+            self.theta_pos = 0
         cmd = bytearray(self.tx_buffer_length)
         cmd[1] = CMD_SET.HOME_OR_ZERO
         cmd[2] = AXIS.THETA
@@ -662,10 +698,13 @@ class Microcontroller:
                     self.log.error("cmd checksum error, resending command")
                     self.resend_last_command()
 
-            self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
-            self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+            if self.is_simulation:
+                pass
+            else:
+                self.x_pos = self._payload_to_int(msg[2:6],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+                self.y_pos = self._payload_to_int(msg[6:10],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+                self.z_pos = self._payload_to_int(msg[10:14],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
+                self.theta_pos = self._payload_to_int(msg[14:18],MicrocontrollerDef.N_BYTES_POS) # unit: microstep or encoder resolution
 
             self.button_and_switch_state = msg[18]
             # joystick button
