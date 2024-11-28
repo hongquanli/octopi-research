@@ -695,6 +695,15 @@ class FilterController_Simulation:
     def get_emission_filter(self):
         return 1
 
+    def start_homing(self):
+        pass
+
+    def complete_homing_sequence(self):
+        pass
+
+    def wait_for_homing_complete(self):
+        pass
+
 class FilterControllerError(Exception):
     """Custom exception for FilterController errors."""
     pass
