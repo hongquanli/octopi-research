@@ -724,7 +724,6 @@ class NavigationController(QObject):
     xPos = Signal(float)
     yPos = Signal(float)
     zPos = Signal(float)
-    new_zPos_mm = Signal(float)
     thetaPos = Signal(float)
     xyPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
@@ -760,7 +759,7 @@ class NavigationController(QObject):
         # self.timer_read_pos.timeout.connect(self.update_pos)
         # self.timer_read_pos.start()
 
-        # scan start position
+        # scan start position (obsolete? only for TiledDisplay)
         self.scan_begin_position_x = 0
         self.scan_begin_position_y = 0
     
@@ -801,10 +800,9 @@ class NavigationController(QObject):
         pixel_sign_y = -1 if INVERTED_OBJECTIVE else 1
 
         # move to selected fov
-        self.move_x_to(self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x)
-        self.microcontroller.wait_till_operation_is_completed()
-        self.move_y_to(self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
-        self.microcontroller.wait_till_operation_is_completed()
+        x_pos = self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x
+        y_pos = self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y
+        self.move_to(x_pos, y_pos)
 
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -915,7 +913,6 @@ class NavigationController(QObject):
             self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
         else:
             self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
-
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
         self.yPos.emit(self.y_pos_mm)
@@ -1234,6 +1231,7 @@ class SlidePositionControlWorker(QObject):
 
         self.slidePositionController.slide_scanning_position_reached = True
         self.finished.emit()
+
 
 class SlidePositionController(QObject):
 
@@ -3740,7 +3738,10 @@ class NavigationViewer(QFrame):
 
     def update_current_location(self, x_mm=None, y_mm=None):
         if x_mm is None and y_mm is None:
-            self.draw_current_fov(self.x_mm, self.y_mm)
+            if self.x_mm is None and self.y_mm is None:
+                return
+            else:
+                self.draw_current_fov(self.x_mm, self.y_mm)
 
         elif self.x_mm is not None and self.y_mm is not None:
             # update only when the displacement has exceeded certain value
@@ -3749,14 +3750,14 @@ class NavigationViewer(QFrame):
                 self.x_mm = x_mm
                 self.y_mm = y_mm
                 # update_live_scan_grid
-                if 'glass slide'in self.sample and not self.acquisition_started:
+                if 'glass slide' in self.sample and not self.acquisition_started:
                     self.signal_update_live_scan_grid.emit(x_mm, y_mm)
         else:
             self.draw_current_fov(x_mm, y_mm)
             self.x_mm = x_mm
             self.y_mm = y_mm
             # update_live_scan_grid
-            if 'glass slide'in self.sample and not self.acquisition_started:
+            if 'glass slide' in self.sample and not self.acquisition_started:
                 self.signal_update_live_scan_grid.emit(x_mm, y_mm)
 
     def get_FOV_pixel_coordinates(self, x_mm, y_mm):
@@ -4179,7 +4180,7 @@ class ScanCoordinates(object):
     def get_selected_wells(self):
         # get selected wells from the widget
         print("getting selected wells for acquisition")
-        if not self.well_selector or self.format == 0:
+        if not self.well_selector or self.format == 'glass slide':
             return False
         selected_wells = self.well_selector.get_selected_cells()
         selected_wells = np.array(selected_wells)

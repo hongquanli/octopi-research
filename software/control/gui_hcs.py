@@ -154,7 +154,7 @@ class HighContentScreeningGui(QMainWindow):
         self.imageDisplay = core.ImageDisplay()
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera, self.microcontroller, self.navigationController, self.configurationManager, self.liveController, self.autofocusController, self.imageDisplayWindow)
-        if WELLPLATE_FORMAT == 0:
+        if WELLPLATE_FORMAT == 'glass slide':
             self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample='4 glass slide')
         else:
             self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=WELLPLATE_FORMAT)
@@ -889,7 +889,7 @@ class HighContentScreeningGui(QMainWindow):
         acquisitionWidget = self.recordTabWidget.widget(index)
         is_multipoint = (index == self.recordTabWidget.indexOf(self.multiPointWidget))
         is_scan_grid = (index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
-        self.toggleWellSelector((is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0)
+        self.toggleWellSelector((is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 'glass slide')
         if is_scan_grid:
             self.wellSelectionWidget.onSelectionChanged()
         else:

@@ -3717,7 +3717,7 @@ class MultiPointWidgetGrid(QFrame):
         is_current_widget = (parent is not None and hasattr(parent, 'recordTabWidget') and
                              parent.recordTabWidget.currentWidget() == self)
 
-        if self.combobox_shape.currentText() != 'Manual' and self.scanCoordinates.format == 0 and (parent is None or is_current_widget):
+        if self.combobox_shape.currentText() != 'Manual' and self.scanCoordinates.format == 'glass slide' and (parent is None or is_current_widget):
 
             if self.region_coordinates:
                 self.clear_regions()
@@ -3727,7 +3727,7 @@ class MultiPointWidgetGrid(QFrame):
     def set_well_coordinates(self, selected):
         self.well_selected = selected and bool(self.scanCoordinates.get_selected_wells())
         if hasattr(self.multipointController.parent, 'recordTabWidget') and self.multipointController.parent.recordTabWidget.currentWidget() == self:
-            if self.scanCoordinates.format == 0:
+            if self.scanCoordinates.format == 'glass slide':
                 x = self.navigationController.x_pos_mm
                 y = self.navigationController.y_pos_mm
                 self.set_live_scan_coordinates(x, y)
@@ -4102,7 +4102,7 @@ class MultiPointWidgetGrid(QFrame):
 
             else:
                 # Use grid-based acquisition
-                if self.scanCoordinates.format == 0 or len(self.region_coordinates) == 0:
+                if self.scanCoordinates.format == 'glass slide' or len(self.region_coordinates) == 0:
                     x = self.navigationController.x_pos_mm
                     y = self.navigationController.y_pos_mm
                     z = self.navigationController.z_pos_mm
@@ -4151,7 +4151,7 @@ class MultiPointWidgetGrid(QFrame):
             if self.use_coordinate_acquisition:
                 self.multipointController.run_acquisition(location_list=self.region_coordinates, coordinate_dict=self.region_fov_coordinates_dict)
             else:
-                if self.scanCoordinates.format == 0:
+                if self.scanCoordinates.format == 'glass slide':
                     self.multipointController.run_acquisition(location_list=list(self.region_coordinates.values())) # glass slide
                 else:
                     self.multipointController.run_acquisition() # wellplate
@@ -4175,7 +4175,7 @@ class MultiPointWidgetGrid(QFrame):
                 widget != self.eta_label):
                 widget.setEnabled(enabled)
 
-            if self.scanCoordinates.format == 0:
+            if self.scanCoordinates.format == 'glass slide':
                 self.entry_well_coverage.setEnabled(False)
 
     def set_saving_dir(self):
@@ -6522,7 +6522,6 @@ class WellplateFormatWidget(QWidget):
 
     def populate_combo_box(self):
         self.comboBox.clear()
-        self.comboBox.addItem("glass slide", 'glass slide')
         for format_, settings in WELLPLATE_FORMAT_SETTINGS.items():
             self.comboBox.addItem(format_, format_)
 
@@ -7077,13 +7076,13 @@ class WellplateCalibration(QDialog):
 
         # Convert sample string to format int
         if 'glass slide' in sample:
-            sample_format = 0
+            sample_format = 'glass slide'
         else:
             try:
                 sample_format = int(sample.split()[0])
             except (ValueError, IndexError):
                 print(f"Unable to parse sample format from '{sample}'. Defaulting to 0.")
-                sample_format = 0
+                sample_format = 'glass slide'
 
         # Set dropdown to the current sample format
         index = self.wellplateFormatWidget.comboBox.findData(sample_format)
@@ -7453,7 +7452,7 @@ class WellSelectionWidget(QTableWidget):
     def get_selected_cells(self):
         list_of_selected_cells = []
         print("getting selected cells...")
-        if self.format == 0:
+        if self.format == 'glass slide':
             return list_of_selected_cells
         for index in self.selectedIndexes():
             row, col = index.row(), index.column()
