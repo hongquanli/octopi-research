@@ -3822,15 +3822,19 @@ class NavigationViewer(QFrame):
         if not evt.double():
             return
         try:
-            scene_coord = self.view.mapSceneToView(evt.pos())
-            # Direct conversion to mm without adding offsets again
-            x_mm = (scene_coord.x() - self.origin_x_pixel) * self.mm_per_pixel
-            y_mm = (scene_coord.y() - self.origin_y_pixel) * self.mm_per_pixel
+            # Get mouse position in image coordinates (independent of zoom)
+            mouse_point = self.background_item.mapFromScene(evt.scenePos())
+
+            # Subtract origin offset before converting to mm
+            x_mm = (mouse_point.x() - self.origin_x_pixel) * self.mm_per_pixel
+            y_mm = (mouse_point.y() - self.origin_y_pixel) * self.mm_per_pixel
+
             self.signal_coordinates_clicked.emit(x_mm, y_mm)
 
         except Exception as e:
             print(f"Error processing navigation click: {e}")
             return
+
 
 class ImageArrayDisplayWindow(QMainWindow):
 
