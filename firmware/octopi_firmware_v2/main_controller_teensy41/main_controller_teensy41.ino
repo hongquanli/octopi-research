@@ -12,8 +12,6 @@
 //#include "def_platereader.h"
 //#include "def_squid_vertical.h"
 
-// the firmware support axes number
-#define N_MOTOR 4
 // default axes, such as X,Y,Z
 #define STAGE_AXES 3
 
@@ -131,7 +129,7 @@ static const int digitial_output_pins[num_digital_pins] = {2, 1, 6, 9, 10, 15}; 
 static const int camera_trigger_pins[] = {29, 30, 31, 32, 16, 28}; // trigger 1-6
 
 // motors
-const uint8_t pin_TMC4361_CS[N_MOTOR] = {41, 36, 35, 34};
+const uint8_t pin_TMC4361_CS[4] = {41, 36, 35, 34};
 const uint8_t pin_TMC4361_CLK = 37;
 
 // DAC
@@ -207,16 +205,16 @@ void set_DAC8050x_output(int channel, uint16_t value)
 /******************************************* steppers **********************************************/
 /***************************************************************************************************/
 const uint32_t clk_Hz_TMC4361 = 16000000;
-const uint8_t lft_sw_pol[N_MOTOR] = {0, 0, 0, 0};
-const uint8_t rht_sw_pol[N_MOTOR] = {0, 0, 0, 0};
-const uint8_t TMC4361_homing_sw[N_MOTOR] = {LEFT_SW, LEFT_SW, RGHT_SW, LEFT_SW};
+const uint8_t lft_sw_pol[4] = {0, 0, 0, 0};
+const uint8_t rht_sw_pol[4] = {0, 0, 0, 0};
+const uint8_t TMC4361_homing_sw[4] = {LEFT_SW, LEFT_SW, RGHT_SW, LEFT_SW};
 const int32_t vslow = 0x04FFFC00;
 
-uint32_t max_velocity_usteps[N_MOTOR];
-uint32_t max_acceleration_usteps[N_MOTOR];
+uint32_t max_velocity_usteps[4];
+uint32_t max_acceleration_usteps[4];
 
-ConfigurationTypeDef tmc4361_configs[N_MOTOR];
-TMC4361ATypeDef tmc4361[N_MOTOR];
+ConfigurationTypeDef tmc4361_configs[4];
+TMC4361ATypeDef tmc4361[4];
 
 long X_commanded_target_position = 0;
 long Y_commanded_target_position = 0;
@@ -284,7 +282,7 @@ long Z_POS_LIMIT = Z_POS_LIMIT_MM * steps_per_mm_Z;
 long Z_NEG_LIMIT = Z_NEG_LIMIT_MM * steps_per_mm_Z;
 
 // PID
-bool stage_PID_enabled[N_MOTOR];
+bool stage_PID_enabled[4];
 
 // PID arguments
 typedef struct pid_arguments {
@@ -292,10 +290,10 @@ typedef struct pid_arguments {
 	uint8_t 	i; 
 	uint8_t 	d; 
 } PID_ARGUMENTS;
-PID_ARGUMENTS axes_pid_arg[N_MOTOR];
+PID_ARGUMENTS axes_pid_arg[4];
 
 // home safety margin
-uint16_t home_safety_margin[N_MOTOR] = {4, 4, 4, 4};
+uint16_t home_safety_margin[4] = {4, 4, 4, 4};
 
 /***************************************************************************************************/
 /******************************************** timing ***********************************************/
@@ -665,7 +663,7 @@ void setup() {
   }
 
   // disable all axes 
-  for (int i = 0; i < N_MOTOR; i++)
+  for (int i = 0; i < 4; i++)
   {
     pinMode(pin_TMC4361_CS[i], OUTPUT);
     digitalWrite(pin_TMC4361_CS[i], HIGH);
@@ -697,7 +695,7 @@ void setup() {
    ************************************** TMC4361A + TMC2660 beginning *************************************
    *********************************************************************************************************/
   // PID
-  for (int i = 0; i < N_MOTOR; i++) {
+  for (int i = 0; i < 4; i++) {
     stage_PID_enabled[i] = 0;
 
     axes_pid_arg[i].p = (1<<12);
