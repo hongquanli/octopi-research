@@ -7791,4 +7791,91 @@ class SampleSettingsWidget(QFrame):
 
         with open('cache/objective_and_sample_format.txt', 'w') as f:
             json.dump(data, f)
+        
+        
+class SquidFilterWidget(QFrame):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.microscope = parent
+        self.add_components()
 
+    def add_components(self):
+        # Layout for the position label
+        self.position_label = QLabel(f"Position: {SQUID_FILTERWHEEL_MIN_INDEX}", self)
+        position_layout = QHBoxLayout()
+        position_layout.addWidget(self.position_label)
+
+        # Layout for the status label
+        self.status_label = QLabel("Status: Ready", self)
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.status_label)
+
+        # Layout for the editText, label, and button
+        self.edit_text = QLineEdit(self)
+        self.edit_text.setMaxLength(1)  # Restrict to one character
+        self.edit_text.setText(f'{SQUID_FILTERWHEEL_MIN_INDEX}')
+        move_to_pos_label = QLabel("move to pos.", self)
+        self.move_spin_btn = QPushButton("Move To", self)
+
+        move_to_pos_layout = QHBoxLayout()
+        move_to_pos_layout.addWidget(move_to_pos_label)
+        move_to_pos_layout.addWidget(self.edit_text)
+        move_to_pos_layout.addWidget(self.move_spin_btn)
+
+        # Buttons for controlling the filter spin
+        self.previous_btn = QPushButton("Previous", self)
+        self.next_btn = QPushButton("Next", self)
+        self.home_btn = QPushButton("Homing", self)
+
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.previous_btn)
+        buttons_layout.addWidget(self.next_btn)
+        buttons_layout.addWidget(self.home_btn)
+
+        # Main vertical layout
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(position_layout)
+        main_layout.addLayout(status_layout)
+        main_layout.addLayout(move_to_pos_layout)  # Layout with editText, label, and button
+        main_layout.addLayout(buttons_layout)
+
+        self.setLayout(main_layout)
+
+        # Connect signals and slots
+        self.previous_btn.clicked.connect(self.decrement_position)
+        self.next_btn.clicked.connect(self.increment_position)
+        self.home_btn.clicked.connect(self.home_position)
+        self.move_spin_btn.clicked.connect(self.move_to_position)
+
+    def update_position(self, position):
+        self.position_label.setText(f"Position: {position}")
+
+    def decrement_position(self):
+        current_position = int(self.position_label.text().split(": ")[1])
+        new_position = max(SQUID_FILTERWHEEL_MIN_INDEX, current_position - 1)  # Ensure position doesn't go below 0
+        if current_position != new_position:
+            self.microscope.squid_filter_wheel.previous_position()
+            self.update_position(new_position)
+
+    def increment_position(self):
+        current_position = int(self.position_label.text().split(": ")[1])
+        new_position = min(SQUID_FILTERWHEEL_MAX_INDEX, current_position + 1)  # Ensure position doesn't go above SQUID_FILTERWHEEL_MAX_INDEX
+        if current_position != new_position:
+            self.microscope.squid_filter_wheel.next_position()
+            self.update_position(new_position)
+
+    def home_position(self):
+        self.update_position(SQUID_FILTERWHEEL_MIN_INDEX)
+        self.status_label.setText("Status: Homed")
+        self.microscope.squid_filter_wheel.homing()
+
+    def move_to_position(self):
+        try:
+            position = int(self.edit_text.text())
+            if position in range(SQUID_FILTERWHEEL_MIN_INDEX, SQUID_FILTERWHEEL_MAX_INDEX + 1): 
+                if position != int(self.position_label.text().split(": ")[1]):
+                    self.microscope.squid_filter_wheel.set_emission(position)
+                self.update_position(position)
+        except ValueError:
+            self.status_label.setText("Status: Invalid input")
+            self.position_label.setText("Position: Invalid")

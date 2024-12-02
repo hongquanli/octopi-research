@@ -1708,6 +1708,36 @@ int32_t tmc4361A_read_encoder_vel(TMC4361ATypeDef *tmc4361A) {
 int32_t tmc4361A_read_encoder_vel_filtered(TMC4361ATypeDef *tmc4361A) {
   return tmc4361A_readInt(tmc4361A, TMC4361A_V_ENC_MEAN_RD);
 }
+
+/*
+  -----------------------------------------------------------------------------
+  DESCRIPTION: tmc4361A_write_encoder()
+
+  OPERATION:   We set encode value to register when need 
+
+  ARGUMENTS:
+      TMC4361ATypeDef *tmc4361A: Pointer to a struct containing motor driver info
+      int32_t value:  encode value 
+
+  RETURNS: None 
+
+  INPUTS / OUTPUTS: The CS pin and SPI MISO and MOSI pins output, input, and output data respectively
+
+  LOCAL VARIABLES:
+      None
+
+  SHARED VARIABLES:
+      None
+
+  GLOBAL VARIABLES: None
+
+  DEPENDENCIES: tmc4316A.h
+  -----------------------------------------------------------------------------
+*/
+void tmc4361A_write_encoder(TMC4361ATypeDef *tmc4361A, int32_t value) {
+  tmc4361A_writeInt(tmc4361A, TMC4361A_ENC_POS, value);
+}
+
 /*
   -----------------------------------------------------------------------------
   DESCRIPTION: tmc4361A_read_deviation() reads the difference between XACTUAL and ENC_POS

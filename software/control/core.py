@@ -578,6 +578,12 @@ class LiveController(QObject):
             except Exception as e:
                 print('not setting emission filter position due to ' + str(e))
 
+        if USE_SQUID_FILTERWHEEL and self.enable_channel_auto_filter_switching:
+            try:
+                self.microscope.squid_filter_wheel.set_emission(self.currentConfiguration.emission_filter_position)
+            except Exception as e:
+                print('not setting emission filter position due to ' + str(e))
+
     def start_live(self):
         self.is_live = True
         self.camera.is_live = True
@@ -747,7 +753,8 @@ class NavigationController(QObject):
         self.x_microstepping = MICROSTEPPING_DEFAULT_X
         self.y_microstepping = MICROSTEPPING_DEFAULT_Y
         self.z_microstepping = MICROSTEPPING_DEFAULT_Z
-        self.click_to_move = ENABLE_CLICK_TO_MOVE_BY_DEFAULT # default on when acquisition not running
+        self.w_microstepping = MICROSTEPPING_DEFAULT_W
+        self.click_to_move = ENABLE_CLICK_TO_MOVE_BY_DEFAULT # default on when acquisition not runnin
         self.theta_microstepping = MICROSTEPPING_DEFAULT_THETA
         self.enable_joystick_button_action = True
 
@@ -774,6 +781,9 @@ class NavigationController(QObject):
 
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
+
+    def wait_till_operation_is_completed(self, timeout_limit_s = 5):
+        self.microcontroller.wait_till_operation_is_completed(timeout_limit_s)
 
     def get_flag_click_to_move(self):
         return self.click_to_move
@@ -866,6 +876,9 @@ class NavigationController(QObject):
     def move_z(self,delta):
         self.microcontroller.move_z_usteps(int(delta/self.get_mm_per_ustep_Z()))
 
+    def move_w(self,delta):
+        self.microcontroller.move_w_usteps(int(delta/(SCREW_PITCH_W_MM/(self.w_microstepping*FULLSTEPS_PER_REV_W))))
+
     def move_x_to(self,delta):
         self.microcontroller.move_x_to_usteps(STAGE_MOVEMENT_SIGN_X*int(delta/self.get_mm_per_ustep_X()))
 
@@ -935,6 +948,9 @@ class NavigationController(QObject):
 
     def home_z(self):
         self.microcontroller.home_z()
+
+    def home_w(self):
+        self.microcontroller.home_w()
 
     def home_theta(self):
         self.microcontroller.home_theta()
@@ -1028,6 +1044,7 @@ class NavigationController(QObject):
         dac = int(65535 * (z_piezo_um / OBJECTIVE_PIEZO_RANGE_UM))
         dac = 65535 - dac if OBJECTIVE_PIEZO_FLIP_DIR else dac
         self.microcontroller.analog_write_onboard_DAC(7, dac)
+
 
 class SlidePositionControlWorker(QObject):
 

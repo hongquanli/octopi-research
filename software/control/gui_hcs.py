@@ -16,6 +16,9 @@ from control._def import *
 import control.widgets as widgets
 import serial
 
+import control.filterwheel as filterwheel
+
+
 if CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera
@@ -166,6 +169,9 @@ class OctopiGUI(QMainWindow):
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP,look_for_cache=False)
 
+        if USE_SQUID_FILTERWHEEL:
+            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(self.microcontroller)
+
     def loadSimulationObjects(self):
         # Initialize simulation objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -184,6 +190,8 @@ class OctopiGUI(QMainWindow):
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel = serial_peripherals.Optospin_Simulation(SN=None)
         self.microcontroller = microcontroller.Microcontroller_Simulation()
+        if USE_SQUID_FILTERWHEEL:
+            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper_Simulation(None)
 
     def loadHardwareObjects(self):
         # Initialize hardware objects
@@ -267,9 +275,16 @@ class OctopiGUI(QMainWindow):
 
         self.microcontroller.reset()
         time.sleep(0.5)
+        if USE_SQUID_FILTERWHEEL:
+            self.microcontroller.init_filter_wheel()
+            time.sleep(0.5)
         self.microcontroller.initialize_drivers()
         time.sleep(0.5)
+
         self.microcontroller.configure_actuators()
+        if USE_SQUID_FILTERWHEEL:
+            self.microcontroller.configure_squidfilter()
+        time.sleep(0.5)
 
         if HAS_ENCODER_X:
             self.navigationController.set_axis_PID_arguments(0, PID_P_X, PID_I_X, PID_D_X)
@@ -283,6 +298,11 @@ class OctopiGUI(QMainWindow):
             self.navigationController.set_axis_PID_arguments(2, PID_P_Z, PID_I_Z, PID_D_Z)
             self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
             self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
+        if USE_SQUID_FILTERWHEEL:
+            if HAS_ENCODER_W:
+                self.navigationController.set_axis_PID_arguments(3, PID_P_W, PID_I_W, PID_D_W)
+                self.navigationController.configure_encoder(3, 4000, ENCODER_FLIP_DIR_W)
+                self.navigationController.set_pid_control_enable(3, ENABLE_PID_W)
         time.sleep(0.5)
 
         self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
@@ -312,7 +332,7 @@ class OctopiGUI(QMainWindow):
             self.waitForMicrocontroller()
             self.navigationController.move_y(20)
             self.waitForMicrocontroller()
-
+        
         if ENABLE_OBJECTIVE_PIEZO:
             OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)
         div = 1 if OUTPUT_GAINS.REFDIV else 0
@@ -332,6 +352,10 @@ class OctopiGUI(QMainWindow):
             self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
+
+        if USE_SQUID_FILTERWHEEL:
+            if SQUID_FILTERWHEEL_HOMING_ENABLED:
+                self.squid_filter_wheel.homing()
 
     def waitForMicrocontroller(self, timeout=None, error_message=None):
         start_time = time.time()
@@ -363,6 +387,9 @@ class OctopiGUI(QMainWindow):
 
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.filterControllerWidget = widgets.FilterControllerWidget(self.emission_filter_wheel, self.liveController)
+
+        if USE_SQUID_FILTERWHEEL:
+            self.squidFilterWidget = widgets.SquidFilterWidget(self)
 
         self.recordingControlWidget = widgets.RecordingWidget(self.streamHandler, self.imageSaver)
         self.wellplateFormatWidget = widgets.WellplateFormatWidget(self.navigationController, self.navigationViewer, self.streamHandler, self.liveController)
@@ -415,7 +442,7 @@ class OctopiGUI(QMainWindow):
 
         self.cameraTabWidget = QTabWidget()
         self.setupCameraTabWidget()
-
+        
     def setupImageDisplayTabs(self):
         if USE_NAPARI_FOR_LIVE_VIEW:
             self.napariLiveWidget = widgets.NapariLiveWidget(self.streamHandler, self.liveController, self.navigationController, self.configurationManager, self.contrastManager, self.wellSelectionWidget)
@@ -503,6 +530,8 @@ class OctopiGUI(QMainWindow):
             self.cameraTabWidget.addTab(self.spinningDiskConfocalWidget, "Confocal")
         if USE_ZABER_EMISSION_FILTER_WHEEL or USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.cameraTabWidget.addTab(self.filterControllerWidget, "Emission Filter")
+        if USE_SQUID_FILTERWHEEL:
+            self.cameraTabWidget.addTab(self.squidFilterWidget,"SquidFilter")
         self.cameraTabWidget.addTab(self.cameraSettingWidget, 'Camera')
         self.cameraTabWidget.addTab(self.autofocusWidget, "Contrast AF")
         if SUPPORT_LASER_AUTOFOCUS:
