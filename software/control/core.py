@@ -782,8 +782,8 @@ class NavigationController(QObject):
     def set_flag_click_to_move(self, flag):
         self.click_to_move = flag
 
-    def wait_till_operation_is_completed(self, TIMEOUT_LIMIT_S=5):
-        self.microcontroller.wait_till_operation_is_completed(TIMEOUT_LIMIT_S)
+    def wait_till_operation_is_completed(self, timeout_limit_s = 5):
+        self.microcontroller.wait_till_operation_is_completed(timeout_limit_s)
 
     def get_flag_click_to_move(self):
         return self.click_to_move
