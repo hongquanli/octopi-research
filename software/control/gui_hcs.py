@@ -170,7 +170,7 @@ class OctopiGUI(QMainWindow):
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP,look_for_cache=False)
 
         if USE_SQUID_FILTERWHEEL:
-            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(self.navigationController)
+            self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(self.microcontroller)
 
     def loadSimulationObjects(self):
         # Initialize simulation objects
