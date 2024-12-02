@@ -1243,6 +1243,13 @@ class Microcontroller_Simulation():
                 print('Error - microcontroller timeout, the program will exit')
                 sys.exit(1)
 
+    def _int_to_payload(self,signed_int,number_of_bytes):
+        if signed_int >= 0:
+            payload = signed_int
+        else:
+            payload = 2**(8*number_of_bytes) + signed_int # find two's completement
+        return payload
+
     def set_dac80508_scaling_factor_for_illumination(self, illumination_intensity_factor):
         if illumination_intensity_factor > 1:
             illumination_intensity_factor = 1
