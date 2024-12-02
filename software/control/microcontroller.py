@@ -577,8 +577,6 @@ class Microcontroller():
         self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
         self.wait_till_operation_is_completed()
-        self.set_leadscrew_pitch(AXIS.W,SCREW_PITCH_W_MM)
-        self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
         self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
@@ -586,16 +584,12 @@ class Microcontroller():
         self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
-        self.configure_motor_driver(AXIS.W,MICROSTEPPING_DEFAULT_W,W_MOTOR_RMS_CURRENT_mA,W_MOTOR_I_HOLD)
-        self.wait_till_operation_is_completed()
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
-        self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.W,MAX_VELOCITY_W_mm,MAX_ACCELERATION_W_mm)
         self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
@@ -610,6 +604,14 @@ class Microcontroller():
         self.set_home_safety_margin(AXIS.Y, int(Y_HOME_SAFETY_MARGIN_UM))
         self.wait_till_operation_is_completed()
         self.set_home_safety_margin(AXIS.Z, int(Z_HOME_SAFETY_MARGIN_UM))
+        self.wait_till_operation_is_completed()
+
+    def configure_squidfilter(self):
+        self.set_leadscrew_pitch(AXIS.W,SCREW_PITCH_W_MM)
+        self.wait_till_operation_is_completed()
+        self.configure_motor_driver(AXIS.W,MICROSTEPPING_DEFAULT_W,W_MOTOR_RMS_CURRENT_mA,W_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
+        self.set_max_velocity_acceleration(AXIS.W,MAX_VELOCITY_W_mm,MAX_ACCELERATION_W_mm)
         self.wait_till_operation_is_completed()
 
     def ack_joystick_button_pressed(self):
@@ -1054,8 +1056,6 @@ class Microcontroller_Simulation():
         self.wait_till_operation_is_completed()
         self.set_leadscrew_pitch(AXIS.Z,SCREW_PITCH_Z_MM)
         self.wait_till_operation_is_completed()
-        self.set_leadscrew_pitch(AXIS.W,SCREW_PITCH_W_MM)
-        self.wait_till_operation_is_completed()
         # stepper driver (microstepping,rms current and I_hold)
         self.configure_motor_driver(AXIS.X,MICROSTEPPING_DEFAULT_X,X_MOTOR_RMS_CURRENT_mA,X_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
@@ -1063,16 +1063,12 @@ class Microcontroller_Simulation():
         self.wait_till_operation_is_completed()
         self.configure_motor_driver(AXIS.Z,MICROSTEPPING_DEFAULT_Z,Z_MOTOR_RMS_CURRENT_mA,Z_MOTOR_I_HOLD)
         self.wait_till_operation_is_completed()
-        self.configure_motor_driver(AXIS.W,MICROSTEPPING_DEFAULT_W,W_MOTOR_RMS_CURRENT_mA,W_MOTOR_I_HOLD)
-        self.wait_till_operation_is_completed()
         # max velocity and acceleration
         self.set_max_velocity_acceleration(AXIS.X,MAX_VELOCITY_X_mm,MAX_ACCELERATION_X_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Y,MAX_VELOCITY_Y_mm,MAX_ACCELERATION_Y_mm)
         self.wait_till_operation_is_completed()
         self.set_max_velocity_acceleration(AXIS.Z,MAX_VELOCITY_Z_mm,MAX_ACCELERATION_Z_mm)
-        self.wait_till_operation_is_completed()
-        self.set_max_velocity_acceleration(AXIS.W,MAX_VELOCITY_W_mm,MAX_ACCELERATION_W_mm)
         self.wait_till_operation_is_completed()
         # home switch
         self.set_limit_switch_polarity(AXIS.X,X_HOME_SWITCH_POLARITY)
@@ -1087,6 +1083,14 @@ class Microcontroller_Simulation():
         self.set_home_safety_margin(AXIS.Y, int(Y_HOME_SAFETY_MARGIN_UM))
         self.wait_till_operation_is_completed()
         self.set_home_safety_margin(AXIS.Z, int(Z_HOME_SAFETY_MARGIN_UM))
+        self.wait_till_operation_is_completed()
+
+    def configure_squidfilter(self):
+        self.set_leadscrew_pitch(AXIS.W,SCREW_PITCH_W_MM)
+        self.wait_till_operation_is_completed()
+        self.configure_motor_driver(AXIS.W,MICROSTEPPING_DEFAULT_W,W_MOTOR_RMS_CURRENT_mA,W_MOTOR_I_HOLD)
+        self.wait_till_operation_is_completed()
+        self.set_max_velocity_acceleration(AXIS.W,MAX_VELOCITY_W_mm,MAX_ACCELERATION_W_mm)
         self.wait_till_operation_is_completed()
 
     def analog_write_onboard_DAC(self,dac,value):

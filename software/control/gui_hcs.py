@@ -280,7 +280,11 @@ class OctopiGUI(QMainWindow):
             time.sleep(0.5)
         self.microcontroller.initialize_drivers()
         time.sleep(0.5)
+
         self.microcontroller.configure_actuators()
+        if USE_SQUID_FILTERWHEEL:
+            self.microcontroller.configure_squidfilter()
+        time.sleep(0.5)
 
         if HAS_ENCODER_X:
             self.navigationController.set_axis_PID_arguments(0, PID_P_X, PID_I_X, PID_D_X)
