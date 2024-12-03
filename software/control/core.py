@@ -2649,28 +2649,9 @@ class MultiPointController(QObject):
             self.use_scan_coordinates = False
             self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = list(coordinate_dict.keys()) # list(coordinate_dict.keys()) if not wellplate
-            
-        # elif location_list is not None:
-        #     print('Using location list acquisition')
-        #     self.coordinate_dict = None
-        #     self.location_list = location_list
-        #     self.use_scan_coordinates = True
-        #     self.scan_coordinates_mm = location_list
-        #     self.scan_coordinates_name = [f'R{i}' for i in range(len(location_list))]
-        # else:
-        #     print(f"t_c_z_y_x: {self.Nt}_{len(self.selected_configurations)}_{self.NZ}_{self.NY}_{self.NX}")
-        #     self.coordinate_dict = None
-        #     self.location_list = None
-        #     if self.scanCoordinates is not None and self.scanCoordinates.get_selected_wells():
-        #         print('Using well plate scan')
-        #         self.use_scan_coordinates = True
-        #         self.scan_coordinates_mm = self.scanCoordinates.coordinates_mm
-        #         self.scan_coordinates_name = self.scanCoordinates.name
-        #     else:
-        #         print('Using current location')
-        #         self.use_scan_coordinates = False
-        #         self.scan_coordinates_mm = [(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)]
-        #         self.scan_coordinates_name = ['ROI']
+        else:
+            print("obsolete functionailty. use coordinate acquisition instead of grid acquisition")
+            return
 
         print("num regions:",len(self.scan_coordinates_mm))
         print("region ids:", self.scan_coordinates_name)
@@ -4036,7 +4017,6 @@ class ScanCoordinates(object):
         self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
         self.well_spacing_mm = WELL_SPACING_MM
         self.well_size_mm = WELL_SIZE_MM
-        # self.grid_skip_positions = [] # remove
 
     def _index_to_row(self,index):
         index += 1
