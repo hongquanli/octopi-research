@@ -2020,6 +2020,7 @@ class FlexibleMultiPointWidget(QFrame):
         self.location_ids = np.empty((0,), dtype='<U20')
         self.region_coordinates = {}
         self.region_fov_coordinates_dict = {}
+        self.use_overlap = USE_OVERLAP_FOR_FLEXIBLE
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
         self.acquisition_in_place=False
@@ -2062,6 +2063,15 @@ class FlexibleMultiPointWidget(QFrame):
         self.table_location_list.setHorizontalHeaderLabels(header_labels)
         self.btn_show_table_location_list = QPushButton('Edit') # Open / Edit
 
+        self.entry_deltaX = QDoubleSpinBox()
+        self.entry_deltaX.setMinimum(0)
+        self.entry_deltaX.setMaximum(5)
+        self.entry_deltaX.setSingleStep(0.1)
+        self.entry_deltaX.setValue(Acquisition.DX)
+        self.entry_deltaX.setDecimals(3)
+        self.entry_deltaX.setSuffix(' mm')
+        self.entry_deltaX.setKeyboardTracking(False)
+
         self.entry_NX = QSpinBox()
         self.entry_NX.setMinimum(1)
         self.entry_NX.setMaximum(1000)
@@ -2071,6 +2081,15 @@ class FlexibleMultiPointWidget(QFrame):
         self.entry_NX.setValue(1)
         self.entry_NX.setKeyboardTracking(False)
         #self.entry_NX.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.entry_deltaY = QDoubleSpinBox()
+        self.entry_deltaY.setMinimum(0)
+        self.entry_deltaY.setMaximum(5)
+        self.entry_deltaY.setSingleStep(0.1)
+        self.entry_deltaY.setValue(Acquisition.DX)
+        self.entry_deltaY.setDecimals(3)
+        self.entry_deltaY.setSuffix(' mm')
+        self.entry_deltaY.setKeyboardTracking(False)
 
         self.entry_NY = QSpinBox()
         self.entry_NY.setMinimum(1)
@@ -2123,9 +2142,14 @@ class FlexibleMultiPointWidget(QFrame):
         self.entry_Nt.setKeyboardTracking(False)
 
         # Calculate a consistent width
-        max_delta_width = max(self.entry_deltaZ.sizeHint().width(), self.entry_dt.sizeHint().width())
+        max_delta_width = max(self.entry_deltaZ.sizeHint().width(),
+                              self.entry_dt.sizeHint().width(),
+                              self.entry_deltaX.sizeHint().width(),
+                              self.entry_deltaY.sizeHint().width(),)
         self.entry_deltaZ.setFixedWidth(max_delta_width)
         self.entry_dt.setFixedWidth(max_delta_width)
+        self.entry_deltaX.setFixedWidth(max_delta_width)
+        self.entry_deltaY.setFixedWidth(max_delta_width)
 
         max_num_width = max(self.entry_NX.sizeHint().width(),
                             self.entry_NY.sizeHint().width(),
@@ -2228,18 +2252,36 @@ class FlexibleMultiPointWidget(QFrame):
         edge_spacer = QSpacerItem(EDGE_SPACING, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         # Create first row layouts
-        xy_half = QHBoxLayout()
-        xy_half.addWidget(QLabel('Nx'))
-        xy_half.addWidget(self.entry_NX)
-        xy_half.addStretch(1)
-        xy_half.addWidget(QLabel('Ny'))
-        xy_half.addWidget(self.entry_NY)
-        xy_half.addSpacerItem(edge_spacer)
+        if self.use_overlap:
+            xy_half = QHBoxLayout()
+            xy_half.addWidget(QLabel('Nx'))
+            xy_half.addWidget(self.entry_NX)
+            xy_half.addStretch(1)
+            xy_half.addWidget(QLabel('Ny'))
+            xy_half.addWidget(self.entry_NY)
+            xy_half.addSpacerItem(edge_spacer)
 
-        overlap_half = QHBoxLayout()
-        overlap_half.addSpacerItem(edge_spacer)
-        overlap_half.addWidget(QLabel('FOV Overlap'), alignment=Qt.AlignRight)
-        overlap_half.addWidget(self.entry_overlap)
+            overlap_half = QHBoxLayout()
+            overlap_half.addSpacerItem(edge_spacer)
+            overlap_half.addWidget(QLabel('FOV Overlap'), alignment=Qt.AlignRight)
+            overlap_half.addWidget(self.entry_overlap)
+        else:
+            # Create alternate first row layouts (dx, dy) instead of (overlap %)
+            x_half = QHBoxLayout()
+            x_half.addWidget(QLabel('dx'))
+            x_half.addWidget(self.entry_deltaX)
+            x_half.addStretch(1)
+            x_half.addWidget(QLabel('Nx'))
+            x_half.addWidget(self.entry_NX)
+            x_half.addSpacerItem(edge_spacer)
+
+            y_half = QHBoxLayout()
+            y_half.addSpacerItem(edge_spacer)
+            y_half.addWidget(QLabel('dy'))
+            y_half.addWidget(self.entry_deltaY)
+            y_half.addStretch(1)
+            y_half.addWidget(QLabel('Ny'))
+            y_half.addWidget(self.entry_NY)
 
         # Create second row layouts
         dz_half = QHBoxLayout()
@@ -2259,8 +2301,12 @@ class FlexibleMultiPointWidget(QFrame):
         dt_half.addWidget(self.entry_Nt)
 
         # Add the layouts to grid_line1
-        grid_line1.addLayout(xy_half, 3, 0, 1, 4)
-        grid_line1.addLayout(overlap_half, 3, 4, 1, 4)
+        if self.use_overlap:
+            grid_line1.addLayout(xy_half, 3, 0, 1, 4)
+            grid_line1.addLayout(overlap_half, 3, 4, 1, 4)
+        else:
+            grid_line1.addLayout(x_half, 3, 0, 1, 4)
+            grid_line1.addLayout(y_half, 3, 4, 1, 4)
         grid_line1.addLayout(dz_half, 4, 0, 1, 4)
         grid_line1.addLayout(dt_half, 4, 4, 1, 4)
 
@@ -2339,7 +2385,11 @@ class FlexibleMultiPointWidget(QFrame):
         # self.timer = QTimer()
 
         # connections
-        self.entry_overlap.valueChanged.connect(self.update_grid_step_size)
+        if self.use_overlap:
+            self.entry_overlap.valueChanged.connect(self.update_fov_positions)
+        else:
+            self.entry_deltaX.valueChanged.connect(self.update_fov_positions)
+            self.entry_deltaY.valueChanged.connect(self.update_fov_positions)
         self.entry_NX.valueChanged.connect(self.update_fov_positions)
         self.entry_NY.valueChanged.connect(self.update_fov_positions)
         self.btn_add.clicked.connect(self.update_fov_positions)
@@ -2538,25 +2588,15 @@ class FlexibleMultiPointWidget(QFrame):
         else:
             self.eta_timer.stop()
 
-    def update_grid_step_size(self):
-        """Calculate step sizes based on FOV size and overlap percentage"""
-        pixel_size_um = self.objectiveStore.get_pixel_size()
-        fov_size_mm = (pixel_size_um / 1000) * Acquisition.CROP_WIDTH
-        overlap_fraction = self.entry_overlap.value() / 100
-        step_size_mm = fov_size_mm * (1 - overlap_fraction)
-        
-        # Register FOVs in navigation viewer
-        self.update_fov_positions()
-
     def create_region_coordinates(self, x_center, y_center, overlap_percent=10):
         """Convert grid parameters (NX, NY) to FOV coordinates based on overlap"""
         fov_size_mm = (self.objectiveStore.get_pixel_size() / 1000) * Acquisition.CROP_WIDTH
         step_size_mm = fov_size_mm * (1 - overlap_percent/100)
-        
+
         # Calculate total grid size
         grid_width_mm = (self.entry_NX.value() - 1) * step_size_mm
         grid_height_mm = (self.entry_NY.value() - 1) * step_size_mm
-        
+
         scan_coordinates = []
         for i in range(self.entry_NY.value()):
             row = []
@@ -2565,7 +2605,7 @@ class FlexibleMultiPointWidget(QFrame):
                 x = x_center - grid_width_mm/2 + j * step_size_mm
                 row.append((x, y))
                 self.navigationViewer.register_fov_to_image(x, y)
-                
+
             if i % 2 == 1:  # reverse even rows
                 row.reverse()
             scan_coordinates.extend(row)
@@ -2577,6 +2617,25 @@ class FlexibleMultiPointWidget(QFrame):
 
         return scan_coordinates
 
+    def create_region_coordinates_with_step_size(self, x_center, y_center):
+        grid_width_mm = (self.entry_NX.value() - 1) * self.entry_deltaX.value()
+        grid_height_mm = (self.entry_NY.value() - 1) * self.entry_deltaY.value()
+
+        # Pre-calculate step sizes and ranges
+        x_steps = [x_center - grid_width_mm/2 + j * self.entry_deltaX.value()
+                   for j in range(self.entry_NX.value())]
+        y_steps = [y_center - grid_height_mm/2 + i * self.entry_deltaY.value()
+                   for i in range(self.entry_NY.value())]
+
+        scan_coordinates = []
+        for i, y in enumerate(y_steps):
+            row = [(x, y) for x in (x_steps if i % 2 == 0 else reversed(x_steps))]
+            scan_coordinates.extend(row)
+            for x, y in row:
+                self.navigationViewer.register_fov_to_image(x, y)
+
+        return scan_coordinates
+
     def update_fov_positions(self):
         self.navigationViewer.clear_overlay()
         self.region_coordinates.clear()
@@ -2585,7 +2644,10 @@ class FlexibleMultiPointWidget(QFrame):
         for i, (x, y, z) in enumerate(self.location_list):
             region_id = self.location_ids[i]
             self.region_coordinates[region_id] = [x, y, z]
-            scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
+            if self.use_overlap:
+                scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
+            else:
+                scan_coordinates = self.create_region_coordinates_with_step_size(x, y)
             self.region_fov_coordinates_dict[region_id] = scan_coordinates
 
     def set_deltaZ(self,value):
@@ -2711,6 +2773,11 @@ class FlexibleMultiPointWidget(QFrame):
         self.entry_NZ.setEnabled(enabled)
         self.entry_dt.setEnabled(enabled)
         self.entry_Nt.setEnabled(enabled)
+        if not self.use_overlap:
+            self.entry_deltaX.setEnabled(enabled)
+            self.entry_deltaY.setEnabled(enabled)
+        else:
+            self.entry_overlap.setEnabled(enabled)
         self.list_configurations.setEnabled(enabled)
         self.checkbox_genFocusMap.setEnabled(enabled)
         self.checkbox_withAutofocus.setEnabled(enabled)
@@ -2718,6 +2785,7 @@ class FlexibleMultiPointWidget(QFrame):
         self.checkbox_stitchOutput.setEnabled(enabled)
         if exclude_btn_startAcquisition is not True:
             self.btn_startAcquisition.setEnabled(enabled)
+
 
     def disable_the_start_aquisition_button(self):
         self.btn_startAcquisition.setEnabled(False)
@@ -2752,7 +2820,10 @@ class FlexibleMultiPointWidget(QFrame):
 
             # Store actual values in region coordinates
             self.region_coordinates[name] = [x, y, z]
-            scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
+            if self.use_overlap:
+                scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
+            else:
+                scan_coordinates = self.create_region_coordinates_with_step_size(x, y)
             self.region_fov_coordinates_dict[name] = scan_coordinates
 
             print(f"Added Region: {name} - x={x}, y={y}, z={z}")
@@ -2877,26 +2948,47 @@ class FlexibleMultiPointWidget(QFrame):
                 self.table_location_list.selectRow(index)
 
     def cell_was_clicked(self,row,column):
-
         self.dropdown_location_list.setCurrentIndex(row)
 
-    def cell_was_changed(self,row,column):
-        x= self.location_list[row,0]
-        y= self.location_list[row,1]
-        self.navigationViewer.deregister_fov_to_image(x,y)
+    def cell_was_changed(self, row, column):
+        # Get region ID
+        old_id = self.location_ids[row]
 
+        # Clear all FOVs for this region
+        if old_id in self.region_fov_coordinates_dict:
+            for coord in self.region_fov_coordinates_dict[old_id]:
+                self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
+
+        # Handle the changed value
         val_edit = self.table_location_list.item(row,column).text()
-        if column < 2:
-            val_edit = float(val_edit)
-            self.location_list[row,column] = val_edit
-        elif column == 2:
-            z = float(val_edit)/1000
-            self.location_list[row,column] = z
-        else:
-            self.location_ids[row] = val_edit
 
-        # self.navigationViewer.register_fov_to_image(self.location_list[row,0], self.location_list[row,1])
-        location_str = 'x:' + str(round(self.location_list[row,0],3)) + 'mm  y:' + str(round(self.location_list[row,1],3)) + 'mm  z:' + str(round(1000*(self.location_list[row,2]),3)) + 'μm'
+        if column < 2:  # X or Y coordinate changed
+            self.location_list[row,column] = float(val_edit)
+            x, y, z = self.location_list[row]
+
+            # Update region coordinates and FOVs for new position
+            self.region_coordinates[old_id] = [x, y, z]
+            if self.use_overlap:
+                scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
+            else:
+                scan_coordinates = self.create_region_coordinates_with_step_size(x, y)
+            self.region_fov_coordinates_dict[old_id] = scan_coordinates
+
+        elif column == 2:  # Z coordinate changed
+            z = float(val_edit)/1000
+            self.location_list[row,2] = z
+            self.region_coordinates[old_id][2] = z
+        else:  # ID changed
+            new_id = val_edit
+            self.location_ids[row] = new_id
+            # Update dictionary keys
+            if old_id in self.region_coordinates:
+                self.region_coordinates[new_id] = self.region_coordinates.pop(old_id)
+            if old_id in self.region_fov_coordinates_dict:
+                self.region_fov_coordinates_dict[new_id] = self.region_fov_coordinates_dict.pop(old_id)
+
+        # Update UI
+        location_str = f"x:{round(self.location_list[row,0],3)} mm  y:{round(self.location_list[row,1],3)} mm  z:{round(1000*self.location_list[row,2],3)} μm"
         self.dropdown_location_list.setItemText(row, location_str)
         self.go_to(row)
 
@@ -2953,7 +3045,11 @@ class FlexibleMultiPointWidget(QFrame):
                     self.table_location_list.setItem(self.table_location_list.rowCount()-1,1, QTableWidgetItem(str(round(y,3))))
                     self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(1000*z,1))))
                     self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
-                    # self.navigationViewer.register_fov_to_image(x,y)
+                    if self.use_overlap:
+                        scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
+                    else:
+                        scan_coordinates = self.create_region_coordinates_with_step_size(x, y)
+                    self.region_fov_coordinates_dict[name] = scan_coordinates
                 else:
                     print("Duplicate values not added based on x and y.")
             print(self.location_list)
