@@ -23,7 +23,6 @@ from datetime import datetime
 import itertools
 import numpy as np
 from scipy.spatial import Delaunay
-from scipy import interpolate
 import shutil
 from control._def import *
 from PIL import Image, ImageDraw, ImageFont
@@ -2107,15 +2106,6 @@ class MultiPointWidget2(QFrame):
         self.entry_NZ.setValue(1)
         self.entry_NZ.setKeyboardTracking(False)
 
-        max_entry_width = max(self.entry_NX.sizeHint().width(),
-                              self.entry_NY.sizeHint().width(),
-                              self.entry_NZ.sizeHint().width())
-
-        # Apply the fixed width to Nx and Ny
-        self.entry_NX.setFixedWidth(max_entry_width)
-        self.entry_NY.setFixedWidth(max_entry_width)
-        self.entry_NZ.setFixedWidth(max_entry_width)
-
         self.entry_dt = QDoubleSpinBox()
         self.entry_dt.setMinimum(0)
         self.entry_dt.setMaximum(12*3600)
@@ -2127,17 +2117,24 @@ class MultiPointWidget2(QFrame):
 
         self.entry_Nt = QSpinBox()
         self.entry_Nt.setMinimum(1)
-        self.entry_Nt.setMaximum(5000)   # @@@ to be changed
+        self.entry_Nt.setMaximum(10000)   # @@@ to be changed
         self.entry_Nt.setSingleStep(1)
         self.entry_Nt.setValue(1)
         self.entry_Nt.setKeyboardTracking(False)
 
         # Calculate a consistent width
-        max_width = max(self.entry_deltaZ.sizeHint().width(), self.entry_dt.sizeHint().width())
+        max_delta_width = max(self.entry_deltaZ.sizeHint().width(), self.entry_dt.sizeHint().width())
+        self.entry_deltaZ.setFixedWidth(max_delta_width)
+        self.entry_dt.setFixedWidth(max_delta_width)
 
-        # Apply the consistent width
-        self.entry_deltaZ.setFixedWidth(max_width)
-        self.entry_dt.setFixedWidth(max_width)
+        max_num_width = max(self.entry_NX.sizeHint().width(),
+                            self.entry_NY.sizeHint().width(),
+                            self.entry_NZ.sizeHint().width(),
+                            self.entry_Nt.sizeHint().width())
+        self.entry_NX.setFixedWidth(max_num_width)
+        self.entry_NY.setFixedWidth(max_num_width)
+        self.entry_NZ.setFixedWidth(max_num_width)
+        self.entry_Nt.setFixedWidth(max_num_width)
 
         self.list_configurations = QListWidget()
         for microscope_configuration in self.configurationManager.configurations:
@@ -2226,39 +2223,61 @@ class MultiPointWidget2(QFrame):
         grid_line1.addWidget(self.btn_import_locations, 2, 0, 1, 4)
         grid_line1.addWidget(self.btn_export_locations, 2, 4, 1, 4)
 
-        grid_line2 = QGridLayout()
-        # Add first half (Nx and Ny)
-        grid_line2.addWidget(QLabel('Nx'), 3, 0, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_NX, 3, 1) 
-        grid_line2.addWidget(QLabel('Ny'), 3, 2, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_NY, 3, 3)
+        # Create spacer items
+        EDGE_SPACING = 4  # Adjust this value as needed
+        edge_spacer = QSpacerItem(EDGE_SPACING, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
-        # Add second half (FOV Overlap)
-        grid_line2.addWidget(QLabel('FOV Overlap'), 3, 4, 1, 2, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_overlap, 3, 6, 1, 2)
+        # Create first row layouts
+        xy_half = QHBoxLayout()
+        xy_half.addWidget(QLabel('Nx'))
+        xy_half.addWidget(self.entry_NX)
+        xy_half.addStretch(1)
+        xy_half.addWidget(QLabel('Ny'))
+        xy_half.addWidget(self.entry_NY)
+        xy_half.addSpacerItem(edge_spacer)
 
-        grid_line2.addWidget(QLabel('dz'), 4, 0, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_deltaZ, 4, 1)
-        grid_line2.addWidget(QLabel('Nz'), 4, 2, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_NZ, 4, 3)
+        overlap_half = QHBoxLayout()
+        overlap_half.addSpacerItem(edge_spacer)
+        overlap_half.addWidget(QLabel('FOV Overlap'), alignment=Qt.AlignRight)
+        overlap_half.addWidget(self.entry_overlap)
 
-        grid_line2.addWidget(QLabel('dt'), 4, 4, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_dt, 4, 5)
-        grid_line2.addWidget(QLabel('Nt'), 4, 6, Qt.AlignRight)
-        grid_line2.addWidget(self.entry_Nt, 4, 7)
+        # Create second row layouts
+        dz_half = QHBoxLayout()
+        dz_half.addWidget(QLabel('dz'))
+        dz_half.addWidget(self.entry_deltaZ)
+        dz_half.addStretch(1)
+        dz_half.addWidget(QLabel('Nz'))
+        dz_half.addWidget(self.entry_NZ)
+        dz_half.addSpacerItem(edge_spacer)
+
+        dt_half = QHBoxLayout()
+        dt_half.addSpacerItem(edge_spacer)
+        dt_half.addWidget(QLabel('dt'))
+        dt_half.addWidget(self.entry_dt)
+        dt_half.addStretch(1)
+        dt_half.addWidget(QLabel('Nt'))
+        dt_half.addWidget(self.entry_Nt)
+
+        # Add the layouts to grid_line1
+        grid_line1.addLayout(xy_half, 3, 0, 1, 4)
+        grid_line1.addLayout(overlap_half, 3, 4, 1, 4)
+        grid_line1.addLayout(dz_half, 4, 0, 1, 4)
+        grid_line1.addLayout(dt_half, 4, 4, 1, 4)
 
         self.z_min_layout = QHBoxLayout()
-        self.z_min_layout.addWidget(QLabel('Z-min'))
+        self.z_min_layout.addWidget(self.set_minZ_button)
+        self.z_min_layout.addWidget(QLabel('Z-min'), Qt.AlignRight)
         self.z_min_layout.addWidget(self.entry_minZ)
-        self.z_min_layout.addWidget(self.set_minZ_button, Qt.AlignLeft)
+        self.z_min_layout.addSpacerItem(edge_spacer)
 
         self.z_max_layout = QHBoxLayout()
-        self.z_max_layout.addWidget(QLabel('Z-max'))
+        self.z_max_layout.addSpacerItem(edge_spacer)
+        self.z_max_layout.addWidget(self.set_maxZ_button)
+        self.z_max_layout.addWidget(QLabel('Z-max'), Qt.AlignRight)
         self.z_max_layout.addWidget(self.entry_maxZ)
-        self.z_max_layout.addWidget(self.set_maxZ_button, Qt.AlignLeft)
 
-        grid_line2.addLayout(self.z_min_layout, 5, 0, 1, 4) # hide this in toggle
-        grid_line2.addLayout(self.z_max_layout, 5, 4, 1, 4) # hide this in toggle
+        grid_line1.addLayout(self.z_min_layout, 5, 0, 1, 4) # hide this in toggle
+        grid_line1.addLayout(self.z_max_layout, 5, 4, 1, 4) # hide this in toggle
 
         grid_af = QVBoxLayout()
         grid_af.addWidget(self.checkbox_withAutofocus)
@@ -2271,23 +2290,38 @@ class MultiPointWidget2(QFrame):
         if ENABLE_STITCHER:
             grid_af.addWidget(self.checkbox_stitchOutput)
 
-        grid_line2.addWidget(self.list_configurations,6,0,1,4)
-        grid_line2.addLayout(grid_af,6,4,1,2, Qt.AlignCenter)
-        grid_line2.addWidget(self.btn_startAcquisition,6,6,1,2)
+        grid_config = QHBoxLayout()
+        grid_config.addWidget(self.list_configurations)
+        grid_config.addSpacerItem(edge_spacer)
 
-        #set column stetch of 0-3 equal to 4-7
-        #set column stetch of 0-1 equal to 2-3
+        grid_acquisition = QHBoxLayout()
+        grid_acquisition.addSpacerItem(edge_spacer)
+        grid_acquisition.addLayout(grid_af)
+        grid_acquisition.addWidget(self.btn_startAcquisition)
+
+        grid_line1.addLayout(grid_config,6,0,3,4)
+        grid_line1.addLayout(grid_acquisition,6,4,3,4)
+
         # Columns 0-3: Combined stretch factor = 4
-        grid_line2.setColumnStretch(0, 1)
-        grid_line2.setColumnStretch(1, 1)
-        grid_line2.setColumnStretch(2, 1)
-        grid_line2.setColumnStretch(3, 1)
+        grid_line1.setColumnStretch(0, 1)
+        grid_line1.setColumnStretch(1, 1)
+        grid_line1.setColumnStretch(2, 1)
+        grid_line1.setColumnStretch(3, 1)
 
         # Columns 4-7: Combined stretch factor = 4
-        grid_line2.setColumnStretch(4, 1)
-        grid_line2.setColumnStretch(5, 1)
-        grid_line2.setColumnStretch(6, 1)
-        grid_line2.setColumnStretch(7, 1)
+        grid_line1.setColumnStretch(4, 1)
+        grid_line1.setColumnStretch(5, 1)
+        grid_line1.setColumnStretch(6, 1)
+        grid_line1.setColumnStretch(7, 1)
+
+        grid_line1.setRowStretch(0, 0)  # Location list row
+        grid_line1.setRowStretch(1, 0)  # Button row
+        grid_line1.setRowStretch(2, 0)  # Import/Export buttons
+        grid_line1.setRowStretch(3, 0)  # Nx/Ny and overlap row
+        grid_line1.setRowStretch(4, 0)  # dz/Nz and dt/Nt row
+        grid_line1.setRowStretch(5, 0)  # Z-range row
+        grid_line1.setRowStretch(6, 1)  # Configuration/AF row - allow this to stretch
+        grid_line1.setRowStretch(7, 0)  # Last row
 
         # Row : Progress Bar
         row_progress_layout = QHBoxLayout()
@@ -2298,8 +2332,6 @@ class MultiPointWidget2(QFrame):
         self.grid = QVBoxLayout()
         self.grid.addLayout(grid_line0)
         self.grid.addLayout(grid_line1)
-        self.grid.addLayout(grid_line2)
-        #self.grid.addLayout(grid_line3,4,0)
         self.grid.addLayout(row_progress_layout)
         self.setLayout(self.grid)
 
@@ -2694,27 +2726,31 @@ class MultiPointWidget2(QFrame):
         self.btn_startAcquisition.setEnabled(True)
 
     def add_location(self):
-        x = round(self.navigationController.x_pos_mm, 3)
-        y = round(self.navigationController.y_pos_mm, 3)
-        z = round(self.navigationController.z_pos_mm, 3)
-        name = f'R{len(self.location_ids)}'  # ID based on current length of location_ids
+        # Get raw positions without rounding
+        x = self.navigationController.x_pos_mm
+        y = self.navigationController.y_pos_mm
+        z = self.navigationController.z_pos_mm
+        name = f'R{len(self.location_ids)}'
 
-        # Check for duplicates
-        if not np.any(np.all(self.location_list[:, :2] == [x, y], axis=1)):
-            # Update location data
+        # Check for duplicates using rounded values for comparison
+        if not np.any(np.all(self.location_list[:, :2] == [round(x,3), round(y,3)], axis=1)):
+            # Store actual values in location_list
             self.location_list = np.vstack((self.location_list, [[x, y, z]]))
             self.location_ids = np.append(self.location_ids, name)
 
-            # Update UI
-            location_str = f"x:{x} mm  y:{y} mm  z:{z*1000} μm"
+            # Display rounded values in UI
+            location_str = f"x:{round(x,3)} mm  y:{round(y,3)} mm  z:{round(z*1000,1)} μm"
             self.dropdown_location_list.addItem(location_str)
-            self.table_location_list.insertRow(self.table_location_list.rowCount())
-            self.table_location_list.setItem(self.table_location_list.rowCount() - 1, 0, QTableWidgetItem(str(x)))
-            self.table_location_list.setItem(self.table_location_list.rowCount() - 1, 1, QTableWidgetItem(str(y)))
-            self.table_location_list.setItem(self.table_location_list.rowCount() - 1, 2, QTableWidgetItem(str(z * 1000)))
-            self.table_location_list.setItem(self.table_location_list.rowCount() - 1, 3, QTableWidgetItem(name))
 
-            # Create region coordinates and update overlays
+            # Update table with rounded display values
+            row = self.table_location_list.rowCount()
+            self.table_location_list.insertRow(row)
+            self.table_location_list.setItem(row, 0, QTableWidgetItem(str(round(x,3))))
+            self.table_location_list.setItem(row, 1, QTableWidgetItem(str(round(y,3))))
+            self.table_location_list.setItem(row, 2, QTableWidgetItem(str(round(z*1000,1))))
+            self.table_location_list.setItem(row, 3, QTableWidgetItem(name))
+
+            # Store actual values in region coordinates
             self.region_coordinates[name] = [x, y, z]
             scan_coordinates = self.create_region_coordinates(x, y, overlap_percent=self.entry_overlap.value())
             self.region_fov_coordinates_dict[name] = scan_coordinates
@@ -2722,7 +2758,6 @@ class MultiPointWidget2(QFrame):
             print(f"Added Region: {name} - x={x}, y={y}, z={z}")
         else:
             print("Duplicate location not added.")
-
 
     def remove_location(self):
         index = self.dropdown_location_list.currentIndex()
@@ -2733,8 +2768,7 @@ class MultiPointWidget2(QFrame):
             print(f"Location IDs: {self.location_ids}")
             print(f"Region FOV Coordinates Dict Keys: {list(self.region_fov_coordinates_dict.keys())}")
 
-            print(f"Removing Region: {region_id}")
-            # Remove overlays
+            # Remove overlays using actual stored coordinates
             if region_id in self.region_fov_coordinates_dict:
                 for coord in self.region_fov_coordinates_dict[region_id]:
                     self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
@@ -2746,17 +2780,20 @@ class MultiPointWidget2(QFrame):
             if region_id in self.region_coordinates:
                 del self.region_coordinates[region_id]
 
-            # Update remaining IDs
+            # Update remaining IDs and UI
             for i in range(index, len(self.location_ids)):
                 old_id = self.location_ids[i]
                 new_id = f'R{i}'
                 self.location_ids[i] = new_id
+
+                # Update dictionaries
                 self.region_coordinates[new_id] = self.region_coordinates.pop(old_id)
                 self.region_fov_coordinates_dict[new_id] = self.region_fov_coordinates_dict.pop(old_id)
 
-                # Update UI
+                # Update UI with rounded display values
                 self.table_location_list.setItem(i, 3, QTableWidgetItem(new_id))
-                location_str = f"x:{self.location_list[i, 0]} mm  y:{self.location_list[i, 1]} mm  z:{self.location_list[i, 2] * 1000} μm"
+                x, y, z = self.location_list[i]
+                location_str = f"x:{round(x,3)} mm  y:{round(y,3)} mm  z:{round(z*1000,1)} μm"
                 self.dropdown_location_list.setItemText(i, location_str)
 
             # Update UI
@@ -3151,20 +3188,20 @@ class MultiPointWidgetGrid(QFrame):
 
         # Z-min
         self.z_min_layout = QHBoxLayout()
+        self.z_min_layout.addWidget(self.set_minZ_button)
         min_label = QLabel('Z-min')
         min_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.z_min_layout.addWidget(min_label)
         self.z_min_layout.addWidget(self.entry_minZ)
-        self.z_min_layout.addWidget(self.set_minZ_button, Qt.AlignLeft)
         grid.addLayout(self.z_min_layout, 1, 0)
 
          # Z-max
         self.z_max_layout = QHBoxLayout()
+        self.z_max_layout.addWidget(self.set_maxZ_button)
         max_label = QLabel('Z-max')
         max_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.z_max_layout.addWidget(max_label)
         self.z_max_layout.addWidget(self.entry_maxZ)
-        self.z_max_layout.addWidget(self.set_maxZ_button, Qt.AlignLeft)
         grid.addLayout(self.z_max_layout, 1, 2)
 
         w = max(min_label.sizeHint().width(), max_label.sizeHint().width())

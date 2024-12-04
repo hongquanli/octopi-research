@@ -42,7 +42,6 @@ import random
 import numpy as np
 import pandas as pd
 import scipy.signal
-from scipy import interpolate
 import cv2
 import imageio as iio
 
@@ -4068,10 +4067,6 @@ class ScanCoordinates(object):
                 self.name.append(self._index_to_row(row)+str(column+1))
             _increasing = not _increasing
         return len(selected_wells) # if wells selected
-
-    def get_approx_well_from_coordinate(self, x_mm, y_mm):
-        pass
-        # to implement later 
 
 
 class LaserAutofocusController(QObject):
