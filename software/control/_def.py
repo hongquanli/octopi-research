@@ -429,7 +429,7 @@ DEFAULT_MULTIPOINT_NX=1
 DEFAULT_MULTIPOINT_NY=1
 
 ENABLE_FLEXIBLE_MULTIPOINT = True
-ENABLE_SCAN_GRID = True
+ENABLE_WELLPLATE_MULTIPOINT = True
 ENABLE_RECORDING = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file

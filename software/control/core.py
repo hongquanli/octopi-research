@@ -2072,15 +2072,15 @@ class MultiPointWorker(QObject):
                     self.scan_coordinates_mm[region_id][2] = self.navigationController.z_pos_mm
                     # update the coordinate in the widget
                     if self.coordinate_dict is not None:
-                        self.microscope.multiPointWidgetGrid.update_region_z_level(region_id, self.navigationController.z_pos_mm)
+                        self.microscope.wellplateMultiPointWidget.update_region_z_level(region_id, self.navigationController.z_pos_mm)
                     elif self.multiPointController.location_list is not None:
                         try:
-                            self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                            self.microscope.flexibleMultiPointWidget._update_z(region_id, self.navigationController.z_pos_mm)
                         except:
                             print("failed update flexible widget z")
                             pass
                         try:
-                            self.microscope.multiPointWidgetGrid.update_region_z_level(region_id, self.navigationController.z_pos_mm)
+                            self.microscope.wellplateMultiPointWidget.update_region_z_level(region_id, self.navigationController.z_pos_mm)
                         except:
                             print("failed update grid widget z")
                             pass

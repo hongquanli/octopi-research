@@ -1997,7 +1997,7 @@ class StatsDisplayWidget(QFrame):
             row+=1
 
 
-class MultiPointWidget2(QFrame):
+class FlexibleMultiPointWidget(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
@@ -2959,7 +2959,7 @@ class MultiPointWidget2(QFrame):
             print(self.location_list)
 
 
-class MultiPointWidgetGrid(QFrame):
+class WellplateMultiPointWidget(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
