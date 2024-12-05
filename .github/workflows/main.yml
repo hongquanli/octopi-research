@@ -1,0 +1,24 @@
+name: Install Environment and Run Tests
+
+on:
+  push:
+    branches: master
+  pull_request:
+
+jobs:
+  install-and-test:
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: ./software
+    steps:
+      - name: Checkout the Squid repo
+        uses: actions/checkout@v4
+      - name: Run the setup script for Ubuntu 22.04
+        run: ./setup_22.04.sh
+      - name: Run the cuda setup script
+        run: ./setup_cuda_22.04.sh
+      - name: Run the tests
+        run: python3 -m pytest
