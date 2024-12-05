@@ -5286,6 +5286,187 @@ class NapariMultiChannelWidget(QWidget):
         self.viewer.window.activate()
 
 
+class NapariTiledDisplayWidget(QWidget):
+
+    signal_coordinates_clicked = Signal(int, int, int, int, int, int, float, float)
+
+    def __init__(self, objectiveStore, contrastManager, parent=None):
+        super().__init__(parent)
+        # Initialize placeholders for the acquisition parameters
+        self.objectiveStore = objectiveStore
+        self.contrastManager = contrastManager
+        self.downsample_factor = PRVIEW_DOWNSAMPLE_FACTOR
+        self.image_width = 0
+        self.image_height = 0
+        self.dtype = np.uint8
+        self.channels = set()
+        self.Nx = 1
+        self.Ny = 1
+        self.Nz = 1
+        self.dz_um = 1
+        self.pixel_size_um = 1
+        self.layers_initialized = False
+        self.acquisition_initialized = False
+        self.viewer_scale_initialized = False
+        self.initNapariViewer()
+
+    def initNapariViewer(self):
+        self.viewer = napari.Viewer(show=False) #, ndisplay=3)
+        self.viewerWidget = self.viewer.window._qt_window
+        self.viewer.dims.axis_labels = ['Z-axis', 'Y-axis', 'X-axis']
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.viewerWidget)
+        self.setLayout(self.layout)
+        self.customizeViewer()
+
+    def customizeViewer(self):
+        # Hide the status bar (which includes the activity button)
+        if hasattr(self.viewer.window, '_status_bar'):
+            self.viewer.window._status_bar.hide()
+
+        # Hide the layer buttons
+        if hasattr(self.viewer.window._qt_viewer, 'layerButtons'):
+            self.viewer.window._qt_viewer.layerButtons.hide()
+
+    def initLayersShape(self, Nx, Ny, Nz, dx, dy, dz):
+        self.acquisition_initialized = False
+        self.Nx = Nx
+        self.Ny = Ny
+        self.Nz = Nz
+        self.dx_mm = dx
+        self.dy_mm = dy
+        self.dz_um = dz if Nz > 1 and dz != 0 else 1.0
+        pixel_size_um = self.objectiveStore.get_pixel_size()
+        self.pixel_size_um = pixel_size_um * self.downsample_factor
+
+    def initChannels(self, channels):
+        self.channels = set(channels)
+
+    def extractWavelength(self, name):
+        # Split the string and find the wavelength number immediately after "Fluorescence"
+        parts = name.split()
+        if 'Fluorescence' in parts:
+            index = parts.index('Fluorescence') + 1
+            if index < len(parts):
+                return parts[index].split()[0]  # Assuming '488 nm Ex' and taking '488'
+        for color in ['R', 'G', 'B']:
+            if color in parts or f"full_{color}" in parts:
+                return color
+        return None
+
+    def generateColormap(self, channel_info):
+        """Convert a HEX value to a normalized RGB tuple."""
+        c0 = (0, 0, 0)
+        c1 = (((channel_info['hex'] >> 16) & 0xFF) / 255,  # Normalize the Red component
+             ((channel_info['hex'] >> 8) & 0xFF) / 255,      # Normalize the Green component
+             (channel_info['hex'] & 0xFF) / 255)             # Normalize the Blue component
+        return Colormap(colors=[c0, c1], controls=[0, 1], name=channel_info['name'])
+
+    def initLayers(self, image_height, image_width, image_dtype):
+        """Initializes the full canvas for each channel based on the acquisition parameters."""
+        if self.acquisition_initialized:
+            for layer in list(self.viewer.layers):
+                if layer.name not in self.channels:
+                    self.viewer.layers.remove(layer)
+        else:
+            self.viewer.layers.clear()
+            self.acquisition_initialized = True
+
+        self.image_width = image_width // self.downsample_factor
+        self.image_height = image_height // self.downsample_factor
+        self.dtype = np.dtype(image_dtype)
+        self.layers_initialized = True
+        self.resetView()
+        self.viewer_scale_initialized = False
+
+    def updateLayers(self, image, i, j, k, channel_name):
+        """Updates the appropriate slice of the canvas with the new image data."""
+        if i == -1 or j == -1:
+            print("no tiled preview for coordinate acquisition")
+            return
+
+        # Check if the layer exists and has a different dtype
+        if self.dtype != image.dtype:
+            # Remove the existing layer
+            self.layers_initialized = False
+            self.acquisition_initialized = False
+
+        if not self.layers_initialized:
+            self.initLayers(image.shape[0], image.shape[1], image.dtype)
+
+        rgb = len(image.shape) == 3  # Check if image is RGB based on shape
+        if channel_name not in self.viewer.layers:
+            self.channels.add(channel_name)
+            if rgb:
+                color = None  # No colormap for RGB images
+                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width, 3), dtype=self.dtype)
+            else:
+                channel_info = CHANNEL_COLORS_MAP.get(self.extractWavelength(channel_name), {'hex': 0xFFFFFF, 'name': 'gray'})
+                if channel_info['name'] in AVAILABLE_COLORMAPS:
+                    color = AVAILABLE_COLORMAPS[channel_info['name']]
+                else:
+                    color = self.generateColormap(channel_info)
+                canvas = np.zeros((self.Nz, self.Ny * self.image_height, self.Nx * self.image_width), dtype=self.dtype)
+
+            limits = self.getContrastLimits(self.dtype)
+            layer = self.viewer.add_image(canvas, name=channel_name, visible=True, rgb=rgb,
+                                          colormap=color, contrast_limits=limits, blending='additive',
+                                          scale=(self.dz_um, self.pixel_size_um, self.pixel_size_um))
+            # print(f"tiled display - dz_um:{self.dz_um}, pixel_y_um:{self.pixel_size_um}, pixel_x_um:{self.pixel_size_um}")
+            layer.contrast_limits = self.contrastManager.get_limits(channel_name)
+            layer.events.contrast_limits.connect(self.signalContrastLimits)
+            layer.mouse_double_click_callbacks.append(self.onDoubleClick)
+
+        image = cv2.resize(image, (self.image_width, self.image_height), interpolation=cv2.INTER_AREA)
+
+        if not self.viewer_scale_initialized:
+            self.resetView()
+            self.viewer_scale_initialized = True
+        self.viewer.dims.set_point(0, k * self.dz_um)
+        layer = self.viewer.layers[channel_name]
+        layer.contrast_limits = self.contrastManager.get_limits(channel_name)
+        layer_data = layer.data
+        y_slice = slice(i * self.image_height, (i + 1) * self.image_height)
+        x_slice = slice(j * self.image_width, (j + 1) * self.image_width)
+        if rgb:
+            layer_data[k, y_slice, x_slice, :] = image
+        else:
+            layer_data[k, y_slice, x_slice] = image
+        layer.data = layer_data
+        layer.refresh()
+
+    def signalContrastLimits(self, event):
+        layer = event.source
+        min_val, max_val = map(float, layer.contrast_limits)
+        self.contrastManager.update_limits(layer.name, min_val, max_val)
+
+    def getContrastLimits(self, dtype):
+        return self.contrastManager.get_default_limits()
+
+    def onDoubleClick(self, layer, event):
+        """Handle double-click events and emit centered coordinates if within the data range."""
+        coords = layer.world_to_data(event.position)
+        layer_shape = layer.data.shape[0:3] if len(layer.data.shape) >= 4 else layer.data.shape
+
+        if coords is not None and (0 <= int(coords[-1]) < layer_shape[-1] and (0 <= int(coords[-2]) < layer_shape[-2])):
+            x_centered = int(coords[-1] - layer_shape[-1] / 2)
+            y_centered = int(coords[-2] - layer_shape[-2] / 2)
+            # Emit the centered coordinates and dimensions of the layer's data array
+            self.signal_coordinates_clicked.emit(x_centered, y_centered,
+                                                 layer_shape[-1], layer_shape[-2],
+                                                 self.Nx, self.Ny,
+                                                 self.dx_mm, self.dy_mm)
+
+    def resetView(self):
+        self.viewer.reset_view()
+        for layer in self.viewer.layers:
+            layer.refresh()
+
+    def activate(self):
+        print("ACTIVATING NAPARI TILED DISPLAY WIDGET")
+        self.viewer.window.activate()
+
+
 class NapariMosaicDisplayWidget(QWidget):
 
     signal_coordinates_clicked = Signal(float, float)  # x, y in mm
