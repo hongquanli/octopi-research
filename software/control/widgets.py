@@ -2340,12 +2340,12 @@ class FlexibleMultiPointWidget(QFrame):
         self.base_path_is_set = False
         self.location_list = np.empty((0, 3), dtype=float)
         self.location_ids = np.empty((0,), dtype='<U20')
-        self.region_coordinates = {}
-        self.region_fov_coordinates_dict = {}
+        self.region_coordinates = {} # region_id, region center coord
+        self.region_fov_coordinates_dict = {} # region_id, region fov coords
         self.use_overlap = USE_OVERLAP_FOR_FLEXIBLE
         self.add_components()
         self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        self.acquisition_in_place=False
+        self.acquisition_in_place = False
 
     def add_components(self):
 
@@ -3013,7 +3013,6 @@ class FlexibleMultiPointWidget(QFrame):
             if len(self.location_list) == 0:
                 self.add_location()
                 self.acquisition_in_place = True
-                self.multipointController.location_list = self.location_list
 
             self.update_fov_positions()
 
@@ -3406,8 +3405,8 @@ class WellplateMultiPointWidget(QFrame):
         self.base_path_is_set = False
         self.well_selected = False
         self.num_regions = 0
-        self.region_coordinates = {}
-        self.region_fov_coordinates_dict = {}
+        self.region_coordinates = {} # region_id, region center coordinate
+        self.region_fov_coordinates_dict = {} # region_id, region fov coordinates
         self.acquisition_start_time = None
         self.manual_shape = None
         self.eta_seconds = 0

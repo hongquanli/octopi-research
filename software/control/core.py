@@ -2638,6 +2638,8 @@ class MultiPointController(QObject):
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
 
     def run_acquisition(self, location_list=None, coordinate_dict=None):
+        # location_list dict -> {key: region_id, value: center coordinate (x,y,z)}
+        # coordinate_dict dict -> {key: region_id, value: fov coordinates list [(x0,y0,z0), (x1,y1,z1), ... ]}
         print('start multipoint')
 
         if coordinate_dict is not None:
