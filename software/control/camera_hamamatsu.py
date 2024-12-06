@@ -174,7 +174,11 @@ class Camera(object):
         pass
 
     def set_exposure_time(self, exposure_time):
-        if self.dcam.prop_setvalue(DCAM_IDPROP.EXPOSURETIME, exposure_time / 1000):
+        if self.trigger_mode == TriggerMode.SOFTWARE:
+            adjusted = exposure_time / 1000
+        elif self.trigger_mode == TriggerMode.HARDWARE:
+            adjusted = self.strobe_delay_us / 1000000 + exposure_time / 1000
+        if self.dcam.prop_setvalue(DCAM_IDPROP.EXPOSURETIME, adjusted):
             self.exposure_time = exposure_time
 
     def set_continuous_acquisition(self):
@@ -315,7 +319,7 @@ class Camera(object):
             self.start_streaming()
 
     def calculate_strobe_delay(self):
-        self.strobe_delay_us = int(self.dcam.prop_getvalue(DCAM_IDPROP.TIMING_GLOBALEXPOSUREDELAY) * 1000000)   # s to us
+        self.strobe_delay_us = int(self.dcam.prop_getvalue(DCAM_IDPROP.INTERNAL_LINEINTERVAL) * 1000000 * 2304 + self.dcam.prop_getvalue(DCAM_IDPROP.TRIGGERDELAY) *1000000)   # s to us
 
 
 class Camera_Simulation(object):
