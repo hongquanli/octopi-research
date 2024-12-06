@@ -3123,6 +3123,10 @@ class FlexibleMultiPointWidget(QFrame):
 
         # Check for duplicates using rounded values for comparison
         if not np.any(np.all(self.location_list[:, :2] == [round(x,3), round(y,3)], axis=1)):
+            # Block signals to prevent triggering cell_was_changed
+            self.table_location_list.blockSignals(True)
+            self.dropdown_location_list.blockSignals(True)
+
             # Store actual values in location_list
             self.location_list = np.vstack((self.location_list, [[x, y, z]]))
             self.location_ids = np.append(self.location_ids, name)
@@ -3148,57 +3152,66 @@ class FlexibleMultiPointWidget(QFrame):
             self.region_fov_coordinates_dict[name] = scan_coordinates
 
             print(f"Added Region: {name} - x={x}, y={y}, z={z}")
+
+            # Set the current index to the newly added location
+            self.dropdown_location_list.setCurrentIndex(len(self.location_ids) - 1)
+            self.table_location_list.selectRow(row)
+
+            # Re-enable signals after the addition is complete
+            self.table_location_list.blockSignals(False)
+            self.dropdown_location_list.blockSignals(False)
         else:
             print("Duplicate location not added.")
 
     def remove_location(self):
         index = self.dropdown_location_list.currentIndex()
         if index >= 0:
-            # Get the region ID
+            # Remove region ID and associated data
             region_id = self.location_ids[index]
-            print("Before Removal:")
-            print(f"Location IDs: {self.location_ids}")
-            print(f"Region FOV Coordinates Dict Keys: {list(self.region_fov_coordinates_dict.keys())}")
+            print(f"Removing region: {region_id}")
 
-            # Remove overlays using actual stored coordinates
-            if region_id in self.region_fov_coordinates_dict:
-                for coord in self.region_fov_coordinates_dict[region_id]:
-                    self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
-                del self.region_fov_coordinates_dict[region_id]
+            # Block signals to prevent unintended UI updates
+            self.table_location_list.blockSignals(True)
+            self.dropdown_location_list.blockSignals(True)
 
-            # Remove from data structures
+            # Remove overlays and dictionaries
+            for coord in self.region_fov_coordinates_dict.pop(region_id, []):
+                self.navigationViewer.deregister_fov_to_image(coord[0], coord[1])
+
+            self.region_coordinates.pop(region_id, None)
             self.location_list = np.delete(self.location_list, index, axis=0)
             self.location_ids = np.delete(self.location_ids, index)
-            if region_id in self.region_coordinates:
-                del self.region_coordinates[region_id]
 
-            # Update remaining IDs and UI
+            # Update UI
+            self.dropdown_location_list.removeItem(index)
+            self.table_location_list.removeRow(index)
+
+            # Reindex remaining regions and update UI
             for i in range(index, len(self.location_ids)):
                 old_id = self.location_ids[i]
                 new_id = f'R{i}'
                 self.location_ids[i] = new_id
 
                 # Update dictionaries
-                self.region_coordinates[new_id] = self.region_coordinates.pop(old_id)
-                self.region_fov_coordinates_dict[new_id] = self.region_fov_coordinates_dict.pop(old_id)
+                self.region_coordinates[new_id] = self.region_coordinates.pop(old_id, None)
+                self.region_fov_coordinates_dict[new_id] = self.region_fov_coordinates_dict.pop(old_id, [])
 
-                # Update UI with rounded display values
-                self.table_location_list.setItem(i, 3, QTableWidgetItem(new_id))
+                # Update UI with new ID and coordinates
                 x, y, z = self.location_list[i]
-                location_str = f"x:{round(x,3)} mm  y:{round(y,3)} mm  z:{round(z*1000,1)} μm"
+                location_str = f"x:{round(x, 3)} mm  y:{round(y, 3)} mm  z:{round(z * 1000, 1)} μm"
                 self.dropdown_location_list.setItemText(i, location_str)
+                self.table_location_list.setItem(i, 3, QTableWidgetItem(new_id))
 
-            # Update UI
-            self.dropdown_location_list.removeItem(index)
-            self.table_location_list.removeRow(index)
-
-            print("After Removal:")
-            print(f"Location IDs: {self.location_ids}")
-            print(f"Region FOV Coordinates Dict Keys: {list(self.region_fov_coordinates_dict.keys())}")
+            # Re-enable signals
+            self.table_location_list.blockSignals(False)
+            self.dropdown_location_list.blockSignals(False)
 
             # Clear overlay if no locations remain
             if len(self.location_list) == 0:
                 self.navigationViewer.clear_overlay()
+
+            print(f"Remaining location IDs: {self.location_ids}")
+
 
     def create_point_id(self):
         self.scanCoordinates.get_selected_wells()
@@ -3810,6 +3823,7 @@ class WellplateMultiPointWidget(QFrame):
         self.set_default_shape()
         print(self.navigationViewer.sample)
         if 'glass slide' in self.navigationViewer.sample:
+            self.entry_scan_size.setValue(1.0) # init to 1mm when switching to 'glass slide'
             self.entry_scan_size.setEnabled(True)
             self.entry_well_coverage.setEnabled(False)
         else:
