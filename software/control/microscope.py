@@ -1,29 +1,25 @@
+import serial
 import time
-import os
-import sys
-from control._def import *
+
+from PyQt5.QtCore import QObject
+
 import control.core as core
-# import control.camera as camera
+from control._def import *
+import control
+
 if CAMERA_TYPE == "Toupcam":
     import control.camera_toupcam as camera
 import control.microcontroller as microcontroller
 import control.serial_peripherals as serial_peripherals
-import control.utils as utils
 
-import numpy as np
-from scipy.interpolate import griddata
-
-from qtpy.QtCore import *
-from qtpy.QtWidgets import *
-from qtpy.QtGui import *
 
 class Microscope(QObject):
 
-    def __init__(self, microscope=None,is_simulation=False):
+    def __init__(self, microscope=None, is_simulation=False):
         super().__init__()
         if microscope is None:
-            self.initialize_camera()
-            self.initialize_microcontroller()
+            self.initialize_camera(is_simulation=is_simulation)
+            self.initialize_microcontroller(is_simulation=is_simulation)
             self.initialize_core_components()
             self.initialize_peripherals()
         else:
@@ -41,7 +37,7 @@ class Microscope(QObject):
             elif USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
                 self.emission_filter_wheel = microscope.emission_filter_wheel
 
-    def initialize_camera(self,is_simulation):
+    def initialize_camera(self, is_simulation):
         if is_simulation:
             self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
         else:
@@ -52,9 +48,9 @@ class Microscope(QObject):
         self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
         self.camera.set_software_triggered_acquisition()
 
-    def initialize_microcontroller(self,is_simulation):
+    def initialize_microcontroller(self, is_simulation):
         if is_simulation:
-            self.microcontroller = microcontroller.Microcontroller_Simulation()
+            self.microcontroller = microcontroller.Microcontroller(existing_serial=control.microcontroller.SimSerial())
         else:
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION, sn=CONTROLLER_SN)
         

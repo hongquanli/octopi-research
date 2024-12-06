@@ -6,7 +6,11 @@ if [[ -n "$TRACE" ]]; then
   set -x
 fi
 
-readonly SRC_ROOT="$HOME/Desktop"
+if [[ -z "$SRC_ROOT" ]]; then
+  readonly SRC_ROOT="$HOME/Desktop"
+fi
+echo "Using SRC_ROOT=$SRC_ROOT"
+
 mkdir -p "$SRC_ROOT"
 readonly SQUID_REPO_HTTP="https://github.com/Cephla-Lab/Squid.git"
 readonly SQUID_REPO_NAME="Squid"
@@ -27,7 +31,7 @@ sudo apt-get install git -y
 cd "$SRC_ROOT"
 git clone "$SQUID_REPO_HTTP" "$SQUID_REPO_NAME"
 cd "$SQUID_SOFTWARE_ROOT"
-mkdir cache
+mkdir -p "$SQUID_SOFTWARE_ROOT/cache"
 
 # install libraries 
 pip3 install qtpy pyserial pandas imageio crc==1.3.0 lxml numpy tifffile scipy napari

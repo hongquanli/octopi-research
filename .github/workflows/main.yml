@@ -4,21 +4,31 @@ on:
   push:
     branches: master
   pull_request:
-
 jobs:
   install-and-test:
     permissions:
       contents: read
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        working-directory: ./software
     steps:
       - name: Checkout the Squid repo
         uses: actions/checkout@v4
       - name: Run the setup script for Ubuntu 22.04
         run: ./setup_22.04.sh
+        working-directory: ./software
+        env:
+          SRC_ROOT: "${{ runner.temp }}"
       - name: Run the cuda setup script
         run: ./setup_cuda_22.04.sh
+        working-directory: ./software
+        env:
+          SRC_ROOT: "${{ runner.temp }}"
+        # NOTE(imo): Our setup script checks out the repository, so we actually check it out twice.
+        # Once to get the script (using actions/checkout@v4), then again via the script.  We want to do
+        # all of our actually testing in the one the script checks out, though, so make sure we set SRC_ROOT
+        # properly and then use the same working directory for running within the setup script's checkout
+      - name: "TEMPORARY: copy a valid config into the repo software root"
+        run: cp configurations/configuration_Squid+.ini .
+        working-directory: "${{ runner.temp }}/Squid/software"
       - name: Run the tests
         run: python3 -m pytest
+        working-directory: "${{ runner.temp }}/Squid/software"
