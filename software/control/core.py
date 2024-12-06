@@ -1803,12 +1803,7 @@ class MultiPointWorker(QObject):
         # init z parameters, z range
         self.initialize_z_stack()
 
-        if self.coordinate_dict is not None:
-            print("coordinate acquisition")
-            self.run_coordinate_acquisition(current_path)
-        else:
-            print("grid acquisition")
-            self.run_grid_acquisition(current_path)
+        self.run_coordinate_acquisition(current_path)
 
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
@@ -1847,13 +1842,10 @@ class MultiPointWorker(QObject):
         base_columns = ['z_level', 'x (mm)', 'y (mm)', 'z (um)', 'time']
         piezo_column = ['z_piezo (um)'] if self.use_piezo else []
 
-        if IS_HCS:
-            if self.coordinate_dict is not None:
-                self.coordinates_pd = pd.DataFrame(columns=['region', 'fov'] + base_columns + piezo_column)
-            else:
-                self.coordinates_pd = pd.DataFrame(columns=['region', 'i', 'j'] + base_columns + piezo_column)
+        if self.coordinate_dict is not None:
+            self.coordinates_pd = pd.DataFrame(columns=['region', 'fov'] + base_columns + piezo_column)
         else:
-            self.coordinates_pd = pd.DataFrame(columns=['i', 'j'] + base_columns + piezo_column)
+            self.coordinates_pd = pd.DataFrame(columns=['region', 'i', 'j'] + base_columns + piezo_column)
 
     def update_coordinates_dataframe(self, region_id, z_level, fov=None, i=None, j=None):
         base_data = {
@@ -1889,17 +1881,6 @@ class MultiPointWorker(QObject):
 
         self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
-    def calculate_grid_indices(self, i, j):
-        # Ensure that i/y-indexing is always top to bottom
-        sgn_i = -1 if self.deltaY >= 0 else 1
-        sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
-        sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
-
-        real_i = self.NY-1-i if sgn_i == -1 else i
-        real_j = self.NX-1-j if sgn_j == -1 else j
-
-        return sgn_i, sgn_j, real_i, real_j
-
 
     def move_to_coordinate(self, coordinate_mm):
         print("moving to coordinate", coordinate_mm)
@@ -1934,60 +1915,6 @@ class MultiPointWorker(QObject):
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-
-    def run_grid_acquisition(self, current_path):
-        n_regions = len(self.scan_coordinates_mm)
-
-        for region_id in range(n_regions):
-            self.signal_acquisition_progress.emit(region_id + 1, n_regions, self.time_point)
-            coordinate_mm = self.scan_coordinates_mm[region_id]
-
-            self.x_scan_direction = 1
-            self.dx_usteps = 0 # accumulated x displacement
-            self.dy_usteps = 0 # accumulated y displacement
-
-            if self.use_scan_coordinates:
-                # Calculate grid size
-                grid_size_x_mm = (self.NX - 1) * self.deltaX
-                grid_size_y_mm = (self.NY - 1) * self.deltaY
-
-                # Calculate top-left corner position
-                start_x = coordinate_mm[0] - grid_size_x_mm / 2
-                start_y = coordinate_mm[1] - grid_size_y_mm / 2
-                if len(coordinate_mm) == 3:
-                    self.move_to_coordinate([start_x, start_y, coordinate_mm[2]])
-                else:
-                    self.move_to_coordinate([start_x, start_y])
-
-                self.wait_till_operation_is_completed()
-
-            self.num_fovs = self.NX * self.NY - len(self.multiPointController.scanCoordinates.grid_skip_positions)
-            self.total_scans = self.num_fovs * self.NZ * len(self.selected_configurations)
-            fov_count = 0 # count fovs for progress
-
-            for i in range(self.NY):
-                self.af_fov_count = 0 # for AF, so that AF at the beginning of each new row
-
-                for j in range(self.NX):
-                    sgn_i, sgn_j, real_i, real_j = self.calculate_grid_indices(i, j)
-
-                    if not self.multiPointController.scanCoordinates or (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
-                        self.acquire_at_position(region_id, current_path, fov_count, i=real_i, j=real_j)
-                        fov_count += 1
-
-                    if self.multiPointController.abort_acqusition_requested:
-                        self.handle_acquisition_abort(current_path, region_id)
-                        return
-
-                    if j < self.NX - 1:
-                        self.move_to_next_x_position()
-
-                if i < self.NY - 1:
-                    self.move_to_next_y_position()
-
-                self.x_scan_direction = -self.x_scan_direction
-
-            self.finish_grid_scan(n_regions, region_id)
 
     def run_coordinate_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
@@ -2145,15 +2072,15 @@ class MultiPointWorker(QObject):
                     self.scan_coordinates_mm[region_id][2] = self.navigationController.z_pos_mm
                     # update the coordinate in the widget
                     if self.coordinate_dict is not None:
-                        self.microscope.multiPointWidgetGrid.update_region_z_level(region_id, self.navigationController.z_pos_mm)
+                        self.microscope.wellplateMultiPointWidget.update_region_z_level(region_id, self.navigationController.z_pos_mm)
                     elif self.multiPointController.location_list is not None:
                         try:
-                            self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                            self.microscope.flexibleMultiPointWidget._update_z(region_id, self.navigationController.z_pos_mm)
                         except:
                             print("failed update flexible widget z")
                             pass
                         try:
-                            self.microscope.multiPointWidgetGrid.update_region_z_level(region_id, self.navigationController.z_pos_mm)
+                            self.microscope.wellplateMultiPointWidget.update_region_z_level(region_id, self.navigationController.z_pos_mm)
                         except:
                             print("failed update grid widget z")
                             pass
@@ -2451,18 +2378,6 @@ class MultiPointWorker(QObject):
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
 
-    def move_to_next_x_position(self):
-        self.navigationController.move_x_usteps(self.x_scan_direction*self.deltaX_usteps)
-        self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-        self.dx_usteps = self.dx_usteps + self.x_scan_direction*self.deltaX_usteps
-
-    def move_to_next_y_position(self):
-        self.navigationController.move_y_usteps(self.deltaY_usteps)
-        self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-        self.dy_usteps = self.dy_usteps + self.deltaY_usteps
-
     def move_z_for_stack(self):
         if self.use_piezo:
             self.z_piezo_um += self.deltaZ*1000
@@ -2509,40 +2424,6 @@ class MultiPointWorker(QObject):
                     self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
                     self.wait_till_operation_is_completed()
                 self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1)
-
-    def finish_grid_scan(self, n_regions, region_id):
-        print("moving slide back")
-        if SHOW_TILED_PREVIEW and IS_HCS:
-            self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-
-        if n_regions == 1:
-            # only move to the start position if there's only one region in the scan
-            if self.NY > 1:
-                # move y back
-                self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
-                self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
-
-            if SHOW_TILED_PREVIEW and not IS_HCS:
-                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-
-            # move x back at the end of the scan
-            if self.x_scan_direction == -1:
-                self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-                self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-            # move z back
-            if self.navigationController.get_pid_control_flag(2) is False:
-                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.move_z_to_usteps(self.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-            else:
-                self.navigationController.microcontroller.move_z_to_usteps(self.z_pos)
-                self.wait_till_operation_is_completed()
 
     def update_tiled_preview(self, current_round_images, i, j, k):
         if SHOW_TILED_PREVIEW and 'BF LED matrix full' in current_round_images:
@@ -2757,37 +2638,21 @@ class MultiPointController(QObject):
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
 
     def run_acquisition(self, location_list=None, coordinate_dict=None):
+        # location_list dict -> {key: region_id, value: center coordinate (x,y,z)}
+        # coordinate_dict dict -> {key: region_id, value: fov coordinates list [(x0,y0,z0), (x1,y1,z1), ... ]}
         print('start multipoint')
 
         if coordinate_dict is not None:
-            print('Using coordinate-based acquisition')
+            print('Using coordinate-based acquisition') # always
             total_points = sum(len(coords) for coords in coordinate_dict)
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
             self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = list(coordinate_dict.keys()) # list(coordinate_dict.keys()) if not wellplate
-        elif location_list is not None:
-            print('Using location list acquisition')
-            self.coordinate_dict = None
-            self.location_list = location_list
-            self.use_scan_coordinates = True
-            self.scan_coordinates_mm = location_list
-            self.scan_coordinates_name = [f'R{i}' for i in range(len(location_list))]
         else:
-            print(f"t_c_z_y_x: {self.Nt}_{len(self.selected_configurations)}_{self.NZ}_{self.NY}_{self.NX}")
-            self.coordinate_dict = None
-            self.location_list = None
-            if self.scanCoordinates is not None and self.scanCoordinates.get_selected_wells():
-                print('Using well plate scan')
-                self.use_scan_coordinates = True
-                self.scan_coordinates_mm = self.scanCoordinates.coordinates_mm
-                self.scan_coordinates_name = self.scanCoordinates.name
-            else:
-                print('Using current location')
-                self.use_scan_coordinates = False
-                self.scan_coordinates_mm = [(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)]
-                self.scan_coordinates_name = ['ROI']
+            print("obsolete functionailty. use coordinate acquisition instead of grid acquisition")
+            return
 
         print("num regions:",len(self.scan_coordinates_mm))
         print("region ids:", self.scan_coordinates_name)
@@ -4153,7 +4018,6 @@ class ScanCoordinates(object):
         self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
         self.well_spacing_mm = WELL_SPACING_MM
         self.well_size_mm = WELL_SIZE_MM
-        self.grid_skip_positions = []
 
     def _index_to_row(self,index):
         index += 1
