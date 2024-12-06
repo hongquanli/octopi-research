@@ -2321,11 +2321,11 @@ class MultiPointWidget(QFrame):
 
 class FlexibleMultiPointWidget(QFrame):
 
-    signal_acquisition_started = Signal(bool)
-    signal_acquisition_channels = Signal(list)
-    signal_acquisition_z_levels = Signal(int)
-    signal_acquisition_shape = Signal(int, float)
-    signal_stitcher_widget = Signal(bool)
+    signal_acquisition_started = Signal(bool) # true = started, false = finished
+    signal_acquisition_channels = Signal(list) # list channels
+    signal_acquisition_shape = Signal(int, float) # Nz, dz
+    signal_stitcher_z_levels = Signal(int) # live Nz
+    signal_stitcher_widget = Signal(bool) # signal start stitcher
 
     def __init__(self, navigationController, navigationViewer, multipointController, objectiveStore, configurationManager = None, main=None, scanCoordinates=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2721,7 +2721,7 @@ class FlexibleMultiPointWidget(QFrame):
         self.entry_NX.valueChanged.connect(self.multipointController.set_NX)
         self.entry_NY.valueChanged.connect(self.multipointController.set_NY)
         self.entry_NZ.valueChanged.connect(self.multipointController.set_NZ)
-        self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
+        self.entry_NZ.valueChanged.connect(self.signal_stitcher_z_levels.emit)
         self.entry_Nt.valueChanged.connect(self.multipointController.set_Nt)
         self.checkbox_genFocusMap.toggled.connect(self.multipointController.set_gen_focus_map_flag)
         self.checkbox_withAutofocus.toggled.connect(self.multipointController.set_af_flag)
@@ -3381,7 +3381,7 @@ class WellplateMultiPointWidget(QFrame):
 
     signal_acquisition_started = Signal(bool)
     signal_acquisition_channels = Signal(list)
-    signal_acquisition_z_levels = Signal(int)
+    signal_stitcher_z_levels = Signal(int)
     signal_acquisition_shape = Signal(int, float)
     signal_update_navigation_viewer = Signal()
     signal_stitcher_widget = Signal(bool)
@@ -3693,7 +3693,7 @@ class WellplateMultiPointWidget(QFrame):
         self.combobox_z_stack.currentIndexChanged.connect(self.signal_z_stacking.emit)
         if not self.performance_mode:
             self.napariMosaicWidget.signal_layers_initialized.connect(self.enable_manual_ROI)
-        self.entry_NZ.valueChanged.connect(self.signal_acquisition_z_levels.emit)
+        self.entry_NZ.valueChanged.connect(self.signal_stitcher_z_levels.emit)
 
     def enable_manual_ROI(self, enable):
         self.combobox_shape.model().item(2).setEnabled(enable)
