@@ -780,48 +780,6 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
-    def update_pos(self,microcontroller):
-        # get position from the microcontroller
-        last_x_pos = self.x_pos_mm
-        last_y_pos = self.y_pos_mm
-        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
-        self.z_pos = z_pos
-        # calculate position in mm or rad
-        if USE_ENCODER_X:
-            self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
-        else:
-            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
-        if USE_ENCODER_Y:
-            self.y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
-        else:
-            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
-        if USE_ENCODER_Z:
-            self.z_pos_mm = z_pos*ENCODER_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
-        else:
-            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*self.get_mm_per_ustep_Z()
-        if USE_ENCODER_THETA:
-            self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
-        else:
-            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
-
-        # emit the updated position
-        self.xPos.emit(self.x_pos_mm)
-        self.yPos.emit(self.y_pos_mm)
-        self.zPos.emit(self.z_pos_mm*1000)
-        self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
-        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
-
-        if microcontroller.signal_joystick_button_pressed_event:
-            if self.enable_joystick_button_action:
-                self.signal_joystick_button_pressed.emit()
-            print('joystick button pressed')
-            microcontroller.signal_joystick_button_pressed_event = False
-
-        # Check if position has changed
-        if last_x_pos != self.x_pos_mm or last_y_pos != self.y_pos_mm:
-            # restart movement timer
-            QMetaObject.invokeMethod(self.movement_timer, "start", Qt.QueuedConnection)
-
     def check_movement_status(self):
         """Check if stage has stopped moving after timer delay"""
         x_pos, y_pos, z_pos, theta_pos = self.microcontroller.get_pos()
@@ -956,6 +914,48 @@ class NavigationController(QObject):
 
     def move_z_to_usteps(self,usteps):
         self.microcontroller.move_z_to_usteps(usteps)
+
+    def update_pos(self,microcontroller):
+        # get position from the microcontroller
+        last_x_pos = self.x_pos_mm
+        last_y_pos = self.y_pos_mm
+        x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
+        self.z_pos = z_pos
+        # calculate position in mm or rad
+        if USE_ENCODER_X:
+            self.x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
+        else:
+            self.x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
+        if USE_ENCODER_Y:
+            self.y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
+        else:
+            self.y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
+        if USE_ENCODER_Z:
+            self.z_pos_mm = z_pos*ENCODER_POS_SIGN_Z*ENCODER_STEP_SIZE_Z_MM
+        else:
+            self.z_pos_mm = z_pos*STAGE_POS_SIGN_Z*self.get_mm_per_ustep_Z()
+        if USE_ENCODER_THETA:
+            self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
+        else:
+            self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+
+        # emit the updated position
+        self.xPos.emit(self.x_pos_mm)
+        self.yPos.emit(self.y_pos_mm)
+        self.zPos.emit(self.z_pos_mm*1000)
+        self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
+        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
+
+        if microcontroller.signal_joystick_button_pressed_event:
+            if self.enable_joystick_button_action:
+                self.signal_joystick_button_pressed.emit()
+            print('joystick button pressed')
+            microcontroller.signal_joystick_button_pressed_event = False
+
+        # Check if position has changed
+        if last_x_pos != self.x_pos_mm or last_y_pos != self.y_pos_mm:
+            # restart movement timer
+            QMetaObject.invokeMethod(self.movement_timer, "start", Qt.QueuedConnection)
 
     def home_x(self):
         self.microcontroller.home_x()
