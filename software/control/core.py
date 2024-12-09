@@ -780,27 +780,6 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
-    def check_movement_status(self):
-        """Check if stage has stopped moving after timer delay"""
-        x_pos, y_pos, z_pos, theta_pos = self.microcontroller.get_pos()
-        # calculate position in mm or rad
-        if USE_ENCODER_X:
-            x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
-        else:
-            x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
-        if USE_ENCODER_Y:
-            y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
-        else:
-            y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
-
-        delta_x = abs(self.x_pos_mm - x_pos_mm)
-        delta_y = abs(self.y_pos_mm - y_pos_mm)
-
-        # check if movement less than thresshold (i.e. stopped moving)
-        if delta_x < self.movement_threshold and delta_y < self.movement_threshold and not self.microcontroller.is_busy():
-            # emit pos to draw scan grid
-            self.scanGridPos.emit(self.x_pos_mm, self.y_pos_mm)
-
     def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9): # obsolete (only for tiled display)
         """
         napariTiledDisplay uses the Nx, Ny, dx_mm, dy_mm fields to move to the correct fov first
@@ -956,6 +935,27 @@ class NavigationController(QObject):
         if last_x_pos != self.x_pos_mm or last_y_pos != self.y_pos_mm:
             # restart movement timer
             QMetaObject.invokeMethod(self.movement_timer, "start", Qt.QueuedConnection)
+
+    def check_movement_status(self):
+        """Check if stage has stopped moving after timer delay"""
+        x_pos, y_pos, z_pos, theta_pos = self.microcontroller.get_pos()
+        # calculate position in mm or rad
+        if USE_ENCODER_X:
+            x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
+        else:
+            x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
+        if USE_ENCODER_Y:
+            y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
+        else:
+            y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
+
+        delta_x = abs(self.x_pos_mm - x_pos_mm)
+        delta_y = abs(self.y_pos_mm - y_pos_mm)
+
+        # check if movement less than thresshold (i.e. stopped moving)
+        if delta_x < self.movement_threshold and delta_y < self.movement_threshold and not self.microcontroller.is_busy():
+            # emit pos to draw scan grid
+            self.scanGridPos.emit(self.x_pos_mm, self.y_pos_mm)
 
     def home_x(self):
         self.microcontroller.home_x()
