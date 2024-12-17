@@ -1,4 +1,5 @@
 format,a1_x_mm,a1_y_mm,a1_x_pixel,a1_y_pixel,well_size_mm,well_spacing_mm,number_of_skip,rows,cols
+glass slide,0,0,0,0,0,0,0,1,1
 6,24.55,23.01,290,272,34.94,39.2,0,2,3
 12,24.75,16.86,293,198,22.05,26.0,0,3,4
 24,24.45,22.07,233,210,15.54,19.3,0,4,6

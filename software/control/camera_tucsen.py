@@ -1,5 +1,7 @@
 import ctypes
 from ctypes import *
+
+import squid.logging
 from control.TUCam import *
 import numpy as np
 import threading
@@ -36,6 +38,8 @@ def get_sn_by_model(model_name):
 
 class Camera(object):
     def __init__(self, sn=None, resolution=(6240, 4168), is_global_shutter=False, rotate_image_angle=None, flip_image=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
+
         self.sn = sn
         self.resolution = resolution
         self.is_global_shutter = is_global_shutter
@@ -94,19 +98,21 @@ class Camera(object):
 
     def open(self, index=0):
         TUCAM_Api_Init(pointer(self.TUCAMINIT))
-        print(f'Connect {self.TUCAMINIT.uiCamCount} camera(s)')
+        self.log.info(f'Connect {self.TUCAMINIT.uiCamCount} camera(s)')
         
         if index >= self.TUCAMINIT.uiCamCount:
-            print('Camera index out of range')
+            self.log.error('Camera index out of range')
+            # TODO(imo): Propagate error in some way and handle
             return
 
         self.TUCAMOPEN = TUCAM_OPEN(index, 0)
         TUCAM_Dev_Open(pointer(self.TUCAMOPEN))
 
+        # TODO(imo): Propagate error in some way and handle
         if self.TUCAMOPEN.hIdxTUCam == 0:
-            print('Open Tucsen camera failure!')
+            self.log.error('Open Tucsen camera failure!')
         else:
-            print('Open Tucsen camera success!')
+            self.log.info('Open Tucsen camera success!')
 
         self.set_temperature(20)
         self.temperature_reading_thread.start()
@@ -128,13 +134,13 @@ class Camera(object):
                 self.TUCAMOPEN = TUCAMOPEN
                 self.set_temperature(20)
                 self.temperature_reading_thread.start()
-                print('Open the camera success!')
-                print(sn)
+                self.log.info(f'Open the camera success! sn={sn}')
                 return
             else:
                 TUCAM_Dev_Close(TUCAMOPEN.hIdxTUCam)
-        
-        print('No camera with the specified serial number found')
+
+        # TODO(imo): Propagate error in some way and handle
+        self.log.error('No camera with the specified serial number found')
 
     def close(self):
         self.disable_callback()
@@ -143,7 +149,7 @@ class Camera(object):
         TUCAM_Buf_Release(self.TUCAMOPEN.hIdxTUCam)
         TUCAM_Dev_Close(self.TUCAMOPEN.hIdxTUCam)
         TUCAM_Api_Uninit()
-        print('Close Tucsen camera success')
+        self.log.info('Close Tucsen camera success')
 
     def set_callback(self, function):
         self.new_image_callback_external = function
@@ -160,7 +166,7 @@ class Camera(object):
         self.callback_thread.start()
 
         self.callback_is_enabled = True
-        print('enable callback')
+        self.log.debug('enable callback')
 
     def _wait_and_callback(self):
         while not self.stop_waiting:
@@ -173,11 +179,12 @@ class Camera(object):
         TUCAM_Buf_Release(self.TUCAMOPEN.hIdxTUCam)
 
     def _on_new_frame(self, frame):
+        # TODO(imo): Propagate error in some way and handle
         if frame is False:
-            print('Cannot get new frame from buffer.')
+            self.log.error('Cannot get new frame from buffer.')
             return
         if self.image_locked:
-            print('Last image is still being processed; a frame is dropped')
+            self.log.error('Last image is still being processed; a frame is dropped')
             return
 
         self.current_frame = self._convert_frame_to_numpy(frame)
@@ -210,7 +217,7 @@ class Camera(object):
 
         if was_streaming:
             self.start_streaming()
-        print('disable callback')
+        self.log.debug('disable callback')
 
     def set_temperature_reading_callback(self, func):
         self.temperature_reading_callback = func
@@ -227,13 +234,13 @@ class Camera(object):
     def check_temperature(self):
         while self.terminate_read_temperature_thread == False:
             time.sleep(2)
-            # print('[ camera temperature: ' + str(self.get_temperature()) + ' ]')
-            temperature = self.get_temperature() 
+            temperature = self.get_temperature()
             if self.temperature_reading_callback is not None:
                 try:
                     self.temperature_reading_callback(temperature)
                 except TypeError as ex:
-                    print("Temperature read callback failed due to error: "+repr(ex))
+                    self.log.error("Temperature read callback failed due to error: "+repr(ex))
+                    # TODO(imo): Propagate error in some way and handle
                     pass
 
     def set_resolution(self, width, height):
@@ -243,7 +250,8 @@ class Camera(object):
             was_streaming = True
 
         if not (width, height) in self.binning_options:
-            print(f"No suitable binning found for resolution {width}x{height}")
+            self.log.error(f"No suitable binning found for resolution {width}x{height}")
+            # TODO(imo): Propagate error in some way and handle
             return
 
         bin_value = c_int(self.binning_options[(width, height)])
@@ -251,7 +259,8 @@ class Camera(object):
             TUCAM_Capa_SetValue(self.TUCAMOPEN.hIdxTUCam, TUCAM_IDCAPA.TUIDC_BINNING_SUM.value, bin_value)
 
         except Exception:
-            print('Cannot set binning.') 
+            self.log.error('Cannot set binning.')
+            # TODO(imo): Propagate error in some way and handle
 
         if was_streaming:
             self.start_streaming()
@@ -259,10 +268,11 @@ class Camera(object):
     def set_auto_exposure(self, enable=False):
         value = 1 if enable else 0
         TUCAM_Capa_SetValue(self.TUCAMOPEN.hIdxTUCam, TUCAM_IDCAPA.TUIDC_ATEXPOSURE.value, value)
+
         if enable:
-            print("Auto exposure enabled")
+            self.log.info("Auto exposure enabled")
         else:
-            print("Auto exposure disabled")
+            self.log.info("Auto exposure disabled")
 
     def set_exposure_time(self, exposure_time):
         # Disable auto-exposure
@@ -334,7 +344,8 @@ class Camera(object):
             self.ROI_height = roi_attr.nHeight
 
         except Exception:
-            print('Cannot set ROI.')
+            self.log.error('Cannot set ROI.')
+            # TODO(imo): Propagate error in some way and handle
 
         if was_streaming:
             self.start_streaming()
@@ -342,7 +353,7 @@ class Camera(object):
     def send_trigger(self):
         if self.trigger_mode == TriggerMode.SOFTWARE:
             TUCAM_Cap_DoSoftwareTrigger(self.TUCAMOPEN.hIdxTUCam)
-            print("Trigger sent")
+            self.log.debug("Trigger sent")
 
     def start_streaming(self):
         if self.is_streaming:
@@ -362,7 +373,7 @@ class Camera(object):
             raise Exception("Failed to start capture")
 
         self.is_streaming = True
-        print('TUCam Camera starts streaming')
+        self.log.info('TUCam Camera starts streaming')
 
     def stop_streaming(self):
         if not self.is_streaming:
@@ -371,7 +382,7 @@ class Camera(object):
         TUCAM_Cap_Stop(self.TUCAMOPEN.hIdxTUCam)
         TUCAM_Buf_Release(self.TUCAMOPEN.hIdxTUCam)
         self.is_streaming = False
-        print('TUCam Camera streaming stopped')
+        self.log.info('TUCam Camera streaming stopped')
 
     def read_frame(self):
         result = TUCAM_Buf_WaitForFrame(self.TUCAMOPEN.hIdxTUCam, pointer(self.m_frame), int(self.exposure_time + 1000))
@@ -397,6 +408,8 @@ class Camera(object):
 class Camera_Simulation(object):
     
     def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
+
         # many to be purged
         self.sn = sn
         self.is_global_shutter = is_global_shutter
@@ -478,7 +491,7 @@ class Camera_Simulation(object):
 
     def set_pixel_format(self,pixel_format):
         self.pixel_format = pixel_format
-        print(pixel_format)
+        self.log.debug(f"Pixel format={pixel_format}")
         self.frame_ID = 0
 
     def set_continuous_acquisition(self):
@@ -491,7 +504,7 @@ class Camera_Simulation(object):
         pass
 
     def send_trigger(self):
-        print('send trigger')
+        self.log.debug('send trigger')
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
         if self.frame_ID == 1:

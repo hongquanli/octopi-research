@@ -1,9 +1,9 @@
 # set QT_API environment variable
 import os
-import sys
-import time
 os.environ["QT_API"] = "pyqt5"
-import qtpy
+import serial
+import time
+from typing import Optional
 
 # qt libraries
 from qtpy.QtCore import *
@@ -14,7 +14,11 @@ from control._def import *
 
 # app specific libraries
 import control.widgets as widgets
-import serial
+import pyqtgraph.dockarea as dock
+import squid.logging
+import control.microscope
+
+log = squid.logging.get_logger(__name__)
 
 import control.filterwheel as filterwheel
 
@@ -23,31 +27,31 @@ if CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera
     except:
-        print("Problem importing Toupcam, defaulting to default camera")
+        log.warning("Problem importing Toupcam, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "FLIR":
     try:
         import control.camera_flir as camera
     except:
-        print("Problem importing FLIR camera, defaulting to default camera")
+        log.warning("Problem importing FLIR camera, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "Hamamatsu":
     try:
         import control.camera_hamamatsu as camera
     except:
-        print("Problem importing Hamamatsu camera, defaulting to default camera")
+        log.warning("Problem importing Hamamatsu camera, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "iDS":
     try:
         import control.camera_ids as camera
     except:
-        print("Problem importing iDS camera, defaulting to default camera")
+        log.warning("Problem importing iDS camera, defaulting to default camera")
         import control.camera as camera
 elif CAMERA_TYPE == "Tucsen":
     try:
         import control.camera_tucsen as camera
     except:
-        print("Problem importing Tucsen camera, defaulting to default camera")
+        log.warning("Problem importing Tucsen camera, defaulting to default camera")
         import control.camera as camera
 else:
     import control.camera as camera
@@ -56,13 +60,13 @@ if FOCUS_CAMERA_TYPE == "Toupcam":
     try:
         import control.camera_toupcam as camera_fc
     except:
-        print("Problem importing Toupcam for focus, defaulting to default camera")
+        log.warning("Problem importing Toupcam for focus, defaulting to default camera")
         import control.camera as camera_fc
 elif FOCUS_CAMERA_TYPE == "FLIR":
     try:
         import control.camera_flir as camera_fc
     except:
-        print("Problem importing FLIR camera for focus, defaulting to default camera")
+        log.warning("Problem importing FLIR camera for focus, defaulting to default camera")
         import control.camera as camera_fc
 else:
     import control.camera as camera_fc
@@ -81,20 +85,17 @@ if ENABLE_STITCHER:
 if SUPPORT_LASER_AUTOFOCUS:
     import control.core_displacement_measurement as core_displacement_measurement
 
-import pyqtgraph.dockarea as dock
-import serial
-import time
-
 SINGLE_WINDOW = True # set to False if use separate windows for display and control
 
 
-class OctopiGUI(QMainWindow):
-
+class HighContentScreeningGui(QMainWindow):
     fps_software_trigger = 100
 
     def __init__(self, is_simulation=False, live_only_mode=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.microcontroller: Optional[microcontroller.Microcontroller] = None
 
+        self.log = squid.logging.get_logger(self.__class__.__name__)
         self.live_only_mode = live_only_mode or LIVE_ONLY_MODE
         self.performance_mode = False
         self.napari_connections = {}
@@ -109,13 +110,15 @@ class OctopiGUI(QMainWindow):
 
         self.makeConnections()
 
+        self.microscope = control.microscope.Microscope(self)
+
         # Move to cached position
         if HOMING_ENABLED_X and HOMING_ENABLED_Y and HOMING_ENABLED_Z:
             self.navigationController.move_to_cached_position()
             self.waitForMicrocontroller()
-            if ENABLE_SCAN_GRID:
-                self.multiPointWidgetGrid.init_z()
-            self.multiPointWidget2.init_z()
+            if ENABLE_WELLPLATE_MULTIPOINT:
+                self.wellplateMultiPointWidget.init_z()
+            self.flexibleMultiPointWidget.init_z()
 
         # Create the menu bar
         menubar = self.menuBar()
@@ -131,11 +134,9 @@ class OctopiGUI(QMainWindow):
         else:
             try:
                 self.loadHardwareObjects()
-            except Exception as e:
-                print("\n---- !! ERROR CONNECTING TO HARDWARE !! ----")
-                print(e)
-                print("Falling back to simulation mode\n")
-                self.loadSimulationObjects()
+            except Exception:
+                self.log.error("---- !! ERROR CONNECTING TO HARDWARE !! ----", stack_info=True, exc_info=True)
+                raise
 
         # Common object initialization
         self.objectiveStore = core.ObjectiveStore(parent=self)
@@ -155,7 +156,7 @@ class OctopiGUI(QMainWindow):
         self.imageDisplay = core.ImageDisplay()
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera, self.microcontroller, self.navigationController, self.configurationManager, self.liveController, self.autofocusController, self.imageDisplayWindow)
-        if WELLPLATE_FORMAT == 0:
+        if WELLPLATE_FORMAT == 'glass slide':
             self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample='4 glass slide')
         else:
             self.navigationViewer = core.NavigationViewer(self.objectiveStore, sample=WELLPLATE_FORMAT)
@@ -173,6 +174,7 @@ class OctopiGUI(QMainWindow):
             self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper(self.microcontroller)
 
     def loadSimulationObjects(self):
+        self.log.debug("Loading simulated hardware objects...")
         # Initialize simulation objects
         if ENABLE_SPINNING_DISK_CONFOCAL:
             self.xlight = serial_peripherals.XLight_Simulation()
@@ -183,13 +185,16 @@ class OctopiGUI(QMainWindow):
             self.cellx = serial_peripherals.CellX_Simulation()
         if SUPPORT_LASER_AUTOFOCUS:
             self.camera_focus = camera_fc.Camera_Simulation()
+        if USE_LDI_SERIAL_CONTROL:
+            self.ldi = serial_peripherals.LDI_Simulation()
         self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
         self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel = serial_peripherals.FilterController_Simulation(115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel = serial_peripherals.Optospin_Simulation(SN=None)
-        self.microcontroller = microcontroller.Microcontroller_Simulation()
+
+        self.microcontroller = microcontroller.Microcontroller(existing_serial=microcontroller.SimSerial())
         if USE_SQUID_FILTERWHEEL:
             self.squid_filter_wheel = filterwheel.SquidFilterWheelWrapper_Simulation(None)
 
@@ -198,15 +203,17 @@ class OctopiGUI(QMainWindow):
         if ENABLE_SPINNING_DISK_CONFOCAL:
             try:
                 self.xlight = serial_peripherals.XLight(XLIGHT_SERIAL_NUMBER, XLIGHT_SLEEP_TIME_FOR_WHEEL)
-            except Exception as e:
-                raise Exception(f"Error initializing Spinning Disk Confocal: {e}")
+            except Exception:
+                self.log.error("Error initializing Spinning Disk Confocal")
+                raise
 
         if ENABLE_NL5:
             try:
                 import control.NL5 as NL5
                 self.nl5 = NL5.NL5()
-            except Exception as e:
-                raise Exception(f"Error initializing NL5: {e}")
+            except Exception:
+                self.log.error("Error initializing NL5")
+                raise
 
         if ENABLE_CELLX:
             try:
@@ -214,8 +221,9 @@ class OctopiGUI(QMainWindow):
                 for channel in [1,2,3,4]:
                     self.cellx.set_modulation(channel, CELLX_MODULATION)
                     self.cellx.turn_on(channel)
-            except Exception as e:
-                raise Exception(f"Error initializing CellX: {e}")
+            except Exception:
+                self.log.error("Error initializing CellX")
+                raise
 
         if USE_LDI_SERIAL_CONTROL:
             try:
@@ -223,8 +231,9 @@ class OctopiGUI(QMainWindow):
                 self.ldi.run()
                 self.ldi.set_intensity_mode(LDI_INTENSITY_MODE)
                 self.ldi.set_shutter_mode(LDI_SHUTTER_MODE)
-            except Exception as e:
-                raise Exception(f"Error initializing LDI: {e}")
+            except Exception:
+                self.log.error("Error initializing LDI")
+                raise
 
         if SUPPORT_LASER_AUTOFOCUS:
             try:
@@ -232,39 +241,45 @@ class OctopiGUI(QMainWindow):
                 self.camera_focus = camera_fc.Camera(sn=sn_camera_focus)
                 self.camera_focus.open()
                 self.camera_focus.set_pixel_format('MONO8')
-            except Exception as e:
-                raise Exception(f"Error initializing Laser Autofocus Camera: {e}")
+            except Exception:
+                self.log.error(f"Error initializing Laser Autofocus Camera")
+                raise
 
         try:
             sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
             self.camera = camera.Camera(sn=sn_camera_main, rotate_image_angle=ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
             self.camera.open()
             self.camera.set_pixel_format(DEFAULT_PIXEL_FORMAT)
-        except Exception as e:
-            raise Exception(f"Error initializing Main Camera: {e}")
+        except Exception:
+            self.log.error("Error initializing Main Camera")
+            raise
 
         if USE_ZABER_EMISSION_FILTER_WHEEL:
             try:
                 self.emission_filter_wheel = serial_peripherals.FilterController(FILTER_CONTROLLER_SERIAL_NUMBER, 115200, 8, serial.PARITY_NONE, serial.STOPBITS_ONE)
-            except Exception as e:
-                raise Exception(f"Error initializing Zaber Emission Filter Wheel: {e}")
+            except Exception:
+                self.log.error("Error initializing Zaber Emission Filter Wheel")
+                raise
 
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             try:
                 self.emission_filter_wheel = serial_peripherals.Optospin(SN=FILTER_CONTROLLER_SERIAL_NUMBER)
-            except Exception as e:
-                raise Exception(f"Error initializing Optospin Emission Filter Wheel: {e}")
+            except Exception:
+                self.log.error("Error initializing Optospin Emission Filter Wheel")
+                raise
 
         if USE_PRIOR_STAGE:
             try:
                 self.priorstage = PriorStage(PRIOR_STAGE_SN, parent=self)
-            except Exception as e:
-                raise Exception(f"Error initializing Prior Stage: {e}")
+            except Exception:
+                self.log.error("Error initializing Prior Stage")
+                raise
 
         try:
             self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION, sn=CONTROLLER_SN)
-        except Exception as e:
-            raise Exception(f"Error initializing Microcontroller: {e}")
+        except Exception:
+            self.log.error(f"Error initializing Microcontroller")
+            raise
 
     def setupHardware(self):
         # Setup hardware components
@@ -272,6 +287,8 @@ class OctopiGUI(QMainWindow):
             self.emission_filter_wheel.start_homing()
         if USE_OPTOSPIN_EMISSION_FILTER_WHEEL:
             self.emission_filter_wheel.set_speed(OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ)
+        if not self.microcontroller:
+            raise ValueError("Microcontroller must be none-None for hardware setup.")
 
         self.microcontroller.reset()
         time.sleep(0.5)
@@ -340,6 +357,67 @@ class OctopiGUI(QMainWindow):
         self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
         self.microcontroller.set_dac80508_scaling_factor_for_illumination(ILLUMINATION_INTENSITY_FACTOR)
 
+        try:
+            self.microcontroller.reset()
+            time.sleep(0.5)
+            self.microcontroller.initialize_drivers()
+            time.sleep(0.5)
+            self.microcontroller.configure_actuators()
+
+            if HAS_ENCODER_X:
+                self.navigationController.set_axis_PID_arguments(0, PID_P_X, PID_I_X, PID_D_X)
+                self.navigationController.configure_encoder(0, (SCREW_PITCH_X_MM * 1000) / ENCODER_RESOLUTION_UM_X, ENCODER_FLIP_DIR_X)
+                self.navigationController.set_pid_control_enable(0, ENABLE_PID_X)
+            if HAS_ENCODER_Y:
+                self.navigationController.set_axis_PID_arguments(1, PID_P_Y, PID_I_Y, PID_D_Y)
+                self.navigationController.configure_encoder(1, (SCREW_PITCH_Y_MM * 1000) / ENCODER_RESOLUTION_UM_Y, ENCODER_FLIP_DIR_Y)
+                self.navigationController.set_pid_control_enable(1, ENABLE_PID_Y)
+            if HAS_ENCODER_Z:
+                self.navigationController.set_axis_PID_arguments(2, PID_P_Z, PID_I_Z, PID_D_Z)
+                self.navigationController.configure_encoder(2, (SCREW_PITCH_Z_MM * 1000) / ENCODER_RESOLUTION_UM_Z, ENCODER_FLIP_DIR_Z)
+                self.navigationController.set_pid_control_enable(2, ENABLE_PID_Z)
+            time.sleep(0.5)
+
+            self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+            self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+            self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+            self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+            self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+            self.navigationController.set_z_limit_neg_mm(SOFTWARE_POS_LIMIT.Z_NEGATIVE)
+
+            if HOMING_ENABLED_Z:
+                self.navigationController.home_z()
+                self.waitForMicrocontroller(10, 'z homing timeout')
+            if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+                self.navigationController.move_x(20)
+                self.waitForMicrocontroller()
+                self.navigationController.home_y()
+                self.waitForMicrocontroller(10, 'y homing timeout')
+                self.navigationController.zero_y()
+                self.navigationController.home_x()
+                self.waitForMicrocontroller(10, 'x homing timeout')
+                self.navigationController.zero_x()
+                self.slidePositionController.homing_done = True
+            if USE_ZABER_EMISSION_FILTER_WHEEL:
+                self.emission_filter_wheel.wait_for_homing_complete()
+            if HOMING_ENABLED_X and HOMING_ENABLED_Y:
+                self.navigationController.move_x(20)
+                self.waitForMicrocontroller()
+                self.navigationController.move_y(20)
+                self.waitForMicrocontroller()
+
+            if ENABLE_OBJECTIVE_PIEZO:
+                OUTPUT_GAINS.CHANNEL7_GAIN = (OBJECTIVE_PIEZO_CONTROL_VOLTAGE_RANGE == 5)
+            div = 1 if OUTPUT_GAINS.REFDIV else 0
+            gains = sum(getattr(OUTPUT_GAINS, f'CHANNEL{i}_GAIN') << i for i in range(8))
+            self.microcontroller.configure_dac80508_refdiv_and_gain(div, gains)
+            self.microcontroller.set_dac80508_scaling_factor_for_illumination(ILLUMINATION_INTENSITY_FACTOR)
+        except TimeoutError as e:
+            # If we can't recover from a timeout, at least do our best to make sure the system is left in a safe
+            # and restartable state.
+            self.log.error("Setup timed out, resetting microcontroller before failing gui setup")
+            self.microcontroller.reset()
+            raise e
         self.camera.set_software_triggered_acquisition()
         self.camera.set_callback(self.streamHandler.on_new_frame)
         self.camera.enable_callback()
@@ -357,13 +435,12 @@ class OctopiGUI(QMainWindow):
             if SQUID_FILTERWHEEL_HOMING_ENABLED:
                 self.squid_filter_wheel.homing()
 
-    def waitForMicrocontroller(self, timeout=None, error_message=None):
-        start_time = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if timeout and time.time() - start_time > timeout:
-                print(error_message or 'Microcontroller operation timed out')
-                sys.exit(1)
+    def waitForMicrocontroller(self, timeout=5.0, error_message=None):
+        try:
+            self.microcontroller.wait_till_operation_is_completed(timeout)
+        except TimeoutError as e:
+            self.log.error(error_message or "Microcontroller operation timed out!")
+            raise e
 
     def loadWidgets(self):
         # Initialize all GUI widgets
@@ -427,9 +504,8 @@ class OctopiGUI(QMainWindow):
         else:
             self.setupImageDisplayTabs()
 
-        self.multiPointWidget = widgets.MultiPointWidget(self.multipointController, self.configurationManager)
-        self.multiPointWidget2 = widgets.MultiPointWidget2(self.navigationController, self.navigationViewer, self.multipointController, self.configurationManager, scanCoordinates=None)
-        self.multiPointWidgetGrid = widgets.MultiPointWidgetGrid(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates, self.napariMosaicDisplayWidget)
+        self.flexibleMultiPointWidget = widgets.FlexibleMultiPointWidget(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, scanCoordinates=None)
+        self.wellplateMultiPointWidget = widgets.WellplateMultiPointWidget(self.navigationController, self.navigationViewer, self.multipointController, self.objectiveStore, self.configurationManager, self.scanCoordinates, self.napariMosaicDisplayWidget)
         self.sampleSettingsWidget = widgets.SampleSettingsWidget(self.objectivesWidget, self.wellplateFormatWidget)
 
         if ENABLE_TRACKING:
@@ -508,10 +584,10 @@ class OctopiGUI(QMainWindow):
             self.imageDisplayTabs.addTab(laserfocus_dockArea, "Laser-Based Focus")
 
     def setupRecordTabWidget(self):
-        if ENABLE_SCAN_GRID:
-            self.recordTabWidget.addTab(self.multiPointWidgetGrid, "Wellplate Multipoint")
+        if ENABLE_WELLPLATE_MULTIPOINT:
+            self.recordTabWidget.addTab(self.wellplateMultiPointWidget, "Wellplate Multipoint")
         if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.recordTabWidget.addTab(self.multiPointWidget2, "Flexible Multipoint")
+            self.recordTabWidget.addTab(self.flexibleMultiPointWidget, "Flexible Multipoint")
         if ENABLE_TRACKING:
             self.recordTabWidget.addTab(self.trackingControlWidget, "Tracking")
         if ENABLE_RECORDING:
@@ -639,27 +715,22 @@ class OctopiGUI(QMainWindow):
         else:
             self.navigationController.signal_joystick_button_pressed.connect(self.autofocusController.autofocus)
 
-        self.multiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
-
         if ENABLE_STITCHER:
             self.multipointController.signal_stitcher.connect(self.startStitcher)
-            self.multiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
-            self.multiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
-            self.multiPointWidget.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.multiPointWidget2.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+            self.flexibleMultiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
             if ENABLE_STITCHER:
-                self.multiPointWidget2.signal_stitcher_widget.connect(self.toggleStitcherWidget)
-                self.multiPointWidget2.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
-                self.multiPointWidget2.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
+                self.flexibleMultiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+                self.flexibleMultiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
+                self.flexibleMultiPointWidget.signal_stitcher_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
-        if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.signal_acquisition_started.connect(self.toggleAcquisitionStart)
+        if ENABLE_WELLPLATE_MULTIPOINT:
+            self.wellplateMultiPointWidget.signal_acquisition_started.connect(self.toggleAcquisitionStart)
             if ENABLE_STITCHER:
-                self.multiPointWidgetGrid.signal_stitcher_widget.connect(self.toggleStitcherWidget)
-                self.multiPointWidgetGrid.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
-                self.multiPointWidgetGrid.signal_acquisition_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
+                self.wellplateMultiPointWidget.signal_stitcher_widget.connect(self.toggleStitcherWidget)
+                self.wellplateMultiPointWidget.signal_acquisition_channels.connect(self.stitcherWidget.updateRegistrationChannels)
+                self.wellplateMultiPointWidget.signal_stitcher_z_levels.connect(self.stitcherWidget.updateRegistrationZLevels)
 
         self.liveControlWidget.signal_newExposureTime.connect(self.cameraSettingWidget.set_exposure_time)
         self.liveControlWidget.signal_newAnalogGain.connect(self.cameraSettingWidget.set_analog_gain)
@@ -668,17 +739,21 @@ class OctopiGUI(QMainWindow):
         self.liveControlWidget.update_camera_settings()
 
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
-        self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+        #self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
-        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+        #self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
-
+        self.navigationViewer.signal_coordinates_clicked.connect(self.navigationController.move_from_click_mosaic)
         self.objectivesWidget.signal_objective_changed.connect(self.navigationViewer.on_objective_changed)
-        self.navigationController.xyPos.connect(self.navigationViewer.update_current_location)
+        if ENABLE_FLEXIBLE_MULTIPOINT:
+            self.objectivesWidget.signal_objective_changed.connect(self.flexibleMultiPointWidget.update_fov_positions)
+        self.navigationController.xyPos.connect(self.navigationViewer.draw_fov_current_location)
+        if WELLPLATE_FORMAT == 'glass slide':
+            self.navigationController.scanGridPos.connect(self.navigationViewer.draw_scan_grid)
         self.multipointController.signal_register_current_fov.connect(self.navigationViewer.register_fov)
         self.multipointController.signal_current_configuration.connect(self.liveControlWidget.set_microscope_mode)
         self.multipointController.signal_z_piezo_um.connect(self.piezoWidget.update_displacement_um_display)
-        self.multiPointWidgetGrid.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
+        self.wellplateMultiPointWidget.signal_z_stacking.connect(self.multipointController.set_z_stacking_config)
 
         self.recordTabWidget.currentChanged.connect(self.onTabChanged)
         if not self.live_only_mode:
@@ -703,7 +778,7 @@ class OctopiGUI(QMainWindow):
             self.multipointController.image_to_display.connect(self.imageDisplayWindow.display_image)
             self.liveControlWidget.signal_autoLevelSetting.connect(self.imageDisplayWindow.set_autolevel)
             self.imageDisplayWindow.image_click_coordinates.connect(self.navigationController.move_from_click)
-            
+
         self.makeNapariConnections()
 
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.navigationViewer.update_wellplate_settings)
@@ -711,11 +786,11 @@ class OctopiGUI(QMainWindow):
         self.wellplateFormatWidget.signalWellplateSettings.connect(lambda format_, *args: self.onWellplateChanged(format_))
 
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
-        self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
-        if ENABLE_SCAN_GRID:
-            self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
-            self.objectivesWidget.signal_objective_changed.connect(self.multiPointWidgetGrid.update_coordinates)
-            self.multiPointWidgetGrid.signal_update_navigation_viewer.connect(self.navigationViewer.update_current_location)
+        #self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
+        if ENABLE_WELLPLATE_MULTIPOINT:
+            self.wellSelectionWidget.signal_wellSelected.connect(self.wellplateMultiPointWidget.set_well_coordinates)
+            self.objectivesWidget.signal_objective_changed.connect(self.wellplateMultiPointWidget.update_coordinates)
+            self.wellplateMultiPointWidget.signal_update_navigation_viewer.connect(self.navigationViewer.draw_fov_current_location)
 
         if SUPPORT_LASER_AUTOFOCUS:
             self.liveControlWidget_focus_camera.signal_newExposureTime.connect(self.cameraSettingWidget_focus_camera.set_exposure_time)
@@ -745,16 +820,16 @@ class OctopiGUI(QMainWindow):
         if USE_NAPARI_FOR_LIVE_VIEW and not self.live_only_mode:
             self.napari_connections['napariLiveWidget'] = [
                 (self.multipointController.signal_current_configuration, self.napariLiveWidget.set_microscope_mode),
-                (self.autofocusController.image_to_display, 
+                (self.autofocusController.image_to_display,
                  lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=True)),
-                (self.streamHandler.image_to_display, 
+                (self.streamHandler.image_to_display,
                  lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False)),
-                (self.multipointController.image_to_display, 
+                (self.multipointController.image_to_display,
                  lambda image: self.napariLiveWidget.updateLiveLayer(image, from_autofocus=False)),
                 (self.napariLiveWidget.signal_coordinates_clicked, self.navigationController.move_from_click),
                 (self.liveControlWidget.signal_live_configuration, self.napariLiveWidget.set_live_configuration)
             ]
-            
+
             if USE_NAPARI_FOR_LIVE_CONTROL:
                 self.napari_connections['napariLiveWidget'].extend([
                     (self.napariLiveWidget.signal_newExposureTime, self.cameraSettingWidget.set_exposure_time),
@@ -775,21 +850,19 @@ class OctopiGUI(QMainWindow):
             if USE_NAPARI_FOR_MULTIPOINT:
                 self.napari_connections['napariMultiChannelWidget'] = [
                     (self.multipointController.napari_layers_init, self.napariMultiChannelWidget.initLayers),
-                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers),
-                    (self.multiPointWidget.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
-                    (self.multiPointWidget.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
+                    (self.multipointController.napari_layers_update, self.napariMultiChannelWidget.updateLayers)
                 ]
-                
+
                 if ENABLE_FLEXIBLE_MULTIPOINT:
                     self.napari_connections['napariMultiChannelWidget'].extend([
-                        (self.multiPointWidget2.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
-                        (self.multiPointWidget2.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
+                        (self.flexibleMultiPointWidget.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
+                        (self.flexibleMultiPointWidget.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
                     ])
-                
-                if ENABLE_SCAN_GRID:
+
+                if ENABLE_WELLPLATE_MULTIPOINT:
                     self.napari_connections['napariMultiChannelWidget'].extend([
-                        (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
-                        (self.multiPointWidgetGrid.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
+                        (self.wellplateMultiPointWidget.signal_acquisition_channels, self.napariMultiChannelWidget.initChannels),
+                        (self.wellplateMultiPointWidget.signal_acquisition_shape, self.napariMultiChannelWidget.initLayersShape)
                     ])
             else:
                 self.multipointController.image_to_display_multi.connect(self.imageArrayDisplayWindow.display_image)
@@ -799,47 +872,43 @@ class OctopiGUI(QMainWindow):
                 self.napari_connections['napariTiledDisplayWidget'] = [
                     (self.multipointController.napari_layers_init, self.napariTiledDisplayWidget.initLayers),
                     (self.multipointController.napari_layers_update, self.napariTiledDisplayWidget.updateLayers),
-                    (self.multiPointWidget.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
-                    (self.multiPointWidget.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape),
-                    (self.napariTiledDisplayWidget.signal_coordinates_clicked, 
+                    (self.napariTiledDisplayWidget.signal_coordinates_clicked,
                      self.navigationController.scan_preview_move_from_click)
                 ]
 
                 if ENABLE_FLEXIBLE_MULTIPOINT:
                     self.napari_connections['napariTiledDisplayWidget'].extend([
-                        (self.multiPointWidget2.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
-                        (self.multiPointWidget2.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape)
+                        (self.flexibleMultiPointWidget.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
+                        (self.flexibleMultiPointWidget.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape)
                     ])
 
-                if ENABLE_SCAN_GRID:
+                if ENABLE_WELLPLATE_MULTIPOINT:
                     self.napari_connections['napariTiledDisplayWidget'].extend([
-                        (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
-                        (self.multiPointWidgetGrid.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape)
+                        (self.wellplateMultiPointWidget.signal_acquisition_channels, self.napariTiledDisplayWidget.initChannels),
+                        (self.wellplateMultiPointWidget.signal_acquisition_shape, self.napariTiledDisplayWidget.initLayersShape)
                     ])
 
             # Setup mosaic display widget connections
             if USE_NAPARI_FOR_MOSAIC_DISPLAY:
                 self.napari_connections['napariMosaicDisplayWidget'] = [
                     (self.multipointController.napari_mosaic_update, self.napariMosaicDisplayWidget.updateMosaic),
-                    (self.multiPointWidget.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
-                    (self.multiPointWidget.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape),
-                    (self.napariMosaicDisplayWidget.signal_coordinates_clicked, 
+                    (self.napariMosaicDisplayWidget.signal_coordinates_clicked,
                      self.navigationController.move_from_click_mosaic),
                     (self.napariMosaicDisplayWidget.signal_update_viewer, self.navigationViewer.update_slide)
                 ]
 
                 if ENABLE_FLEXIBLE_MULTIPOINT:
                     self.napari_connections['napariMosaicDisplayWidget'].extend([
-                        (self.multiPointWidget2.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
-                        (self.multiPointWidget2.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape)
+                        (self.flexibleMultiPointWidget.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
+                        (self.flexibleMultiPointWidget.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape)
                     ])
 
-                if ENABLE_SCAN_GRID:
+                if ENABLE_WELLPLATE_MULTIPOINT:
                     self.napari_connections['napariMosaicDisplayWidget'].extend([
-                        (self.multiPointWidgetGrid.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
-                        (self.multiPointWidgetGrid.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape),
-                        (self.multiPointWidgetGrid.signal_draw_shape, self.napariMosaicDisplayWidget.enable_shape_drawing),
-                        (self.napariMosaicDisplayWidget.signal_shape_drawn, self.multiPointWidgetGrid.update_manual_shape)
+                        (self.wellplateMultiPointWidget.signal_acquisition_channels, self.napariMosaicDisplayWidget.initChannels),
+                        (self.wellplateMultiPointWidget.signal_acquisition_shape, self.napariMosaicDisplayWidget.initLayersShape),
+                        (self.wellplateMultiPointWidget.signal_draw_shape, self.napariMosaicDisplayWidget.enable_shape_drawing),
+                        (self.napariMosaicDisplayWidget.signal_shape_drawn, self.wellplateMultiPointWidget.update_manual_shape)
                     ])
 
             # Make initial connections
@@ -893,19 +962,23 @@ class OctopiGUI(QMainWindow):
 
     def onTabChanged(self, index):
         acquisitionWidget = self.recordTabWidget.widget(index)
-        is_multipoint = (index == self.recordTabWidget.indexOf(self.multiPointWidget))
-        is_scan_grid = (index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
-        self.toggleWellSelector((is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0)
+        is_flexible = (index == self.recordTabWidget.indexOf(self.flexibleMultiPointWidget))
+        is_scan_grid = (index == self.recordTabWidget.indexOf(self.wellplateMultiPointWidget)) if ENABLE_WELLPLATE_MULTIPOINT else False
+        self.toggleWellSelector(is_scan_grid and self.wellSelectionWidget.format != 'glass slide')
+        
         if is_scan_grid:
+            self.navigationViewer.clear_overlay()
             self.wellSelectionWidget.onSelectionChanged()
         else:
-            self.multiPointWidgetGrid.clear_regions()
-        try:
-            if ENABLE_STITCHER:
-                self.toggleStitcherWidget(acquisitionWidget.checkbox_stitchOutput.isChecked())
-            acquisitionWidget.emit_selected_channels()
-        except AttributeError:
-            pass
+            self.wellplateMultiPointWidget.clear_regions()
+
+        if is_flexible:
+            self.flexibleMultiPointWidget.update_fov_positions()
+
+        if ENABLE_STITCHER:
+            self.toggleStitcherWidget(acquisitionWidget.checkbox_stitchOutput.isChecked())
+        acquisitionWidget.emit_selected_channels()
+
 
     def resizeCurrentTab(self, tabWidget):
         current_widget = tabWidget.currentWidget()
@@ -925,15 +998,17 @@ class OctopiGUI(QMainWindow):
         if isinstance(format_, QVariant):
             format_ = format_.value()
 
-        if format_ == 0:
+        if format_ == 'glass slide':
             self.toggleWellSelector(False)
             self.multipointController.inverted_objective = False
             self.navigationController.inverted_objective = False
+            self.navigationController.scanGridPos.connect(self.navigationViewer.draw_scan_grid)
             self.setupSlidePositionController(is_for_wellplate=False)
         else:
             self.toggleWellSelector(True)
             self.multipointController.inverted_objective = True
             self.navigationController.inverted_objective = True
+            self.navigationController.scanGridPos.disconnect(self.navigationViewer.draw_scan_grid)
             self.setupSlidePositionController(is_for_wellplate=True)
 
             if format_ == '1536 well plate':
@@ -943,10 +1018,10 @@ class OctopiGUI(QMainWindow):
                 self.connectWellSelectionWidget()
 
         if ENABLE_FLEXIBLE_MULTIPOINT:
-            self.multiPointWidget2.clear_only_location_list()
-        if ENABLE_SCAN_GRID:
-            self.multiPointWidgetGrid.clear_regions()
-            self.multiPointWidgetGrid.set_default_scan_size()
+            self.flexibleMultiPointWidget.clear_only_location_list()
+        if ENABLE_WELLPLATE_MULTIPOINT:
+            self.wellplateMultiPointWidget.clear_regions()
+            self.wellplateMultiPointWidget.set_default_scan_size()
         self.wellSelectionWidget.onSelectionChanged()
 
     def setupSlidePositionController(self, is_for_wellplate):
@@ -957,9 +1032,9 @@ class OctopiGUI(QMainWindow):
 
     def connectSlidePositionController(self):
         self.slidePositionController.signal_slide_loading_position_reached.connect(self.navigationWidget.slot_slide_loading_position_reached)
-        self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
+        #self.slidePositionController.signal_slide_loading_position_reached.connect(self.multiPointWidget.disable_the_start_aquisition_button)
         self.slidePositionController.signal_slide_scanning_position_reached.connect(self.navigationWidget.slot_slide_scanning_position_reached)
-        self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
+        #self.slidePositionController.signal_slide_scanning_position_reached.connect(self.multiPointWidget.enable_the_start_aquisition_button)
         self.slidePositionController.signal_clear_slide.connect(self.navigationViewer.clear_slide)
         if SHOW_NAVIGATION_BAR:
             self.navigationBarWidget.replace_slide_controller(self.slidePositionController)
@@ -976,11 +1051,11 @@ class OctopiGUI(QMainWindow):
             self.dock_wellSelection.addWidget(self.wellSelectionWidget)
 
     def connectWellSelectionWidget(self):
-        self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
+        #self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidget.set_well_selected)
         self.wellSelectionWidget.signal_wellSelectedPos.connect(self.navigationController.move_to)
         self.wellplateFormatWidget.signalWellplateSettings.connect(self.wellSelectionWidget.updateWellplateSettings)
-        if ENABLE_SCAN_GRID:
-            self.wellSelectionWidget.signal_wellSelected.connect(self.multiPointWidgetGrid.set_well_coordinates)
+        if ENABLE_WELLPLATE_MULTIPOINT:
+            self.wellSelectionWidget.signal_wellSelected.connect(self.wellplateMultiPointWidget.set_well_coordinates)
 
     def toggleWellSelector(self, show):
         if USE_NAPARI_WELL_SELECTION and not self.performance_mode and not self.live_only_mode:
@@ -996,16 +1071,13 @@ class OctopiGUI(QMainWindow):
             self.recordTabWidget.setTabEnabled(index, not acquisition_started or index == current_index)
         if acquisition_started:
             self.liveControlWidget.toggle_autolevel(not acquisition_started)
-        is_multipoint = (current_index == self.recordTabWidget.indexOf(self.multiPointWidget))
-        is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.multiPointWidgetGrid)) if ENABLE_SCAN_GRID else False
-        if (is_multipoint or is_scan_grid) and self.wellSelectionWidget.format != 0:
+        
+        is_scan_grid = (current_index == self.recordTabWidget.indexOf(self.wellplateMultiPointWidget)) if ENABLE_WELLPLATE_MULTIPOINT else False
+        if is_scan_grid and self.wellSelectionWidget.format != 'glass slide':
             self.toggleWellSelector(not acquisition_started)
-        if is_scan_grid:
-            self.navigationViewer.on_acquisition_start(acquisition_started)
-            self.multiPointWidgetGrid.display_progress_bar(acquisition_started)
-        if is_multipoint:
-            self.navigationViewer.on_acquisition_start(acquisition_started)
-            self.multiPointWidget2.display_progress_bar(acquisition_started)
+
+        self.recordTabWidget.currentWidget().display_progress_bar(acquisition_started)
+        self.navigationViewer.on_acquisition_start(acquisition_started)
 
     def toggleStitcherWidget(self, checked):
         if checked:
@@ -1023,11 +1095,11 @@ class OctopiGUI(QMainWindow):
             use_registration = self.stitcherWidget.useRegistrationCheck.isChecked()
             registration_channel = self.stitcherWidget.registrationChannelCombo.currentText()
             registration_z_level = self.stitcherWidget.registrationZCombo.value()
-            overlap_percent = self.multiPointWidgetGrid.entry_overlap.value()
+            overlap_percent = self.wellplateMultiPointWidget.entry_overlap.value()
             output_name = acquisitionWidget.lineEdit_experimentID.text() or "stitched"
             output_format = ".ome.zarr" if self.stitcherWidget.outputFormatCombo.currentText() == "OME-ZARR" else ".ome.tiff"
 
-            stitcher_class = stitcher.CoordinateStitcher if self.recordTabWidget.currentIndex() == self.recordTabWidget.indexOf(self.multiPointWidgetGrid) else stitcher.Stitcher
+            stitcher_class = stitcher.CoordinateStitcher if self.recordTabWidget.currentIndex() == self.recordTabWidget.indexOf(self.wellplateMultiPointWidget) else stitcher.Stitcher
             self.stitcherThread = stitcher_class(
                 input_folder=acquisition_path,
                 output_name=output_name,

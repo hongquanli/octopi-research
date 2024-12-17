@@ -1,11 +1,15 @@
 import os
 import sys
 import glob
-import numpy as np
 from pathlib import Path
 from configparser import ConfigParser
 import json
 import csv
+
+import squid.logging
+
+log = squid.logging.get_logger(__name__)
+
 
 def conf_attribute_reader(string_value):
     """
@@ -88,11 +92,6 @@ class PosUpdate:
 
 class MicrocontrollerDef:
     MSG_LENGTH = 24
-    CMD_LENGTH = 8
-    N_BYTES_POS = 4
-
-class Microcontroller2Def:
-    MSG_LENGTH = 4
     CMD_LENGTH = 8
     N_BYTES_POS = 4
 
@@ -194,13 +193,13 @@ class LIMIT_SWITCH_POLARITY:
 
 
 class ILLUMINATION_CODE:
-    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
+    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0
     ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1
     ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2
     ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3
-    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4;
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5;
-    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6;
+    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5
+    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6
     ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20
     ILLUMINATION_SOURCE_405NM = 11
     ILLUMINATION_SOURCE_488NM = 12
@@ -224,6 +223,8 @@ class CAMERA_CONFIG:
     ROI_OFFSET_Y_DEFAULT = 0
     ROI_WIDTH_DEFAULT = 3104
     ROI_HEIGHT_DEFAULT = 2084
+
+PRINT_CAMERA_FPS = True
 
 ###########################################################
 #### machine specific configurations - to be overridden ###
@@ -447,7 +448,8 @@ DEFAULT_MULTIPOINT_NX=1
 DEFAULT_MULTIPOINT_NY=1
 
 ENABLE_FLEXIBLE_MULTIPOINT = True
-ENABLE_SCAN_GRID = True
+USE_OVERLAP_FOR_FLEXIBLE = True
+ENABLE_WELLPLATE_MULTIPOINT = True
 ENABLE_RECORDING = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
@@ -519,8 +521,6 @@ DISP_TH_DURING_MULTIPOINT = 0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
-
-ENABLE_SPINNING_DISK_CONFOCAL = False
 
 INVERTED_OBJECTIVE = False
 
@@ -636,7 +636,6 @@ def read_objectives_csv(file_path):
                 'NA': float(row['NA']),
                 'tube_lens_f_mm': float(row['tube_lens_f_mm'])
             }
-            #print(f"{row['name']}: {objectives[row['name']]}")
     return objectives
 
 def read_sample_formats_csv(file_path):
@@ -657,7 +656,6 @@ def read_sample_formats_csv(file_path):
                 'rows': int(row['rows']),
                 'cols': int(row['cols'])
             }
-            #print(format_key, "well plate settings:", sample_formats[format_key])
     return sample_formats
 
 def load_formats():
@@ -722,12 +720,12 @@ config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
         if CACHED_CONFIG_FILE_PATH in config_files:
-            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            log.info(f'defaulting to last cached config file at \'{CACHED_CONFIG_FILE_PATH}\'')
             config_files = [CACHED_CONFIG_FILE_PATH]
         else:
-            print('multiple machine configuration files found, the program will exit')
+            log.error('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-    print('load machine-specific configuration')
+    log.info('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
     cfp.read(config_files[0])
@@ -758,16 +756,16 @@ if config_files:
         file.write(config_files[0])
     CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
-    print('configuration*.ini file not found, defaulting to legacy configuration')
+    log.warning('configuration*.ini file not found, defaulting to legacy configuration')
     config_files = glob.glob('.' + '/' + 'configuration*.txt')
     if config_files:
         if len(config_files) > 1:
-            print('multiple machine configuration files found, the program will exit')
+            log.error('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-        print('load machine-specific configuration')
+        log.info('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
-        print('machine-specific configuration not present, the program will exit')
+        log.error('machine-specific configuration not present, the program will exit')
         sys.exit(1)
 
 try:

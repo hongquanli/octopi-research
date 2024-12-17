@@ -149,7 +149,7 @@ bool trigger_output_level[6] = {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
 bool control_strobe[6] = {false, false, false, false, false, false};
 bool strobe_output_level[6] = {LOW, LOW, LOW, LOW, LOW, LOW};
 bool strobe_on[6] = {false, false, false, false, false, false};
-int strobe_delay[6] = {0, 0, 0, 0, 0, 0};
+unsigned long strobe_delay[6] = {0, 0, 0, 0, 0, 0};
 long illumination_on_time[6] = {0, 0, 0, 0, 0, 0};
 long timestamp_trigger_rising_edge[6] = {0, 0, 0, 0, 0, 0};
 IntervalTimer strobeTimer;
@@ -1560,12 +1560,17 @@ void loop() {
           }
         case SEND_HARDWARE_TRIGGER:
           {
+            // Some (all?) the arrays used by the trigger timer interrupt use data types that don't have
+            // atomic writes, so we need to disable interrupts here to make sure the timer interrupt
+            // doesn't get partially written values.
+            noInterrupts();
             int camera_channel = buffer_rx[2] & 0x0f;
             control_strobe[camera_channel] = buffer_rx[2] >> 7;
             illumination_on_time[camera_channel] = uint32_t(buffer_rx[3]) << 24 | uint32_t(buffer_rx[4]) << 16 | uint32_t(buffer_rx[5]) << 8 | uint32_t(buffer_rx[6]);
             digitalWrite(camera_trigger_pins[camera_channel], LOW);
             timestamp_trigger_rising_edge[camera_channel] = micros();
             trigger_output_level[camera_channel] = LOW;
+            interrupts();
             break;
           }
         case SET_PIN_LEVEL:

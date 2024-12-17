@@ -157,7 +157,8 @@ class StreamHandler(QObject):
                 self.timestamp_last = timestamp_now
                 self.fps_real = self.counter
                 self.counter = 0
-                print('real camera fps is ' + str(self.fps_real))
+                if PRINT_CAMERA_FPS:
+                    print('real camera fps is ' + str(self.fps_real))
 
             # moved down (so that it does not modify the camera.current_frame, which causes minor problems for simulation) - 1/30/2022
             # # rotate and flip - eventually these should be done in the camera
@@ -729,9 +730,9 @@ class NavigationController(QObject):
     xPos = Signal(float)
     yPos = Signal(float)
     zPos = Signal(float)
-    new_zPos_mm = Signal(float)
     thetaPos = Signal(float)
     xyPos = Signal(float,float)
+    scanGridPos = Signal(float,float)
     signal_joystick_button_pressed = Signal()
 
     # x y z axis pid enable flag
@@ -761,12 +762,13 @@ class NavigationController(QObject):
         # to be moved to gui for transparency
         self.microcontroller.set_callback(self.update_pos)
 
-        # self.timer_read_pos = QTimer()
-        # self.timer_read_pos.setInterval(PosUpdate.INTERVAL_MS)
-        # self.timer_read_pos.timeout.connect(self.update_pos)
-        # self.timer_read_pos.start()
+        self.movement_timer = QTimer(self)
+        self.movement_timer.setInterval(500)  # Single 500ms check
+        self.movement_timer.timeout.connect(self.check_movement_status)
+        self.movement_timer.setSingleShot(True)  # Timer only fires once
+        self.movement_threshold = 0.0001  # mm
 
-        # scan start position
+        # scan start position (obsolete? only for TiledDisplay)
         self.scan_begin_position_x = 0
         self.scan_begin_position_y = 0
     
@@ -788,7 +790,7 @@ class NavigationController(QObject):
     def get_flag_click_to_move(self):
         return self.click_to_move
 
-    def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9):
+    def scan_preview_move_from_click(self, click_x, click_y, image_width, image_height, Nx=1, Ny=1, dx_mm=0.9, dy_mm=0.9): # obsolete (only for tiled display)
         """
         napariTiledDisplay uses the Nx, Ny, dx_mm, dy_mm fields to move to the correct fov first
         imageArrayDisplayWindow assumes only a single fov (default values do not impact calculation but this is less correct)
@@ -810,10 +812,9 @@ class NavigationController(QObject):
         pixel_sign_y = -1 if INVERTED_OBJECTIVE else 1
 
         # move to selected fov
-        self.move_x_to(self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x)
-        self.microcontroller.wait_till_operation_is_completed()
-        self.move_y_to(self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y)
-        self.microcontroller.wait_till_operation_is_completed()
+        x_pos = self.scan_begin_position_x+dx_mm*fov_col*pixel_sign_x
+        y_pos = self.scan_begin_position_y+dy_mm*fov_row*pixel_sign_y
+        self.move_to(x_pos, y_pos)
 
         # move to actual click, offset from center fov
         tile_width = (image_width / Nx) * PRVIEW_DOWNSAMPLE_FACTOR
@@ -908,6 +909,8 @@ class NavigationController(QObject):
 
     def update_pos(self,microcontroller):
         # get position from the microcontroller
+        last_x_pos = self.x_pos_mm
+        last_y_pos = self.y_pos_mm
         x_pos, y_pos, z_pos, theta_pos = microcontroller.get_pos()
         self.z_pos = z_pos
         # calculate position in mm or rad
@@ -927,6 +930,7 @@ class NavigationController(QObject):
             self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
         else:
             self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
+
         # emit the updated position
         self.xPos.emit(self.x_pos_mm)
         self.yPos.emit(self.y_pos_mm)
@@ -939,6 +943,32 @@ class NavigationController(QObject):
                 self.signal_joystick_button_pressed.emit()
             print('joystick button pressed')
             microcontroller.signal_joystick_button_pressed_event = False
+
+        # Check if position has changed
+        if last_x_pos != self.x_pos_mm or last_y_pos != self.y_pos_mm:
+            # restart movement timer
+            QMetaObject.invokeMethod(self.movement_timer, "start", Qt.QueuedConnection)
+
+    def check_movement_status(self):
+        """Check if stage has stopped moving after timer delay"""
+        x_pos, y_pos, z_pos, theta_pos = self.microcontroller.get_pos()
+        # calculate position in mm or rad
+        if USE_ENCODER_X:
+            x_pos_mm = x_pos*ENCODER_POS_SIGN_X*ENCODER_STEP_SIZE_X_MM
+        else:
+            x_pos_mm = x_pos*STAGE_POS_SIGN_X*self.get_mm_per_ustep_X()
+        if USE_ENCODER_Y:
+            y_pos_mm = y_pos*ENCODER_POS_SIGN_Y*ENCODER_STEP_SIZE_Y_MM
+        else:
+            y_pos_mm = y_pos*STAGE_POS_SIGN_Y*self.get_mm_per_ustep_Y()
+
+        delta_x = abs(self.x_pos_mm - x_pos_mm)
+        delta_y = abs(self.y_pos_mm - y_pos_mm)
+
+        # check if movement less than thresshold (i.e. stopped moving)
+        if delta_x < self.movement_threshold and delta_y < self.movement_threshold and not self.microcontroller.is_busy():
+            # emit pos to draw scan grid
+            self.scanGridPos.emit(self.x_pos_mm, self.y_pos_mm)
 
     def home_x(self):
         self.microcontroller.home_x()
@@ -1248,6 +1278,7 @@ class SlidePositionControlWorker(QObject):
 
         self.slidePositionController.slide_scanning_position_reached = True
         self.finished.emit()
+
 
 class SlidePositionController(QObject):
 
@@ -1819,12 +1850,7 @@ class MultiPointWorker(QObject):
         # init z parameters, z range
         self.initialize_z_stack()
 
-        if self.coordinate_dict is not None:
-            print("coordinate acquisition")
-            self.run_coordinate_acquisition(current_path)
-        else:
-            print("grid acquisition")
-            self.run_grid_acquisition(current_path)
+        self.run_coordinate_acquisition(current_path)
 
         # finished region scan
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
@@ -1863,13 +1889,10 @@ class MultiPointWorker(QObject):
         base_columns = ['z_level', 'x (mm)', 'y (mm)', 'z (um)', 'time']
         piezo_column = ['z_piezo (um)'] if self.use_piezo else []
 
-        if IS_HCS:
-            if self.coordinate_dict is not None:
-                self.coordinates_pd = pd.DataFrame(columns=['region', 'fov'] + base_columns + piezo_column)
-            else:
-                self.coordinates_pd = pd.DataFrame(columns=['region', 'i', 'j'] + base_columns + piezo_column)
+        if self.coordinate_dict is not None:
+            self.coordinates_pd = pd.DataFrame(columns=['region', 'fov'] + base_columns + piezo_column)
         else:
-            self.coordinates_pd = pd.DataFrame(columns=['i', 'j'] + base_columns + piezo_column)
+            self.coordinates_pd = pd.DataFrame(columns=['region', 'i', 'j'] + base_columns + piezo_column)
 
     def update_coordinates_dataframe(self, region_id, z_level, fov=None, i=None, j=None):
         base_data = {
@@ -1905,17 +1928,6 @@ class MultiPointWorker(QObject):
 
         self.coordinates_pd = pd.concat([self.coordinates_pd, new_row], ignore_index=True)
 
-    def calculate_grid_indices(self, i, j):
-        # Ensure that i/y-indexing is always top to bottom
-        sgn_i = -1 if self.deltaY >= 0 else 1
-        sgn_i = -sgn_i if INVERTED_OBJECTIVE else sgn_i
-        sgn_j = self.x_scan_direction if self.deltaX >= 0 else -self.x_scan_direction
-
-        real_i = self.NY-1-i if sgn_i == -1 else i
-        real_j = self.NX-1-j if sgn_j == -1 else j
-
-        return sgn_i, sgn_j, real_i, real_j
-
 
     def move_to_coordinate(self, coordinate_mm):
         print("moving to coordinate", coordinate_mm)
@@ -1950,60 +1962,6 @@ class MultiPointWorker(QObject):
                 self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
                 self.wait_till_operation_is_completed()
         time.sleep(SCAN_STABILIZATION_TIME_MS_Z/1000)
-
-    def run_grid_acquisition(self, current_path):
-        n_regions = len(self.scan_coordinates_mm)
-
-        for region_id in range(n_regions):
-            self.signal_acquisition_progress.emit(region_id + 1, n_regions, self.time_point)
-            coordinate_mm = self.scan_coordinates_mm[region_id]
-
-            self.x_scan_direction = 1
-            self.dx_usteps = 0 # accumulated x displacement
-            self.dy_usteps = 0 # accumulated y displacement
-
-            if self.use_scan_coordinates:
-                # Calculate grid size
-                grid_size_x_mm = (self.NX - 1) * self.deltaX
-                grid_size_y_mm = (self.NY - 1) * self.deltaY
-
-                # Calculate top-left corner position
-                start_x = coordinate_mm[0] - grid_size_x_mm / 2
-                start_y = coordinate_mm[1] - grid_size_y_mm / 2
-                if len(coordinate_mm) == 3:
-                    self.move_to_coordinate([start_x, start_y, coordinate_mm[2]])
-                else:
-                    self.move_to_coordinate([start_x, start_y])
-
-                self.wait_till_operation_is_completed()
-
-            self.num_fovs = self.NX * self.NY - len(self.multiPointController.scanCoordinates.grid_skip_positions)
-            self.total_scans = self.num_fovs * self.NZ * len(self.selected_configurations)
-            fov_count = 0 # count fovs for progress
-
-            for i in range(self.NY):
-                self.af_fov_count = 0 # for AF, so that AF at the beginning of each new row
-
-                for j in range(self.NX):
-                    sgn_i, sgn_j, real_i, real_j = self.calculate_grid_indices(i, j)
-
-                    if not self.multiPointController.scanCoordinates or (real_i, real_j) not in self.multiPointController.scanCoordinates.grid_skip_positions:
-                        self.acquire_at_position(region_id, current_path, fov_count, i=real_i, j=real_j)
-                        fov_count += 1
-
-                    if self.multiPointController.abort_acqusition_requested:
-                        self.handle_acquisition_abort(current_path, region_id)
-                        return
-
-                    if j < self.NX - 1:
-                        self.move_to_next_x_position()
-
-                if i < self.NY - 1:
-                    self.move_to_next_y_position()
-
-                self.x_scan_direction = -self.x_scan_direction
-
-            self.finish_grid_scan(n_regions, region_id)
 
     def run_coordinate_acquisition(self, current_path):
         n_regions = len(self.scan_coordinates_mm)
@@ -2161,15 +2119,15 @@ class MultiPointWorker(QObject):
                     self.scan_coordinates_mm[region_id][2] = self.navigationController.z_pos_mm
                     # update the coordinate in the widget
                     if self.coordinate_dict is not None:
-                        self.microscope.multiPointWidgetGrid.update_region_z_level(region_id, self.navigationController.z_pos_mm)
+                        self.microscope.wellplateMultiPointWidget.update_region_z_level(region_id, self.navigationController.z_pos_mm)
                     elif self.multiPointController.location_list is not None:
                         try:
-                            self.microscope.multiPointWidget2._update_z(region_id, self.navigationController.z_pos_mm)
+                            self.microscope.flexibleMultiPointWidget._update_z(region_id, self.navigationController.z_pos_mm)
                         except:
                             print("failed update flexible widget z")
                             pass
                         try:
-                            self.microscope.multiPointWidgetGrid.update_region_z_level(region_id, self.navigationController.z_pos_mm)
+                            self.microscope.wellplateMultiPointWidget.update_region_z_level(region_id, self.navigationController.z_pos_mm)
                         except:
                             print("failed update grid widget z")
                             pass
@@ -2467,18 +2425,6 @@ class MultiPointWorker(QObject):
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
 
-    def move_to_next_x_position(self):
-        self.navigationController.move_x_usteps(self.x_scan_direction*self.deltaX_usteps)
-        self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-        self.dx_usteps = self.dx_usteps + self.x_scan_direction*self.deltaX_usteps
-
-    def move_to_next_y_position(self):
-        self.navigationController.move_y_usteps(self.deltaY_usteps)
-        self.wait_till_operation_is_completed()
-        time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-        self.dy_usteps = self.dy_usteps + self.deltaY_usteps
-
     def move_z_for_stack(self):
         if self.use_piezo:
             self.z_piezo_um += self.deltaZ*1000
@@ -2525,40 +2471,6 @@ class MultiPointWorker(QObject):
                     self.navigationController.move_z_usteps(-self.deltaZ_usteps*(self.NZ-1))
                     self.wait_till_operation_is_completed()
                 self.dz_usteps = self.dz_usteps - self.deltaZ_usteps*(self.NZ-1)
-
-    def finish_grid_scan(self, n_regions, region_id):
-        print("moving slide back")
-        if SHOW_TILED_PREVIEW and IS_HCS:
-            self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-
-        if n_regions == 1:
-            # only move to the start position if there's only one region in the scan
-            if self.NY > 1:
-                # move y back
-                self.navigationController.move_y_usteps(-self.deltaY_usteps*(self.NY-1))
-                self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_Y/1000)
-                self.dy_usteps = self.dy_usteps - self.deltaY_usteps*(self.NY-1)
-
-            if SHOW_TILED_PREVIEW and not IS_HCS:
-                self.navigationController.keep_scan_begin_position(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)
-
-            # move x back at the end of the scan
-            if self.x_scan_direction == -1:
-                self.navigationController.move_x_usteps(-self.deltaX_usteps*(self.NX-1))
-                self.wait_till_operation_is_completed()
-                time.sleep(SCAN_STABILIZATION_TIME_MS_X/1000)
-
-            # move z back
-            if self.navigationController.get_pid_control_flag(2) is False:
-                _usteps_to_clear_backlash = max(160,20*self.navigationController.z_microstepping)
-                self.navigationController.move_z_to_usteps(self.z_pos - STAGE_MOVEMENT_SIGN_Z*_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-                self.navigationController.move_z_usteps(_usteps_to_clear_backlash)
-                self.wait_till_operation_is_completed()
-            else:
-                self.navigationController.microcontroller.move_z_to_usteps(self.z_pos)
-                self.wait_till_operation_is_completed()
 
     def update_tiled_preview(self, current_round_images, i, j, k):
         if SHOW_TILED_PREVIEW and 'BF LED matrix full' in current_round_images:
@@ -2773,37 +2685,21 @@ class MultiPointController(QObject):
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
 
     def run_acquisition(self, location_list=None, coordinate_dict=None):
+        # location_list dict -> {key: region_id, value: center coordinate (x,y,z)}
+        # coordinate_dict dict -> {key: region_id, value: fov coordinates list [(x0,y0,z0), (x1,y1,z1), ... ]}
         print('start multipoint')
 
         if coordinate_dict is not None:
-            print('Using coordinate-based acquisition')
+            print('Using coordinate-based acquisition') # always
             total_points = sum(len(coords) for coords in coordinate_dict)
             self.coordinate_dict = coordinate_dict
             self.location_list = None
             self.use_scan_coordinates = False
             self.scan_coordinates_mm = location_list
             self.scan_coordinates_name = list(coordinate_dict.keys()) # list(coordinate_dict.keys()) if not wellplate
-        elif location_list is not None:
-            print('Using location list acquisition')
-            self.coordinate_dict = None
-            self.location_list = location_list
-            self.use_scan_coordinates = True
-            self.scan_coordinates_mm = location_list
-            self.scan_coordinates_name = [f'R{i}' for i in range(len(location_list))]
         else:
-            print(f"t_c_z_y_x: {self.Nt}_{len(self.selected_configurations)}_{self.NZ}_{self.NY}_{self.NX}")
-            self.coordinate_dict = None
-            self.location_list = None
-            if self.scanCoordinates is not None and self.scanCoordinates.get_selected_wells():
-                print('Using well plate scan')
-                self.use_scan_coordinates = True
-                self.scan_coordinates_mm = self.scanCoordinates.coordinates_mm
-                self.scan_coordinates_name = self.scanCoordinates.name
-            else:
-                print('Using current location')
-                self.use_scan_coordinates = False
-                self.scan_coordinates_mm = [(self.navigationController.x_pos_mm, self.navigationController.y_pos_mm)]
-                self.scan_coordinates_name = ['ROI']
+            print("obsolete functionailty. use coordinate acquisition instead of grid acquisition")
+            return
 
         print("num regions:",len(self.scan_coordinates_mm))
         print("region ids:", self.scan_coordinates_name)
@@ -2847,7 +2743,7 @@ class MultiPointController(QObject):
                 else:
                     self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
 
-            elif USE_NAPARI_FOR_MOSAIC_DISPLAY and self.coordinate_dict is not None:
+            elif USE_NAPARI_FOR_MOSAIC_DISPLAY and self.coordinate_dict is not None and self.Nz == 1:
                 self.parent.imageDisplayTabs.setCurrentWidget(self.parent.napariMosaicDisplayWidget)
 
             elif USE_NAPARI_FOR_TILED_DISPLAY and SHOW_TILED_PREVIEW:
@@ -3589,6 +3485,7 @@ class ImageDisplayWindow(QMainWindow):
 
 class NavigationViewer(QFrame):
 
+    signal_coordinates_clicked = Signal(float, float)  # Will emit x_mm, y_mm when clicked
     signal_update_live_scan_grid = Signal(float, float)
     signal_update_well_coordinates = Signal(bool)
 
@@ -3642,6 +3539,8 @@ class NavigationViewer(QFrame):
         self.grid = QVBoxLayout()
         self.grid.addWidget(self.graphics_widget)
         self.setLayout(self.grid)
+        # Connect double-click handler
+        self.view.scene().sigMouseClicked.connect(self.handle_mouse_click)
 
     def load_background_image(self, image_path):
         self.view.clear()
@@ -3671,6 +3570,10 @@ class NavigationViewer(QFrame):
 
         self.view.addItem(self.scan_overlay_item)
         self.view.addItem(self.fov_overlay_item)
+
+        self.background_item.setZValue(-1)  # Background layer at the bottom
+        self.scan_overlay_item.setZValue(0)  # Scan overlay in the middle
+        self.fov_overlay_item.setZValue(1)  # FOV overlay on top
 
     def update_display_properties(self, sample):
         if sample == 'glass slide':
@@ -3713,7 +3616,7 @@ class NavigationViewer(QFrame):
         if isinstance(sample_format, QVariant):
             sample_format = sample_format.value()
 
-        if sample_format == '0':
+        if sample_format == 'glass slide':
             if IS_HCS:
                 sample = '4 glass slide'
             else:
@@ -3749,26 +3652,19 @@ class NavigationViewer(QFrame):
         self.update_display_properties(sample)
         self.draw_current_fov(self.x_mm, self.y_mm)
 
-    def update_current_location(self, x_mm=None, y_mm=None):
+    def draw_fov_current_location(self, x_mm=None, y_mm=None):
         if x_mm is None and y_mm is None:
+            if self.x_mm is None and self.y_mm is None:
+                return
             self.draw_current_fov(self.x_mm, self.y_mm)
-
-        elif self.x_mm is not None and self.y_mm is not None:
-            # update only when the displacement has exceeded certain value
-            if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
-                self.draw_current_fov(x_mm, y_mm)
-                self.x_mm = x_mm
-                self.y_mm = y_mm
-                # update_live_scan_grid
-                if 'glass slide'in self.sample and not self.acquisition_started:
-                    self.signal_update_live_scan_grid.emit(x_mm, y_mm)
         else:
             self.draw_current_fov(x_mm, y_mm)
             self.x_mm = x_mm
             self.y_mm = y_mm
-            # update_live_scan_grid
-            if 'glass slide'in self.sample and not self.acquisition_started:
-                self.signal_update_live_scan_grid.emit(x_mm, y_mm)
+
+    def draw_scan_grid(self, x_mm, y_mm):
+        if 'glass slide' in self.sample and not self.acquisition_started:
+            self.signal_update_live_scan_grid.emit(x_mm, y_mm)
 
     def get_FOV_pixel_coordinates(self, x_mm, y_mm):
         if self.sample == 'glass slide':
@@ -3828,6 +3724,23 @@ class NavigationViewer(QFrame):
     def clear_overlay(self):
         self.scan_overlay.fill(0)
         self.scan_overlay_item.setImage(self.scan_overlay)
+
+    def handle_mouse_click(self, evt):
+        if not evt.double():
+            return
+        try:
+            # Get mouse position in image coordinates (independent of zoom)
+            mouse_point = self.background_item.mapFromScene(evt.scenePos())
+
+            # Subtract origin offset before converting to mm
+            x_mm = (mouse_point.x() - self.origin_x_pixel) * self.mm_per_pixel
+            y_mm = (mouse_point.y() - self.origin_y_pixel) * self.mm_per_pixel
+
+            self.signal_coordinates_clicked.emit(x_mm, y_mm)
+
+        except Exception as e:
+            print(f"Error processing navigation click: {e}")
+            return
 
 
 class ImageArrayDisplayWindow(QMainWindow):
@@ -4146,7 +4059,6 @@ class ScanCoordinates(object):
         self.wellplate_offset_y_mm = WELLPLATE_OFFSET_Y_mm
         self.well_spacing_mm = WELL_SPACING_MM
         self.well_size_mm = WELL_SIZE_MM
-        self.grid_skip_positions = []
 
     def _index_to_row(self,index):
         index += 1
@@ -4173,7 +4085,7 @@ class ScanCoordinates(object):
     def get_selected_wells(self):
         # get selected wells from the widget
         print("getting selected wells for acquisition")
-        if not self.well_selector or self.format == 0:
+        if not self.well_selector or self.format == 'glass slide':
             return False
         selected_wells = self.well_selector.get_selected_cells()
         selected_wells = np.array(selected_wells)
