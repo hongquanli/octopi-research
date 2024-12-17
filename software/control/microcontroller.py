@@ -359,31 +359,7 @@ class Microcontroller:
         self._move_axis_usteps(usteps, CMD_SET.MOVE_THETA, STAGE_MOVEMENT_SIGN_THETA)
         
     def move_w_usteps(self,usteps):
-        direction = STAGE_MOVEMENT_SIGN_W*np.sign(usteps)
-        n_microsteps_abs = abs(usteps)
-        # if n_microsteps_abs exceed the max value that can be sent in one go
-        while n_microsteps_abs >= (2**32)/2:
-            n_microsteps_partial_abs = (2**32)/2 - 1
-            n_microsteps_partial = direction*n_microsteps_partial_abs
-            payload = self._int_to_payload(n_microsteps_partial,4)
-            cmd = bytearray(self.tx_buffer_length)
-            cmd[1] = CMD_SET.MOVE_W
-            cmd[2] = payload >> 24
-            cmd[3] = (payload >> 16) & 0xff
-            cmd[4] = (payload >> 8) & 0xff
-            cmd[5] = payload & 0xff
-            self.send_command(cmd)
-            n_microsteps_abs = n_microsteps_abs - n_microsteps_partial_abs
-
-        n_microsteps = direction*n_microsteps_abs
-        payload = self._int_to_payload(n_microsteps,4)
-        cmd = bytearray(self.tx_buffer_length)
-        cmd[1] = CMD_SET.MOVE_W
-        cmd[2] = payload >> 24
-        cmd[3] = (payload >> 16) & 0xff
-        cmd[4] = (payload >> 8) & 0xff
-        cmd[5] = payload & 0xff
-        self.send_command(cmd)
+        self._move_axis_usteps(usteps, CMD_SET.MOVE_W, STAGE_MOVEMENT_SIGN_W)
 
     def set_off_set_velocity_x(self,off_set_velocity):
         # off_set_velocity is in mm/s
