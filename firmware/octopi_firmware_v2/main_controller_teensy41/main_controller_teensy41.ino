@@ -1634,18 +1634,6 @@ void loop() {
 
             tmc4361A_set_PID(&tmc4361[w], PID_DISABLE);
 
-            tmc4361A_tmc2660_init(&tmc4361[w], clk_Hz_TMC4361); // set up ICs with SPI control and other parameters
-            tmc4361A_enableLimitSwitch(&tmc4361[w], lft_sw_pol[w], LEFT_SW, false);
-
-            uint32_t max_acceleration_usteps = tmc4361A_ammToMicrosteps(&tmc4361[w], MAX_ACCELERATION_W_mm);
-            uint32_t max_velocity_usteps = tmc4361A_vmmToMicrosteps(&tmc4361[w], MAX_VELOCITY_W_mm);
-
-            tmc4361A_setMaxSpeed(&tmc4361[w], max_velocity_usteps);
-            tmc4361A_setMaxAcceleration(&tmc4361[w], max_acceleration_usteps);
-            tmc4361[w].rampParam[ASTART_IDX] = 0;
-            tmc4361[w].rampParam[DFINAL_IDX] = 0;
-            tmc4361A_sRampInit(&tmc4361[w]);
-
             tmc4361A_enableHomingLimit(&tmc4361[w], rht_sw_pol[w], TMC4361_homing_sw[w], home_safety_margin[w]);
             tmc4361A_disableVirtualLimitSwitch(&tmc4361[w], -1);
             tmc4361A_disableVirtualLimitSwitch(&tmc4361[w], 1);
