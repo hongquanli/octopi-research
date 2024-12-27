@@ -31,6 +31,7 @@ bool tmc4361A_read_deviation_flag(TMC4361ATypeDef *tmc4361A);
 int32_t tmc4361A_read_encoder(TMC4361ATypeDef *tmc4361A, uint8_t n_avg_exp);
 int32_t tmc4361A_read_encoder_vel(TMC4361ATypeDef *tmc4361A);
 int32_t tmc4361A_read_encoder_vel_filtered(TMC4361ATypeDef *tmc4361A);
+void tmc4361A_write_encoder(TMC4361ATypeDef *tmc4361A, int32_t value);
 int32_t tmc4361A_read_deviation(TMC4361ATypeDef *tmc4361A);
 int32_t tmc4361A_speed(TMC4361ATypeDef *tmc4361A);
 int32_t tmc4361A_acceleration(TMC4361ATypeDef *tmc4361A);

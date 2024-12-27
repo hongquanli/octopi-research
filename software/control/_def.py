@@ -1,11 +1,15 @@
 import os
 import sys
 import glob
-import numpy as np
 from pathlib import Path
 from configparser import ConfigParser
 import json
 import csv
+
+import squid.logging
+
+log = squid.logging.get_logger(__name__)
+
 
 def conf_attribute_reader(string_value):
     """
@@ -91,11 +95,6 @@ class MicrocontrollerDef:
     CMD_LENGTH = 8
     N_BYTES_POS = 4
 
-class Microcontroller2Def:
-    MSG_LENGTH = 4
-    CMD_LENGTH = 8
-    N_BYTES_POS = 4
-
 USE_SEPARATE_MCU_FOR_DAC = False
 
 class MCU_PINS:
@@ -121,6 +120,7 @@ class CMD_SET:
     MOVE_Y = 1
     MOVE_Z = 2
     MOVE_THETA = 3
+    MOVE_W = 4
     HOME_OR_ZERO = 5
     TURN_ON_ILLUMINATION = 10
     TURN_OFF_ILLUMINATION = 11
@@ -130,6 +130,7 @@ class CMD_SET:
     ANALOG_WRITE_ONBOARD_DAC = 15
     SET_DAC80508_REFDIV_GAIN = 16
     SET_ILLUMINATION_INTENSITY_FACTOR = 17
+    MOVETO_W = 18
     MOVETO_X = 6
     MOVETO_Y = 7
     MOVETO_Z = 8
@@ -148,6 +149,7 @@ class CMD_SET:
     SET_STROBE_DELAY = 31
     SET_AXIS_DISABLE_ENABLE = 32
     SET_PIN_LEVEL = 41
+    INITFILTERWHEEL = 253
     INITIALIZE = 254
     RESET = 255
 
@@ -171,6 +173,7 @@ class AXIS:
     Z = 2
     THETA = 3
     XY = 4
+    W = 5
 
 class LIMIT_CODE:
     X_POSITIVE = 0
@@ -190,13 +193,13 @@ class LIMIT_SWITCH_POLARITY:
 
 
 class ILLUMINATION_CODE:
-    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0;
+    ILLUMINATION_SOURCE_LED_ARRAY_FULL = 0
     ILLUMINATION_SOURCE_LED_ARRAY_LEFT_HALF = 1
     ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_HALF = 2
     ILLUMINATION_SOURCE_LED_ARRAY_LEFTB_RIGHTR = 3
-    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4;
-    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5;
-    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6;
+    ILLUMINATION_SOURCE_LED_ARRAY_LOW_NA = 4
+    ILLUMINATION_SOURCE_LED_ARRAY_LEFT_DOT = 5
+    ILLUMINATION_SOURCE_LED_ARRAY_RIGHT_DOT = 6
     ILLUMINATION_SOURCE_LED_EXTERNAL_FET = 20
     ILLUMINATION_SOURCE_405NM = 11
     ILLUMINATION_SOURCE_488NM = 12
@@ -221,6 +224,8 @@ class CAMERA_CONFIG:
     ROI_WIDTH_DEFAULT = 3104
     ROI_HEIGHT_DEFAULT = 2084
 
+PRINT_CAMERA_FPS = True
+
 ###########################################################
 #### machine specific configurations - to be overridden ###
 ###########################################################
@@ -239,6 +244,7 @@ STAGE_MOVEMENT_SIGN_X = -1
 STAGE_MOVEMENT_SIGN_Y = 1
 STAGE_MOVEMENT_SIGN_Z = -1
 STAGE_MOVEMENT_SIGN_THETA = 1
+STAGE_MOVEMENT_SIGN_W = 1
 
 STAGE_POS_SIGN_X = STAGE_MOVEMENT_SIGN_X
 STAGE_POS_SIGN_Y = STAGE_MOVEMENT_SIGN_Y
@@ -268,6 +274,7 @@ ENCODER_STEP_SIZE_THETA = 1
 FULLSTEPS_PER_REV_X = 200
 FULLSTEPS_PER_REV_Y = 200
 FULLSTEPS_PER_REV_Z = 200
+FULLSTEPS_PER_REV_W = 200
 FULLSTEPS_PER_REV_THETA = 200
 
 # beginning of actuator specific configurations
@@ -275,37 +282,45 @@ FULLSTEPS_PER_REV_THETA = 200
 SCREW_PITCH_X_MM = 1
 SCREW_PITCH_Y_MM = 1
 SCREW_PITCH_Z_MM = 0.012*25.4
+SCREW_PITCH_W_MM = 1
 
 MICROSTEPPING_DEFAULT_X = 8
 MICROSTEPPING_DEFAULT_Y = 8
 MICROSTEPPING_DEFAULT_Z = 8
+MICROSTEPPING_DEFAULT_W = 64
 MICROSTEPPING_DEFAULT_THETA = 8 # not used, to be removed
 
 X_MOTOR_RMS_CURRENT_mA = 490
 Y_MOTOR_RMS_CURRENT_mA = 490
 Z_MOTOR_RMS_CURRENT_mA = 490
+W_MOTOR_RMS_CURRENT_mA = 1900
 
 X_MOTOR_I_HOLD = 0.5
 Y_MOTOR_I_HOLD = 0.5
 Z_MOTOR_I_HOLD = 0.5
+W_MOTOR_I_HOLD = 0.5
 
 MAX_VELOCITY_X_mm = 25
 MAX_VELOCITY_Y_mm = 25
 MAX_VELOCITY_Z_mm = 2
+MAX_VELOCITY_W_mm = 3.19
 
 MAX_ACCELERATION_X_mm = 500
 MAX_ACCELERATION_Y_mm = 500
 MAX_ACCELERATION_Z_mm = 20
+MAX_ACCELERATION_W_mm = 300
 
 # config encoder arguments
 HAS_ENCODER_X = False
 HAS_ENCODER_Y = False
 HAS_ENCODER_Z = False
+HAS_ENCODER_W = False
 
 # enable PID control
 ENABLE_PID_X  = False
 ENABLE_PID_Y  = False
 ENABLE_PID_Z  = False
+ENABLE_PID_W  = False
 
 # PID arguments
 PID_P_X = int(1<<12)
@@ -320,10 +335,15 @@ PID_P_Z = int(1<<12)
 PID_I_Z = int(0)
 PID_D_Z = int(1)
 
+PID_P_W = int(1<<12)
+PID_I_W = int(1)
+PID_D_W = int(1)
+
 # flip direction True or False
 ENCODER_FLIP_DIR_X = True
 ENCODER_FLIP_DIR_Y = True
 ENCODER_FLIP_DIR_Z = True
+ENCODER_FLIP_DIR_W = False
 
 # distance for each count (um)
 ENCODER_RESOLUTION_UM_X = 0.05
@@ -428,7 +448,8 @@ DEFAULT_MULTIPOINT_NX=1
 DEFAULT_MULTIPOINT_NY=1
 
 ENABLE_FLEXIBLE_MULTIPOINT = True
-ENABLE_SCAN_GRID = True
+USE_OVERLAP_FOR_FLEXIBLE = True
+ENABLE_WELLPLATE_MULTIPOINT = True
 ENABLE_RECORDING = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
@@ -500,8 +521,6 @@ DISP_TH_DURING_MULTIPOINT = 0.95
 SORT_DURING_MULTIPOINT = False
 
 DO_FLUORESCENCE_RTP = False
-
-ENABLE_SPINNING_DISK_CONFOCAL = False
 
 INVERTED_OBJECTIVE = False
 
@@ -593,6 +612,12 @@ OPTOSPIN_EMISSION_FILTER_WHEEL_SPEED_HZ = 50
 OPTOSPIN_EMISSION_FILTER_WHEEL_DELAY_MS = 70
 OPTOSPIN_EMISSION_FILTER_WHEEL_TTL_TRIGGER = False
 
+USE_SQUID_FILTERWHEEL = False
+SQUID_FILTERWHEEL_MAX_INDEX = 8
+SQUID_FILTERWHEEL_MIN_INDEX = 1
+SQUID_FILTERWHEEL_OFFSET = 0.01
+SQUID_FILTERWHEEL_HOMING_ENABLED = True
+
 # Stage
 USE_PRIOR_STAGE = False
 PRIOR_STAGE_SN = ""
@@ -611,7 +636,6 @@ def read_objectives_csv(file_path):
                 'NA': float(row['NA']),
                 'tube_lens_f_mm': float(row['tube_lens_f_mm'])
             }
-            #print(f"{row['name']}: {objectives[row['name']]}")
     return objectives
 
 def read_sample_formats_csv(file_path):
@@ -632,7 +656,6 @@ def read_sample_formats_csv(file_path):
                 'rows': int(row['rows']),
                 'cols': int(row['cols'])
             }
-            #print(format_key, "well plate settings:", sample_formats[format_key])
     return sample_formats
 
 def load_formats():
@@ -697,12 +720,12 @@ config_files = glob.glob('.' + '/' + 'configuration*.ini')
 if config_files:
     if len(config_files) > 1:
         if CACHED_CONFIG_FILE_PATH in config_files:
-            print('defaulting to last cached config file at '+CACHED_CONFIG_FILE_PATH)
+            log.info(f'defaulting to last cached config file at \'{CACHED_CONFIG_FILE_PATH}\'')
             config_files = [CACHED_CONFIG_FILE_PATH]
         else:
-            print('multiple machine configuration files found, the program will exit')
+            log.error('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-    print('load machine-specific configuration')
+    log.info('load machine-specific configuration')
     #exec(open(config_files[0]).read())
     cfp = ConfigParser()
     cfp.read(config_files[0])
@@ -733,16 +756,16 @@ if config_files:
         file.write(config_files[0])
     CACHED_CONFIG_FILE_PATH = config_files[0]
 else:
-    print('configuration*.ini file not found, defaulting to legacy configuration')
+    log.warning('configuration*.ini file not found, defaulting to legacy configuration')
     config_files = glob.glob('.' + '/' + 'configuration*.txt')
     if config_files:
         if len(config_files) > 1:
-            print('multiple machine configuration files found, the program will exit')
+            log.error('multiple machine configuration files found, the program will exit')
             sys.exit(1)
-        print('load machine-specific configuration')
+        log.info('load machine-specific configuration')
         exec(open(config_files[0]).read())
     else:
-        print('machine-specific configuration not present, the program will exit')
+        log.error('machine-specific configuration not present, the program will exit')
         sys.exit(1)
 
 try:

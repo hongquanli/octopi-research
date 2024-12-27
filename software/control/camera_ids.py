@@ -1,5 +1,3 @@
-import argparse
-import cv2
 import time
 import numpy as np
 import threading
@@ -10,12 +8,16 @@ from ids_peak import ids_peak
 from ids_peak_ipl import ids_peak_ipl
 from ids_peak import ids_peak_ipl_extension
 
+import squid.logging
+log = squid.logging.get_logger(__name__)
+
 def get_sn_by_model(model_name):
     ids_peak.Library.Initialize()
     device_manager = ids_peak.DeviceManager.Instance()
     device_manager.Update()
     if device_manager.Devices().empty():
-        print('iDS camera not found.')
+        log.error('iDS camera not found.')
+        # TODO(imo): Propagate error in some way and handle
         return
     devices = device_manager.Devices()
     for i in range(devices.size()):
@@ -25,7 +27,7 @@ def get_sn_by_model(model_name):
         mn = nodemap.FindNode("DeviceModelName").Value()
         #if mn == model_name:
             #return nodemap.FindNode("DeviceSerialNumber").Value()
-        print(mn)
+        log.debug(f"get_sn_by_model: {mn}")
         return sn
 
     ids_peak.Library.Close()
@@ -35,6 +37,8 @@ def get_sn_by_model(model_name):
 
 class Camera(object):
     def __init__(self, sn=None, resolution=(1920,1080), is_global_shutter=False, rotate_image_angle=None, flip_image=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__)
+
         ids_peak.Library.Initialize()
         self.device_manager = ids_peak.DeviceManager.Instance()
 
@@ -89,16 +93,18 @@ class Camera(object):
     def open(self, index=0):
         self.device_manager.Update()
         if self.device_manager.Devices().empty():
-            print('iDS camera not found.')
+            self.log.error('iDS camera not found.')
+            # TODO(imo): Propagate error in some way and handle
             return
         self.device = self.device_manager.Devices()[index].OpenDevice(ids_peak.DeviceAccessType_Control)
         if self.device is None:
-            print('Cannot open iDS camera.')
+            self.log.error('Cannot open iDS camera.')
+            # TODO(imo): Propagate error in some way and handle
             return
         self.nodemap = self.device.RemoteDevice().NodeMaps()[0]
 
         self._camera_init()
-        print('iDS camera opened.')
+        self.log.info('iDS camera opened.')
 
     def open_by_sn(self, sn):
         self.device_manager.Update()
@@ -108,27 +114,27 @@ class Camera(object):
             if sn == nodemap.FindNode("DeviceSerialNumber").Value():
                 self.device = dev.OpenDevice(ids_peak.DeviceAccessType_Control)
                 if self.device is None:
-                    print('Cannot open iDS camera.')
+                    self.log.error('Cannot open iDS camera.')
+                    # TODO(imo): Propagate error in some way and handle
                     return
                 self.nodemap = nodemap
                 self._camera_init()
-                print('iDS camera opened by sn.')
+                self.log.info(f'iDS camera opened by sn={sn}.')
                 return
-        print('No iDS camera is opened.')
+        self.log.error('No iDS camera is opened.')
+        # TODO(imo): Propagate error in some way and handle
         return
 
     def _camera_init(self):
-        print('gain')
-        print(self.nodemap.FindNode("Gain").Minimum())
-        print(self.nodemap.FindNode("Gain").Maximum())
-        print(self.nodemap.FindNode("Gain").Increment())
+        gain_node = self.nodemap.FindNode("Gain")
+        self.log.info(f'gain: min={gain_node.Minimum()}, max={gain_node.Maximum()}, increment={gain_node.Increment()}')
+
         # initialize software trigger
         entries = []
         for entry in self.nodemap.FindNode("TriggerSelector").Entries():
             if (entry.AccessStatus() != ids_peak.NodeAccessStatus_NotAvailable
                 and entry.AccessStatus() != ids_peak.NodeAccessStatus_NotImplemented):
                 entries.append(entry.SymbolicValue())
-        #print(entries)
 
         if len(entries) == 0:
             raise Exception("Software Trigger not supported")
@@ -143,7 +149,8 @@ class Camera(object):
         # Open device's datastream
         ds = self.device.DataStreams()
         if ds.empty():
-            print("Device has no datastream!")
+            self.log.error("Device has no datastream!")
+            # TODO(imo): Propagate error in some way and handle
         else:
             self.datastream = ds[0].OpenDataStream()
 
@@ -169,7 +176,7 @@ class Camera(object):
         self.callback_thread.start()
 
         self.callback_is_enabled = True
-        print("callback enabled")
+        self.log.info("callback enabled")
 
     def _wait_and_callback(self):
         while True:
@@ -185,10 +192,12 @@ class Camera(object):
     def _on_new_frame(self, buffer):
         image = self.read_frame(no_wait=True, buffer=buffer)
         if image is False:
-            print('Cannot get new frame from buffer.')
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('Cannot get new frame from buffer.')
             return
         if self.image_locked:
-            print('Last image is still being processed; a frame is dropped')
+            # TODO(imo): Propagate error in some way and handle
+            self.log.error('Last image is still being processed; a frame is dropped')
             return
 
         self.current_frame = image
@@ -219,7 +228,7 @@ class Camera(object):
 
         if was_streaming:
             self.start_streaming()
-        print("callback disabled")
+        self.log.info("callback disabled")
 
     def set_analog_gain(self, gain):
         if gain < self.GAIN_MIN:
@@ -247,7 +256,7 @@ class Camera(object):
             self.nodemap.FindNode("TriggerSource").SetCurrentEntry("Software")
             self.trigger_mode = TriggerMode.SOFTWARE
         except Exception as e:
-            print(f"Cannot set Software trigger: {str(e)}")
+            self.log.error(f"Cannot set Software trigger", e)
 
     def set_hardware_triggered_acquisition(self):
         self.nodemap.FindNode("TriggerMode").SetCurrentEntry("On")
@@ -255,7 +264,7 @@ class Camera(object):
         self.trigger_mode = TriggerMode.HARDWARE
 
     def set_pixel_format(self, pixel_format): 
-        print(pixel_format)
+        self.log.debug(f"Pixel format={pixel_format}")
         was_streaming = False
         if self.is_streaming:
             was_streaming = True
@@ -272,18 +281,18 @@ class Camera(object):
             if was_streaming:
                 self.start_streaming()
         except Exception as e:
-            print(f"Cannot change pixelformat: {str(e)}")
+            self.log.error("Cannot change pixelformat", e)
 
     def send_trigger(self):
         if self.is_streaming:
             self.nodemap.FindNode("TriggerSoftware").Execute()
             self.nodemap.FindNode("TriggerSoftware").WaitUntilDone()
-            print('Trigger sent')
+            self.log.debug('Trigger sent')
 
     def read_frame(self, no_wait=False, buffer=None):
         if not no_wait:
             buffer = self.datastream.WaitForFinishedBuffer(2000)
-            print("Buffered image!")
+            self.log.debug("Buffered image!")
 
         # Convert image and make deep copy
         if self.pixel_format == 'MONO10':
@@ -332,11 +341,12 @@ class Camera(object):
         self.nodemap.FindNode("AcquisitionStart").Execute()
         self.nodemap.FindNode("AcquisitionStart").WaitUntilDone()
         self.is_streaming = True
-        print("ids started streaming")
+        self.log.info("ids started streaming")
 
     def _revoke_buffer(self):
         if self.datastream is None:
-            print("No datastream!")
+            self.log.error("No datastream!")
+            # TODO(imo): Propagate error in some way and handle
             return
 
         try:
@@ -345,11 +355,11 @@ class Camera(object):
                 self.datastream.RevokeBuffer(buffer)
             self.buffer_list = None
         except Exception as e:
-            print("Error revoking buffers: " + str(e))
+            self.log.error("Error revoking buffers", e)
 
     def _allocate_buffer(self, extra_buffer):
         if self.datastream is None:
-            print("No datastream!")
+            self.log.error("No datastream!")
             return
 
         try:
@@ -361,9 +371,9 @@ class Camera(object):
                 buffer = self.datastream.AllocAndAnnounceBuffer(payload_size)
                 self.buffer_list.append(buffer)
 
-            print("Allocated buffers!")
+            self.log.debug("Allocated buffers!")
         except Exception as e:
-            print("Error allocating buffers: " + str(e))
+            self.log.error("Error allocating buffers", e)
 
     def stop_streaming(self):
         if self.is_streaming:
@@ -380,7 +390,7 @@ class Camera(object):
 
                 self.is_streaming = False
             except Exception as e:
-                print("stop_streaming error: " + str(e))
+                self.log.error("stop_streaming error", e)
 
     def set_ROI(self, offset_x=None, offset_y=None, width=None, height=None):
         pass
@@ -389,6 +399,8 @@ class Camera(object):
 class Camera_Simulation(object):
     
     def __init__(self, sn=None, is_global_shutter=False, rotate_image_angle=None, flip_image=None):
+        self.log = squid.logging.get_logger(self.__class__.__name__
+                                            )
         # many to be purged
         self.sn = sn
         self.is_global_shutter = is_global_shutter
@@ -469,7 +481,7 @@ class Camera_Simulation(object):
 
     def set_pixel_format(self, pixel_format):
         self.pixel_format = pixel_format
-        print(pixel_format)
+        self.log.info(f"pixel_format={pixel_format}")
         self.frame_ID = 0
 
     def set_continuous_acquisition(self):
@@ -482,7 +494,7 @@ class Camera_Simulation(object):
         pass
 
     def send_trigger(self):
-        print('send trigger')
+        self.log.info('send trigger')
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
         if self.frame_ID == 1:
